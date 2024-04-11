@@ -1,12 +1,7 @@
 <!DOCTYPE HTML>
-<!--
-	Massively by HTML5 UP
-	html5up.net | @ajlkn
-	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
--->
 <html>
 	<head>
-		<title>Elements Reference - Massively by HTML5 UP</title>
+		<title>Qualification</title>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 		<link rel="stylesheet" href="assets/css/main.css" />
@@ -19,7 +14,7 @@
 
 				<!-- Header -->
 					<header id="header">
-						<a href="index.html" class="logo">Massively</a>
+						<a href="index.html" class="logo">Sumit Gundawar</a>
 					</header>
 
 				<!-- Nav -->
@@ -30,10 +25,10 @@
 							<li class="active"><a href="elements.html">Elements Reference</a></li>
 						</ul>
 						<ul class="icons">
-							<li><a href="#" class="icon brands fa-twitter"><span class="label">Twitter</span></a></li>
-							<li><a href="#" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
-							<li><a href="#" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
-							<li><a href="#" class="icon brands fa-github"><span class="label">GitHub</span></a></li>
+							<li><a href="https://linkedin.com/in/sumit-gundawar-759470129" class="icon brands fa-linkedin"><span class="label">LinkedIn</span></a></li>
+							<li><a href="https://github.com/sumitgundawar" class="icon brands fa-github"><span class="label">GitHub</span></a></li>
+							<li><a href="https://www.facebook.com/sumit.gundawar/" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
+							<li><a href="https://www.instagram.com/sumitgundawar/" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
 						</ul>
 					</nav>
 
@@ -430,69 +425,135 @@ print 'It took ' + i + ' iterations to sort the deck.';
 					</div>
 
 				<!-- Footer -->
-					<footer id="footer">
-						<section>
-							<form method="post" action="#">
-								<div class="fields">
-									<div class="field">
-										<label for="name">Name</label>
-										<input type="text" name="name" id="name" />
-									</div>
-									<div class="field">
-										<label for="email">Email</label>
-										<input type="text" name="email" id="email" />
-									</div>
-									<div class="field">
-										<label for="message">Message</label>
-										<textarea name="message" id="message" rows="3"></textarea>
-									</div>
+				<footer id="footer">
+					<section>
+						<form method="post" action="#" onsubmit="sendEmail(); return false;">
+							<div class="fields">
+								<div class="field">
+									<label for="name">Name</label>
+									<input type="text" name="name" id="name" />
 								</div>
-								<ul class="actions">
-									<li><input type="submit" value="Send Message" /></li>
-								</ul>
-							</form>
+								<div class="field">
+									<label for="email">Email</label>
+									<input type="text" name="email" id="email" onkeyup="validateEmail()" onblur="clearFeedback()"/>
+									<span id="emailFeedback"></span>
+								</div>
+								<div class="field">
+									<label for="message">Message</label>
+									<textarea name="message" id="message" rows="3"></textarea>
+								</div>
+							</div>
+							<ul class="actions">
+								<li><input type="submit" value="Send Message" id="sendButton" disabled /></li>
+								<span id="emailVerification"></span>
+							</ul>
+						</form>
+					</section>
+					<section class="split contact">
+						<section class="alt">
+							<h3>Address</h3>
+							<p>Tower Hamlets, London, United Kingdom</p>
 						</section>
-						<section class="split contact">
-							<section class="alt">
-								<h3>Address</h3>
-								<p>1234 Somewhere Road #87257<br />
-								Nashville, TN 00000-0000</p>
-							</section>
-							<section>
-								<h3>Phone</h3>
-								<p><a href="#">(000) 000-0000</a></p>
-							</section>
-							<section>
-								<h3>Email</h3>
-								<p><a href="#">info@untitled.tld</a></p>
-							</section>
-							<section>
-								<h3>Social</h3>
-								<ul class="icons alt">
-									<li><a href="#" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
-									<li><a href="#" class="icon brands alt fa-facebook-f"><span class="label">Facebook</span></a></li>
-									<li><a href="#" class="icon brands alt fa-instagram"><span class="label">Instagram</span></a></li>
-									<li><a href="#" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
-								</ul>
-							</section>
+						<section>
+							<h3>Phone</h3>
+							<p><a href="#">+44 (0) 7810081335</a></p>
 						</section>
-					</footer>
+						<section>
+							<h3>Email</h3>
+							<p><a href="#">sumitgundawar3@gmail.com</a></p>
+						</section>
+						<section>
+							<h3>Social</h3>
+							<ul class="icons alt">
+								<li><a href="https://linkedin.com/in/sumit-gundawar-759470129" class="icon brands fa-linkedin"><span class="label">LinkedIn</span></a></li>
+								<li><a href="https://github.com/sumitgundawar" class="icon brands fa-github"><span class="label">GitHub</span></a></li>
+								<li><a href="https://www.facebook.com/sumit.gundawar/" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
+								<li><a href="https://www.instagram.com/sumitgundawar/" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
+							</ul>
+						</section>
+					</section>
+				</footer>
 
-				<!-- Copyright -->
-					<div id="copyright">
-						<ul><li>&copy; Untitled</li><li>Design: <a href="https://html5up.net">HTML5 UP</a></li></ul>
-					</div>
+			<!-- Copyright -->
+				<div id="copyright">
+					<ul><li>&copy; Sumit Gundawar</li></ul>
+				</div>
 
-			</div>
+		</div>
 
-		<!-- Scripts -->
-			<script src="assets/js/jquery.min.js"></script>
-			<script src="assets/js/jquery.scrollex.min.js"></script>
-			<script src="assets/js/jquery.scrolly.min.js"></script>
-			<script src="assets/js/browser.min.js"></script>
-			<script src="assets/js/breakpoints.min.js"></script>
-			<script src="assets/js/util.js"></script>
-			<script src="assets/js/main.js"></script>
+	<!-- Scripts -->
+		<script src="assets/js/jquery.min.js"></script>
+		<script src="assets/js/jquery.scrollex.min.js"></script>
+		<script src="assets/js/jquery.scrolly.min.js"></script>
+		<script src="assets/js/browser.min.js"></script>
+		<script src="assets/js/breakpoints.min.js"></script>
+		<script src="assets/js/util.js"></script>
+		<script src="assets/js/main.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+		<script type="text/javascript">
+			emailjs.init('Ygvd3xhMFaSWpQvGX')
+		</script>
+		<script>
+			function validateEmail() {
+				var email = document.getElementById('email').value;
+				var regex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
+				var feedback = document.getElementById('emailFeedback');
+				var sendButton = document.getElementById('sendButton');
 
+				if (email === "") {
+					sendButton.disabled = true;
+				} else if (regex.test(email)) {
+					sendButton.disabled = false;
+				} else {
+					sendButton.disabled = true;
+				}
+			}
+
+			window.onload = validateEmail;
+
+			function clearFeedback() {
+				var email = document.getElementById('email').value;
+				var feedback = document.getElementById('emailFeedback');
+
+				if (email === "") {
+					feedback.innerHTML = "";
+				}
+			}
+
+			function sendEmail() {
+				const name = document.getElementById('name').value;
+				const email = document.getElementById('email').value;
+				const message = document.getElementById('message').value;
+
+				const templateParams = {
+					name: name,
+					email: email,
+					message: message
+				};
+
+				fetch('config.json')
+				.then(response => response.json())
+				.then(config => {
+					emailjs.send(config.EmailJS_Service_ID, config.EmailJS_Template_ID, templateParams)
+					.then(function(response) {
+						const emailVerification = document.getElementById('emailVerification');
+						emailVerification.innerText = "Email Sent";
+
+						setTimeout(() => {
+							emailVerification.innerText = "";
+						}, 2000);
+
+						document.getElementById('name').value = "";
+						document.getElementById('email').value = "";
+						document.getElementById('message').value = "";
+					}, function(error) {
+						alert('An error occurred while sending the email. Please try again.');
+					});
+				}).catch(error => {
+					console.error('Error fetching configuration:', error);
+				});
+			}
+
+		</script>
 	</body>
 </html>

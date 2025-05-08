@@ -5,6 +5,11 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: '/', // Crucial for GH Pages routing
+  build: {
+    outDir: 'dist', // Explicit output directory
+    emptyOutDir: true // Ensure clean builds
+  },
   server: {
     host: "::",
     port: 8080,
@@ -14,7 +19,6 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' &&
     componentTagger(),
   ].filter(Boolean),
-  base: '/',
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

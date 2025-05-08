@@ -1,4 +1,4 @@
-
+import { trackEvent } from '../utils/analytics';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Github, Mail, Linkedin, ExternalLink, Phone, MapPin } from "lucide-react";
@@ -47,7 +47,12 @@ const ContactSection = ({ className }: ContactSectionProps) => {
           <p className="text-portfolio-gray mb-6">
             Authorized to work in the UK on a Graduate visa with full-time work rights. Open to relocation for international opportunities.
           </p>
-          <Button className="bg-portfolio-blue hover:bg-portfolio-dark-blue" size="lg" asChild>
+          <Button 
+            onClick={() => trackEvent('contact_click', {
+            event_category: 'Engagement',
+            event_label: 'Header CTA'
+            })} 
+            className="bg-portfolio-blue hover:bg-portfolio-dark-blue" size="lg" asChild>
             <a href="mailto:sumitgundawar3@gmail.com">
               Contact Me
             </a>

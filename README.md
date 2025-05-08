@@ -56,23 +56,23 @@ Built with **Vite**, **TypeScript**, and **Tailwind CSS**, this project reflects
 
 ## 🧪 Getting Started
 
-# 1. Clone the repository
+### 1. Clone the repository
 ```bash
 git clone https://github.com/sumitgundawar/sumitgundawar.github.io.git
 cd sumitgundawar.github.io
 ```
 
-# 2. Install dependencies
+### 2. Install dependencies
 ```bash
 npm install
 ```
 
-# 3. Start local dev server
+### 3. Start local dev server
 ```bash
 npm run dev
 ```
 
-# 4. Build for production
+### 4. Build for production
 ```bash
 npm run build
 ```

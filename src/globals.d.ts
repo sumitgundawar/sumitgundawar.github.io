@@ -1,15 +1,8 @@
-
-Copy
 interface Window {
-  dataLayer: any[];
-  gtag: Gtag.Gtag;
-}
-
-type GtagEvent = {
-  event_category?: string;
-  event_label?: string;
-  value?: number;
-  [key: string]: any;
-};
-
-declare const gtag: Gtag.Gtag;
+    dataLayer: Record<string, any>[];
+    gtag: {
+      (command: 'config', id: string, config?: Record<string, any>): void;
+      (command: 'js', date: Date): void;
+      (command: 'event', eventName: string, params?: Record<string, any>): void;
+    };
+  }

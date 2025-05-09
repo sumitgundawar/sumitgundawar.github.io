@@ -47,12 +47,7 @@ const ContactSection = ({ className }: ContactSectionProps) => {
           <p className="text-portfolio-gray mb-6">
             Authorized to work in the UK on a Graduate visa with full-time work rights. Open to relocation for international opportunities.
           </p>
-          <Button 
-            onClick={() => trackEvent('contact_click', {
-            event_category: 'Engagement',
-            event_label: 'Header CTA'
-            })} 
-            className="bg-portfolio-blue hover:bg-portfolio-dark-blue" size="lg" asChild>
+          <Button className="bg-portfolio-blue hover:bg-portfolio-dark-blue" size="lg" asChild>
             <a href="mailto:sumitgundawar3@gmail.com">
               Contact Me
             </a>

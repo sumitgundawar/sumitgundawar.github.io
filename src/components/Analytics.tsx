@@ -1,26 +1,27 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { GA_TRACKING_ID, initGA, trackPageView, trackAllClicks } from '../utils/analytics';
+
+const GA_TRACKING_ID = 'G-G6WTGY3N8N';
 
 const Analytics = () => {
   const location = useLocation();
 
   useEffect(() => {
-    if (!window.dataLayer) {
-      initGA();
-      trackAllClicks(); // Add this line
-      
-      const script = document.createElement('script');
-      script.async = true;
-      script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`;
-      document.head.appendChild(script);
-    }
+    // Initialize data layer
+    window.dataLayer = window.dataLayer || [];
     
-    trackPageView(location.pathname + location.search);
-  }, []);
+    // Properly typed gtag initialization
+    window.gtag = window.gtag || function() { 
+      window.dataLayer.push(arguments);
+    };
 
-  useEffect(() => {
-    trackPageView(location.pathname + location.search);
+    // Configuration
+    window.gtag('js', new Date());
+    window.gtag('config', GA_TRACKING_ID, {
+      page_path: location.pathname,
+      send_page_view: true
+    });
+
   }, [location]);
 
   return null;

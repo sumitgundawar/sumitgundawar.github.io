@@ -17,6 +17,7 @@ Built with **Vite**, **TypeScript**, and **Tailwind CSS**, this project reflects
 - 🌙 Light and airy UI with subtle animations
 - 📂 Project & experience showcase with clean card design
 - 📊 Google Analytics integration for visitor tracking
+- 🗺️ Interactive Google Maps integration
 
 ---
 

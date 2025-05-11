@@ -47,3 +47,12 @@ export const event = ({ action, category, label, value }: GTagEvent): void => {
     });
   }
 };
+
+// Track button clicks
+export const trackButtonClick = (buttonName: string): void => {
+  event({
+    action: 'click',
+    category: 'engagement',
+    label: buttonName,
+  });
+};

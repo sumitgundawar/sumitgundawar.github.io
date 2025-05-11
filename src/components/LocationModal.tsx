@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { MapPin } from "lucide-react";
-import MapComponent from './MapComponent';
+import SimpleMap from './SimpleMap';
 
 interface LocationModalProps {
   className?: string;
@@ -38,7 +38,7 @@ const LocationModal = ({ className }: LocationModalProps) => {
           </DialogTitle>
         </DialogHeader>
         <div className="mt-4">
-          <MapComponent className="h-[350px]" />
+          <SimpleMap className="h-[350px]" />
           <div className="mt-4 text-center text-portfolio-gray">
             <p>Based in London, with flexibility to work remotely or relocate for the right opportunity.</p>
           </div>

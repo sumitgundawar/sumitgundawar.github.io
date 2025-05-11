@@ -2,6 +2,7 @@ import { cn, openMailto } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Github, Mail, Linkedin, ExternalLink, Phone, MapPin } from "lucide-react";
 import MapComponent from "./MapComponent";
+import SimpleMap from "./SimpleMap";
 import LocationModal from "./LocationModal";
 
 interface ContactSectionProps {
@@ -59,7 +60,7 @@ const ContactSection = ({ className }: ContactSectionProps) => {
         {/* London Map Section */}
         <div className="w-full mt-10">
           <h3 className="text-xl font-semibold mb-4 font-space-grotesk text-portfolio-charcoal text-center">Current Location</h3>
-          <MapComponent className="mb-4" />
+          <SimpleMap className="mb-4 h-64" />
           <p className="text-center text-portfolio-gray text-sm">
             Based in London, United Kingdom
           </p>

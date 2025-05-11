@@ -1,5 +1,4 @@
-import { trackEvent } from '../utils/analytics';
-import { cn } from "@/lib/utils";
+import { cn, openMailto } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Github, Mail, Linkedin, ExternalLink, Phone, MapPin } from "lucide-react";
 
@@ -17,10 +16,13 @@ const ContactSection = ({ className }: ContactSectionProps) => {
         </p>
         
         <div className="flex flex-wrap justify-center gap-4 mb-6">
-          <Button variant="outline" size="lg" className="flex items-center gap-2 card-hover" asChild>
-            <a href="mailto:sumitgundawar3@gmail.com" target="_blank" rel="noopener noreferrer">
-              <Mail className="w-4 h-4" /> sumitgundawar3@gmail.com
-            </a>
+          <Button 
+            variant="outline" 
+            size="lg" 
+            className="flex items-center gap-2 card-hover"
+            onClick={() => openMailto('sumitgundawar3@gmail.com')}
+          >
+            <Mail className="w-4 h-4" /> sumitgundawar3@gmail.com
           </Button>
         </div>
         
@@ -47,10 +49,12 @@ const ContactSection = ({ className }: ContactSectionProps) => {
           <p className="text-portfolio-gray mb-6">
             Authorized to work in the UK on a Graduate visa with full-time work rights. Open to relocation for international opportunities.
           </p>
-          <Button className="bg-portfolio-blue hover:bg-portfolio-dark-blue" size="lg" asChild>
-            <a href="mailto:sumitgundawar3@gmail.com">
-              Contact Me
-            </a>
+          <Button 
+            className="bg-portfolio-blue hover:bg-portfolio-dark-blue" 
+            size="lg" 
+            onClick={() => openMailto('sumitgundawar3@gmail.com', 'Portfolio Inquiry')}
+          >
+            Contact Me
           </Button>
         </div>
       </div>

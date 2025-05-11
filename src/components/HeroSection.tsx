@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Download } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, scrollToElement } from "@/lib/utils";
 
 interface HeroSectionProps {
   className?: string;
@@ -25,7 +25,19 @@ const HeroSection = ({ className }: HeroSectionProps) => {
           Results-driven Data Engineer with expertise in ETL pipeline development, data modeling, and cloud-based data solutions. Based in London, UK.
         </p>
         <div className="flex flex-wrap gap-4">
-          <Button className="bg-portfolio-blue hover:bg-portfolio-dark-blue text-white px-6 py-6">
+          <Button 
+            className="bg-portfolio-blue hover:bg-portfolio-dark-blue text-white px-6 py-6"
+            onClick={() => {
+              scrollToElement('projects');
+              // Track this interaction in Google Analytics
+              if (typeof window !== 'undefined' && window.gtag) {
+                window.gtag('event', 'view_projects', {
+                  event_category: 'navigation',
+                  event_label: 'View My Work Button'
+                });
+              }
+            }}
+          >
             View My Work
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>

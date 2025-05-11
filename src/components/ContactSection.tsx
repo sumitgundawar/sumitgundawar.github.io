@@ -1,6 +1,8 @@
 import { cn, openMailto } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Github, Mail, Linkedin, ExternalLink, Phone, MapPin } from "lucide-react";
+import MapComponent from "./MapComponent";
+import LocationModal from "./LocationModal";
 
 interface ContactSectionProps {
   className?: string;
@@ -37,11 +39,7 @@ const ContactSection = ({ className }: ContactSectionProps) => {
               <Linkedin className="w-4 h-4" /> LinkedIn
             </a>
           </Button>
-          <Button variant="outline" size="lg" className="flex items-center gap-2 card-hover" asChild>
-            <a href="#" target="_blank" rel="noopener noreferrer">
-              <MapPin className="w-4 h-4" /> London, UK
-            </a>
-          </Button>
+          <LocationModal />
         </div>
         
         <div className="w-full border border-dashed border-gray-200 p-8 rounded-lg text-center bg-portfolio-off-white card-hover">
@@ -56,6 +54,15 @@ const ContactSection = ({ className }: ContactSectionProps) => {
           >
             Contact Me
           </Button>
+        </div>
+        
+        {/* London Map Section */}
+        <div className="w-full mt-10">
+          <h3 className="text-xl font-semibold mb-4 font-space-grotesk text-portfolio-charcoal text-center">Current Location</h3>
+          <MapComponent className="mb-4" />
+          <p className="text-center text-portfolio-gray text-sm">
+            Based in London, United Kingdom
+          </p>
         </div>
       </div>
     </section>

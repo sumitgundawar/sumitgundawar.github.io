@@ -51,11 +51,11 @@ const HeroSection = ({ className }: HeroSectionProps) => {
       </div>
       <div className="w-full md:w-1/2 mt-8 md:mt-0 animate-fade-in" style={{ animationDelay: "0.2s" }}>
         <div className="relative mx-auto w-64 h-64 md:w-[350px] md:h-[350px]">
-          <div className="absolute inset-0 rounded-full bg-portfolio-blue/20"></div>
+          {/* Removed the blue overlay div */}
           <img
             src="/uploads/b4e91885-fcdb-4f9e-bcb4-dbdd8c9f4387.png"
             alt="Sumit Gundawar"
-            className="object-cover w-full h-full rounded-full p-2"
+            className="object-cover w-full h-full rounded-full border-2 border-gray-100 shadow-lg"
           />
         </div>
       </div>

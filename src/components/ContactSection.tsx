@@ -23,7 +23,7 @@ const ContactSection = ({ className }: ContactSectionProps) => {
             variant="outline" 
             size="lg" 
             className="flex items-center gap-2 card-hover"
-            onClick={() => openMailto('sumitgundawar3@gmail.com')}
+            onClick={() => openMailto('sumitgundawar3@gmail.com', 'Inquiry for')}
           >
             <Mail className="w-4 h-4" /> sumitgundawar3@gmail.com
           </Button>
@@ -51,7 +51,7 @@ const ContactSection = ({ className }: ContactSectionProps) => {
           <Button 
             className="bg-portfolio-blue hover:bg-portfolio-dark-blue" 
             size="lg" 
-            onClick={() => openMailto('sumitgundawar3@gmail.com', 'Portfolio Inquiry')}
+            onClick={() => openMailto('sumitgundawar3@gmail.com', 'Inquiry for')}
           >
             Contact Me
           </Button>

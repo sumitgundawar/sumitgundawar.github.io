@@ -22,7 +22,7 @@ const HeroSection = ({ className }: HeroSectionProps) => {
           <span className="text-portfolio-blue">Sumit Gundawar</span>
         </h1>
         <p className="text-lg md:text-xl text-portfolio-gray text-center md:text-left mb-8 max-w-2xl">
-          Results-driven Data Engineer with expertise in ETL pipeline development, data modeling, and cloud-based data solutions. Based in London, UK.
+          Full-Stack Software Engineer & Innovation Integration specialist with expertise in AI/ML, cloud infrastructure, and enterprise-scale applications. Currently transforming healthcare technology at By Dr Vali. Based in London, UK.
         </p>
         <div className="flex flex-wrap gap-4">
           <Button 

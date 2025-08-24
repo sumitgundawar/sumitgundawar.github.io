@@ -12,15 +12,42 @@ interface ProjectsSectionProps {
 const projects = [
   {
     id: 1,
-    title: "Socio-Demographic Factors & COVID-19 Mortality",
-    description: "Conducted statistical analysis using Python and R to investigate relationships between socio-demographic factors and COVID-19 mortality rates across England and Wales.",
-    tags: ["Python", "R", "Statistical Analysis", "Data Visualization"],
+    title: "BDV AI Concierge ChatBot",
+    description: "Built RAG-powered AI chatbot from scratch using product/service data, FAQs, and policies. Integrated with ChatGPT for intelligent query routing and brand-consistent responses.",
+    tags: ["Python", "RAG", "AI/ML", "ChatGPT API", "JavaScript"],
     github: "#",
-    demo: "#",
-    image: "https://images.unsplash.com/photo-1584036561566-baf8f5f1b144"
+    demo: "https://bydrvali.com",
+    image: "https://images.unsplash.com/photo-1677442136019-21780ecad995"
   },
   {
     id: 2,
+    title: "BDV FIT E-Learning Platform",
+    description: "Full-stack e-learning platform with admin dashboard, course management, analytics, and certification system. Supports CPD and Level 7 courses with interactive content.",
+    tags: ["Node.js", "Express", "MongoDB", "Full-Stack", "Analytics"],
+    github: "#",
+    demo: "https://bdvfit.com",
+    image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3"
+  },
+  {
+    id: 3,
+    title: "Healthcare CRM Analytics Dashboard",
+    description: "Integrated CRM dashboard combining Klaviyo, Pabau, HubSpot APIs with real-time analytics. Tracks complete customer journey and business performance metrics.",
+    tags: ["Python", "SQL", "Looker Studio", "API Integration", "CRM"],
+    github: "#",
+    demo: "#",
+    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71"
+  },
+  {
+    id: 4,
+    title: "BDV Portal - Clinical Management System",
+    description: "Internal application for clinicians to create patient records, generate treatment protocols, and manage aftercare guidelines for luxury medical aesthetics procedures.",
+    tags: ["Express.js", "Node.js", "MongoDB Atlas", "Healthcare"],
+    github: "#",
+    demo: "https://bdvportal.com",
+    image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1f"
+  },
+  {
+    id: 5,
     title: "ETL Pipeline for Demand Forecasting",
     description: "Engineered a multi-layered ETL pipeline that integrated data from multiple sources to support demand forecasting across 25M+ customer-product combinations.",
     tags: ["Spark", "Azure", "SQL", "Power BI"],
@@ -29,16 +56,7 @@ const projects = [
     image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f"
   },
   {
-    id: 3,
-    title: "Customer Behavior Analytics System",
-    description: "Developed an analytics pipeline analyzing 100+ behavioral features for sophisticated customer segmentation and targeted marketing.",
-    tags: ["Python", "Machine Learning", "Data Processing", "Dashboard"],
-    github: "#",
-    demo: "#",
-    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71"
-  },
-  {
-    id: 4,
+    id: 6,
     title: "Object Detection with Transfer Learning",
     description: "Built an object detection system achieving 96% accuracy using transfer learning techniques on the CIFAR-10 dataset, published in IEEE conference.",
     tags: ["Deep Learning", "TensorFlow", "Computer Vision", "Transfer Learning"],

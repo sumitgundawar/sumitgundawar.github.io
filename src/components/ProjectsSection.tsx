@@ -44,7 +44,7 @@ const projects = [
     tags: ["Express.js", "Node.js", "MongoDB Atlas", "Healthcare"],
     github: "#",
     demo: "https://bdvportal.com",
-    image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1f"
+    image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56"
   },
   {
     id: 5,
@@ -93,13 +93,7 @@ const ProjectsSection = ({ className }: ProjectsSectionProps) => {
                 ))}
               </div>
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline" size="sm" asChild>
-                <a href={project.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
-                  <Github className="h-4 w-4" />
-                  Code
-                </a>
-              </Button>
+            <CardFooter className="flex justify-end">
               <Button size="sm" className="bg-portfolio-blue hover:bg-portfolio-dark-blue" asChild>
                 <a href={project.demo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
                   <FileText className="h-4 w-4" />

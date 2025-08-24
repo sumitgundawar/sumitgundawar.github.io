@@ -10,24 +10,24 @@ interface AwardsSectionProps {
 const awards = [
   {
     id: 1,
+    title: "Access and Participation Student Board Member",
+    organization: "University of East London",
+    year: "2024",
+    description: "Selected to mentor underrepresented students in tech career pathways and promote diversity in STEM education."
+  },
+  {
+    id: 2,
     title: "Outstanding Performance Award",
     organization: "LatentView Analytics",
     year: "2021",
     description: "Recognized twice (September 2021, December 2021) for exceptional contributions to client projects and innovative data solutions."
   },
   {
-    id: 2,
+    id: 3,
     title: "Merit Scholarship",
     organization: "Vellore Institute of Technology",
     year: "2020",
     description: "Awarded based on academic excellence and research contributions in computer applications and machine learning."
-  },
-  {
-    id: 3,
-    title: "Programming Competition Winner",
-    organization: "Savitribai Phule Pune University",
-    year: "2018",
-    description: "First place in the university-wide programming competition, demonstrating exceptional problem-solving skills."
   },
   {
     id: 4,
@@ -38,10 +38,10 @@ const awards = [
   },
   {
     id: 5,
-    title: "Access and Participation Student Board Member",
-    organization: "University of East London",
-    year: "2024",
-    description: "Selected to mentor underrepresented students in tech career pathways and promote diversity in STEM education."
+    title: "Programming Competition Winner",
+    organization: "Savitribai Phule Pune University",
+    year: "2018",
+    description: "First place in the university-wide programming competition, demonstrating exceptional problem-solving skills."
   }
 ];
 

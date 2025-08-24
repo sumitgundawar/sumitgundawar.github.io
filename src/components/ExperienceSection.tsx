@@ -9,6 +9,23 @@ interface ExperienceSectionProps {
 const experiences = [
   {
     id: 1,
+    title: "Software Engineer & Innovation Integration",
+    company: "By Dr Vali",
+    location: "London, UK",
+    period: "June 2025 - Present",
+    description: "Lead engineer managing IT infrastructure and developing innovative healthcare technology solutions for luxury medical aesthetics clinic with exclusive Selfridges partnership.",
+    responsibilities: [
+      "Manage full-stack development across 9 critical applications serving high-profile clientele including celebrities and royalty",
+      "Architected and deployed AI-powered RAG chatbot with 95%+ accuracy for customer support and service inquiries",
+      "Built BDV FIT e-learning platform from scratch using Node.js/Express/MongoDB with admin dashboard and analytics",
+      "Engineered seamless server migration with only 1.5hrs downtime, moving all applications to managed cloud infrastructure",
+      "Developed comprehensive CRM dashboard integrating Klaviyo, Pabau, HubSpot APIs with real-time analytics via Looker Studio",
+      "Implemented TikTok Shop and Instagram Shop integrations with automated supply chain management for 30+ products",
+      "Created AI video generation pipeline using Sync.so and ElevenLabs achieving 95% accuracy for training content"
+    ]
+  },
+  {
+    id: 2,
     title: "Data Analyst | Data Engineer",
     company: "LatentView Analytics",
     location: "Chennai, TN, India",
@@ -23,7 +40,7 @@ const experiences = [
     ]
   },
   {
-    id: 2,
+    id: 3,
     title: "Demand Planning Disaggregation",
     company: "PepsiCo (Client Project)",
     location: "Chennai, TN, India",
@@ -38,7 +55,7 @@ const experiences = [
     ]
   },
   {
-    id: 3,
+    id: 4,
     title: "Customer Behavior Analytics",
     company: "Hilton (Client Project)",
     location: "Chennai, TN, India",

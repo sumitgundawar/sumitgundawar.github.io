@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { trackButtonClick } from "@/lib/analytics";
 
 interface ExperienceSectionProps {
   className?: string;
@@ -86,7 +87,10 @@ const ExperienceSection = ({ className }: ExperienceSectionProps) => {
                       variant="ghost"
                       className="text-portfolio-blue hover:bg-portfolio-blue/10"
                       size="sm"
-                      onClick={() => setExpanded((prev) => ({ ...prev, [exp.id]: !prev[exp.id] }))}
+                      onClick={() => {
+                        trackButtonClick(expanded[exp.id] ? `experience_show_less_${exp.id}` : `experience_show_more_${exp.id}`);
+                        setExpanded((prev) => ({ ...prev, [exp.id]: !prev[exp.id] }));
+                      }}
                     >
                       {expanded[exp.id] ? "Show less" : "Show more"}
                     </Button>

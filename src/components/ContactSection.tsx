@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Github, Linkedin, Mail } from "lucide-react";
 import SimpleMap from "./SimpleMap";
 import LocationModal from "./LocationModal";
+import { trackButtonClick, trackOutboundLink } from "@/lib/analytics";
 
 interface ContactSectionProps {
   className?: string;
@@ -23,7 +24,10 @@ const ContactSection = ({ className }: ContactSectionProps) => {
             variant="outline" 
             size="lg" 
             className="flex items-center gap-2 card-hover"
-            onClick={() => openMailto("sumitgundawar3@gmail.com", "Opportunity — Product/Software Engineer")}
+            onClick={() => {
+              trackButtonClick("contact_email");
+              openMailto("sumitgundawar3@gmail.com", "Opportunity — Product/Software Engineer");
+            }}
           >
             <Mail className="w-4 h-4" /> sumitgundawar3@gmail.com
           </Button>
@@ -31,12 +35,22 @@ const ContactSection = ({ className }: ContactSectionProps) => {
         
         <div className="flex flex-wrap justify-center gap-4 mb-10">
           <Button variant="outline" size="lg" className="flex items-center gap-2 card-hover" asChild>
-            <a href="https://github.com/sumitgundawar" target="_blank" rel="noopener noreferrer">
+            <a
+              href="https://github.com/sumitgundawar"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => trackOutboundLink("https://github.com/sumitgundawar", "github_profile")}
+            >
               <Github className="w-4 h-4" /> GitHub
             </a>
           </Button>
           <Button variant="outline" size="lg" className="flex items-center gap-2 card-hover" asChild>
-            <a href="https://linkedin.com/in/sumit-gundawar-759470129" target="_blank" rel="noopener noreferrer">
+            <a
+              href="https://linkedin.com/in/sumit-gundawar-759470129"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => trackOutboundLink("https://linkedin.com/in/sumit-gundawar-759470129", "linkedin_profile")}
+            >
               <Linkedin className="w-4 h-4" /> LinkedIn
             </a>
           </Button>
@@ -51,7 +65,10 @@ const ContactSection = ({ className }: ContactSectionProps) => {
           <Button 
             className="bg-portfolio-blue hover:bg-portfolio-dark-blue" 
             size="lg" 
-            onClick={() => openMailto("sumitgundawar3@gmail.com", "Opportunity — Product/Software Engineer")}
+            onClick={() => {
+              trackButtonClick("contact_cta");
+              openMailto("sumitgundawar3@gmail.com", "Opportunity — Product/Software Engineer");
+            }}
           >
             Contact Me
           </Button>

@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { MapPin } from "lucide-react";
 import SimpleMap from './SimpleMap';
+import { trackButtonClick, trackOutboundLink } from "@/lib/analytics";
 
 interface LocationModalProps {
   className?: string;
@@ -19,13 +20,7 @@ const LocationModal = ({ className }: LocationModalProps) => {
           size="lg" 
           className={`flex items-center gap-2 card-hover ${className}`}
           onClick={() => {
-            // Track this interaction in Google Analytics
-            if (typeof window !== 'undefined' && window.gtag) {
-              window.gtag('event', 'open_location_modal', {
-                event_category: 'engagement',
-                event_label: 'London Map Modal'
-              });
-            }
+            trackButtonClick("open_location_modal");
           }}
         >
           <MapPin className="w-4 h-4" /> London, UK
@@ -46,15 +41,8 @@ const LocationModal = ({ className }: LocationModalProps) => {
             <Button 
               className="bg-portfolio-blue hover:bg-portfolio-dark-blue"
               onClick={() => {
+                trackOutboundLink("https://www.google.com/maps/place/London,+UK", "open_google_maps");
                 window.open('https://www.google.com/maps/place/London,+UK', '_blank');
-                
-                // Track this interaction in Google Analytics
-                if (typeof window !== 'undefined' && window.gtag) {
-                  window.gtag('event', 'view_full_map', {
-                    event_category: 'engagement',
-                    event_label: 'View Full Map Button'
-                  });
-                }
               }}
             >
               Open in Google Maps

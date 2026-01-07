@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import ThemeToggle from "@/components/ThemeToggle";
+import { trackNavClick } from "@/lib/analytics";
 
 interface NavbarProps {
   className?: string;
@@ -71,7 +72,10 @@ const Navbar = ({ className, variant = "home" }: NavbarProps) => {
             <ThemeToggle />
             <button
               className="p-2 rounded-md text-foreground hover:bg-muted"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => {
+                trackNavClick(mobileMenuOpen ? "mobile_menu_close" : "mobile_menu_open");
+                setMobileMenuOpen(!mobileMenuOpen);
+              }}
               aria-label="Toggle navigation"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -91,6 +95,7 @@ const Navbar = ({ className, variant = "home" }: NavbarProps) => {
                 key={link.name}
                 href={link.href}
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => trackNavClick(link.name)}
               >
                 {link.name}
               </a>
@@ -110,7 +115,10 @@ const Navbar = ({ className, variant = "home" }: NavbarProps) => {
               key={link.name}
               href={link.href}
               className="block text-base font-medium text-muted-foreground hover:text-foreground"
-              onClick={() => setMobileMenuOpen(false)}
+              onClick={() => {
+                trackNavClick(`mobile_${link.name}`);
+                setMobileMenuOpen(false);
+              }}
             >
               {link.name}
             </a>

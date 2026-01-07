@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { ArrowRight, FileText } from "lucide-react";
 import { projectCategories, projects } from "@/data/projects";
+import { trackButtonClick, trackProjectFilter, trackProjectOpen, trackProjectSearch } from "@/lib/analytics";
 
 interface ProjectsSectionProps {
   className?: string;
@@ -41,6 +42,15 @@ const ProjectsSection = ({ className }: ProjectsSectionProps) => {
     });
   }, [activeCategory, query]);
 
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
+    const timer = window.setTimeout(() => {
+      trackProjectSearch(q.length, visibleProjects.length);
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [query, visibleProjects.length]);
+
   return (
     <section id="projects" className={cn("section", className)}>
       <h2 className="section-heading">Projects</h2>
@@ -50,7 +60,15 @@ const ProjectsSection = ({ className }: ProjectsSectionProps) => {
       </p>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-        <Tabs value={activeCategory} onValueChange={(value) => setActiveCategory(value as typeof activeCategory)} className="w-full md:w-auto">
+        <Tabs
+          value={activeCategory}
+          onValueChange={(value) => {
+            const next = value as typeof activeCategory;
+            setActiveCategory(next);
+            trackProjectFilter(next);
+          }}
+          className="w-full md:w-auto"
+        >
           <TabsList className="flex flex-wrap h-auto bg-muted border border-border">
             {projectCategories.map((category) => (
               <TabsTrigger
@@ -75,6 +93,7 @@ const ProjectsSection = ({ className }: ProjectsSectionProps) => {
             variant="outline"
             className="border-portfolio-blue text-portfolio-blue hover:bg-portfolio-blue/10"
             onClick={() => {
+              trackButtonClick("projects_reset");
               setActiveCategory("All");
               setQuery("");
               const url = new URL(window.location.href);
@@ -136,7 +155,11 @@ const ProjectsSection = ({ className }: ProjectsSectionProps) => {
             </CardContent>
             <CardFooter className="flex justify-end">
               <Button size="sm" className="bg-portfolio-blue hover:bg-portfolio-dark-blue" asChild>
-                <Link to={`/projects/${project.slug}`} className="flex items-center gap-2">
+                <Link
+                  to={`/projects/${project.slug}`}
+                  className="flex items-center gap-2"
+                  onClick={() => trackProjectOpen(project.slug)}
+                >
                   <FileText className="h-4 w-4" />
                   Read details
                   <ArrowRight className="h-4 w-4" />

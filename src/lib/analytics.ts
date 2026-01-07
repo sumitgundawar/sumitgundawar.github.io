@@ -6,6 +6,7 @@ interface GTagEvent {
   category: string;
   label: string;
   value?: number;
+  params?: Record<string, unknown>;
 }
 
 // Declare gtag as a global function
@@ -54,5 +55,40 @@ export const trackButtonClick = (buttonName: string): void => {
     action: 'click',
     category: 'engagement',
     label: buttonName,
+  });
+};
+
+export const trackNavClick = (label: string): void => {
+  event({ action: "nav_click", category: "navigation", label });
+};
+
+export const trackThemeToggle = (nextTheme: string): void => {
+  event({ action: "theme_toggle", category: "preferences", label: nextTheme });
+};
+
+export const trackProjectOpen = (slug: string): void => {
+  event({ action: "project_open", category: "projects", label: slug });
+};
+
+export const trackProjectFocus = (category: string): void => {
+  event({ action: "project_focus", category: "projects", label: category });
+};
+
+export const trackProjectFilter = (category: string): void => {
+  event({ action: "project_filter", category: "projects", label: category });
+};
+
+export const trackProjectSearch = (queryLength: number, resultsCount: number): void => {
+  event({ action: "project_search", category: "projects", label: "search", value: queryLength });
+  event({ action: "project_search_results", category: "projects", label: "results_count", value: resultsCount });
+};
+
+export const trackOutboundLink = (href: string, label?: string): void => {
+  if (typeof window === "undefined" || !window.gtag) return;
+
+  window.gtag("event", "click", {
+    event_category: "outbound",
+    event_label: label ?? href,
+    transport_type: "beacon",
   });
 };

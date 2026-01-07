@@ -1,6 +1,7 @@
 
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
+import HighlightsSection from "@/components/HighlightsSection";
 import ExperienceSection from "@/components/ExperienceSection";
 import ProjectsSection from "@/components/ProjectsSection";
 import EducationSection from "@/components/EducationSection";
@@ -10,11 +11,12 @@ import Footer from "@/components/Footer";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-portfolio-off-white font-inter">
+    <div className="min-h-screen bg-background font-inter">
       <Navbar />
       
       <main className="pt-16">
         <HeroSection />
+        <HighlightsSection />
         <ExperienceSection />
         <ProjectsSection />
         <EducationSection />

@@ -2,6 +2,22 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- SPA redirect support for GitHub Pages (enables deep links like /projects/...) -->
+    <script>
+      (function (l) {
+        if (l.search && l.search[1] === "/") {
+          var decoded = l.search
+            .slice(1)
+            .split("&")
+            .map(function (s) {
+              return s.replace(/~and~/g, "&");
+            })
+            .join("?");
+          window.history.replaceState(null, null, l.pathname + decoded + l.hash);
+        }
+      })(window.location);
+    </script>
+
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-G6WTGY3N8N"></script>
     <script>
@@ -21,12 +37,18 @@
     
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sumit Gundawar | Data Engineer</title>
-    <meta name="description" content="Sumit Gundawar - Data Engineer specializing in ETL pipeline development, data modeling, and cloud-based data solutions." />
+    <title>Sumit Gundawar | Product & Software Engineer</title>
+    <meta
+      name="description"
+      content="Product & Software Engineer building API platforms, integrations, full-stack web apps, and reliable distributed systems. Background in data/ML and observability. Based in London, UK."
+    />
     <meta name="author" content="Sumit Gundawar" />
 
-    <meta property="og:title" content="Sumit Gundawar | Data Engineer" />
-    <meta property="og:description" content="Data Engineer specializing in ETL pipeline development, data modeling, and cloud-based data solutions." />
+    <meta property="og:title" content="Sumit Gundawar | Product & Software Engineer" />
+    <meta
+      property="og:description"
+      content="API platforms, integrations, and full-stack systems with strong reliability, observability, and developer experience."
+    />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 

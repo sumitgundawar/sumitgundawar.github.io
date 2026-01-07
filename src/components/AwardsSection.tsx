@@ -47,21 +47,21 @@ const awards = [
 
 const AwardsSection = ({ className }: AwardsSectionProps) => {
   return (
-    <section id="awards" className={cn("section bg-portfolio-off-white", className)}>
+    <section id="awards" className={cn("section bg-muted/20", className)}>
       <h2 className="section-heading">Awards & Recognition</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {awards.map((award) => (
-          <Card key={award.id} className="card-hover border-t-4 border-t-portfolio-blue">
+          <Card key={award.id} className="card-hover border-t-4 border-t-portfolio-blue bg-card border-border">
             <CardHeader className="pb-2">
               <div className="flex items-center gap-2 mb-3">
                 <Award className="w-5 h-5 text-portfolio-blue" />
                 <p className="text-sm text-portfolio-blue font-medium">{award.year}</p>
               </div>
-              <h3 className="text-lg font-bold font-space-grotesk text-portfolio-charcoal">{award.title}</h3>
-              <p className="text-sm text-portfolio-gray">{award.organization}</p>
+              <h3 className="text-lg font-bold font-space-grotesk text-foreground">{award.title}</h3>
+              <p className="text-sm text-muted-foreground">{award.organization}</p>
             </CardHeader>
             <CardContent>
-              <p className="text-portfolio-gray text-sm">{award.description}</p>
+              <p className="text-muted-foreground text-sm">{award.description}</p>
             </CardContent>
           </Card>
         ))}

@@ -1,6 +1,8 @@
 
 import { cn } from "@/lib/utils";
 import { Briefcase } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 interface ExperienceSectionProps {
   className?: string;
@@ -12,94 +14,84 @@ const experiences = [
     title: "Software Engineer & Innovation Integration",
     company: "By Dr Vali",
     location: "London, UK",
-    period: "June 2025 - Present",
-    description: "Lead engineer managing IT infrastructure and developing innovative healthcare technology solutions for luxury medical aesthetics clinic with exclusive Selfridges partnership.",
+    period: "May 2025 - Present",
+    description:
+      "Product-focused engineer building API-driven products and strategic integrations across payments, commerce, and customer support — with ownership of contracts, docs, and production reliability.",
     responsibilities: [
-      "Manage full-stack development across 9 critical applications serving high-profile clientele including celebrities and royalty",
-      "Architected and deployed AI-powered RAG chatbot with 97%+ accuracy for customer support and service inquiries",
-      "Built BDV FIT e-learning platform from scratch using Node.js/Express/MongoDB with admin dashboard and analytics",
-      "Engineered seamless server migration with only 1.5hrs downtime, moving all applications to managed cloud infrastructure",
-      "Developed comprehensive CRM dashboard integrating Klaviyo, Pabau, HubSpot APIs with real-time analytics via Looker Studio",
-      "Implemented TikTok Shop and Instagram Shop integrations with automated supply chain management for 30+ products",
-      "Created AI video generation pipeline using Sync.so and ElevenLabs achieving 95% accuracy for training content"
+      "Designed and built public-facing + admin APIs using Node.js/Express with clear separation of concerns for external consumers and internal tooling",
+      "Implemented authentication and authorization (Google OAuth, token-based access, role-based permissions)",
+      "Built rate-limited APIs (~5,000 req/sec/IP) with monitoring and safeguards for platform stability",
+      "Designed webhook-driven workflows with retries, failure handling, and idempotency to guarantee delivery and data consistency",
+      "Built and maintained integrations across Stripe, Shopify, Magento, and Intercom to keep customer/order/support data in sync",
+      "Owned API documentation and onboarding guides to enable fast, low-support integrations by other engineers",
+      "Acted as on-call engineer, resolving production incidents and improving observability and reliability over time"
     ]
   },
   {
     id: 2,
-    title: "Data Analyst | Data Engineer",
+    title: "Data Analyst",
     company: "LatentView Analytics",
-    location: "Chennai, TN, India",
-    period: "June 2021 - June 2023",
-    description: "Led ETL pipeline development and data analysis for major clients, optimizing data processes and delivering actionable insights.",
+    location: "Remote",
+    period: "Jun 2021 - Jun 2023",
+    description:
+      "Built event-driven, distributed data pipelines and forecasting systems for global enterprise clients, with strong focus on reliability and performance.",
     responsibilities: [
-      "Engineered a multi-layered ETL pipeline integrating data from multiple sources to support demand forecasting across 25M+ customer-product combinations",
-      "Optimized data pipeline performance, reducing processing time from 13 to 8 hours by refining Spark jobs",
-      "Developed complex SQL-based data models to track procurement performance, supplier compliance, and inventory trends",
-      "Implemented advanced error handling and data validation mechanisms to maintain high data integrity",
-      "Designed and deployed interactive Power BI dashboards enabling real-time monitoring of demand trends"
-    ]
-  },
-  {
-    id: 3,
-    title: "Demand Planning Disaggregation",
-    company: "PepsiCo (Client Project)",
-    location: "Chennai, TN, India",
-    period: "September 2021 - June 2023",
-    description: "Developed comprehensive ETL solutions for PepsiCo's demand forecasting systems, resulting in significant efficiency improvements.",
-    responsibilities: [
-      "Engineered data pipelines integrating Azure Data Lake, Teradata, Presto, and SQL Server for demand forecasting",
-      "Optimized pipeline performance reducing processing time from 13 to 8 hours through Spark job refinement",
-      "Implemented error handling and data validation to maintain forecast integrity",
-      "Integrated geo-location data to enhance regional demand forecasting across multiple countries",
-      "Designed Power BI dashboards that contributed to $60M annual revenue impact"
-    ]
-  },
-  {
-    id: 4,
-    title: "Customer Behavior Analytics",
-    company: "Hilton (Client Project)",
-    location: "Chennai, TN, India",
-    period: "June 2022 - November 2022",
-    description: "Created analytics pipelines for customer segmentation and targeted marketing initiatives resulting in significant business impact.",
-    responsibilities: [
-      "Engineered customer analytics pipeline analyzing 100+ behavioral features for sophisticated segmentation",
-      "Developed machine learning models to analyze patterns across multiple customer dimensions",
-      "Created automated workflows to integrate diverse data sources and generate actionable insights",
-      "Built interactive dashboards to visualize customer segmentation patterns",
-      "Achieved 26% improvement in customer retention rate and approximately $10M annual revenue increase"
+      "Built distributed pipelines processing 25M+ weekly records using PySpark and Azure Databricks",
+      "Designed trigger-based orchestration where ingestion automatically kicked off forecasting pipelines generating 8-week demand forecasts",
+      "Improved performance by optimizing large-scale jobs, reducing processing time from ~13 hours to ~8 hours",
+      "Implemented validation, monitoring, and failure-handling mechanisms to protect data quality and availability",
+      "Collaborated with product, business, and IT stakeholders to deliver production-ready systems"
     ]
   }
 ];
 
 const ExperienceSection = ({ className }: ExperienceSectionProps) => {
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+
   return (
-    <section id="experience" className={cn("section bg-white", className)}>
+    <section id="experience" className={cn("section", className)}>
       <h2 className="section-heading">Work Experience</h2>
       <div className="timeline-container mt-16">
         {experiences.map((exp) => (
           <div key={exp.id} className="timeline-item">
             <div className="timeline-dot"></div>
             <div className={`relative md:w-1/2 ${exp.id % 2 === 0 ? 'md:ml-auto md:pl-8' : 'md:pr-8'}`}>
-              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow card-hover">
+              <div className="bg-card rounded-lg p-6 border border-border hover:shadow-lg transition-shadow card-hover">
                 <div className="mb-4 flex items-center">
-                  <div className="w-10 h-10 rounded-full bg-portfolio-light-blue flex items-center justify-center mr-3">
+                  <div className="w-10 h-10 rounded-full bg-portfolio-blue/10 flex items-center justify-center mr-3 border border-portfolio-blue/20">
                     <Briefcase className="w-5 h-5 text-portfolio-blue" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-portfolio-charcoal font-space-grotesk">{exp.title}</h3>
+                    <h3 className="text-xl font-bold text-foreground font-space-grotesk">{exp.title}</h3>
                     <p className="text-portfolio-blue font-medium">{exp.company}</p>
                   </div>
                 </div>
-                <div className="flex justify-between text-sm text-portfolio-gray mb-4">
+                <div className="flex justify-between text-sm text-muted-foreground mb-4">
                   <span>{exp.location}</span>
                   <span>{exp.period}</span>
                 </div>
-                <p className="text-portfolio-gray mb-4">{exp.description}</p>
-                <ul className="list-disc list-inside text-portfolio-gray space-y-1">
-                  {exp.responsibilities.map((responsibility, index) => (
-                    <li key={index} className="text-sm">{responsibility}</li>
+                <p className="text-muted-foreground mb-4">{exp.description}</p>
+
+                <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                  {(expanded[exp.id] ? exp.responsibilities : exp.responsibilities.slice(0, 3)).map((responsibility) => (
+                    <li key={responsibility} className="text-sm">
+                      {responsibility}
+                    </li>
                   ))}
                 </ul>
+
+                {exp.responsibilities.length > 3 ? (
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      variant="ghost"
+                      className="text-portfolio-blue hover:bg-portfolio-blue/10"
+                      size="sm"
+                      onClick={() => setExpanded((prev) => ({ ...prev, [exp.id]: !prev[exp.id] }))}
+                    >
+                      {expanded[exp.id] ? "Show less" : "Show more"}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

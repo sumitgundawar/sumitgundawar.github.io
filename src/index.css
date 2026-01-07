@@ -105,11 +105,11 @@
   }
 
   .section-heading {
-    @apply text-3xl sm:text-4xl font-bold mb-10 relative before:content-[''] before:absolute before:-bottom-3 before:left-0 before:w-16 before:h-1 before:bg-portfolio-blue font-space-grotesk text-portfolio-charcoal;
+    @apply text-3xl sm:text-4xl font-bold mb-10 relative before:content-[''] before:absolute before:-bottom-3 before:left-0 before:w-16 before:h-1 before:bg-portfolio-blue font-space-grotesk text-foreground;
   }
 
   .section-subheading {
-    @apply text-xl sm:text-2xl font-semibold mb-4 font-space-grotesk text-portfolio-charcoal;
+    @apply text-xl sm:text-2xl font-semibold mb-4 font-space-grotesk text-foreground;
   }
   
   .card-hover {
@@ -122,13 +122,28 @@ html {
   scroll-padding-top: 5rem;
 }
 
+.hero-surface {
+  background:
+    radial-gradient(1200px circle at 10% 10%, hsl(var(--primary) / 0.18), transparent 45%),
+    radial-gradient(900px circle at 90% 30%, hsl(var(--ring) / 0.18), transparent 45%),
+    radial-gradient(900px circle at 35% 90%, hsl(var(--primary) / 0.12), transparent 45%);
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse at center, black 55%, transparent 75%);
+}
+
 .content-container {
   max-width: 1400px;
   margin: 0 auto;
 }
 
 .timeline-container {
-  @apply relative before:content-[''] before:absolute before:left-4 md:before:left-1/2 before:-ml-1 before:top-0 before:h-full before:w-0.5 before:bg-portfolio-light-gray;
+  @apply relative before:content-[''] before:absolute before:left-4 md:before:left-1/2 before:-ml-1 before:top-0 before:h-full before:w-0.5 before:bg-border;
 }
 
 .timeline-item {
@@ -140,5 +155,5 @@ html {
 }
 
 .timeline-dot {
-  @apply absolute left-4 md:left-1/2 transform -translate-x-2.5 md:-translate-x-1/2 w-5 h-5 rounded-full bg-portfolio-blue border-4 border-white z-10;
+  @apply absolute left-4 md:left-1/2 transform -translate-x-2.5 md:-translate-x-1/2 w-5 h-5 rounded-full bg-portfolio-blue border-4 border-background z-10;
 }

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import Index from "./pages/Index";
+import Project from "./pages/Project";
 import NotFound from "./pages/NotFound";
 import { pageview } from "./lib/analytics";
 
@@ -31,6 +32,7 @@ const App = () => (
         <RouteTracker />
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/projects/:slug" element={<Project />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

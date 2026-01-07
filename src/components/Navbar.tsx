@@ -94,7 +94,7 @@ const Navbar = ({ className, variant = "home" }: NavbarProps) => {
               <a
                 key={link.name}
                 href={link.href}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors no-underline hover:no-underline"
                 onClick={() => trackNavClick(link.name)}
               >
                 {link.name}
@@ -114,7 +114,7 @@ const Navbar = ({ className, variant = "home" }: NavbarProps) => {
             <a
               key={link.name}
               href={link.href}
-              className="block text-base font-medium text-muted-foreground hover:text-foreground"
+              className="block text-base font-medium text-muted-foreground hover:text-foreground no-underline hover:no-underline"
               onClick={() => {
                 trackNavClick(`mobile_${link.name}`);
                 setMobileMenuOpen(false);

@@ -10,8 +10,15 @@ export default defineConfig(({ mode }) => ({
     emptyOutDir: true // Ensure clean builds
   },
   server: {
-    host: "::",
     port: 8080,
+    strictPort: true,
+    // Reduce risk of exposing the dev server to the network.
+    host: "localhost",
+    // Harden file serving during local development.
+    fs: {
+      strict: true,
+      deny: [".env", ".env.*", "**/.git/**", "**/node_modules/**"],
+    },
   },
   plugins: [
     react(),

@@ -1,4 +1,6 @@
 
+@config "../tailwind.config.js";
+@reference "tailwindcss";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -101,15 +103,15 @@
   }
 
   .section {
-    @apply py-20 px-4 md:px-8 lg:px-16 max-w-7xl mx-auto scroll-mt-24;
+    @apply py-20 px-4 max-w-7xl mx-auto scroll-mt-24;
   }
 
   .section-heading {
-    @apply text-3xl sm:text-4xl font-bold mb-10 relative before:content-[''] before:absolute before:-bottom-3 before:left-0 before:w-16 before:h-1 before:bg-portfolio-blue font-space-grotesk text-foreground;
+    @apply text-3xl font-bold mb-10 relative before:content-[''] before:absolute before:-bottom-3 before:left-0 before:w-16 before:h-1 before:bg-portfolio-blue font-space-grotesk text-foreground;
   }
 
   .section-subheading {
-    @apply text-xl sm:text-2xl font-semibold mb-4 font-space-grotesk text-foreground;
+    @apply text-xl font-semibold mb-4 font-space-grotesk text-foreground;
   }
   
   .card-hover {
@@ -143,11 +145,11 @@ html {
 }
 
 .timeline-container {
-  @apply relative before:content-[''] before:absolute before:left-4 md:before:left-1/2 before:-ml-1 before:top-0 before:h-full before:w-0.5 before:bg-border;
+  @apply relative;
 }
 
 .timeline-item {
-  @apply relative pb-12 md:pb-16;
+  @apply relative pb-12;
 }
 
 .timeline-item:last-child {
@@ -155,5 +157,59 @@ html {
 }
 
 .timeline-dot {
-  @apply absolute left-4 md:left-1/2 transform -translate-x-2.5 md:-translate-x-1/2 w-5 h-5 rounded-full bg-portfolio-blue border-4 border-background z-10;
+  @apply absolute transform w-5 h-5 rounded-full bg-portfolio-blue border-4 border-background z-10;
+}
+
+@media (min-width: 640px) {
+  .section-heading {
+    @apply text-4xl;
+  }
+  .section-subheading {
+    @apply text-2xl;
+  }
+}
+
+@media (min-width: 768px) {
+  .section {
+    @apply px-8;
+  }
+  .timeline-item {
+    @apply pb-16;
+  }
+}
+
+@media (min-width: 1024px) {
+  .section {
+    @apply px-16;
+  }
+}
+
+.timeline-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 1rem;
+  height: 100%;
+  width: 0.125rem;
+  margin-left: -0.25rem;
+  background-color: hsl(var(--border));
+}
+
+@media (min-width: 768px) {
+  .timeline-container::before {
+    left: 50%;
+    margin-left: -0.25rem;
+  }
+}
+
+.timeline-dot {
+  left: 1rem;
+  transform: translateX(-0.625rem);
+}
+
+@media (min-width: 768px) {
+  .timeline-dot {
+    left: 50%;
+    transform: translateX(-50%);
+  }
 }

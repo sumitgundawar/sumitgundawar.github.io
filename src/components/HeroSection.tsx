@@ -13,7 +13,7 @@ const HeroSection = ({ className }: HeroSectionProps) => {
     <section
       id="about"
       className={cn(
-        "relative overflow-hidden min-h-screen flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-20",
+        "relative overflow-hidden min-h-[calc(100vh-4rem)] flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-10 pb-14",
         className
       )}
     >

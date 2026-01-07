@@ -1,6 +1,7 @@
 
 import { cn } from "@/lib/utils";
 import { ChevronUp } from "lucide-react";
+import { trackButtonClick } from "@/lib/analytics";
 
 interface FooterProps {
   className?: string;
@@ -10,6 +11,7 @@ const Footer = ({ className }: FooterProps) => {
   const currentYear = new Date().getFullYear();
   
   const scrollToTop = () => {
+    trackButtonClick("footer_back_to_top");
     window.scrollTo({
       top: 0,
       behavior: "smooth"

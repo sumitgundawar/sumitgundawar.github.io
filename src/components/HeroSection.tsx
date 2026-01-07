@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Download } from "lucide-react";
 import { cn, scrollToElement } from "@/lib/utils";
+import { trackButtonClick } from "@/lib/analytics";
 
 interface HeroSectionProps {
   className?: string;
@@ -50,20 +51,19 @@ const HeroSection = ({ className }: HeroSectionProps) => {
           <Button 
             className="bg-portfolio-blue hover:bg-portfolio-dark-blue text-white px-6 py-6"
             onClick={() => {
+              trackButtonClick("hero_view_projects");
               scrollToElement('projects');
-              // Track this interaction in Google Analytics
-              if (typeof window !== 'undefined' && window.gtag) {
-                window.gtag('event', 'view_projects', {
-                  event_category: 'navigation',
-                  event_label: 'View My Work Button'
-                });
-              }
             }}
           >
             View Projects
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
-          <a href="/uploads/Sumit_Gundawar_CV.pdf" download="Sumit_Gundawar_CV.pdf" className="inline-block">
+          <a
+            href="/uploads/Sumit_Gundawar_CV.pdf"
+            download="Sumit_Gundawar_CV.pdf"
+            className="inline-block"
+            onClick={() => trackButtonClick("hero_download_cv")}
+          >
             <Button variant="outline" className="border-portfolio-blue text-portfolio-blue hover:bg-muted py-6">
               <Download className="mr-2 h-4 w-4" />
               Download CV

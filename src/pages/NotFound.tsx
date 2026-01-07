@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
+import { trackButtonClick } from "@/lib/analytics";
 
 const NotFound = () => {
   const location = useLocation();
@@ -26,10 +27,14 @@ const NotFound = () => {
             </p>
             <div className="flex flex-wrap gap-3">
               <Button className="bg-portfolio-blue hover:bg-portfolio-dark-blue" asChild>
-                <a href="/#projects">View projects</a>
+                <a href="/#projects" onClick={() => trackButtonClick("notfound_view_projects")}>
+                  View projects
+                </a>
               </Button>
               <Button variant="outline" className="border-portfolio-blue text-portfolio-blue hover:bg-portfolio-light-blue" asChild>
-                <a href="/">Home</a>
+                <a href="/" onClick={() => trackButtonClick("notfound_home")}>
+                  Home
+                </a>
               </Button>
             </div>
           </div>

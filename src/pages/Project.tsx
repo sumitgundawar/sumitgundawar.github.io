@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getProjectBySlug } from "@/data/projects";
 import { ArrowLeft, ExternalLink } from "lucide-react";
+import { trackButtonClick, trackOutboundLink } from "@/lib/analytics";
 
 const Section = ({ title, items }: { title: string; items: string[] }) => {
   if (items.length === 0) return null;
@@ -36,7 +37,11 @@ const Project = () => {
             <h1 className="text-3xl font-bold font-space-grotesk text-foreground mb-4">Project not found</h1>
             <p className="text-muted-foreground mb-8">The link may be outdated, or the project was moved.</p>
             <Button className="bg-portfolio-blue hover:bg-portfolio-dark-blue" asChild>
-              <Link to="/#projects" className="flex items-center gap-2">
+              <Link
+                to="/#projects"
+                className="flex items-center gap-2"
+                onClick={() => trackButtonClick("project_notfound_back")}
+              >
                 <ArrowLeft className="h-4 w-4" />
                 Back to projects
               </Link>
@@ -56,7 +61,7 @@ const Project = () => {
         <section className="section">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <Button variant="outline" className="border-portfolio-blue text-portfolio-blue hover:bg-portfolio-light-blue" asChild>
-              <Link to="/#projects" className="flex items-center gap-2">
+              <Link to="/#projects" className="flex items-center gap-2" onClick={() => trackButtonClick(`project_back_${project.slug}`)}>
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Link>
@@ -115,7 +120,12 @@ const Project = () => {
                     <div className="flex flex-col gap-3">
                       {project.links.map((link) => (
                         <Button key={link.href} variant="outline" className="justify-between" asChild>
-                          <a href={link.href} target="_blank" rel="noopener noreferrer">
+                          <a
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => trackOutboundLink(link.href, `project_link_${project.slug}`)}
+                          >
                             <span>{link.label}</span>
                             <ExternalLink className="h-4 w-4" />
                           </a>

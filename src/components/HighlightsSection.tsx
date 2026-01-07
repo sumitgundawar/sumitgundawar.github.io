@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { projects, type ProjectCategory } from "@/data/projects";
 import { ArrowRight, Boxes, Cpu, Network, Sparkles } from "lucide-react";
+import { trackProjectFocus } from "@/lib/analytics";
 
 interface HighlightsSectionProps {
   className?: string;
@@ -44,6 +45,7 @@ const focusCards: Array<{
 ];
 
 function setFocus(category: ProjectCategory) {
+  trackProjectFocus(category);
   const url = new URL(window.location.href);
   url.searchParams.set("focus", category);
   url.hash = "projects";

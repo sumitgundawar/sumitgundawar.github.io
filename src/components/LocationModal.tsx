@@ -33,13 +33,13 @@ const LocationModal = ({ className }: LocationModalProps) => {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold font-space-grotesk text-portfolio-charcoal">
+          <DialogTitle className="text-xl font-semibold font-space-grotesk text-foreground">
             Location: London, United Kingdom
           </DialogTitle>
         </DialogHeader>
         <div className="mt-4">
           <SimpleMap className="h-[350px]" />
-          <div className="mt-4 text-center text-portfolio-gray">
+          <div className="mt-4 text-center text-muted-foreground">
             <p>Based in London, with flexibility to work remotely or relocate for the right opportunity.</p>
           </div>
           <div className="mt-6 flex justify-center">

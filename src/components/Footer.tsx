@@ -17,16 +17,16 @@ const Footer = ({ className }: FooterProps) => {
   };
   
   return (
-    <footer className={cn("py-8 bg-portfolio-blue/10", className)}>
+    <footer className={cn("py-8 bg-muted/20 border-t border-border", className)}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row justify-between items-center">
-          <p className="text-sm text-portfolio-gray">
+          <p className="text-sm text-muted-foreground">
             © {currentYear} Sumit Gundawar. All rights reserved.
           </p>
           <div className="mt-4 md:mt-0">
             <button 
               onClick={scrollToTop} 
-              className="text-sm text-portfolio-blue hover:text-portfolio-dark-blue transition-colors flex items-center gap-1 group"
+              className="text-sm text-portfolio-blue hover:text-portfolio-blue/80 transition-colors flex items-center gap-1 group"
             >
               <span>Back to top</span>
               <ChevronUp className="w-4 h-4 group-hover:-translate-y-1 transition-transform" />

@@ -1,105 +1,242 @@
-
 import { cn } from "@/lib/utils";
-import { Briefcase } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { trackButtonClick } from "@/lib/analytics";
+import ScrollReveal from "@/components/ScrollReveal";
+import AnimatedCounter from "@/components/AnimatedCounter";
+import AccuracyChart from "@/components/AccuracyChart";
+import { Award, ExternalLink } from "lucide-react";
+import { trackOutboundLink } from "@/lib/analytics";
 
 interface ExperienceSectionProps {
   className?: string;
 }
 
-const experiences = [
-  {
-    id: 1,
-    title: "Software Engineer & Innovation Integration",
-    company: "By Dr Vali",
-    location: "London, UK",
-    period: "May 2025 - Present",
-    description:
-      "Product-focused engineer building API-driven products and strategic integrations across payments, commerce, and customer support — with ownership of contracts, docs, and production reliability.",
-    responsibilities: [
-      "Designed and built public-facing + admin APIs using Node.js/Express with clear separation of concerns for external consumers and internal tooling",
-      "Implemented authentication and authorization (Google OAuth, token-based access, role-based permissions)",
-      "Built rate-limited APIs (~5,000 req/sec/IP) with monitoring and safeguards for platform stability",
-      "Designed webhook-driven workflows with retries, failure handling, and idempotency to guarantee delivery and data consistency",
-      "Built and maintained integrations across Stripe, Shopify, Magento, and Intercom to keep customer/order/support data in sync",
-      "Owned API documentation and onboarding guides to enable fast, low-support integrations by other engineers",
-      "Acted as on-call engineer, resolving production incidents and improving observability and reliability over time"
-    ]
-  },
-  {
-    id: 2,
-    title: "Data Analyst",
-    company: "LatentView Analytics",
-    location: "Remote",
-    period: "Jun 2021 - Jun 2023",
-    description:
-      "Built event-driven, distributed data pipelines and forecasting systems for global enterprise clients, with strong focus on reliability and performance.",
-    responsibilities: [
-      "Built distributed pipelines processing 25M+ weekly records using PySpark and Azure Databricks",
-      "Designed trigger-based orchestration where ingestion automatically kicked off forecasting pipelines generating 8-week demand forecasts",
-      "Improved performance by optimizing large-scale jobs, reducing processing time from ~13 hours to ~8 hours",
-      "Implemented validation, monitoring, and failure-handling mechanisms to protect data quality and availability",
-      "Collaborated with product, business, and IT stakeholders to deliver production-ready systems"
-    ]
-  }
-];
-
 const ExperienceSection = ({ className }: ExperienceSectionProps) => {
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
-
   return (
-    <section id="experience" className={cn("section", className)}>
-      <h2 className="section-heading">Work Experience</h2>
-      <div className="timeline-container mt-16">
-        {experiences.map((exp) => (
-          <div key={exp.id} className="timeline-item">
-            <div className="timeline-dot"></div>
-            <div className={`relative md:w-1/2 ${exp.id % 2 === 0 ? 'md:ml-auto md:pl-8' : 'md:pr-8'}`}>
-              <div className="bg-card rounded-lg p-6 border border-border hover:shadow-lg transition-shadow card-hover">
-                <div className="mb-4 flex items-center">
-                  <div className="w-10 h-10 rounded-full bg-portfolio-blue/10 flex items-center justify-center mr-3 border border-portfolio-blue/20">
-                    <Briefcase className="w-5 h-5 text-portfolio-blue" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-foreground font-space-grotesk">{exp.title}</h3>
-                    <p className="text-portfolio-blue font-medium">{exp.company}</p>
-                  </div>
-                </div>
-                <div className="flex justify-between text-sm text-muted-foreground mb-4">
-                  <span>{exp.location}</span>
-                  <span>{exp.period}</span>
-                </div>
-                <p className="text-muted-foreground mb-4">{exp.description}</p>
+    <section id="experience" className={cn("py-24 px-4 max-w-7xl mx-auto scroll-mt-24", className)}>
+      <ScrollReveal>
+        <h2 className="section-heading">Experience</h2>
+      </ScrollReveal>
 
-                <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                  {(expanded[exp.id] ? exp.responsibilities : exp.responsibilities.slice(0, 3)).map((responsibility) => (
-                    <li key={responsibility} className="text-sm">
-                      {responsibility}
-                    </li>
-                  ))}
-                </ul>
+      {/* Chapter 1: By Dr Vali */}
+      <div className="mb-32">
+        <ScrollReveal>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
+            <div>
+              <p className="text-sm text-portfolio-blue font-mono mb-2">May 2025 - Present</p>
+              <h3 className="text-2xl md:text-3xl font-bold font-space-grotesk text-foreground">
+                By Dr Vali
+              </h3>
+              <p className="text-muted-foreground mt-1">Software Engineer (Sole Engineer) - London, UK</p>
+            </div>
+          </div>
+        </ScrollReveal>
 
-                {exp.responsibilities.length > 3 ? (
-                  <div className="mt-4 flex justify-end">
-                    <Button
-                      variant="ghost"
-                      className="text-portfolio-blue hover:bg-portfolio-blue/10"
-                      size="sm"
-                      onClick={() => {
-                        trackButtonClick(expanded[exp.id] ? `experience_show_less_${exp.id}` : `experience_show_more_${exp.id}`);
-                        setExpanded((prev) => ({ ...prev, [exp.id]: !prev[exp.id] }));
-                      }}
-                    >
-                      {expanded[exp.id] ? "Show less" : "Show more"}
-                    </Button>
-                  </div>
-                ) : null}
+        <ScrollReveal delay={0.1}>
+          <p className="text-lg text-muted-foreground max-w-3xl mb-12 leading-relaxed">
+            Sole engineer across 13+ shipped products, owning everything from product design
+            and backend development to production deployment and ongoing support.
+          </p>
+        </ScrollReveal>
+
+        {/* Products grid */}
+        <ScrollReveal delay={0.1}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-card border border-border rounded-xl p-6">
+              <div className="flex items-start justify-between mb-3">
+                <h4 className="text-lg font-semibold font-space-grotesk text-foreground">bdvfit.com</h4>
+                <a
+                  href="https://bdvfit.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackOutboundLink("https://bdvfit.com", "bdvfit_experience")}
+                  className="text-muted-foreground hover:text-portfolio-blue transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+              <p className="text-sm text-portfolio-blue font-medium mb-2">Online Learning Platform</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Full-stack CPD-accredited platform for doctors and dentists. 25+ screens, 20+ API modules,
+                video lessons, quizzes, Stripe payments, automated certificates, and an 18-page admin panel.
+                Built solo from scratch in 6 months.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {["React", "Node.js", "TypeScript", "MongoDB"].map(t => (
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-6">
+              <div className="flex items-start justify-between mb-3">
+                <h4 className="text-lg font-semibold font-space-grotesk text-foreground">bydrvali.com</h4>
+                <a
+                  href="https://bydrvali.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackOutboundLink("https://bydrvali.com", "bydrvali_experience")}
+                  className="text-muted-foreground hover:text-portfolio-blue transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+              <p className="text-sm text-portfolio-blue font-medium mb-2">E-commerce Store</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                E-commerce store for 5 skin care products that has generated over £500k in revenue
+                since July 2025.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {["Shopify", "Stripe", "Integrations"].map(t => (
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h4 className="text-lg font-semibold font-space-grotesk text-foreground mb-3">bdvportal.com</h4>
+              <p className="text-sm text-portfolio-blue font-medium mb-2">Clinic Management System</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Personalised treatment protocols across 120+ services for a high-profile client base
+                including celebrities.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {["React", "Node.js", "MongoDB", "REST APIs"].map(t => (
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h4 className="text-lg font-semibold font-space-grotesk text-foreground mb-3">AI Chatbots + Project Tracker</h4>
+              <p className="text-sm text-portfolio-blue font-medium mb-2">Internal Tools</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Built bydrvaliportal.com, an internal project tracker with team management, automated
+                approval workflows, and real-time reporting for the CEO. Developed AI chatbots for the
+                legal team using document indexing and retrieval.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {["RAG", "LLM", "Node.js", "Workflows"].map(t => (
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                ))}
               </div>
             </div>
           </div>
-        ))}
+        </ScrollReveal>
+      </div>
+
+      {/* Chapter 2: LatentView Analytics */}
+      <div>
+        <ScrollReveal>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
+            <div>
+              <p className="text-sm text-portfolio-blue font-mono mb-2">Jun 2021 - Jun 2023</p>
+              <h3 className="text-2xl md:text-3xl font-bold font-space-grotesk text-foreground">
+                LatentView Analytics
+              </h3>
+              <p className="text-muted-foreground mt-1">Data Analyst (Clients: PepsiCo, Hilton, Unilever) - Remote</p>
+            </div>
+          </div>
+        </ScrollReveal>
+
+        <ScrollReveal delay={0.1}>
+          <p className="text-lg text-muted-foreground max-w-3xl mb-12 leading-relaxed">
+            Built demand forecasting models and analytics systems for global enterprise clients,
+            with direct impact on supply chain operations and revenue.
+          </p>
+        </ScrollReveal>
+
+        {/* PepsiCo section with chart */}
+        <ScrollReveal delay={0.1}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h4 className="text-lg font-semibold font-space-grotesk text-foreground mb-2">
+                PepsiCo Demand Forecasting
+              </h4>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                Built a custom demand forecasting model at the most granular level - store by product,
+                8 weeks ahead. Improved forecast accuracy from 51% to 83% with a bias of +/-6%.
+                The model was used directly by PepsiCo's Supply Chain Director.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <AnimatedCounter
+                  target={200}
+                  prefix="£"
+                  suffix="M+"
+                  label="Annual impact"
+                  className="text-left"
+                />
+                <AnimatedCounter
+                  target={32}
+                  suffix="%"
+                  label="Accuracy gain"
+                  sublabel="51% to 83%"
+                  className="text-left"
+                />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {["SAS", "Azure Databricks", "Teradata", "PowerBI"].map(t => (
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h4 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">
+                Forecast Accuracy Over Time
+              </h4>
+              <AccuracyChart />
+            </div>
+          </div>
+        </ScrollReveal>
+
+        {/* Warehouse + Awards */}
+        <ScrollReveal delay={0.15}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h4 className="text-lg font-semibold font-space-grotesk text-foreground mb-2">
+                Warehouse Picker Accuracy
+              </h4>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                Delivered a warehouse picker accuracy system tracking per-hour and per-day performance
+                across US operations.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <AnimatedCounter
+                  target={13}
+                  suffix="%"
+                  label="Accuracy gain"
+                  className="text-left"
+                />
+                <AnimatedCounter
+                  target={60}
+                  prefix="£"
+                  suffix="k"
+                  label="Revenue per warehouse"
+                  className="text-left"
+                />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {["Python", "Azure", "PowerBI"].map(t => (
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-6 flex flex-col justify-center">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-portfolio-blue/10 flex items-center justify-center border border-portfolio-blue/20">
+                  <Award className="w-5 h-5 text-portfolio-blue" />
+                </div>
+                <h4 className="text-lg font-semibold font-space-grotesk text-foreground">
+                  Outstanding Performance Award
+                </h4>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Won the Outstanding Performance Award twice in the same year (Sep and Dec 2021)
+                for delivery on PepsiCo and Hilton projects.
+              </p>
+            </div>
+          </div>
+        </ScrollReveal>
       </div>
     </section>
   );

@@ -1,94 +1,99 @@
-// Google Analytics utility functions
-
-// Define types for gtag
-interface GTagEvent {
-  action: string;
-  category: string;
-  label: string;
-  value?: number;
-  params?: Record<string, unknown>;
-}
-
-// Declare gtag as a global function
 declare global {
   interface Window {
-    dataLayer: any[];
-    gtag: (...args: any[]) => void;
+    dataLayer: unknown[];
+    gtag: (...args: unknown[]) => void;
   }
 }
 
-// Initialize GA - this is already done in the HTML, but this is here for reference
-export const initGA = (id: string): void => {
-  if (typeof window !== 'undefined') {
-    window.dataLayer = window.dataLayer || [];
-    window.gtag = function gtag() {
-      window.dataLayer.push(arguments);
-    };
-    window.gtag('js', new Date());
-    window.gtag('config', id);
-  }
-};
+const GA_ID = 'G-G6WTGY3N8N';
 
-// Track page views
 export const pageview = (url: string): void => {
   if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('config', 'G-G6WTGY3N8N', {
-      page_path: url,
-    });
+    window.gtag('config', GA_ID, { page_path: url });
   }
 };
 
-// Track events
-export const event = ({ action, category, label, value }: GTagEvent): void => {
+const fire = (action: string, category: string, label: string, value?: number): void => {
   if (typeof window !== 'undefined' && window.gtag) {
     window.gtag('event', action, {
       event_category: category,
       event_label: label,
-      value: value,
+      value,
     });
   }
 };
 
-// Track button clicks
+// Engagement
 export const trackButtonClick = (buttonName: string): void => {
-  event({
-    action: 'click',
-    category: 'engagement',
-    label: buttonName,
-  });
+  fire('click', 'engagement', buttonName);
 };
 
+export const trackButtonHover = (buttonName: string): void => {
+  fire('hover', 'engagement', buttonName);
+};
+
+// Navigation
 export const trackNavClick = (label: string): void => {
-  event({ action: "nav_click", category: "navigation", label });
+  fire('nav_click', 'navigation', label);
 };
 
 export const trackThemeToggle = (nextTheme: string): void => {
-  event({ action: "theme_toggle", category: "preferences", label: nextTheme });
+  fire('theme_toggle', 'preferences', nextTheme);
 };
 
+// Projects
 export const trackProjectOpen = (slug: string): void => {
-  event({ action: "project_open", category: "projects", label: slug });
+  fire('project_open', 'projects', slug);
 };
 
 export const trackProjectFocus = (category: string): void => {
-  event({ action: "project_focus", category: "projects", label: category });
+  fire('project_focus', 'projects', category);
 };
 
 export const trackProjectFilter = (category: string): void => {
-  event({ action: "project_filter", category: "projects", label: category });
+  fire('project_filter', 'projects', category);
 };
 
 export const trackProjectSearch = (queryLength: number, resultsCount: number): void => {
-  event({ action: "project_search", category: "projects", label: "search", value: queryLength });
-  event({ action: "project_search_results", category: "projects", label: "results_count", value: resultsCount });
+  fire('project_search', 'projects', 'search', queryLength);
+  fire('project_search_results', 'projects', 'results_count', resultsCount);
 };
 
-export const trackOutboundLink = (href: string, label?: string): void => {
-  if (typeof window === "undefined" || !window.gtag) return;
+export const trackProjectNavigation = (from: string, to: string): void => {
+  fire('project_navigation', 'projects', `${from}_to_${to}`);
+};
 
-  window.gtag("event", "click", {
-    event_category: "outbound",
+// Outbound
+export const trackOutboundLink = (href: string, label?: string): void => {
+  if (typeof window === 'undefined' || !window.gtag) return;
+  window.gtag('event', 'click', {
+    event_category: 'outbound',
     event_label: label ?? href,
-    transport_type: "beacon",
+    transport_type: 'beacon',
   });
+};
+
+// Scroll and section tracking
+export const trackScrollDepth = (depth: number): void => {
+  fire('scroll_depth', 'engagement', `${depth}%`, depth);
+};
+
+export const trackSectionView = (sectionId: string): void => {
+  fire('section_view', 'engagement', sectionId);
+};
+
+export const trackTimeOnPage = (seconds: number): void => {
+  fire('time_on_page', 'engagement', 'seconds', seconds);
+};
+
+export const trackLoadTime = (ms: number): void => {
+  fire('page_load_time', 'performance', 'ms', ms);
+};
+
+export const trackChartInteraction = (chartName: string): void => {
+  fire('chart_interaction', 'engagement', chartName);
+};
+
+export const trackCVDownload = (): void => {
+  fire('cv_download', 'conversion', 'cv_pdf');
 };

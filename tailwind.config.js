@@ -60,8 +60,9 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
         portfolio: {
-          blue: "#33C3F0",
-          "dark-blue": "#1FA1DD",
+          blue: "#3b82f6",
+          "dark-blue": "#2563eb",
+          "light-blue": "#dbeafe",
           gray: "#6B7280",
           "light-gray": "#F1F1F1",
           "off-white": "#F9FAFB",
@@ -83,48 +84,17 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "fade-in": {
-          "0%": {
-            opacity: "0",
-            transform: "translateY(10px)",
-          },
-          "100%": {
-            opacity: "1",
-            transform: "translateY(0)",
-          },
-        },
-        "fade-out": {
-          "0%": {
-            opacity: "1",
-            transform: "translateY(0)",
-          },
-          "100%": {
-            opacity: "0",
-            transform: "translateY(10px)",
-          },
-        },
-        "scale-hover": {
-          "0%": {
-            transform: "scale(1)",
-          },
-          "100%": {
-            transform: "scale(1.05)",
-          },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.5s ease-out",
-        "scale-hover": "scale-hover 0.2s ease-in-out forwards",
       },
       fontFamily: {
         inter: ["Inter", "sans-serif"],
         "space-grotesk": ["Space Grotesk", "sans-serif"],
-        "dm-sans": ["DM Sans", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
       },
     },
   },
   plugins: [animate, typography],
 };
-

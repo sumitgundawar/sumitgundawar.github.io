@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => ({
     // Harden file serving during local development.
     fs: {
       strict: true,
-      deny: [".env", ".env.*", "**/.git/**", "**/node_modules/**"],
+      deny: [".env", ".env.*", "**/.git/**"],
     },
   },
   plugins: [

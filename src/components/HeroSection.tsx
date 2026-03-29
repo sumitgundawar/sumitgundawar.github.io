@@ -1,84 +1,163 @@
-
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Download } from "lucide-react";
 import { cn, scrollToElement } from "@/lib/utils";
-import { trackButtonClick } from "@/lib/analytics";
+import { trackButtonClick, trackCVDownload } from "@/lib/analytics";
+import { gsap, ScrollTrigger } from "@/lib/gsap";
+import AnimatedCounter from "@/components/AnimatedCounter";
+import TextReveal from "@/components/TextReveal";
+import MagneticButton from "@/components/MagneticButton";
 
 interface HeroSectionProps {
   className?: string;
 }
 
 const HeroSection = ({ className }: HeroSectionProps) => {
+  const imageRef = useRef<HTMLDivElement>(null);
+  const tagRef = useRef<HTMLParagraphElement>(null);
+  const descRef = useRef<HTMLParagraphElement>(null);
+  const ctaRef = useRef<HTMLDivElement>(null);
+  const metricsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Fade in tag, description, CTA
+    const elements = [tagRef.current, descRef.current, ctaRef.current];
+    elements.forEach((el, i) => {
+      if (!el) return;
+      gsap.fromTo(el,
+        { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.7, delay: 0.6 + i * 0.15, ease: 'power3.out' }
+      );
+    });
+
+    // Parallax on scroll for profile image
+    if (imageRef.current) {
+      ScrollTrigger.create({
+        trigger: imageRef.current,
+        start: 'top bottom',
+        end: 'bottom top',
+        scrub: 1,
+        onUpdate: (self) => {
+          gsap.set(imageRef.current, { y: self.progress * 60 });
+        },
+      });
+    }
+  }, []);
+
   return (
     <section
       id="about"
       className={cn(
-        "relative overflow-hidden min-h-[calc(100vh-4rem)] flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-10 pb-14",
+        "relative overflow-hidden min-h-[calc(100vh-4rem)] flex flex-col justify-center px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-24 pb-16",
         className
       )}
     >
       <div className="absolute inset-0 hero-surface" />
-      <div className="absolute inset-0 bg-grid opacity-35 pointer-events-none" />
+      <div className="absolute inset-0 bg-grid opacity-25 pointer-events-none" />
 
-      <div className="relative w-full md:w-1/2 flex flex-col items-center md:items-start animate-fade-in">
-        <p className="inline-flex items-center gap-2 text-sm text-muted-foreground border border-border bg-background/50 px-3 py-1.5 rounded-full mb-6">
-          Product + Software Engineer · London, UK
-        </p>
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-center md:text-left mb-6 font-space-grotesk text-foreground tracking-tight">
-          Hi, I'm{" "}
-          <span className="text-portfolio-blue">Sumit Gundawar</span>
-        </h1>
-        <p className="text-lg md:text-xl text-muted-foreground text-center md:text-left mb-8 max-w-2xl">
-          Product & Software Engineer building API platforms, integrations, and full-stack systems — with a background in distributed data/ML pipelines and production operations. Based in London, UK.
-        </p>
-        <div className="flex flex-wrap gap-2 mb-8">
-          {[
-            "API design + integrations",
-            "Full-stack delivery",
-            "Distributed systems",
-            "Observability + reliability",
-            "Data/ML pipelines",
-          ].map((chip) => (
-            <span
-              key={chip}
-              className="px-3 py-1 rounded-full bg-portfolio-blue/10 text-portfolio-blue text-sm border border-portfolio-blue/20"
-            >
-              {chip}
-            </span>
-          ))}
+      <div className="relative flex flex-col md:flex-row items-center gap-12 md:gap-16">
+        <div className="w-full md:w-3/5 flex flex-col items-center md:items-start">
+          <p
+            ref={tagRef}
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground border border-border bg-card/50 px-4 py-1.5 rounded-full mb-8 opacity-0"
+          >
+            Software Engineer - London, UK
+          </p>
+
+          <TextReveal
+            text="Sumit Gundawar"
+            as="h1"
+            className="text-5xl md:text-6xl lg:text-7xl font-bold text-center md:text-left mb-6 font-space-grotesk text-foreground tracking-tight"
+            mode="chars"
+            stagger={0.03}
+            delay={0.1}
+          />
+
+          <p
+            ref={descRef}
+            className="text-lg md:text-xl text-muted-foreground text-center md:text-left mb-10 max-w-xl leading-relaxed opacity-0"
+          >
+            I build products that ship and systems that scale. From a CPD-accredited
+            learning platform to demand forecasting at PepsiCo, I have delivered
+            13+ products as a sole engineer and contributed to systems driving
+            over £200M in annual revenue.
+          </p>
+
+          <div ref={ctaRef} className="flex flex-wrap gap-4 opacity-0">
+            <MagneticButton>
+              <Button
+                className="bg-portfolio-blue hover:bg-portfolio-dark-blue text-white px-8 py-6 text-base"
+                onClick={() => {
+                  trackButtonClick("hero_view_work");
+                  scrollToElement('projects');
+                }}
+              >
+                View my work
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </MagneticButton>
+            <MagneticButton>
+              <a
+                href="/uploads/Sumit_Gundawar_CV.pdf"
+                download="Sumit_Gundawar_CV.pdf"
+                className="inline-block"
+                onClick={() => {
+                  trackButtonClick("hero_download_cv");
+                  trackCVDownload();
+                }}
+              >
+                <Button variant="outline" className="border-portfolio-blue text-portfolio-blue hover:bg-portfolio-blue/10 py-6 text-base">
+                  <Download className="mr-2 h-4 w-4" />
+                  Download CV
+                </Button>
+              </a>
+            </MagneticButton>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-4">
-          <Button 
-            className="bg-portfolio-blue hover:bg-portfolio-dark-blue text-white px-6 py-6"
-            onClick={() => {
-              trackButtonClick("hero_view_projects");
-              scrollToElement('projects');
-            }}
-          >
-            View Projects
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <a
-            href="/uploads/Sumit_Gundawar_CV.pdf"
-            download="Sumit_Gundawar_CV.pdf"
-            className="inline-block"
-            onClick={() => trackButtonClick("hero_download_cv")}
-          >
-            <Button variant="outline" className="border-portfolio-blue text-portfolio-blue hover:bg-muted py-6">
-              <Download className="mr-2 h-4 w-4" />
-              Download CV
-            </Button>
-          </a>
+
+        <div ref={imageRef} className="w-full md:w-2/5 flex justify-center">
+          <div className="relative w-64 h-64 md:w-80 md:h-80 lg:w-96 lg:h-96">
+            <div className="absolute -inset-1 rounded-2xl border border-portfolio-blue/15" />
+            <img
+              src="/uploads/b4e91885-fcdb-4f9e-bcb4-dbdd8c9f4387.png"
+              alt="Sumit Gundawar"
+              className="relative object-cover w-full h-full rounded-2xl border border-border shadow-2xl"
+            />
+          </div>
         </div>
       </div>
-      <div className="relative w-full md:w-1/2 mt-8 md:mt-0 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-        <div className="relative mx-auto w-72 h-72 md:w-[380px] md:h-[380px]">
-          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-portfolio-blue/30 via-transparent to-portfolio-blue/10 blur-2xl" />
-          <div className="absolute inset-6 rounded-3xl bg-background/50 border border-border backdrop-blur-xl" />
-          <img
-            src="/uploads/b4e91885-fcdb-4f9e-bcb4-dbdd8c9f4387.png"
-            alt="Sumit Gundawar"
-            className="relative object-cover w-full h-full rounded-3xl border border-border shadow-xl"
+
+      {/* Impact metrics */}
+      <div
+        ref={metricsRef}
+        className="relative mt-20 pt-12 border-t border-border"
+      >
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+          <AnimatedCounter
+            target={13}
+            suffix="+"
+            label="Shipped products"
+            sublabel="as sole engineer"
+          />
+          <AnimatedCounter
+            target={200}
+            prefix="£"
+            suffix="M+"
+            label="Revenue impact"
+            sublabel="PepsiCo forecasting"
+          />
+          <AnimatedCounter
+            target={500}
+            prefix="£"
+            suffix="k+"
+            label="E-commerce revenue"
+            sublabel="since launch"
+          />
+          <AnimatedCounter
+            target={83}
+            suffix="%"
+            label="Forecast accuracy"
+            sublabel="up from 51%"
           />
         </div>
       </div>

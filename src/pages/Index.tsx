@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
@@ -13,6 +15,24 @@ import CustomCursor from "@/components/CustomCursor";
 import ScrollAnalytics from "@/components/ScrollAnalytics";
 
 const Index = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const scrollTo = searchParams.get("scrollTo");
+    if (scrollTo) {
+      setSearchParams({}, { replace: true });
+      const tryScroll = (attempts = 0) => {
+        const el = document.getElementById(scrollTo);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        } else if (attempts < 20) {
+          setTimeout(() => tryScroll(attempts + 1), 150);
+        }
+      };
+      tryScroll();
+    }
+  }, [searchParams, setSearchParams]);
+
   return (
     <LoadingScreen>
       <motion.div

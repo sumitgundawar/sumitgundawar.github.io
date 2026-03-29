@@ -59,7 +59,7 @@ const HeroSection = ({ className }: HeroSectionProps) => {
         <div className="w-full md:w-3/5 flex flex-col items-center md:items-start">
           <p
             ref={tagRef}
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground border border-border bg-card/50 px-4 py-1.5 rounded-full mb-8 opacity-0"
+            className="inline-flex items-center gap-2 text-sm text-black bg-white px-4 py-1.5 rounded-full mb-8 opacity-0"
           >
             Software Engineer - London, UK
           </p>

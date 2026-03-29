@@ -40,7 +40,7 @@ const ProjectsSection = ({ className }: ProjectsSectionProps) => {
         {featured.map((project, i) => (
           <div
             key={project.slug}
-            className="relative bg-card/50 border-y border-border"
+            className="relative bg-card border border-border rounded-xl mx-4 max-w-7xl xl:mx-auto"
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
               <div className={cn(
@@ -82,34 +82,32 @@ const ProjectsSection = ({ className }: ProjectsSectionProps) => {
 
                     <div className="flex flex-wrap gap-2 mb-6">
                       {project.tags.map(tag => (
-                        <span key={tag} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">
+                        <span key={tag} className="text-xs px-2 py-1 rounded-md bg-black text-white">
                           {tag}
                         </span>
                       ))}
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                      <Button size="sm" className="bg-portfolio-blue hover:bg-portfolio-dark-blue" asChild>
-                        <Link
-                          to={`/projects/${project.slug}`}
-                          onClick={() => trackProjectOpen(project.slug)}
-                        >
-                          Read more
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                      </Button>
+                      <Link
+                        to={`/projects/${project.slug}`}
+                        onClick={() => trackProjectOpen(project.slug)}
+                        className="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-md bg-portfolio-blue hover:bg-portfolio-dark-blue text-white transition-colors no-underline"
+                      >
+                        Read more
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
                       {project.links.length > 0 && (
-                        <Button size="sm" variant="outline" className="border-border" asChild>
-                          <a
-                            href={project.links[0].href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => trackOutboundLink(project.links[0].href, project.slug)}
-                          >
-                            {project.links[0].label}
-                            <ExternalLink className="ml-2 h-3 w-3" />
-                          </a>
-                        </Button>
+                        <a
+                          href={project.links[0].href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => trackOutboundLink(project.links[0].href, project.slug)}
+                          className="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-md border border-zinc-300 text-black hover:bg-white/10 transition-colors no-underline"
+                        >
+                          {project.links[0].label}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
                       )}
                     </div>
                   </div>
@@ -188,7 +186,7 @@ const ProjectsSection = ({ className }: ProjectsSectionProps) => {
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {project.tags.slice(0, 4).map(tag => (
-                      <span key={tag} className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                      <span key={tag} className="text-xs px-2 py-0.5 rounded bg-black text-white">
                         {tag}
                       </span>
                     ))}

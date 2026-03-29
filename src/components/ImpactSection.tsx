@@ -65,7 +65,7 @@ const ImpactSection = ({ className }: ImpactSectionProps) => {
                 {cat.items.map((item) => (
                   <span
                     key={item}
-                    className="text-sm px-3 py-1.5 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                    className="text-sm px-3 py-1.5 rounded-md bg-black text-white transition-colors"
                   >
                     {item}
                   </span>
@@ -82,7 +82,7 @@ const ImpactSection = ({ className }: ImpactSectionProps) => {
       </ScrollReveal>
 
       <div className="relative">
-        <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-border" />
+        <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-white" />
 
         {milestones.map((milestone, i) => {
           const isRight = i % 2 === 1;

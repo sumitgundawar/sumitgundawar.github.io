@@ -23,7 +23,7 @@ const Footer = ({ className }: FooterProps) => {
           </p>
           <button
             onClick={scrollToTop}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 group"
+            className="text-sm text-white flex items-center gap-2 group bg-zinc-700 hover:bg-zinc-600 px-4 py-2 rounded-md transition-colors"
           >
             <span>Back to top</span>
             <ChevronUp className="w-4 h-4 group-hover:-translate-y-1 transition-transform" />

@@ -61,7 +61,7 @@ const ExperienceSection = ({ className }: ExperienceSectionProps) => {
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {["React", "Node.js", "TypeScript", "MongoDB"].map(t => (
-                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-black text-white">{t}</span>
                 ))}
               </div>
             </div>
@@ -86,7 +86,7 @@ const ExperienceSection = ({ className }: ExperienceSectionProps) => {
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {["Shopify", "Stripe", "Integrations"].map(t => (
-                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-black text-white">{t}</span>
                 ))}
               </div>
             </div>
@@ -100,7 +100,7 @@ const ExperienceSection = ({ className }: ExperienceSectionProps) => {
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {["React", "Node.js", "MongoDB", "REST APIs"].map(t => (
-                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-black text-white">{t}</span>
                 ))}
               </div>
             </div>
@@ -115,7 +115,7 @@ const ExperienceSection = ({ className }: ExperienceSectionProps) => {
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {["RAG", "LLM", "Node.js", "Workflows"].map(t => (
-                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-black text-white">{t}</span>
                 ))}
               </div>
             </div>
@@ -174,7 +174,7 @@ const ExperienceSection = ({ className }: ExperienceSectionProps) => {
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {["SAS", "Azure Databricks", "Teradata", "PowerBI"].map(t => (
-                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-black text-white">{t}</span>
                 ))}
               </div>
             </div>
@@ -216,7 +216,7 @@ const ExperienceSection = ({ className }: ExperienceSectionProps) => {
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {["Python", "Azure", "PowerBI"].map(t => (
-                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground">{t}</span>
+                  <span key={t} className="text-xs px-2 py-1 rounded-md bg-black text-white">{t}</span>
                 ))}
               </div>
             </div>

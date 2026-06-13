@@ -1,241 +1,146 @@
-
 @config "../tailwind.config.js";
 @reference "tailwindcss";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Status page for Sumit Gundawar.
+  Calm dark panel. Colour means health, never decoration.
+*/
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 220 20% 10%;
+    --ink: #0e1110;
+    --surface: #161a18;
+    --surface-2: #1c211e;
+    --line: #262c29;
+    --c-text: #edebe3;
+    --c-text-dim: #aab1a6;
 
-    --card: 0 0% 98%;
-    --card-foreground: 220 20% 10%;
+    --signal: #3dd68c;
+    --warn: #e8b23a;
+    --crit: #e5634d;
+    --cool: #5b8ba0;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
+    /* semantic */
+    --bg: var(--ink);
+    --panel: var(--surface);
+    --panel-2: var(--surface-2);
+    --hair: var(--line);
+    --fg: var(--c-text);
+    --fg-dim: var(--c-text-dim);
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 220 20% 10%;
-
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-
-    --accent: 210 40% 96%;
-    --accent-foreground: 220 20% 10%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
-
-    --radius: 0.75rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217 91% 60%;
+    --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --radius: 2px;
   }
 
-  .dark {
-    --background: 220 20% 4%;
-    --foreground: 210 20% 95%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
-
-    --popover: 220 18% 7%;
-    --popover-foreground: 210 20% 95%;
-
-    --primary: 217 91% 60%;
-    --primary-foreground: 220 20% 4%;
-
-    --secondary: 220 15% 13%;
-    --secondary-foreground: 210 20% 95%;
-
-    --muted: 220 15% 13%;
-    --muted-foreground: 215 15% 55%;
-
-    --accent: 220 15% 13%;
-    --accent-foreground: 210 20% 95%;
-
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 220 15% 14%;
-    --input: 220 15% 14%;
-    --ring: 217 91% 60%;
-
-    --sidebar-background: 220 20% 6%;
-    --sidebar-foreground: 240 5% 96%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 12%;
-    --sidebar-accent-foreground: 240 5% 96%;
-    --sidebar-border: 220 15% 14%;
-    --sidebar-ring: 217 91% 60%;
-  }
-
-  .dark .bg-card,
-  .dark .bg-card\/50 {
-    --foreground: 220 20% 10%;
-    --muted-foreground: 215 16% 40%;
-    --border: 214 32% 85%;
-    color: hsl(220 20% 10%);
-  }
-}
-
-@layer base {
   * {
-    @apply border-border;
+    border-color: var(--hair);
+    box-sizing: border-box;
   }
 
-  *,
-  *::before,
-  *::after {
-    margin: 0;
-    padding: 0;
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-background text-foreground font-inter;
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
+    background: var(--ink);
+    color: var(--c-text);
+    font-size: 16px;
+    line-height: 1.5;
+    font-family: "Mona Sans Variable", "General Sans", ui-sans-serif, system-ui,
+      "Segoe UI", sans-serif;
+    /* barely-there grain on the background */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
   }
 
-  .section {
-    @apply py-20 px-4 max-w-7xl mx-auto scroll-mt-24;
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
   }
 
-  .section-heading {
-    @apply text-3xl sm:text-4xl font-bold mb-10 font-space-grotesk text-foreground tracking-tight;
+  ::selection {
+    background: color-mix(in oklab, var(--signal) 28%, transparent);
+    color: var(--fg);
   }
 
-  .section-subheading {
-    @apply text-xl sm:text-2xl font-semibold mb-4 font-space-grotesk text-foreground;
+  :focus-visible {
+    outline: 1.5px solid var(--signal);
+    outline-offset: 3px;
+    border-radius: 1px;
   }
 
-  .card-hover {
-    @apply transition-all duration-300 hover:shadow-lg hover:translate-y-[-4px];
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--line); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--c-text-dim); }
+  ::-webkit-scrollbar-track { background: var(--ink); }
+
+  a { color: inherit; text-decoration: none; }
+}
+
+@layer components {
+  .eyebrow {
+    font-family: "Commit Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--c-text-dim);
   }
-}
-
-/* Lenis smooth scroll */
-html.lenis,
-html.lenis body {
-  height: auto;
-}
-
-.lenis.lenis-smooth {
-  scroll-behavior: auto !important;
-}
-
-.lenis.lenis-smooth [data-lenis-prevent] {
-  overscroll-behavior: contain;
-}
-
-
-/* Custom cursor */
-body.custom-cursor,
-body.custom-cursor a,
-body.custom-cursor button,
-body.custom-cursor input,
-body.custom-cursor textarea,
-body.custom-cursor select {
-  cursor: none !important;
-}
-
-/* Noise texture - sits behind all content */
-.noise-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: url("/noise.png");
-  background-repeat: repeat;
-  background-size: 256px;
-  mix-blend-mode: overlay;
-  opacity: 0.35;
-  image-rendering: pixelated;
-}
-
-@media (min-resolution: 2dppx) {
-  .noise-overlay {
-    background-size: 128px;
+  .mono {
+    font-family: "Commit Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-feature-settings: "tnum" 1;
   }
+  .serif {
+    font-family: "Newsreader Variable", Newsreader, Georgia, "Times New Roman", serif;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--hair);
+  }
+
+  .link-underline {
+    background-image: linear-gradient(var(--signal), var(--signal));
+    background-size: 0% 1px;
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    transition: background-size 0.25s var(--ease), color 0.2s var(--ease);
+    padding-bottom: 1px;
+  }
+  .link-underline:hover { background-size: 100% 1px; }
 }
 
-/* Page gradient background */
-.page-gradient {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-}
-
-:root.dark .page-gradient {
-  background:
-    radial-gradient(1100px circle at 0% 0%, hsl(140 60% 25% / 0.5), transparent 60%),
-    radial-gradient(1100px circle at 100% 0%, hsl(25 80% 35% / 0.45), transparent 60%),
-    radial-gradient(1100px circle at 0% 50%, hsl(150 50% 15% / 0.4), transparent 60%),
-    radial-gradient(1100px circle at 0% 100%, hsl(210 70% 30% / 0.45), transparent 60%),
-    radial-gradient(1100px circle at 50% 50%, hsl(45 70% 30% / 0.35), transparent 60%),
-    radial-gradient(1100px circle at 100% 50%, hsl(200 65% 30% / 0.4), transparent 60%),
-    hsl(222 47% 4%);
-}
-
-:root:not(.dark) .page-gradient {
-  background:
-    radial-gradient(1100px circle at 0% 0%, hsl(140 60% 70% / 0.4), transparent 60%),
-    radial-gradient(1100px circle at 100% 0%, hsl(25 80% 75% / 0.35), transparent 60%),
-    radial-gradient(1100px circle at 0% 50%, hsl(150 50% 35% / 0.3), transparent 60%),
-    radial-gradient(1100px circle at 0% 100%, hsl(210 70% 75% / 0.35), transparent 60%),
-    radial-gradient(1100px circle at 50% 50%, hsl(45 70% 75% / 0.3), transparent 60%),
-    radial-gradient(1100px circle at 100% 50%, hsl(200 65% 75% / 0.3), transparent 60%),
-    hsl(0 0% 99%);
-}
-
-/* Hero background */
-.hero-surface {
-  background: radial-gradient(ellipse 80% 60% at 50% 40%, hsl(var(--primary) / 0.04), transparent);
-}
-
-/* Dot pattern */
-.bg-grid {
-  background-image:
-    radial-gradient(circle, hsl(var(--border) / 0.4) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-/* Utility classes */
-.text-accent {
-  color: hsl(var(--primary));
-}
-
-.full-bleed {
-  width: 100vw;
-  margin-left: calc(-50vw + 50%);
-}
-
-@media (min-width: 768px) {
-  .section {
-    @apply px-8;
+@layer utilities {
+  /* gentle fade-up on scroll reveal */
+  .reveal {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+  }
+  .reveal.in {
+    opacity: 1;
+    transform: none;
   }
 }
 
-@media (min-width: 1024px) {
-  .section {
-    @apply px-16;
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--signal) 55%, transparent); }
+  70% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--signal) 0%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
+  .reveal { opacity: 1; transform: none; }
 }

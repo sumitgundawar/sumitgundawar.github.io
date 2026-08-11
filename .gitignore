@@ -27,3 +27,11 @@ node_modules
 # Claude
 .claude/
 CLAUDE.md
+
+# Cloudflare Worker local state
+.wrangler/
+worker/worker-configuration.d.ts
+
+# Python
+__pycache__/
+*.pyc

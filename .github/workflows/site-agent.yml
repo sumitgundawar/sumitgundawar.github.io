@@ -1,0 +1,52 @@
+name: Slack site agent
+
+on:
+  repository_dispatch:       # fired by the Cloudflare relay — near-instant
+    types: [slack-command]
+  schedule:
+    - cron: '*/5 * * * *'   # fallback if the relay is down; often late at peak
+  workflow_dispatch:         # manual "check now" button in the Actions tab
+
+# One agent run at a time. A long Claude task must never race the next tick.
+concurrency:
+  group: site-agent
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Configure git identity
+        run: |
+          git config user.name "site-agent"
+          git config user.email "site-agent@users.noreply.github.com"
+
+      - name: Run agent
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          SLACK_ALLOWED_USER_ID: ${{ secrets.SLACK_ALLOWED_USER_ID }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/slack_agent.py

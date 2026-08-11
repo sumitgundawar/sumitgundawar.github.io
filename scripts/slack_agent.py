@@ -235,10 +235,20 @@ verification is already covered.
 Nobody reads your output until the task is done, so a question ends the run
 without an answer. Make the reasonable call and note it instead of asking.
 
-Your final message is posted verbatim to the site owner as the description of
-this change, and it is all they see before deciding whether to publish. End with
-a short plain-text paragraph covering what you changed and anything they should
-know. No preamble, no questions, no offers of further work."""
+Your final message is posted verbatim into Slack and read on a phone. It is all
+the site owner sees before deciding whether to publish, so write it for that
+moment.
+
+Keep it under roughly 500 characters — two or three sentences, plain text, no
+headings or bullets. Lead with what actually changed, then anything surprising
+or worth a second look: a judgement call you made, something you touched that
+was not asked for, something you could not do.
+
+Do not walk through the change file by file or restate the diff — the diff is
+linked next to your message and carries the detail. If you answered a question
+rather than changing anything, answer it directly in the same budget and stop.
+
+No preamble, no questions, no offers of further work."""
 
 
 def run_claude(task):

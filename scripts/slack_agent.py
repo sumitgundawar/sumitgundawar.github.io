@@ -181,8 +181,19 @@ Rules:
 - Make the smallest coherent change that fully does the task.
 - Keep TypeScript types correct; do not introduce `any`.
 - Do not touch .github/, scripts/, worker/, package.json dependencies, or CNAME files.
-- Do not commit; the surrounding workflow handles git.
-- Finish with a one-paragraph plain-text summary of what you changed."""
+
+You have no shell, and that is deliberate. Do not ask for one, and do not ask
+for permission to run anything. After you finish, the surrounding workflow runs
+`tsc` and the production build and blocks the change if either fails, so
+verification is already covered.
+
+Nobody reads your output until the task is done, so a question ends the run
+without an answer. Make the reasonable call and note it instead of asking.
+
+Your final message is posted verbatim to the site owner as the description of
+this change, and it is all they see before deciding whether to publish. End with
+a short plain-text paragraph covering what you changed and anything they should
+know. No preamble, no questions, no offers of further work."""
 
 
 def run_claude(task):

@@ -157,8 +157,16 @@ All state lives in these — there is no database or state file.
 |---|---|
 | ⏳ | working on it |
 | 👀 | proposal posted, waiting on you |
-| 🚀 | published |
 | ⚠️ | failed — the bot explains why in the channel |
+
+| On the bot's proposal | Meaning |
+|---|---|
+| 🚀 | published |
+| 🗑️ | discarded |
+
+A proposal is rebased onto current `main` and rebuilt at approval time, so a
+change stays approvable even after other work lands. If it no longer applies
+cleanly or no longer builds, nothing is published and the bot says so.
 
 ## Things worth knowing
 

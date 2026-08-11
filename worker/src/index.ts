@@ -22,8 +22,9 @@ interface Env {
   SLACK_ALLOWED_USER_ID: string;
 }
 
-const TRIGGER = "!site";
 const MAX_SKEW_SECONDS = 300;
+// Reactions that carry a decision on a proposal. Anything else is ignored.
+const DECISION_REACTIONS = new Set(["white_check_mark", "x"]);
 
 const encoder = new TextEncoder();
 
@@ -137,6 +138,8 @@ export default {
           user?: string;
           text?: string;
           bot_id?: string;
+          reaction?: string;
+          item?: { type?: string; channel?: string };
         };
       };
 
@@ -146,16 +149,28 @@ export default {
       }
 
       const event = payload.event;
-      const qualifies =
+      const fromYou = event?.user === env.SLACK_ALLOWED_USER_ID;
+
+      // Any message you send in the channel is a task — there is no prefix.
+      const isTask =
         event?.type === "message" &&
         !event.subtype && // ignore edits, joins, deletions
         !event.bot_id && // never let the agent's own replies retrigger it
         event.channel === env.SLACK_CHANNEL_ID &&
-        event.user === env.SLACK_ALLOWED_USER_ID &&
+        fromYou &&
         typeof event.text === "string" &&
-        event.text.trim().toLowerCase().startsWith(TRIGGER);
+        event.text.trim().length > 0;
 
-      if (qualifies) {
+      // Approving or discarding a proposal is a reaction, not a message.
+      const isDecision =
+        event?.type === "reaction_added" &&
+        fromYou &&
+        event.item?.type === "message" &&
+        event.item.channel === env.SLACK_CHANNEL_ID &&
+        typeof event.reaction === "string" &&
+        DECISION_REACTIONS.has(event.reaction);
+
+      if (isTask || isDecision) {
         // Slack demands a response inside 3s and retries on anything else —
         // a retry here would mean a duplicate dispatch, so ack first and let
         // the GitHub call finish after the response.

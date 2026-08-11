@@ -1,8 +1,11 @@
 # Slack site agent — setup
 
-Text `!site <what you want>` in Slack from your phone. A GitHub Action runs
-Claude Code against this repo, verifies the build, and pushes a branch. You reply
-`!site approve` and it goes live at www.sumitgundawar.com.
+Say what you want in the agent's Slack channel. A GitHub Action runs Claude Code
+against this repo, verifies the build, and pushes a branch. React ✅ on the
+bot's proposal and it goes live at www.sumitgundawar.com.
+
+There is no command prefix: in that channel, anything you say is the task. Keep
+it for commands only — a stray note becomes a build.
 
 No server, no always-on laptop, nothing billed beyond your Claude subscription.
 
@@ -78,12 +81,12 @@ ability to publish to your site.
 Push this branch. Then in `#site`:
 
 ```
-!site add a two-line description to each article explaining why it is worth reading
+add a two-line description to each article explaining why it is worth reading
 ```
 
 Don't wait for the cron on the first run — **Actions → Slack site agent → Run
-workflow**. The bot reacts ⏳ while working, replies with what it changed plus a
-diff link, then ✅. Reply `!site approve` to publish, or `!site discard` to bin it.
+workflow**. The bot reacts ⏳ on your message while it works, then posts what it
+changed with a diff link. React ✅ on that message to publish, or ❌ to bin it.
 
 ---
 
@@ -124,29 +127,45 @@ In your Slack app → **Event Subscriptions**:
 1. Toggle **Enable Events** on.
 2. **Request URL**: paste the Worker URL. Slack immediately sends a challenge —
    the Worker answers it, and you should see **Verified**.
-3. **Subscribe to bot events** → add `message.channels`.
+3. **Subscribe to bot events** → add **both**:
+   - `message.channels` — your task messages
+   - `reaction_added` — your ✅ / ❌ decisions
+
+   Miss the second one and approvals still work, but wait for the next cron tick
+   instead of firing immediately.
 4. **Save Changes**, then reinstall the app if Slack prompts you to.
 
-Now `!site` commands fire within a second or two.
+Now both commands and approvals fire within a second or two.
 
 ---
 
 # Reference
 
-## Commands
+## How you drive it
 
-| Command | Effect |
+| You do | Effect |
 |---|---|
-| `!site <anything>` | Claude makes the change, builds it, pushes `bot/pending`, reports back |
-| `!site approve` | Fast-forwards `main` to `bot/pending` — Pages deploys, live in ~2 min |
-| `!site discard` | Deletes the pending branch |
+| Send any message | Claude makes the change, builds it, pushes `bot/pending`, posts a proposal |
+| React ✅ on the proposal | Fast-forwards `main` — Pages deploys, live in ~2 min |
+| React ❌ on the proposal | Deletes the pending branch, publishes nothing |
+
+## Reactions the bot uses
+
+All state lives in these — there is no database or state file.
+
+| On your message | Meaning |
+|---|---|
+| ⏳ | working on it |
+| 👀 | proposal posted, waiting on you |
+| 🚀 | published |
+| ⚠️ | failed — the bot explains why in the channel |
 
 ## Things worth knowing
 
 - **Nothing publishes without you.** The agent only ever pushes to `bot/pending`;
-  `main` moves solely on an explicit `!site approve`.
-- **One pending change at a time.** A new `!site` task force-updates
-  `bot/pending`, discarding an unapproved one. Approve before starting the next.
+  `main` moves solely on your ✅ reaction.
+- **One pending change at a time.** A new task force-updates
+  `bot/pending`, discarding an unapproved one. Decide before starting the next.
 - **One command per run**, oldest first, and runs never overlap (`concurrency` in
   the workflow). Queue several and they drain over successive runs.
 - **Claude has no Bash tool here** — file edits and web research only. The workflow
@@ -164,5 +183,5 @@ Now `!site` commands fire within a second or two.
 | Bot never reacts | Not invited to the channel, or `SLACK_CHANNEL_ID` wrong |
 | `not_in_channel` in the Action log | Run `/invite @site-agent` |
 | `missing_scope` | A scope was skipped in step 2.3 — add it and **reinstall** the app |
-| Commands ignored silently | `SLACK_ALLOWED_USER_ID` is not your member ID |
+| Messages ignored silently | `SLACK_ALLOWED_USER_ID` is not your member ID |
 | Slack won't verify the Worker URL | `SLACK_SIGNING_SECRET` mismatch — re-put the secret |

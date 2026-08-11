@@ -222,7 +222,7 @@ export interface Article {
   date: string; // display
   iso: string;
   url: string;
-  summary: string; // two sentences, his voice
+  summary: string; // two sentences on why it's worth reading, his voice
   framework?: string;
 }
 
@@ -236,7 +236,7 @@ export const articles: Article[] = [
     iso: "2026-06-04",
     url: "https://aitechtrend.com/the-jvs-audit-why-your-cross-platform-dashboards-are-quietly-lying-to-you/",
     summary:
-      "A tool-agnostic audit for cross-platform dashboards, opening with the 2020 case where nearly 16,000 COVID results were lost to a spreadsheet row limit. JVS is Join, Validate, Standardise: catch silent row multiplication, measure key match rates, and hold one authoritative definition per metric.",
+      "Dashboards drift from their source without throwing a single error, so the discrepancy usually surfaces in a meeting instead of a log. Worth reading for the three checks that catch it first: silent row multiplication, key match rate, and one authoritative definition per metric.",
     framework: "JVS Audit",
   },
   {
@@ -247,7 +247,7 @@ export const articles: Article[] = [
     iso: "2026-06-01",
     url: "https://dataconomy.com/2026/06/01/design-your-ai-agents-around-how-they-fail-not-what-they-can-do/",
     summary:
-      "Argues agentic systems should be designed from their failure modes, opening with the Moffatt v. Air Canada chatbot case. Introduces FRAME: failure classification, recovery logic, awareness boundaries, monitoring hooks, and an escalation protocol.",
+      "Most write-ups on agents describe what they can do; this one starts from how they fail, because that is the version a tribunal ends up asking about. FRAME is five checks for the failure path most agent designs skip.",
     framework: "FRAME",
   },
   {
@@ -258,7 +258,7 @@ export const articles: Article[] = [
     iso: "2026-05-25",
     url: "https://dataconomy.com/2026/05/25/treat-every-data-migration-like-it-will-go-wrong/",
     summary:
-      "Makes the case for applying the same rigour to data scripts as to application code, opening with the 2017 GitLab data-loss incident. Advocates dry-run-by-default, idempotent markers, paired verification scripts, and a migration log.",
+      "A migration script run once against production without a rehearsal is not tested, it is untested code with higher stakes. Worth reading for the habits that make that difference visible before it costs you data: dry-run-by-default, idempotent markers, and a migration log.",
   },
   {
     id: "time",
@@ -268,7 +268,7 @@ export const articles: Article[] = [
     iso: "2026-05-18",
     url: "https://dataconomy.com/2026/05/18/time-is-a-feature-one-decision-that-removes-a-whole-class-of-bugs/",
     summary:
-      "Treats time as a design decision, opening with the 2012 leap-second outage. Store timestamps in UTC, choose one human-facing timezone, declare schedules against a fixed zone, compare against start-of-day, and freeze the clock in tests.",
+      "A wrong assumption about time does not surface until the one day a year it matters, and by then it is already in production. Five decisions, made once and up front, remove that whole class of bug.",
   },
 ];
 

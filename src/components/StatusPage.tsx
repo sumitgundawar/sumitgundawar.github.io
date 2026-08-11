@@ -50,13 +50,6 @@ function SectionHead({ label, right }: { label: string; right?: ReactNode }) {
   );
 }
 
-const WRITING_BLURB: Record<string, string> = {
-  jvs: "How cross-platform dashboards inflate their numbers without a single error, and the three checks that catch it.",
-  frame: "Why agentic systems should be designed from their failure modes, not from their demos.",
-  migration: "Applying the same rigour to data scripts that you already apply to production code.",
-  time: "Treating time as a deliberate design decision to remove a whole class of bugs.",
-};
-
 /* ---------- page ---------- */
 
 export function StatusPage() {
@@ -316,7 +309,7 @@ function Writing() {
                 {a.title}
               </h3>
               <p className="text-[16px] mt-2.5 leading-relaxed max-w-[64ch]" style={{ color: "var(--c-text-dim)" }}>
-                {WRITING_BLURB[a.id]}
+                {a.summary}
               </p>
             </a>
           ))}

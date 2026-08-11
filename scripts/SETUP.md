@@ -146,9 +146,10 @@ Now both commands and approvals fire within a second or two.
 | You do | Effect |
 |---|---|
 | Ask a question | Answered in the channel; nothing is changed |
-| Request a change | Claude makes it, builds it, pushes `bot/pending`, posts a proposal |
-| React ✅ on the proposal | Fast-forwards `main` — Pages deploys, live in ~2 min |
-| React ❌ on the proposal | Deletes the pending branch, publishes nothing |
+| Request a change | Claude makes it, builds it, pushes its own branch, posts a proposal |
+| React ✅ on the proposal | Rebases, rebuilds, publishes — live in ~2 min |
+| React ❌ on the proposal | Deletes that branch, publishes nothing |
+| Say `undo` | Reverts the last change published through Slack |
 
 ## Reactions the bot uses
 
@@ -174,8 +175,10 @@ cleanly or no longer builds, nothing is published and the bot says so.
 
 - **Nothing publishes without you.** The agent only ever pushes to `bot/pending`;
   `main` moves solely on your ✅ reaction.
-- **One pending change at a time.** A new task force-updates
-  `bot/pending`, discarding an unapproved one. Decide before starting the next.
+- **Several changes can be pending at once.** Each gets its own branch, named in
+  its proposal, so a ✅ always applies to the change you are looking at.
+- **`undo` only reverts changes made through Slack**, never unrelated commits, and
+  it refuses rather than guessing if the revert no longer applies cleanly.
 - **One command per run**, oldest first, and runs never overlap (`concurrency` in
   the workflow). Queue several and they drain over successive runs.
 - **Claude has no Bash tool here** — file edits and web research only. The workflow

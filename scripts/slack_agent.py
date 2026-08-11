@@ -72,10 +72,48 @@ def slack(method, **params):
     return body
 
 
+SLACK_LIMIT = 3500  # Slack hard-truncates around 4000; leave headroom.
+
+
+def split_for_slack(text, limit=SLACK_LIMIT):
+    """Break long text on paragraph, then line, then character boundaries.
+
+    Truncating is the wrong trade here: the summary is the only thing seen
+    before approving, so losing its end loses the caveats.
+    """
+    if len(text) <= limit:
+        return [text]
+    chunks, current = [], ""
+    for para in text.split("\n\n"):
+        if len(para) > limit:  # a single paragraph too big to fit
+            if current:
+                chunks.append(current)
+                current = ""
+            for i in range(0, len(para), limit):
+                chunks.append(para[i : i + limit])
+            continue
+        candidate = f"{current}\n\n{para}" if current else para
+        if len(candidate) > limit:
+            chunks.append(current)
+            current = para
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 def say(text):
     """Proposals must be top-level messages: conversations.history does not
-    return thread replies, so a threaded proposal's reactions are invisible."""
-    return slack("chat.postMessage", channel=CHANNEL, text=text)["ts"]
+    return thread replies, so a threaded proposal's reactions are invisible.
+
+    Returns the ts of the last message sent — for a split proposal that is the
+    part carrying the diff link and the react-to-publish line.
+    """
+    ts = None
+    for chunk in split_for_slack(text):
+        ts = slack("chat.postMessage", channel=CHANNEL, text=chunk)["ts"]
+    return ts
 
 
 def react(ts, name):
@@ -235,7 +273,7 @@ def do_task(task, ts):
     # change. Claude has already answered it, so pass that on instead of
     # treating a perfectly good question as a failed task.
     if not git("status", "--porcelain"):
-        say(answer[:1500] or f"Nothing to change for: _{task[:150]}_")
+        say(answer or f"Nothing to change for: _{task[:150]}_")
         return ANSWERED
 
     ok, tail = build()
@@ -249,7 +287,7 @@ def do_task(task, ts):
 
     diff = f"https://github.com/{REPO}/compare/main...{BRANCH}"
     say(
-        f"{answer[:1200]}\n\n"
+        f"{answer}\n\n"
         f"Build passed. Diff: {diff}\n\n"
         f"{PROPOSAL_MARK}, :x: to discard."
     )

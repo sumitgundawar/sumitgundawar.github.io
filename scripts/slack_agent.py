@@ -247,8 +247,31 @@ def do_task(task, ts):
 
 
 def do_approve(proposal_ts):
-    git("fetch", "origin", BRANCH)
-    git("push", "origin", f"origin/{BRANCH}:refs/heads/main")
+    git("fetch", "origin", "main", BRANCH)
+
+    # The branch was cut when the task ran, so anything landing on main since
+    # then leaves it behind and a fast-forward push would be rejected. Replay it
+    # onto current main instead of failing an approval for a change that is fine.
+    git("checkout", "-B", "bot/approving", f"origin/{BRANCH}")
+    rebase = subprocess.run(
+        ["git", "rebase", "origin/main"], capture_output=True, text=True
+    )
+    if rebase.returncode != 0:
+        subprocess.run(["git", "rebase", "--abort"], capture_output=True)
+        raise RuntimeError(
+            "this change conflicts with main as it now stands — "
+            "nothing was published. Ask for it again and it will be rebuilt "
+            "against the current site."
+        )
+
+    ok, tail = build()
+    if not ok:
+        raise RuntimeError(
+            f"the change no longer builds against current main, so nothing was "
+            f"published.\n```{tail[-400:]}```"
+        )
+
+    git("push", "origin", "HEAD:refs/heads/main")
     react(proposal_ts, SHIPPED)
     say("Pushed to main. Pages is deploying — live in about two minutes at www.sumitgundawar.com")
 

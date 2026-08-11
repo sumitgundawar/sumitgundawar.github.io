@@ -7,11 +7,13 @@ build is verified, and a branch is pushed. React :white_check_mark: on the bot's
 proposal to publish it, or :x: to bin it. Nothing reaches
 www.sumitgundawar.com without that reaction.
 
+Questions work too — ask one and you get an answer back rather than a change.
+
 Runs inside GitHub Actions on a schedule. No server, no always-on machine.
 
 All state lives in Slack as reactions, so there is no database or state file:
 
-  on your message      ⏳ working   👀 awaiting your call   🚀 published   ⚠️ failed
+  on your message      ⏳ working   👀 awaiting your call   💬 answered   ⚠️ failed
   on the bot's reply   ✅ you approve   ❌ you discard      🚀/🗑️ bot handled it
 """
 
@@ -28,6 +30,7 @@ BRANCH = "bot/pending"        # one pending change at a time — nothing to trac
 # Reactions the bot puts on your message.
 WORKING = "hourglass_flowing_sand"
 AWAITING = "eyes"
+ANSWERED = "speech_balloon"
 SHIPPED = "rocket"
 FAILED = "warning"
 # Reactions you put on the bot's proposal.
@@ -174,8 +177,12 @@ House voice, follow exactly: dry, precise, confident. No emoji, no exclamation
 marks, no marketing buzzwords. Where existing prose leaves the current employer
 unnamed, keep it unnamed.
 
-Task from the site owner:
+Message from the site owner:
 {task}
+
+This may be a request to change the site, or it may be a question about it.
+If it is a question, answer it from the code and change nothing — an answer
+is a complete response, and editing files to satisfy a question is wrong.
 
 Rules:
 - Make the smallest coherent change that fully does the task.
@@ -222,11 +229,14 @@ def do_task(task, ts):
     git("fetch", "origin", "main")
     git("checkout", "-B", BRANCH, "origin/main")
 
-    summary = run_claude(task)
+    answer = run_claude(task)
 
+    # No edits usually means you asked a question rather than requested a
+    # change. Claude has already answered it, so pass that on instead of
+    # treating a perfectly good question as a failed task.
     if not git("status", "--porcelain"):
-        say(f"No file changes came out of: _{task[:150]}_\nTry rephrasing it.")
-        return FAILED
+        say(answer[:1500] or f"Nothing to change for: _{task[:150]}_")
+        return ANSWERED
 
     ok, tail = build()
     if not ok:
@@ -239,7 +249,7 @@ def do_task(task, ts):
 
     diff = f"https://github.com/{REPO}/compare/main...{BRANCH}"
     say(
-        f"{summary[:1200]}\n\n"
+        f"{answer[:1200]}\n\n"
         f"Build passed. Diff: {diff}\n\n"
         f"{PROPOSAL_MARK}, :x: to discard."
     )

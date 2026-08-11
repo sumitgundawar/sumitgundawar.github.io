@@ -145,7 +145,8 @@ Now both commands and approvals fire within a second or two.
 
 | You do | Effect |
 |---|---|
-| Send any message | Claude makes the change, builds it, pushes `bot/pending`, posts a proposal |
+| Ask a question | Answered in the channel; nothing is changed |
+| Request a change | Claude makes it, builds it, pushes `bot/pending`, posts a proposal |
 | React ✅ on the proposal | Fast-forwards `main` — Pages deploys, live in ~2 min |
 | React ❌ on the proposal | Deletes the pending branch, publishes nothing |
 
@@ -157,6 +158,7 @@ All state lives in these — there is no database or state file.
 |---|---|
 | ⏳ | working on it |
 | 👀 | proposal posted, waiting on you |
+| 💬 | you asked a question; the answer is in the channel |
 | ⚠️ | failed — the bot explains why in the channel |
 
 | On the bot's proposal | Meaning |

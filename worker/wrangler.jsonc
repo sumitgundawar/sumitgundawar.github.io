@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "site-agent-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-11",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 }
+  },
+
+  // Non-secret identifiers only. This repo is public — SLACK_SIGNING_SECRET and
+  // GITHUB_TOKEN must never appear here; set them with `wrangler secret put`.
+  "vars": {
+    "GITHUB_REPO": "sumitgundawar/sumitgundawar.github.io",
+    "SLACK_CHANNEL_ID": "C0BPGE51GTX",
+    "SLACK_ALLOWED_USER_ID": "U0BPJ0ULVDL"
+  }
+}

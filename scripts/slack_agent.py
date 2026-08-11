@@ -2,15 +2,17 @@
 """
 Slack -> Claude Code -> GitHub Pages.
 
-Polls one Slack channel for `!site` commands, hands the instruction to Claude
-Code inside this repo, verifies the build, and pushes a branch. Nothing reaches
-www.sumitgundawar.com until you reply `!site approve`.
+Say what you want in the agent's Slack channel. Claude makes the change, the
+build is verified, and a branch is pushed. React :white_check_mark: on the bot's
+proposal to publish it, or :x: to bin it. Nothing reaches
+www.sumitgundawar.com without that reaction.
 
 Runs inside GitHub Actions on a schedule. No server, no always-on machine.
 
-State lives in Slack itself: a processed command carries a :white_check_mark:
-reaction from the bot, so there is no database, cache, or state file to keep in
-sync with anything.
+All state lives in Slack as reactions, so there is no database or state file:
+
+  on your message      ⏳ working   👀 awaiting your call   🚀 published   ⚠️ failed
+  on the bot's reply   ✅ you approve   ❌ you discard      🚀/🗑️ bot handled it
 """
 
 import json
@@ -21,13 +23,23 @@ import urllib.parse
 import urllib.request
 
 SLACK_API = "https://slack.com/api/"
-TRIGGER = "!site"
-BRANCH = "bot/pending"          # one pending change at a time — no state to track
-DONE = "white_check_mark"
-WORKING = "hourglass_flowing_sand"
-FAILED = "x"
+BRANCH = "bot/pending"        # one pending change at a time — nothing to track
 
-# Claude gets no Bash tool. This workflow does git and the build itself, so an
+# Reactions the bot puts on your message.
+WORKING = "hourglass_flowing_sand"
+AWAITING = "eyes"
+SHIPPED = "rocket"
+FAILED = "warning"
+# Reactions you put on the bot's proposal.
+APPROVE = "white_check_mark"
+REJECT = "x"
+# Reactions the bot puts on its own proposal once it has acted.
+DISCARDED = "wastebasket"
+
+# Marks a bot message as a proposal awaiting a decision.
+PROPOSAL_MARK = "React :white_check_mark: to publish"
+
+# Claude gets no Bash tool. This script runs git and the build itself, so an
 # instruction injected by a web page Claude researched cannot run commands.
 CLAUDE_TOOLS = "Read,Edit,Write,Glob,Grep,WebSearch,WebFetch"
 
@@ -42,12 +54,9 @@ REPO = os.environ["GITHUB_REPOSITORY"]
 # --------------------------------------------------------------------------
 
 def slack(method, **params):
-    """Slack Web API. GET for reads, POST for writes — Slack accepts both as
-    form-encoded with the token in the header."""
-    url = SLACK_API + method
-    data = urllib.parse.urlencode(params).encode()
     req = urllib.request.Request(
-        url, data=data,
+        SLACK_API + method,
+        data=urllib.parse.urlencode(params).encode(),
         headers={
             "Authorization": f"Bearer {SLACK_TOKEN}",
             "Content-Type": "application/x-www-form-urlencoded",
@@ -60,11 +69,10 @@ def slack(method, **params):
     return body
 
 
-def say(text, thread_ts=None):
-    kwargs = {"channel": CHANNEL, "text": text}
-    if thread_ts:
-        kwargs["thread_ts"] = thread_ts
-    slack("chat.postMessage", **kwargs)
+def say(text):
+    """Proposals must be top-level messages: conversations.history does not
+    return thread replies, so a threaded proposal's reactions are invisible."""
+    return slack("chat.postMessage", channel=CHANNEL, text=text)["ts"]
 
 
 def react(ts, name):
@@ -79,28 +87,58 @@ def unreact(ts, name):
     try:
         slack("reactions.remove", channel=CHANNEL, timestamp=ts, name=name)
     except RuntimeError:
-        pass  # never blocks the actual work
+        pass  # cosmetic only — never block the real work
 
 
-def pending_commands():
-    """Unprocessed `!site` commands from the allowed user, oldest first.
+def reaction_names(msg):
+    return {r["name"] for r in msg.get("reactions", [])}
 
-    Authorisation is the Slack user ID, not the message text: only that account
-    can put a qualifying message in this channel.
+
+def reacted_by_you(msg, name):
+    for r in msg.get("reactions", []):
+        if r["name"] == name and ALLOWED_USER in r.get("users", []):
+            return True
+    return False
+
+
+def read_channel():
+    return slack("conversations.history", channel=CHANNEL, limit=40).get("messages", [])
+
+
+def find_decision(messages):
+    """Newest bot proposal you have reacted to but the bot hasn't acted on."""
+    for msg in messages:  # newest first
+        if not msg.get("bot_id"):
+            continue
+        if PROPOSAL_MARK not in (msg.get("text") or ""):
+            continue
+        if reaction_names(msg) & {SHIPPED, DISCARDED}:
+            continue  # already handled
+        if reacted_by_you(msg, APPROVE):
+            return msg["ts"], "approve"
+        if reacted_by_you(msg, REJECT):
+            return msg["ts"], "discard"
+    return None, None
+
+
+def find_task(messages):
+    """Oldest message of yours the bot has not started on.
+
+    There is no command prefix: in this channel, anything you say is the task.
     """
-    history = slack("conversations.history", channel=CHANNEL, limit=30)
-    out = []
-    for msg in history.get("messages", []):
-        text = (msg.get("text") or "").strip()
-        if not text.lower().startswith(TRIGGER):
+    handled = {WORKING, AWAITING, SHIPPED, FAILED}
+    for msg in reversed(messages):  # oldest first
+        if msg.get("bot_id") or msg.get("subtype"):
             continue
         if msg.get("user") != ALLOWED_USER:
             continue
-        reactions = {r["name"] for r in msg.get("reactions", [])}
-        if DONE in reactions or FAILED in reactions:
+        text = (msg.get("text") or "").strip()
+        if not text:
             continue
-        out.append({"ts": msg["ts"], "body": text[len(TRIGGER):].strip()})
-    return list(reversed(out))
+        if reaction_names(msg) & handled:
+            continue
+        return msg["ts"], text
+    return None, None
 
 
 # --------------------------------------------------------------------------
@@ -142,7 +180,7 @@ Task from the site owner:
 Rules:
 - Make the smallest coherent change that fully does the task.
 - Keep TypeScript types correct; do not introduce `any`.
-- Do not touch .github/, scripts/, package.json dependencies, or CNAME files.
+- Do not touch .github/, scripts/, worker/, package.json dependencies, or CNAME files.
 - Do not commit; the surrounding workflow handles git.
 - Finish with a one-paragraph plain-text summary of what you changed."""
 
@@ -166,83 +204,84 @@ def run_claude(task):
 
 
 # --------------------------------------------------------------------------
-# commands
+# actions
 # --------------------------------------------------------------------------
 
-def do_task(cmd, ts):
+def do_task(task, ts):
     git("fetch", "origin", "main")
     git("checkout", "-B", BRANCH, "origin/main")
 
-    summary = run_claude(cmd)
+    summary = run_claude(task)
 
     if not git("status", "--porcelain"):
-        say(f"No file changes for: _{cmd[:120]}_\nTry rephrasing.", ts)
-        return False
+        say(f"No file changes came out of: _{task[:150]}_\nTry rephrasing it.")
+        return FAILED
 
     ok, tail = build()
     if not ok:
-        say(f"Build failed, nothing pushed.\n```{tail[-400:]}```", ts)
-        return False
+        say(f"Build failed, so nothing was pushed.\n```{tail[-400:]}```")
+        return FAILED
 
     git("add", "-A")
-    git("commit", "-m", f"{cmd[:70]}\n\nRequested via Slack.")
+    git("commit", "-m", f"{task[:70]}\n\nRequested via Slack.")
     git("push", "--force", "origin", BRANCH)
 
-    link = f"https://github.com/{REPO}/compare/main...{BRANCH}"
-    say(f"{summary[:1200]}\n\nBuild passed. Review: {link}\nReply `{TRIGGER} approve` to publish.", ts)
-    return True
+    diff = f"https://github.com/{REPO}/compare/main...{BRANCH}"
+    say(
+        f"{summary[:1200]}\n\n"
+        f"Build passed. Diff: {diff}\n\n"
+        f"{PROPOSAL_MARK}, :x: to discard."
+    )
+    return AWAITING
 
 
-def do_approve(ts):
-    git("fetch", "origin", BRANCH, check=False)
-    if not git("rev-parse", "--verify", f"origin/{BRANCH}", check=False):
-        say("Nothing pending to approve.", ts)
-        return True
+def do_approve(proposal_ts):
+    git("fetch", "origin", BRANCH)
     git("push", "origin", f"origin/{BRANCH}:refs/heads/main")
-    say("Pushed to main. Pages is deploying — live in about two minutes at www.sumitgundawar.com", ts)
-    return True
+    react(proposal_ts, SHIPPED)
+    say("Pushed to main. Pages is deploying — live in about two minutes at www.sumitgundawar.com")
 
 
-def do_discard(ts):
+def do_discard(proposal_ts):
     git("push", "origin", "--delete", BRANCH, check=False)
-    say("Discarded the pending change.", ts)
-    return True
-
-
-def handle(cmd, ts):
-    verb = cmd.split()[0].lower() if cmd else ""
-    if verb == "approve":
-        return do_approve(ts)
-    if verb in ("discard", "cancel"):
-        return do_discard(ts)
-    say(f"Working on: _{cmd[:150]}_", ts)
-    return do_task(cmd, ts)
+    react(proposal_ts, DISCARDED)
+    say("Discarded. Nothing was published.")
 
 
 def main():
-    commands = pending_commands()
-    if not commands:
+    messages = read_channel()
+
+    # A decision you have already made outranks starting new work.
+    proposal_ts, decision = find_decision(messages)
+    if decision:
+        print(f"decision: {decision}")
+        try:
+            if decision == "approve":
+                do_approve(proposal_ts)
+            else:
+                do_discard(proposal_ts)
+        except Exception as exc:  # noqa: BLE001 - report back into Slack
+            print(f"error: {exc}", file=sys.stderr)
+            react(proposal_ts, DISCARDED)  # stop it being retried forever
+            say(f"Could not complete that: {str(exc)[:500]}")
+        return
+
+    task_ts, task = find_task(messages)
+    if not task:
         print("nothing to do")
         return
 
-    # One command per run. The next scheduled run picks up the rest, so a slow
-    # task can never overlap with the job that follows it.
-    job = commands[0]
-    ts, cmd = job["ts"], job["body"]
-    if not cmd:
-        return
-
-    print(f"handling: {cmd[:120]}")
-    react(ts, WORKING)
+    print(f"task: {task[:120]}")
+    react(task_ts, WORKING)
+    outcome = FAILED
     try:
-        ok = handle(cmd, ts)
-    except Exception as exc:  # noqa: BLE001 - always report back into Slack
+        outcome = do_task(task, task_ts)
+    except Exception as exc:  # noqa: BLE001 - report back into Slack
         print(f"error: {exc}", file=sys.stderr)
-        say(f"Failed: {str(exc)[:600]}", ts)
-        ok = False
+        say(f"Failed: {str(exc)[:600]}")
     finally:
-        unreact(ts, WORKING)
-    react(ts, DONE if ok else FAILED)
+        unreact(task_ts, WORKING)
+        react(task_ts, outcome)
 
 
 if __name__ == "__main__":

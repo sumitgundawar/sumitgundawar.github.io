@@ -38,6 +38,10 @@ jobs:
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code
 
+      # Lets the agent screenshot its own layout work and see what it changed.
+      - name: Install browser for screenshots
+        run: npx playwright install --with-deps chromium
+
       - name: Configure git identity
         run: |
           git config user.name "site-agent"

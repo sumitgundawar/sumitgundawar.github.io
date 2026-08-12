@@ -49,9 +49,14 @@ DISCARDED = "wastebasket"
 PROPOSAL_MARK = "React :white_check_mark: to publish"
 BRANCH_MARK = "branch:"
 
-# Claude gets no Bash tool. This script runs git and the build itself, so an
-# instruction injected by a web page Claude researched cannot run commands.
-CLAUDE_TOOLS = "Read,Edit,Write,Glob,Grep,WebSearch,WebFetch"
+# Bash is limited to these two commands. Claude needs to rebuild and re-screenshot
+# to check its own layout work — without that it edits blind and stops at the
+# first plausible change — but a general shell would let an instruction injected
+# by a researched web page run anything. Naming the commands keeps both.
+CLAUDE_TOOLS = (
+    "Read,Edit,Write,Glob,Grep,WebSearch,WebFetch,"
+    "Bash(npm run build),Bash(npm run shots)"
+)
 
 SLACK_TOKEN = os.environ["SLACK_BOT_TOKEN"]
 CHANNEL = os.environ["SLACK_CHANNEL_ID"]
@@ -275,17 +280,29 @@ If it is a question, answer it from the code and change nothing — an answer
 is a complete response, and editing files to satisfy a question is wrong.
 
 Rules:
-- Make the smallest coherent change that fully does the task.
+- Match the size of the change to the size of the request. "Fix this typo" wants
+  one line; "the whole site is not optimised for mobile" wants every place that
+  is broken, found and fixed. Do not stop at the first plausible edit and call a
+  broad request done — that reads as ignoring most of it.
 - Keep TypeScript types correct; do not introduce `any`.
 - Do not touch .github/, scripts/, worker/, package.json dependencies, or CNAME files.
 
-You have no shell, and that is deliberate. Do not ask for one, and do not ask
-for permission to run anything. After you finish, the surrounding workflow runs
-`tsc` and the production build and blocks the change if either fails, so
-verification is already covered.
+You can run exactly two commands: `npm run build` and `npm run shots`.
 
-Nobody reads your output until the task is done, so a question ends the run
-without an answer. Make the reasonable call and note it instead of asking.
+`npm run shots` builds screenshots of the site at phone (390px), tablet (820px)
+and desktop (1440px) into `.shots/`, and prints any element that extends past
+the viewport with the overshoot in pixels. Read those PNGs with the Read tool —
+you can see them.
+
+For anything visual — layout, spacing, responsiveness, "it looks wrong" — this
+is not optional. Look before you edit, so you are fixing the actual problem, and
+run it again afterwards to confirm you fixed it rather than moved it. Overshooting
+elements with no page scroll means content is being clipped, which is a bug, not
+a fix. Keep going until the screenshots look right, not until the code looks
+plausible.
+
+Nobody reads your output until the run ends, so a question stops the work with
+nothing done. Make the reasonable call and say what you chose.
 
 Your final message is posted verbatim into Slack and read on a phone. It is all
 the site owner sees before deciding whether to publish, so write it for that

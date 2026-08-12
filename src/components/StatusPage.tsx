@@ -1,6 +1,7 @@
 import { useEffect, useState, type ElementType, type ReactNode } from "react";
 import { HealthDot, Eyebrow, Tag } from "./primitives";
 import { useReveal, useNow } from "@/lib/hooks";
+import { Link } from "react-router-dom";
 import {
   identity,
   timeline,
@@ -8,6 +9,7 @@ import {
   services,
   allProducts,
   articles,
+  podcasts,
   speaking,
   recognition,
   kpis,
@@ -17,7 +19,7 @@ const GITHUB = "https://github.com/sumitgundawar";
 
 /* ---------- helpers ---------- */
 
-function Reveal({
+export function Reveal({
   as: As = "section",
   className = "",
   children,
@@ -34,7 +36,7 @@ function Reveal({
   );
 }
 
-function SectionHead({ label, right }: { label: string; right?: ReactNode }) {
+export function SectionHead({ label, right }: { label: string; right?: ReactNode }) {
   return (
     <div className="flex items-center gap-3 mb-7">
       <span aria-hidden className="inline-block shrink-0" style={{ width: 7, height: 7, background: "var(--cool)" }} />
@@ -50,13 +52,6 @@ function SectionHead({ label, right }: { label: string; right?: ReactNode }) {
   );
 }
 
-const WRITING_BLURB: Record<string, string> = {
-  jvs: "How cross-platform dashboards inflate their numbers without a single error, and the three checks that catch it.",
-  frame: "Why agentic systems should be designed from their failure modes, not from their demos.",
-  migration: "Applying the same rigour to data scripts that you already apply to production code.",
-  time: "Treating time as a deliberate design decision to remove a whole class of bugs.",
-};
-
 /* ---------- page ---------- */
 
 export function StatusPage() {
@@ -70,6 +65,7 @@ export function StatusPage() {
             <Profile />
             <Work />
             <Writing />
+            <Podcasts />
             <SpeakingRecognition />
             <Education />
             <Footer />
@@ -194,6 +190,22 @@ function Lead() {
       <p className="mt-5 text-[17px] leading-relaxed max-w-[64ch]" style={{ color: "var(--c-text-dim)" }}>
         {identity.bio}
       </p>
+      <nav className="flex flex-wrap gap-3 mt-6">
+        <Link
+          to="/learn"
+          className="mono text-[12.5px] uppercase tracking-[0.06em] border border-hair px-3.5 py-2.5 link-underline"
+          style={{ color: "var(--c-text)" }}
+        >
+          Learn engineering →
+        </Link>
+        <Link
+          to="/build"
+          className="mono text-[12.5px] uppercase tracking-[0.06em] border border-hair px-3.5 py-2.5 link-underline"
+          style={{ color: "var(--c-text)" }}
+        >
+          Build a system →
+        </Link>
+      </nav>
     </header>
   );
 }
@@ -316,7 +328,38 @@ function Writing() {
                 {a.title}
               </h3>
               <p className="text-[16px] mt-2.5 leading-relaxed max-w-[64ch]" style={{ color: "var(--c-text-dim)" }}>
-                {WRITING_BLURB[a.id]}
+                {a.summary}
+              </p>
+            </a>
+          ))}
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+/* ---------- podcast ---------- */
+
+function Podcasts() {
+  return (
+    <Reveal className="mt-16">
+      <div id="podcast" style={{ scrollMarginTop: 24 }}>
+        <SectionHead label="podcast" />
+        <div>
+          {podcasts.map((p, i) => (
+            <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className={`block py-6 group ${i === 0 ? "" : "border-t border-hair"}`}>
+              <div className="flex items-baseline justify-between gap-4 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
+                <span className="uppercase tracking-[0.07em]">{p.show}</span>
+                <span className="tnum shrink-0">{p.when}</span>
+              </div>
+              <h3
+                className="serif mt-2 leading-snug link-underline inline"
+                style={{ fontSize: "clamp(21px, 2.8vw, 28px)", color: "var(--c-text)" }}
+              >
+                {p.title}
+              </h3>
+              <p className="text-[16px] mt-2.5 leading-relaxed max-w-[64ch]" style={{ color: "var(--c-text-dim)" }}>
+                {p.summary}
               </p>
             </a>
           ))}

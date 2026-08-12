@@ -38,15 +38,15 @@ export function Reveal({
 
 export function SectionHead({ label, right }: { label: string; right?: ReactNode }) {
   return (
-    <div className="flex items-center gap-3 mb-7">
+    <div className="flex items-center flex-wrap gap-3 mb-7">
       <span aria-hidden className="inline-block shrink-0" style={{ width: 7, height: 7, background: "var(--cool)" }} />
       <h2
-        className="mono uppercase font-semibold shrink-0"
+        className="mono uppercase font-semibold"
         style={{ fontSize: "15px", letterSpacing: "0.13em", color: "var(--c-text)" }}
       >
         {label}
       </h2>
-      <span className="h-px flex-1" style={{ background: "var(--hair)" }} />
+      <span className="h-px flex-1 min-w-8" style={{ background: "var(--hair)" }} />
       {right}
     </div>
   );

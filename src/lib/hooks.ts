@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 export function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(() =>
@@ -40,6 +41,19 @@ export function useReveal<T extends HTMLElement = HTMLDivElement>() {
     return () => io.disconnect();
   }, []);
   return ref;
+}
+
+/* Sends a GA4 page_view on every route change, including the first. */
+export function useAnalyticsPageview(): void {
+  const location = useLocation();
+  useEffect(() => {
+    if (typeof window.gtag !== "function") return;
+    window.gtag("event", "page_view", {
+      page_path: location.pathname + location.search,
+      page_location: window.location.href,
+      page_title: document.title,
+    });
+  }, [location.pathname, location.search]);
 }
 
 /* Live clock, ticks every second. */

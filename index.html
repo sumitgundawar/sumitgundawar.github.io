@@ -24,7 +24,10 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-G6WTGY3N8N');
+      // send_page_view disabled here: the app is a client-side router, so
+      // page views are sent manually on every route change (including the
+      // first) from src/lib/hooks.ts to avoid missing or double-counting hits.
+      gtag('config', 'G-G6WTGY3N8N', { send_page_view: false });
     </script>
 
     <meta charset="UTF-8" />

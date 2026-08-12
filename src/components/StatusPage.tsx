@@ -57,6 +57,7 @@ export function SectionHead({ label, right }: { label: string; right?: ReactNode
 export function StatusPage() {
   return (
     <div className="min-h-[100dvh]">
+      <CornerNav />
       <div className="mx-auto w-full max-w-[1280px] px-5 sm:px-8 lg:px-10 py-8 lg:py-12">
         <div className="grid lg:grid-cols-[360px_minmax(0,1fr)] gap-10 lg:gap-16 items-start">
           <Sidebar />
@@ -175,6 +176,32 @@ function Sidebar() {
   );
 }
 
+/* ---------- corner nav (primary CTAs, pinned top right) ---------- */
+
+function CornerNav() {
+  return (
+    <nav
+      className="fixed top-3 right-3 sm:top-5 sm:right-5 z-50 flex flex-wrap justify-end gap-2"
+      aria-label="Primary"
+    >
+      <Link
+        to="/learn"
+        className="panel mono text-[11.5px] sm:text-[12.5px] uppercase tracking-[0.06em] px-3 py-2 sm:px-3.5 sm:py-2.5 link-underline"
+        style={{ color: "var(--c-text)" }}
+      >
+        Learn engineering →
+      </Link>
+      <Link
+        to="/build"
+        className="panel mono text-[11.5px] sm:text-[12.5px] uppercase tracking-[0.06em] px-3 py-2 sm:px-3.5 sm:py-2.5 link-underline"
+        style={{ color: "var(--c-text)" }}
+      >
+        Build a system →
+      </Link>
+    </nav>
+  );
+}
+
 /* ---------- lead ---------- */
 
 function Lead() {
@@ -190,22 +217,6 @@ function Lead() {
       <p className="mt-5 text-[17px] leading-relaxed max-w-[64ch]" style={{ color: "var(--c-text-dim)" }}>
         {identity.bio}
       </p>
-      <nav className="flex flex-wrap gap-3 mt-6">
-        <Link
-          to="/learn"
-          className="mono text-[12.5px] uppercase tracking-[0.06em] border border-hair px-3.5 py-2.5 link-underline"
-          style={{ color: "var(--c-text)" }}
-        >
-          Learn engineering →
-        </Link>
-        <Link
-          to="/build"
-          className="mono text-[12.5px] uppercase tracking-[0.06em] border border-hair px-3.5 py-2.5 link-underline"
-          style={{ color: "var(--c-text)" }}
-        >
-          Build a system →
-        </Link>
-      </nav>
     </header>
   );
 }

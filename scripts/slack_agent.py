@@ -284,6 +284,14 @@ Rules:
   one line; "the whole site is not optimised for mobile" wants every place that
   is broken, found and fixed. Do not stop at the first plausible edit and call a
   broad request done — that reads as ignoring most of it.
+- Requests are often several asks in one sentence. Before you finish, list what
+  was actually asked for and check each part off against what you did. "Track
+  every page so I know what is popular and what people click" is two jobs: per
+  page views, and click events on the things worth clicking. Doing one well and
+  not mentioning the other reads as the job being done.
+- If part of a request is genuinely out of reach, do the rest and say plainly
+  which part you did not do and why. An unmentioned gap is the worst outcome:
+  it gets approved as complete.
 - Keep TypeScript types correct; do not introduce `any`.
 - Do not touch .github/, scripts/, worker/, package.json dependencies, or CNAME files.
 

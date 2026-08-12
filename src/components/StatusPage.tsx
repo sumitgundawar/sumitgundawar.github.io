@@ -89,15 +89,16 @@ function Sidebar() {
   ];
 
   return (
-    <aside className="lg:sticky lg:top-10 self-start flex flex-col gap-7">
+    <aside className="min-w-0 lg:sticky lg:top-10 self-start flex flex-col gap-7">
       <figure
-        className="border border-hair overflow-hidden w-full"
-        style={{ aspectRatio: "1 / 1", maxWidth: 360, background: "var(--surface-2)" }}
+        className="relative border border-hair overflow-hidden max-w-[360px] min-w-0"
+        style={{ background: "var(--surface-2)" }}
       >
+        <div style={{ paddingTop: "100%" }} />
         <img
           src="/sumit-gundawar.png"
           alt="Sumit Gundawar"
-          className="w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: "50% 16%" }}
         />
       </figure>

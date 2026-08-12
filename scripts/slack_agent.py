@@ -213,6 +213,31 @@ def find_task(messages):
 # git + build
 # --------------------------------------------------------------------------
 
+def trigger_deploy():
+    """Ask GitHub Pages to rebuild.
+
+    A push made with GITHUB_TOKEN deliberately does not start other workflows —
+    GitHub suppresses those events to prevent recursion — so deploy.yml never
+    sees our push to main and the site silently stays on the previous build.
+    workflow_dispatch is one of only two events that always create a run, even
+    from GITHUB_TOKEN, so ask for the deploy explicitly instead.
+    """
+    token = os.environ.get("GH_API_TOKEN")
+    if not token:
+        raise RuntimeError("GH_API_TOKEN missing — pushed to main but could not deploy")
+    req = urllib.request.Request(
+        f"https://api.github.com/repos/{REPO}/actions/workflows/deploy.yml/dispatches",
+        data=json.dumps({"ref": "main"}).encode(),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "site-agent",
+            "Content-Type": "application/json",
+        },
+    )
+    urllib.request.urlopen(req, timeout=20)  # 204 on success
+
+
 def git(*args, check=True):
     res = subprocess.run(["git", *args], capture_output=True, text=True)
     if check and res.returncode != 0:
@@ -365,6 +390,7 @@ def do_approve(proposal_ts, branch):
 
     git("push", "origin", "HEAD:refs/heads/main")
     git("push", "origin", "--delete", branch, check=False)
+    trigger_deploy()
     react(proposal_ts, SHIPPED)
     say(
         "Pushed to main. Pages is deploying — live in about two minutes at "
@@ -409,6 +435,7 @@ def do_undo():
         raise RuntimeError(f"undoing that does not build, so nothing changed.\n```{tail[-400:]}```")
 
     git("push", "origin", "HEAD:refs/heads/main")
+    trigger_deploy()
     say(f"Undone: _{subject}_\n\nPages is redeploying — back in about two minutes.")
     return ANSWERED
 

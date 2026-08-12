@@ -14,6 +14,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write   # to ask deploy.yml to run; a GITHUB_TOKEN push cannot
 
 jobs:
   agent:
@@ -49,4 +50,5 @@ jobs:
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
           SLACK_ALLOWED_USER_ID: ${{ secrets.SLACK_ALLOWED_USER_ID }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/slack_agent.py

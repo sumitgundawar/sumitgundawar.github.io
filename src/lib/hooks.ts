@@ -56,6 +56,12 @@ export function useAnalyticsPageview(): void {
   }, [location.pathname, location.search]);
 }
 
+/* Fires a GA4 click event. Silent no-op if gtag has not loaded. */
+export function trackClick(event: string, params: Record<string, string> = {}): void {
+  if (typeof window.gtag !== "function") return;
+  window.gtag("event", event, params);
+}
+
 /* Live clock, ticks every second. */
 export function useNow(interval = 1000): number {
   const [now, setNow] = useState(() => Date.now());

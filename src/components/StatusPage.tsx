@@ -1,6 +1,6 @@
 import { useEffect, useState, type ElementType, type ReactNode } from "react";
 import { HealthDot, Eyebrow, Tag } from "./primitives";
-import { useReveal, useNow } from "@/lib/hooks";
+import { useReveal, useNow, trackClick } from "@/lib/hooks";
 import { Link } from "react-router-dom";
 import {
   identity,
@@ -80,11 +80,12 @@ export function StatusPage() {
 /* ---------- sidebar (identity + impact + contact) ---------- */
 
 function Sidebar() {
-  const channels = [
+  const channels: { label: string; value: string; href: string; download?: boolean }[] = [
     { label: "Email", value: identity.email, href: `mailto:${identity.email}` },
     { label: "LinkedIn", value: identity.linkedinLabel, href: identity.linkedin },
     { label: "GitHub", value: "github.com/sumitgundawar", href: GITHUB },
     { label: "Work", value: "github.com/sumitbdv", href: "https://github.com/sumitbdv" },
+    { label: "CV", value: "Download PDF", href: "/uploads/Sumit_Gundawar_CV.pdf", download: true },
   ];
 
   return (
@@ -157,6 +158,8 @@ function Sidebar() {
               href={c.href}
               target={c.href.startsWith("http") ? "_blank" : undefined}
               rel={c.href.startsWith("http") ? "noreferrer" : undefined}
+              download={c.download ? true : undefined}
+              onClick={() => trackClick(c.download ? "cv_download" : "contact_click", { channel: c.label })}
               className="flex items-center gap-2.5 py-2.5 border-t border-hair group"
             >
               <HealthDot health="ok" size={6} />
@@ -327,7 +330,14 @@ function Writing() {
         />
         <div>
           {articles.map((a, i) => (
-            <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className={`block py-6 group ${i === 0 ? "" : "border-t border-hair"}`}>
+            <a
+              key={a.id}
+              href={a.url}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => trackClick("article_click", { title: a.title, publication: a.publication })}
+              className={`block py-6 group ${i === 0 ? "" : "border-t border-hair"}`}
+            >
               <div className="flex items-baseline justify-between gap-4 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
                 <span className="uppercase tracking-[0.07em]">{a.publication}</span>
                 <span className="tnum shrink-0">{a.date}</span>
@@ -358,7 +368,14 @@ function Podcasts() {
         <SectionHead label="podcast" />
         <div>
           {podcasts.map((p, i) => (
-            <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className={`block py-6 group ${i === 0 ? "" : "border-t border-hair"}`}>
+            <a
+              key={p.id}
+              href={p.url}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => trackClick("podcast_click", { title: p.title, show: p.show })}
+              className={`block py-6 group ${i === 0 ? "" : "border-t border-hair"}`}
+            >
               <div className="flex items-baseline justify-between gap-4 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
                 <span className="uppercase tracking-[0.07em]">{p.show}</span>
                 <span className="tnum shrink-0">{p.when}</span>

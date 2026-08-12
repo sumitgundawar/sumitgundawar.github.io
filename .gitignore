@@ -32,6 +32,9 @@ CLAUDE.md
 .wrangler/
 worker/worker-configuration.d.ts
 
+# Screenshots the agent takes to check its own layout work
+.shots/
+
 # Python
 __pycache__/
 *.pyc

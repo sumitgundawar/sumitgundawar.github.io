@@ -272,7 +272,7 @@ House voice, follow exactly: dry, precise, confident. No emoji, no exclamation
 marks, no marketing buzzwords. Where existing prose leaves the current employer
 unnamed, keep it unnamed.
 
-Message from the site owner:
+{history}Message from the site owner:
 {task}
 
 This may be a request to change the site, or it may be a question about it.
@@ -328,13 +328,40 @@ rather than changing anything, answer it directly in the same budget and stop.
 No preamble, no questions, no offers of further work."""
 
 
-def run_claude(task):
+def recent_conversation(messages, task_ts, keep=10):
+    """The last few turns, so a follow-up reads as one.
+
+    Each run is otherwise a fresh Claude with no memory: "the main page is still
+    not right" arrives with nothing for "still" to refer to, and gets worked as a
+    brand new request instead of a correction of the last attempt.
+    """
+    earlier = [m for m in messages if m.get("ts", "") < task_ts and not m.get("subtype")]
+    earlier = list(reversed(earlier))[-keep:]  # oldest first
+    lines = []
+    for m in earlier:
+        who = "You" if m.get("bot_id") else "Site owner"
+        text = " ".join((m.get("text") or "").split())
+        if text:
+            lines.append(f"{who}: {text[:400]}")
+    if not lines:
+        return ""
+    return (
+        "Earlier in this channel, most recent last. Read the message below in "
+        "that context — a follow-up is usually a correction of your last "
+        "attempt, not a new request:\n\n" + "\n".join(lines) + "\n\n"
+    )
+
+
+def run_claude(task, history=""):
     res = subprocess.run(
         [
-            "claude", "-p", TASK_PROMPT.format(task=task),
+            "claude", "-p", TASK_PROMPT.format(task=task, history=history),
             "--output-format", "json",
             "--permission-mode", "acceptEdits",
             "--allowedTools", CLAUDE_TOOLS,
+            # Default effort under-does exactly the multi-file, look-then-fix
+            # work this is for; xhigh is the setting for agentic coding.
+            "--effort", "xhigh",
         ],
         capture_output=True, text=True, timeout=1800,
     )
@@ -355,12 +382,12 @@ def slugify(text, limit=32):
     return slug[:limit].rstrip("-") or "change"
 
 
-def do_task(task, ts):
+def do_task(task, ts, history=""):
     branch = f"{BRANCH_PREFIX}{slugify(task)}-{datetime.now():%m%d-%H%M%S}"
     git("fetch", "origin", "main")
     git("checkout", "-B", branch, "origin/main")
 
-    answer = run_claude(task)
+    answer = run_claude(task, history)
 
     # No edits usually means you asked a question rather than requested a
     # change. Claude has already answered it, so pass that on instead of
@@ -495,7 +522,7 @@ def main():
         if task.strip().lower().rstrip(".!?") in UNDO_WORDS:
             outcome = do_undo()
         else:
-            outcome = do_task(task, task_ts)
+            outcome = do_task(task, task_ts, recent_conversation(messages, task_ts))
     except Exception as exc:  # noqa: BLE001 - report back into Slack
         print(f"error: {exc}", file=sys.stderr)
         say(f"Failed: {str(exc)[:600]}")

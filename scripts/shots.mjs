@@ -8,13 +8,27 @@
  *   node scripts/shots.mjs [outDir]
  */
 
-import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { chromium } from "playwright";
 
 const DIST = "dist";
 const OUT = process.argv[2] || ".shots";
+
+/** Routes come from the router itself, so a new page is covered the moment it
+ *  exists rather than silently going unscreenshotted. */
+function routes() {
+  try {
+    const src = readFileSync("src/App.tsx", "utf8");
+    const found = [...src.matchAll(/path=["'`]([^"'`]+)["'`]/g)]
+      .map((m) => m[1])
+      .filter((p) => p.startsWith("/") && !p.includes(":") && !p.includes("*"));
+    return [...new Set(["/", ...found])];
+  } catch {
+    return ["/"];
+  }
+}
 
 const VIEWPORTS = [
   { name: "phone", width: 390, height: 844 },    // iPhone 14
@@ -51,12 +65,13 @@ mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch();
 const written = [];
 
+for (const path of routes()) {
 for (const vp of VIEWPORTS) {
   const page = await browser.newPage({
     viewport: { width: vp.width, height: vp.height },
     deviceScaleFactor: 1,
   });
-  await page.goto(`http://localhost:${port}/`, { waitUntil: "networkidle" });
+  await page.goto(`http://localhost:${port}${path}`, { waitUntil: "networkidle" });
   await page.waitForTimeout(400); // let fonts settle so text metrics are real
 
   // Horizontal overflow is the most common mobile break and is easy to miss in
@@ -82,10 +97,12 @@ for (const vp of VIEWPORTS) {
     };
   });
 
-  const file = join(OUT, `${vp.name}.png`);
+  const slug = path === "/" ? "home" : path.replace(/\//g, "-").replace(/^-/, "");
+  const file = join(OUT, `${slug}-${vp.name}.png`);
   await page.screenshot({ path: file, fullPage: true });
-  written.push({ ...vp, file, ...overflow });
+  written.push({ ...vp, path, file, ...overflow });
   await page.close();
+}
 }
 
 await browser.close();
@@ -93,7 +110,7 @@ server.close();
 
 for (const r of written) {
   const flag = r.scrolls ? `OVERFLOWS by ${r.scrollWidth - r.docWidth}px` : "no horizontal overflow";
-  console.log(`${r.name} (${r.width}px): ${r.file} — ${flag}`);
+  console.log(`${r.path}  ${r.name} (${r.width}px): ${r.file} — ${flag}`);
   for (const g of r.worst) {
     console.log(`    +${g.overshoot}px  <${g.tag} class="${g.cls}">`);
   }

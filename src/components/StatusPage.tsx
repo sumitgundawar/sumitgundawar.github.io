@@ -160,7 +160,7 @@ function Sidebar() {
             >
               <HealthDot health="ok" size={6} />
               <span className="eyebrow w-[58px] shrink-0">{c.label}</span>
-              <span className="mono text-[13px] truncate flex-1 link-underline" style={{ color: "var(--c-text)" }}>
+              <span className="mono text-[13px] truncate min-w-0 flex-1 link-underline" style={{ color: "var(--c-text)" }}>
                 {c.value}
               </span>
               <span className="mono text-[12px]" style={{ color: "var(--cool)" }}>↗</span>

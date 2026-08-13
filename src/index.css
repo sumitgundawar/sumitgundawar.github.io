@@ -84,6 +84,18 @@
   ::-webkit-scrollbar-track { background: var(--ink); }
 
   a { color: inherit; text-decoration: none; }
+
+  /* Preflight isn't reaching form elements under this build, so buttons fall
+     back to the UA stylesheet (light background, system font) instead of
+     inheriting the page. Reset by hand, same as the `a` rule above. */
+  button {
+    color: inherit;
+    font: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
 }
 
 @layer components {

@@ -893,77 +893,134 @@ export interface BuildAnswers {
   ops?: string;
 }
 
+/** One node in the request-flow diagram: what it is, and why that choice. */
+export interface BuildComponent {
+  short: string;
+  value: string;
+  why: string;
+}
+
 export interface BuildRecommendation {
   tier: string;
-  compute: string;
-  data: string;
-  edge: string;
-  domain: string;
-  reasoning: string[];
+  tierNote: string;
+  domain: BuildComponent;
+  edge: BuildComponent;
+  compute: BuildComponent;
+  data: BuildComponent;
+  principle: string;
 }
+
+const domain: BuildComponent = {
+  short: "Any registrar",
+  value:
+    "Buy the domain wherever is convenient — a registrar like Squarespace, Namecheap, or Cloudflare Registrar.",
+  why: "DNS is the only coupling between registrar and host. Point it at whichever edge network or platform sits in front of your actual compute, and which company sold you the name stops mattering.",
+};
 
 export function buildRecommendation(answers: BuildAnswers): BuildRecommendation {
   const { traffic = "t2", budget = "cost", ops = "managed" } = answers;
   const managed = ops === "managed";
   const costFirst = budget === "cost";
 
-  const reasoning: string[] = [];
-
   let tier: string;
-  let compute: string;
-  let data: string;
-  let edge: string;
+  let tierNote: string;
+  let compute: BuildComponent;
+  let data: BuildComponent;
+  let edge: BuildComponent;
 
   if (traffic === "t1" || traffic === "t2") {
     tier = "Static / serverless";
+    tierNote =
+      "At this volume, a dedicated server or Kubernetes cluster is idle almost all the time. It costs more than serverless and adds operational surface for no benefit.";
     compute = costFirst
-      ? "Static hosting on a CDN-backed free tier (e.g. Cloudflare Pages, GitHub Pages) with serverless functions for anything dynamic."
-      : "A managed serverless platform (e.g. Vercel, Render, AWS App Runner) for both the frontend and any API routes.";
-    data = "A managed free-tier database if you need one at all — many sites this size get away with none.";
-    edge = "Route through Cloudflare (or the CDN bundled with your host). No load balancer, no autoscaling group.";
-    reasoning.push(
-      "At this volume, a dedicated server or Kubernetes cluster is idle almost all the time. It costs more than serverless and adds operational surface for no benefit."
-    );
+      ? {
+          short: "Static + functions",
+          value:
+            "Static hosting on a CDN-backed free tier (e.g. Cloudflare Pages, GitHub Pages) with serverless functions for anything dynamic.",
+          why: "You pay per request, not per idle hour — at this volume a free tier isn't a trial, it's the correct long-term fit.",
+        }
+      : {
+          short: "Managed serverless",
+          value: "A managed serverless platform (e.g. Vercel, Render, AWS App Runner) for both the frontend and any API routes.",
+          why: "One platform for frontend and API means one deploy pipeline and one place to read logs — worth the extra cost at this size for the ops time it removes.",
+        };
+    data = {
+      short: "None, or free tier",
+      value: "A managed free-tier database if you need one at all — many sites this size get away with none.",
+      why: "Provisioning a database before you have a reason to write to it is speculative cost, and one more thing to patch.",
+    };
+    edge = {
+      short: "CDN only",
+      value: "Route through Cloudflare (or the CDN bundled with your host). No load balancer, no autoscaling group.",
+      why: "The CDN already does the job a load balancer would do at this volume, and it's free.",
+    };
   } else if (traffic === "t3") {
     tier = "Small managed";
+    tierNote =
+      "This is past 'no backend needed' but well short of needing autoscaling or a cache layer. One well-chosen managed service covers it.";
     compute = managed
-      ? "A managed PaaS container platform (e.g. Cloud Run, AWS App Runner, Azure App Service). Scales with traffic, no server to patch."
-      : "A single right-sized compute instance or a small container group behind a load balancer.";
-    data = "A managed database with automated backups. No read replica needed yet.";
-    edge = "CDN in front for static assets; direct to your host for dynamic requests.";
-    reasoning.push(
-      "This is past 'no backend needed' but well short of needing autoscaling or a cache layer. One well-chosen managed service covers it."
-    );
+      ? {
+          short: "Managed PaaS",
+          value:
+            "A managed PaaS container platform (e.g. Cloud Run, AWS App Runner, Azure App Service). Scales with traffic, no server to patch.",
+          why: "Traffic here is uneven enough to want autoscaling, but not enough to justify owning the scaling policy yourself.",
+        }
+      : {
+          short: "Sized instance",
+          value: "A single right-sized compute instance or a small container group behind a load balancer.",
+          why: "Direct control over the instance pays off once you know the workload well enough to size it instead of guessing.",
+        };
+    data = {
+      short: "Managed DB + backups",
+      value: "A managed database with automated backups. No read replica needed yet.",
+      why: "One primary handles this read/write volume without contention — a replica here would sit idle.",
+    };
+    edge = {
+      short: "CDN + direct",
+      value: "CDN in front for static assets; direct to your host for dynamic requests.",
+      why: "Static assets are the cheap win to offload; dynamic requests still need your app server's logic, so they bypass the CDN.",
+    };
   } else if (traffic === "t4") {
     tier = "Scaling";
-    compute = "An autoscaling compute group or container service behind a load balancer, with at least two instances for redundancy.";
-    data = "A managed database with a read replica, plus a cache layer (e.g. Redis) in front of the hottest reads.";
-    edge = "CDN/edge network in front for static assets and to absorb traffic spikes before they reach your origin.";
-    reasoning.push(
-      "At this volume a single instance is a single point of failure, and repeated reads of the same data are worth caching."
-    );
+    tierNote = "At this volume a single instance is a single point of failure, and repeated reads of the same data are worth caching.";
+    compute = {
+      short: "Autoscaling, redundant",
+      value: "An autoscaling compute group or container service behind a load balancer, with at least two instances for redundancy.",
+      why: "The second instance isn't for load — it's so one bad deploy or crash doesn't take the whole site down.",
+    };
+    data = {
+      short: "Replica + cache",
+      value: "A managed database with a read replica, plus a cache layer (e.g. Redis) in front of the hottest reads.",
+      why: "The same rows get read often enough at this volume that caching them is cheaper than scaling the database to serve them directly.",
+    };
+    edge = {
+      short: "CDN absorbs spikes",
+      value: "CDN/edge network in front for static assets and to absorb traffic spikes before they reach your origin.",
+      why: "A spike that never reaches your origin is one your compute layer never has to autoscale for.",
+    };
   } else {
     tier = "Scale";
-    compute = "Multi-AZ autoscaling compute or containers behind a load balancer, with a queue for anything that can run asynchronously.";
-    data = "A managed database with read replicas and a mandatory cache layer for hot reads.";
-    edge = "CDN/edge required, not optional, with the origin sized to handle edge cache misses only.";
-    reasoning.push(
-      "Only at this scale does the added complexity of multi-region and orchestration tooling start paying for itself."
-    );
+    tierNote = "Only at this scale does the added complexity of multi-region and orchestration tooling start paying for itself.";
+    compute = {
+      short: "Multi-AZ + queue",
+      value: "Multi-AZ autoscaling compute or containers behind a load balancer, with a queue for anything that can run asynchronously.",
+      why: "Work that doesn't need to block the response — email, exports, webhooks — moves off the request path so one slow downstream call can't stall the site.",
+    };
+    data = {
+      short: "Replicas + mandatory cache",
+      value: "A managed database with read replicas and a mandatory cache layer for hot reads.",
+      why: "At this volume the database is the first thing to fall over under load — the cache and replicas are load-bearing, not optional insurance.",
+    };
+    edge = {
+      short: "Edge required",
+      value: "CDN/edge required, not optional, with the origin sized to handle edge cache misses only.",
+      why: "Sizing the origin for full traffic instead of cache-miss traffic means paying for capacity the edge was supposed to absorb.",
+    };
   }
 
-  if (costFirst) {
-    reasoning.push(
-      "Cost-first: stay on a single cloud where practical. Cross-vendor traffic (e.g. one cloud's compute reading another's storage) usually adds egress fees that outweigh any per-service savings."
-    );
-  } else {
-    reasoning.push(
-      "Convenience-first: a managed platform costs more per unit of compute, but removes patching, scaling, and on-call for infrastructure you'd otherwise own."
-    );
-  }
+  const principle = costFirst
+    ? "Cost-first: stay on a single cloud where practical. Cross-vendor traffic (e.g. one cloud's compute reading another's storage) usually adds egress fees that outweigh any per-service savings."
+    : "Convenience-first: a managed platform costs more per unit of compute, but removes patching, scaling, and on-call for infrastructure you'd otherwise own.";
 
-  const domain =
-    "Buy the domain wherever is convenient — a registrar like Squarespace, Namecheap, or Cloudflare Registrar. It doesn't need to be the same company as your host: point its DNS at whichever edge network or platform sits in front of your actual compute.";
-
-  return { tier, compute, data, edge, domain, reasoning };
+  return { tier, tierNote, domain, edge, compute, data, principle };
 }

@@ -23,13 +23,14 @@ export const design2: Card[] = [
         check: {
           prompt: "Why does using POST for a read-only search endpoint cost you something?",
           options: [
-            "POST is slower than GET",
+            "POST forces a CORS preflight in the browser, adding a round trip",
+            "POST bodies are not logged by proxies, so the query vanishes from traces",
             "POST responses are not cacheable by default, so CDNs and browsers cannot help",
-            "POST cannot carry parameters",
-            "It breaks HTTPS",
+            "POST will not be retried by infrastructure, so a dropped response re-runs it",
           ],
-          correctIndex: 1,
-          explain: "Verbs carry meaning to infrastructure. A GET can be cached and safely retried; a POST is assumed to change state and is neither.",
+          correctIndex: 2,
+          explain:
+            "Verbs carry meaning to infrastructure that never reads your code. A GET can be cached at the edge and retried by anything in the path; a POST is assumed to change state and gets neither. The preflight and the lost retry are real costs too — they are all the same cause, which is that you told the network this was a write.",
         },
       },
       {
@@ -45,13 +46,14 @@ export const design2: Card[] = [
         check: {
           prompt: "What is the main operational cost of adopting GraphQL?",
           options: [
-            "It requires a specific database",
-            "Clients can compose expensive queries, and HTTP-level caching no longer applies",
-            "It cannot express mutations",
-            "It only works with JavaScript",
+            "Errors come back with a 200 status, so proxies cannot spot a failure",
+            "Clients compose arbitrarily expensive queries, and HTTP caching stops applying",
+            "Every field resolves separately, so a list of n items costs n+1 queries",
+            "The schema must be redeployed whenever a client needs an extra field",
           ],
           correctIndex: 1,
-          explain: "Query flexibility is the feature and the risk. You take on cost limiting, batching, and your own caching layer.",
+          explain:
+            "Query flexibility is the feature and the bill: you take on depth limits, cost analysis and your own caching. N+1 is real but it is a solved problem — dataloader batching is standard equipment. Arbitrary query cost is the part that never fully goes away, because the client decides it.",
         },
       },
       {
@@ -67,12 +69,12 @@ export const design2: Card[] = [
         check: {
           prompt: "Where does gRPC typically fit best?",
           options: [
-            "Public browser-facing APIs",
-            "Internal service-to-service calls where performance and schema enforcement matter",
-            "Static asset delivery",
-            "Webhook delivery to third parties",
+            "Public APIs for third parties, who benefit most from generated clients",
+            "Streaming telemetry from browsers, where binary framing saves bandwidth",
+            "Webhook delivery, since a schema stops receivers mis-parsing the payload",
+            "Internal service-to-service calls, where performance and typing both pay",
           ],
-          correctIndex: 1,
+          correctIndex: 3,
           explain: "Browsers need a proxy and third parties expect JSON. Internally, where both ends are yours, the performance and typing are worth it.",
         },
       },
@@ -215,12 +217,12 @@ export const design2: Card[] = [
         check: {
           prompt: "Why can't a B-tree index serve LIKE '%shoes%'?",
           options: [
-            "B-trees do not store text",
-            "The leading wildcard means there is no prefix to seek on, so the index ordering is useless",
-            "LIKE is not supported on indexed columns",
-            "Text columns cannot be indexed",
+            "A leading wildcard leaves no prefix to seek on, so the ordering is useless",
+            "LIKE comparisons are evaluated after rows are fetched, never in the index",
+            "The index stores a hash of the value, which cannot match a substring",
+            "Text columns are stored out of line, so the index holds a pointer to them",
           ],
-          correctIndex: 1,
+          correctIndex: 0,
           explain: "B-trees are sorted by prefix. A leading wildcard removes the starting point, forcing a full scan.",
         },
       },
@@ -237,13 +239,14 @@ export const design2: Card[] = [
         check: {
           prompt: "Search returns correct matches but users complain. Most likely cause?",
           options: [
-            "The index is stale",
+            "Recall — the best documents are not being matched by the query at all",
+            "The index is stale, so recently updated documents show their old content",
             "Ranking — the right documents are present but not near the top",
-            "The query parser is broken",
-            "Too few shards",
+            "Query parsing, which is dropping terms the user considered important",
           ],
-          correctIndex: 1,
-          explain: "If matches are correct, the failure is ordering. Users rarely look past the first few results, so ranking is the product.",
+          correctIndex: 2,
+          explain:
+            "The question says the matches are correct, which rules recall out — the documents are being found. What is left is ordering, and since users rarely look past the first few results, ranking is the product rather than a refinement of it.",
         },
       },
       {
@@ -259,10 +262,10 @@ export const design2: Card[] = [
         check: {
           prompt: "Why are dual writes to database and search index fragile?",
           options: [
-            "They are slower",
-            "There is no shared transaction, so a failure after the first write leaves them permanently divergent",
-            "Search engines do not accept writes",
-            "They require more connections",
+            "The engine indexes asynchronously, so the write returns before it is visible",
+            "No shared transaction, so a failure after the first write diverges them for good",
+            "Reindexing throughput is lower, so the index steadily falls behind writes",
+            "Two writes double the latency of every request that touches both systems",
           ],
           correctIndex: 1,
           explain: "Two systems, two commits, no atomicity. Deriving the index from the database's change log gives one authoritative ordering.",
@@ -290,12 +293,12 @@ export const design2: Card[] = [
         check: {
           prompt: "Where should user-uploaded images live?",
           options: [
-            "As BLOBs in the primary database",
-            "In object storage, with metadata rows in the database",
-            "On the application server's local disk",
-            "In Redis",
+            "As BLOBs in the primary database, so uploads join the same transaction",
+            "On the application server's disk, fronted by the CDN for all reads",
+            "In object storage, with the bytes also mirrored into Redis for hot files",
+            "In object storage, with the metadata rows kept in the database",
           ],
-          correctIndex: 1,
+          correctIndex: 3,
           explain: "Blobs bloat backups and replication; local disk is lost when the instance is replaced. Object storage plus metadata is the durable, cheap split.",
         },
       },
@@ -312,12 +315,12 @@ export const design2: Card[] = [
         check: {
           prompt: "Main benefit of pre-signed direct uploads?",
           options: [
-            "Files are compressed automatically",
-            "Large payloads bypass your servers entirely, so upload size stops affecting API capacity",
-            "Uploads become transactional",
-            "It removes the need for authentication",
+            "Large payloads bypass your servers, so upload size stops costing API capacity",
+            "The URL expires, so an upload cannot be replayed once the window closes",
+            "The client uploads parts in parallel, which your server could not coordinate",
+            "Storage is billed to the client's own account rather than to yours",
           ],
-          correctIndex: 1,
+          correctIndex: 0,
           explain: "The server authorises but never carries the bytes, so a 2GB upload costs it one small signing request.",
         },
       },
@@ -335,12 +338,12 @@ export const design2: Card[] = [
         check: {
           prompt: "Why segment video and offer multiple renditions?",
           options: [
-            "To reduce total storage",
-            "So the player can switch quality per segment as available bandwidth changes",
-            "To enable DRM",
-            "Because CDNs cannot cache large files",
+            "So the CDN can cache the popular opening minutes without the whole file",
+            "So a seek only has to fetch the segments around the target position",
+            "So the player can change quality per segment as available bandwidth moves",
+            "So each rendition can use a codec suited to the device requesting it",
           ],
-          correctIndex: 1,
+          correctIndex: 2,
           explain: "Per-segment switching turns a bandwidth drop into lower quality rather than a stall, which is what users actually tolerate.",
         },
       },
@@ -366,10 +369,10 @@ export const design2: Card[] = [
         check: {
           prompt: "A logged-in user changes an id in the URL and sees another customer's invoice. What failed?",
           options: [
-            "Authentication",
-            "Authorisation — identity was established but ownership was never checked",
-            "Encryption",
-            "Session management",
+            "Session management, since the session was never bound to the resource",
+            "Authorisation — identity was established, but ownership was never checked",
+            "Authentication, because the identity was not re-verified on this request",
+            "Input validation, which should have rejected an id outside their range",
           ],
           correctIndex: 1,
           explain: "They authenticated correctly. Nothing verified that this invoice belongs to them, which is an authorisation failure.",
@@ -411,12 +414,12 @@ export const design2: Card[] = [
         check: {
           prompt: "What does OpenID Connect add to OAuth?",
           options: [
-            "Encryption of tokens",
-            "An identity layer — an ID token stating who the user is",
-            "Refresh tokens",
-            "Rate limiting",
+            "Refresh tokens, so a client can stay signed in without re-prompting",
+            "Signed and time-limited tokens, which plain OAuth does not require",
+            "Proof that the access token was issued to this client, by way of PKCE",
+            "An identity layer — an ID token that states who the user actually is",
           ],
-          correctIndex: 1,
+          correctIndex: 3,
           explain: "OAuth grants access to resources. OIDC adds authenticated identity, which is what login actually requires.",
         },
       },
@@ -433,13 +436,14 @@ export const design2: Card[] = [
         check: {
           prompt: "Why is SHA-256 the wrong choice for password hashing?",
           options: [
-            "It is not cryptographically secure",
-            "It is fast, so offline brute-force attacks are cheap — password hashing needs deliberate slowness",
-            "It produces collisions",
-            "It cannot be salted",
+            "It is fast by design, and password hashing needs deliberate slowness",
+            "It takes no salt, so identical passwords produce identical digests",
+            "Its 256-bit output is short enough to be searched exhaustively today",
+            "It is vulnerable to length extension, which leaks the original password",
           ],
-          correctIndex: 1,
-          explain: "SHA-256 is fine as a hash and wrong here. bcrypt and Argon2 are deliberately expensive with a tunable cost factor.",
+          correctIndex: 0,
+          explain:
+            "SHA-256 is a good hash and the wrong tool here — speed is its virtue and the whole problem. bcrypt and Argon2 are deliberately expensive, with a cost factor you raise as hardware improves. Salting is a separate fix for a separate bug: it stops one rainbow table covering every user, but a salted fast hash is still brute-forced per user.",
         },
       },
     ],

@@ -488,10 +488,10 @@ export const design: Card[] = [
         check: {
           prompt: "Average latency is 100ms and users complain of slowness. Most likely explanation?",
           options: [
-            "The average is measured incorrectly",
-            "A long tail — p99 may be seconds while the mean stays low",
-            "Users are exaggerating",
-            "The frontend is slow, not the backend",
+            "The mean includes fast health check requests, which drag the number down",
+            "A long tail — p99 may be seconds while the mean stays comfortably low",
+            "Latency is measured server-side, so it excludes network and render time",
+            "The average covers too long a window to show the recent spikes",
           ],
           correctIndex: 1,
           explain: "A small fraction of very slow requests barely moves the mean but is highly visible to the users who hit it. Look at p95 and p99.",
@@ -510,12 +510,12 @@ export const design: Card[] = [
         check: {
           prompt: "What is the point of an error budget?",
           options: [
-            "To assign blame after an incident",
-            "To make the reliability-versus-velocity trade explicit and agreed in advance",
-            "To set the on-call rota",
-            "To calculate infrastructure cost",
+            "To decide when to stop shipping features and spend a sprint on reliability",
+            "To give on-call a threshold at which an alert is worth waking someone for",
+            "To make the reliability-versus-velocity trade explicit, and agreed in advance",
+            "To hold teams to a number, so that a regression has a named owner",
           ],
-          correctIndex: 1,
+          correctIndex: 2,
           explain: "It converts a recurring argument into an agreed number: budget remaining means ship, budget exhausted means stabilise.",
         },
       },

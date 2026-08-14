@@ -16,8 +16,7 @@ export const design2: Card[] = [
         level: "beginner",
         body: [
           "REST models the system as resources addressed by URL, with HTTP verbs describing the action and status codes describing the outcome.",
-          "The value is that everything already understands it: caches, proxies, browsers and load balancers all act correctly on a GET without being told anything.",
-          "Most APIs called RESTful are really HTTP-with-JSON, which is fine. The parts worth keeping are correct verbs, correct status codes and cacheable GETs.",
+          "The value is that everything already understands it — caches, proxies, browsers and load balancers all act correctly on a GET without being told anything about your application. Most APIs called RESTful are really HTTP-with-JSON, which is fine; the parts worth keeping are correct verbs, correct status codes, and cacheable GETs.",
         ],
         why: "Sticking to standard verbs and codes is not pedantry: it is what lets a CDN cache your GET, a proxy retry safely, and a client library behave sensibly without custom logic.",
         check: {
@@ -38,9 +37,8 @@ export const design2: Card[] = [
         title: "GraphQL and its costs",
         level: "intermediate",
         body: [
-          "GraphQL lets the client ask for exactly the fields it needs in one request, which solves over-fetching and the round trips of chatty REST APIs.",
-          "It moves complexity to the server. Arbitrary client queries can be arbitrarily expensive, so you need query depth limits, cost analysis and dataloader batching to avoid N+1 database calls.",
-          "HTTP caching largely stops working, because every query is a POST to one endpoint.",
+          "GraphQL lets the client ask for exactly the fields it needs in one request, which solves over-fetching and the round trips of a chatty REST API.",
+          "It moves the complexity to the server. Arbitrary client queries can be arbitrarily expensive, so you need depth limits, cost analysis and dataloader batching to avoid N+1 database calls — and HTTP caching largely stops working, because every query is a POST to a single endpoint.",
         ],
         why: "GraphQL earns its keep with many clients that need different shapes of the same data — a mobile app and a web app, say. For a single first-party client it is usually complexity without payoff.",
         check: {
@@ -61,9 +59,8 @@ export const design2: Card[] = [
         title: "gRPC and binary protocols",
         level: "intermediate",
         body: [
-          "gRPC uses Protocol Buffers over HTTP/2: a compact binary encoding with a schema, code generation for clients, and streaming in both directions.",
-          "It is markedly faster and smaller on the wire than JSON, and the schema makes breaking changes visible at build time.",
-          "It is awkward from browsers without a proxy, and much harder to debug by hand because you cannot read it.",
+          "gRPC uses Protocol Buffers over HTTP/2: a compact binary encoding with a schema, generated clients, and streaming in both directions.",
+          "It is markedly faster and smaller on the wire than JSON, and the schema makes breaking changes visible at build time. It is also awkward from a browser without a proxy, and much harder to debug by hand, because you cannot read it.",
         ],
         why: "The usual split is gRPC between your own services, where performance and schemas matter, and REST or GraphQL at the public edge, where reach and debuggability matter more.",
         check: {
@@ -83,9 +80,10 @@ export const design2: Card[] = [
         title: "Webhooks and delivery",
         level: "advanced",
         body: [
-          "A webhook inverts the direction: instead of clients polling you, you call them when something happens. It removes polling load and reduces latency.",
-          "You now own a delivery problem. Receivers go down, respond slowly, or fail intermittently, so you need retries with backoff, a dead letter path and visibility into failures.",
-          "Receivers need to verify the payload came from you, usually via an HMAC signature over the body with a shared secret, plus a timestamp to prevent replay.",
+          "A webhook inverts the direction. Instead of clients polling you, you call them when something happens, which removes the polling load and cuts the latency.",
+          "You now own a delivery problem. Receivers go down, respond slowly, or fail intermittently, so you need retries with backoff, a dead letter path, and visibility into what is failing.",
+          "Receivers need to verify the payload came from you: an HMAC signature over the body with a shared secret, plus a timestamp so an old delivery cannot be replayed.",
+          "Order is the part people forget. Retries mean a later event can arrive before an earlier one, so the payload should carry a sequence number or a timestamp, and the receiver should be willing to ignore anything older than what it already holds.",
         ],
         why: "Sending a webhook is easy; delivering reliably is the actual product. Without signing, your webhook endpoint is an unauthenticated write API for anyone who learns the URL.",
         inPractice: "Stripe signs every webhook with an HMAC and a timestamp, and retries with exponential backoff for up to three days.",
@@ -108,8 +106,9 @@ export const design2: Card[] = [
         level: "advanced",
         body: [
           "Additive changes are safe: new optional fields, new endpoints. Removing a field, renaming one, or tightening validation breaks existing clients.",
-          "URL versioning is explicit and easy to route. Header versioning keeps URLs stable. Either works; consistency matters more than the choice.",
-          "The hard part is retirement. Old versions live as long as clients use them, so you need usage telemetry per version and a deprecation process with real deadlines.",
+          "URL versioning is explicit and easy to route. Header versioning keeps URLs stable. Either works, and consistency matters more than which you pick.",
+          "The hard part is retirement. Old versions live exactly as long as clients use them, so you need usage telemetry per version and a deprecation process with real deadlines.",
+          "Without that telemetry every version is maintained forever, because nobody can prove it is safe to remove. Measuring per-version usage is what turns deprecation into a decision rather than a hope.",
         ],
         why: "Most teams version and then never remove anything, so every version is maintained forever. Measuring usage per version is what makes deprecation possible at all.",
         check: {
@@ -212,6 +211,7 @@ export const design2: Card[] = [
           "A normal index maps a row to its values. An inverted index maps each term to the list of documents containing it, which is what makes full-text search fast.",
           "Text is normalised first: lowercased, split into tokens, stemmed so 'running' matches 'run', and stripped of stop words.",
           "A LIKE '%term%' query cannot use a B-tree index at all, so it scans every row. That is fine at ten thousand rows and hopeless at ten million.",
+          "Postgres will do this for you with a GIN index over a tsvector, which is usually the right first move. A separate search cluster is a second datastore to keep in sync, and that cost only starts paying once you need ranking, faceting, or a scale the database cannot reach.",
         ],
         why: "This is why search moves to a dedicated engine. It is not that the database is slow; it is that the data structure required for text search is a different one.",
         check: {
@@ -254,9 +254,10 @@ export const design2: Card[] = [
         title: "Keeping the index in sync",
         level: "advanced",
         body: [
-          "The search index is a second copy of the data, so it can drift. Dual writes — writing to the database and index in the same request — fail when one succeeds and the other does not.",
-          "The reliable pattern is to write to the database, then derive the index from the change log, so the database remains the single source of truth.",
-          "You also need a full reindex path, because index mappings change and drift accumulates.",
+          "The search index is a second copy of the data, so it can drift.",
+          "Dual writes — writing to the database and the index in the same request — fail the moment one succeeds and the other does not, and nothing about that failure is visible until somebody searches for the missing thing.",
+          "The reliable pattern is to write to the database and derive the index from its change log, so the database stays the single source of truth and the index is always a function of it.",
+          "You also need a full reindex path. Mappings change, drift accumulates, and eventually the only honest fix is to rebuild into a fresh index and swap the alias over.",
         ],
         why: "Change data capture beats dual writes because it has one commit point. With dual writes there is always a window where a crash leaves the two permanently inconsistent.",
         check: {

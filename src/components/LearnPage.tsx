@@ -219,7 +219,8 @@ export function LearnPage() {
             <p className="mt-3.5 text-[16px] leading-relaxed max-w-[64ch]" style={{ color: "var(--c-text-dim)" }}>
               Software engineering and system design, from first principles to the decisions senior and
               staff interviews actually probe. Every topic explains why a choice was made, not just what
-              it was. Answer the check at the end of each — nothing is saved, and refreshing resets it.
+              it was. Answer the check at the end of each — there are no accounts, and your score resets
+              when you refresh.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 mono text-[12.5px]" style={{ color: "var(--c-text-dim)" }}>

@@ -91,6 +91,27 @@
     box-sizing: border-box;
   }
 
+  /* This project is on Tailwind v4 but still uses the v3 `@tailwind base`
+     directive, so Preflight is never emitted and user-agent defaults survive.
+     The visible symptom was every <figure> carrying the UA's 40px inline
+     margin: diagrams sat misaligned against body text on desktop and lost 23%
+     of their width on a 390px screen, where they can least afford it.
+     Migrating to `@import "tailwindcss"` is the real fix and restyles
+     everything at once, so it is tracked separately; these are the two
+     defaults that actually bite today. */
+  figure {
+    margin: 0;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0;
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;

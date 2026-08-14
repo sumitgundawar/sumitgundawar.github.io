@@ -149,6 +149,13 @@ export interface Recommendation {
   alternatives: { name: string; when: string }[];
   /** Set when the component is only needed above a certain scale. */
   optional?: boolean;
+  /** What this component talks to. The diagram is drawn from these, so an
+   *  architecture diagram states real dependencies rather than whatever
+   *  happened to land in the next column. Ids that are not present in the
+   *  current recommendation are ignored, so this can name optional pieces. */
+  dependsOn?: string[];
+  /** Dependencies the caller does not wait on. */
+  dependsOnAsync?: string[];
 }
 
 const scaleRank: Record<string, number> = { tiny: 0, small: 1, medium: 2, large: 3 };
@@ -161,6 +168,7 @@ export function recommend(a: Answers): Recommendation[] {
 
   out.push({
     id: "client",
+    dependsOn: ["cdn"],
     kind: "client",
     name: "Front end",
     pick: a.kind === "content" ? "Static site" : "React single-page app",
@@ -177,6 +185,7 @@ export function recommend(a: Answers): Recommendation[] {
 
   out.push({
     id: "cdn",
+    dependsOn: ["api", "storage"],
     kind: "edge",
     name: "CDN and edge",
     pick: cheap ? "Cloudflare (free tier)" : "Cloudflare or CloudFront",
@@ -207,6 +216,8 @@ export function recommend(a: Answers): Recommendation[] {
 
   out.push({
     id: "api",
+    dependsOn: ["db", "cache", "replica", "search", "auth", "payments", "ws"],
+    dependsOnAsync: ["queue", "obs"],
     kind: "service",
     name: "Application server",
     pick:
@@ -297,6 +308,7 @@ export function recommend(a: Answers): Recommendation[] {
   if (a.media === "video") {
     out.push({
       id: "transcode",
+      dependsOn: ["storage"],
       kind: "queue",
       name: "Video pipeline",
       pick: "Mux or Cloudflare Stream",
@@ -378,6 +390,7 @@ export function recommend(a: Answers): Recommendation[] {
   if (scale >= 2 || a.payments !== "none" || (a.media && a.media !== "none")) {
     out.push({
       id: "queue",
+      dependsOn: ["db", "storage", "transcode", "payments"],
       kind: "queue",
       name: "Background jobs",
       pick: cheap ? "Database-backed queue" : "SQS or a managed queue",

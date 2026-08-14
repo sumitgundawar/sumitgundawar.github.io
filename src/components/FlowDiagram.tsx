@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { usePrefersReducedMotion } from "@/lib/hooks";
 import type { Diagram, DiagramNode, NodeKind } from "@/data/learn";
 
 /* Renders an architecture diagram from nodes and edges.
@@ -42,6 +43,10 @@ interface Placed extends DiagramNode {
 
 export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
   const [hovered, setHovered] = useState<string | null>(null);
+  // The packets are SMIL, and CSS animation properties do not touch SMIL —
+  // the reduced-motion block in index.css never stopped them. Not rendering
+  // them is the only thing that actually does.
+  const reducedMotion = usePrefersReducedMotion();
 
   const { placed, width, height, byId } = useMemo(() => {
     const cols = diagram.columns;
@@ -63,37 +68,104 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
     });
 
     const byId = Object.fromEntries(placed.map((p) => [p.id, p]));
+
+    // Skip-column edges arc above the rows and backward edges dip below, so the
+    // viewBox has to make room or they are clipped at the frame.
+    const colOf = (nid: string) => byId[nid]?.col;
+    let above = 0;
+    let below = 0;
+    diagram.edges.forEach((e) => {
+      const a = colOf(e.from);
+      const b = colOf(e.to);
+      if (a === undefined || b === undefined) return;
+      if (b - a > 1) above = 72;
+      if (b < a || b === a) below = 82;
+    });
+
     return {
-      placed,
-      byId,
+      placed: placed.map((p) => ({ ...p, y: p.y + above })),
+      byId: Object.fromEntries(
+        placed.map((p) => [p.id, { ...p, y: p.y + above }]),
+      ),
       width: PAD * 2 + cols.length * W + (cols.length - 1) * GAP_X,
-      height: PAD * 2 + full + DEPTH,
+      height: PAD * 2 + full + DEPTH + above + below,
     };
   }, [diagram]);
 
-  /** Edges route out of the right face and into the left face when moving
-   *  forward; backward edges bow underneath so they never sit on top of a box. */
-  const path = (from: Placed, to: Placed) => {
-    const forward = to.col > from.col;
-    const backward = to.col < from.col;
-    if (backward) {
+  /** Cubic bezier midpoint — where a label sits. Computing it means labels are
+   *  ordinary horizontal text rather than textPath, which rotates every glyph
+   *  to the tangent and is unreadable on anything but a shallow curve. */
+  const bezierMid = (
+    p0: [number, number],
+    p1: [number, number],
+    p2: [number, number],
+    p3: [number, number],
+  ): [number, number] => [
+    (p0[0] + 3 * p1[0] + 3 * p2[0] + p3[0]) / 8,
+    (p0[1] + 3 * p1[1] + 3 * p2[1] + p3[1]) / 8,
+  ];
+
+  /**
+   * Route an edge and report where its label goes.
+   *
+   * Four cases, and the previous version only really handled one. Forward
+   * adjacent edges go right face to left face. Forward edges that skip a column
+   * arc above the row so they do not pass under the boxes in between — that is
+   * what hid the Netflix diagram's "video segments" label behind a node.
+   * Backward edges bow underneath. Same-column edges bow out to the right.
+   */
+  const route = (from: Placed, to: Placed, laneOffset: number) => {
+    const fy = from.y + H / 2;
+    const ty = to.y + H / 2;
+
+    if (to.col === from.col) {
+      const x = from.x + W;
+      const bulge = x + 46 + laneOffset;
+      const p0: [number, number] = [x, fy];
+      const p3: [number, number] = [x, ty];
+      const p1: [number, number] = [bulge, fy];
+      const p2: [number, number] = [bulge, ty];
+      return {
+        d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
+        mid: bezierMid(p0, p1, p2, p3),
+      };
+    }
+
+    if (to.col < from.col) {
       const x1 = from.x + W / 2;
       const x2 = to.x + W / 2;
-      const dip = Math.max(from.y, to.y) + H + 34;
-      return `M ${x1} ${from.y + H} C ${x1} ${dip}, ${x2} ${dip}, ${x2} ${to.y + H}`;
+      const dip = Math.max(from.y, to.y) + H + 30 + laneOffset;
+      const p0: [number, number] = [x1, from.y + H];
+      const p3: [number, number] = [x2, to.y + H];
+      const p1: [number, number] = [x1, dip];
+      const p2: [number, number] = [x2, dip];
+      return {
+        d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
+        mid: bezierMid(p0, p1, p2, p3),
+      };
     }
-    if (!forward) {
-      // same column: hop around the right side
-      const x = from.x + W;
-      const mid = (from.y + to.y) / 2 + H / 2;
-      return `M ${x} ${from.y + H / 2} C ${x + 40} ${from.y + H / 2}, ${x + 40} ${mid}, ${x} ${to.y + H / 2}`;
+
+    const p0: [number, number] = [from.x + W, fy];
+    const p3: [number, number] = [to.x, ty];
+
+    if (to.col - from.col > 1) {
+      // arc over the intervening column rather than through it
+      const lift = Math.min(from.y, to.y) - 26 - laneOffset;
+      const p1: [number, number] = [p0[0] + 60, lift];
+      const p2: [number, number] = [p3[0] - 60, lift];
+      return {
+        d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
+        mid: bezierMid(p0, p1, p2, p3),
+      };
     }
-    const x1 = from.x + W;
-    const x2 = to.x;
-    const y1 = from.y + H / 2;
-    const y2 = to.y + H / 2;
-    const mx = (x1 + x2) / 2;
-    return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+
+    const mx = (p0[0] + p3[0]) / 2;
+    const p1: [number, number] = [mx, p0[1]];
+    const p2: [number, number] = [mx, p3[1]];
+    return {
+      d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
+      mid: bezierMid(p0, p1, p2, p3),
+    };
   };
 
   const hoveredNode = hovered ? byId[hovered] : null;
@@ -132,11 +204,11 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
             const pid = `${id}-e${i}`;
             const dim = hovered !== null && hovered !== e.from && hovered !== e.to;
 
-            // SVG renders textPath along the path's own direction, so a
-            // right-to-left path prints the label upside down. Draw such paths
-            // forwards and move the arrowhead to the start instead.
-            const flip = to.x < from.x;
-            const d = flip ? path(to, from) : path(from, to);
+            // Fan parallel edges apart so several leaving the same node do not
+            // stack into one line with their labels on top of each other.
+            const { d, mid } = route(from, to, (i % 3) * 13);
+            const label = e.label ?? "";
+            const labelW = label.length * 5.6 + 10;
 
             return (
               <g key={pid} opacity={dim ? 0.22 : 1} style={{ transition: "opacity .18s" }}>
@@ -147,19 +219,16 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                   stroke="var(--c-text-dim)"
                   strokeWidth={1.25}
                   strokeDasharray={e.async ? "5 4" : undefined}
-                  markerEnd={flip ? undefined : `url(#arrow-${id})`}
-                  markerStart={flip ? `url(#arrow-${id})` : undefined}
+                  markerEnd={`url(#arrow-${id})`}
                   opacity={0.5}
                 />
                 {/* the packet: this is what makes the direction readable */}
-                <circle r={3.2} fill={e.async ? "var(--accent-2)" : "var(--accent)"}>
+                {!reducedMotion && <circle r={3.2} fill={e.async ? "var(--accent-2)" : "var(--accent)"}>
                   <animateMotion
                     dur={e.async ? "3.4s" : "2.2s"}
                     begin={`${(i % 5) * 0.45}s`}
                     repeatCount="indefinite"
-                    /* a flipped path is drawn backwards, so travel it in
-                       reverse to keep the packet moving the way data does */
-                    keyPoints={flip ? "1;0" : "0;1"}
+                    keyPoints="0;1"
                     keyTimes="0;1"
                     calcMode="linear"
                   >
@@ -173,29 +242,31 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                     begin={`${(i % 5) * 0.45}s`}
                     repeatCount="indefinite"
                   />
-                </circle>
-                {e.label && (
-                  <text dy={-6} fontSize={10.5} textAnchor="middle" className="mono">
-                    {/* stroked copy underneath so the label stays readable
-                        where it crosses an edge or a box border */}
-                    <textPath href={`#${pid}`} startOffset="50%">
-                      <tspan
-                        stroke="var(--diagram-bg)"
-                        strokeWidth={3.5}
-                        strokeLinejoin="round"
-                        fill="var(--diagram-bg)"
-                      >
-                        {e.label}
-                      </tspan>
-                    </textPath>
-                  </text>
-                )}
-                {e.label && (
-                  <text dy={-6} fontSize={10.5} fill="var(--c-text-dim)" textAnchor="middle" className="mono">
-                    <textPath href={`#${pid}`} startOffset="50%">
-                      {e.label}
-                    </textPath>
-                  </text>
+                </circle>}
+                {label && (
+                  <g>
+                    {/* opaque plate rather than a text stroke: a stroke halo
+                        punched a visible hole through whatever border it
+                        crossed, which read as a rendering fault */}
+                    <rect
+                      x={mid[0] - labelW / 2}
+                      y={mid[1] - 8}
+                      width={labelW}
+                      height={16}
+                      rx={3}
+                      fill="var(--diagram-bg)"
+                    />
+                    <text
+                      x={mid[0]}
+                      y={mid[1] + 3.5}
+                      fontSize={10.5}
+                      fill="var(--c-text-dim)"
+                      textAnchor="middle"
+                      className="mono"
+                    >
+                      {label}
+                    </text>
+                  </g>
                 )}
               </g>
             );

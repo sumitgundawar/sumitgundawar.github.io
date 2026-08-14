@@ -69,6 +69,33 @@ check("search survives in the query string", page.url().includes("q=redis"));
 await page.goto(`${BASE}/build`, { waitUntil: "networkidle" });
 check("/build renders", (await page.content()).length > 3000);
 
+/* Walk the whole questionnaire. This is the part of the site with real state —
+   ten answers, a recommendation derived from them, and a diagram built from
+   that. It renders a plausible-looking shell at every step even when the
+   recommendation logic is broken, so only finishing the run proves anything.
+   Drive it by the progress counter, not by looking for words like
+   "recommended": that string is in the intro copy and matching it exits the
+   loop on question one while reporting success. */
+const body = () => page.evaluate(() => document.body.innerText);
+for (let i = 0; i < 25; i++) {
+  if (!/\d+\s*\/\s*10/.test(await body())) break;
+  const answers = page
+    .locator("button")
+    .filter({ hasNotText: /back|skip|start over|start again|change last|profile/i });
+  if (!(await answers.count())) break;
+  await answers.first().click();
+  await page.waitForTimeout(400);
+}
+
+const result = await body();
+check("questionnaire reaches the end", !/\d+\s*\/\s*10/.test(result));
+check(
+  "recommendation names real technologies",
+  /(Postgres|Redis|Kafka|S3|Cloudflare|Fargate|Cloud Run|SQS|Sentry)/i.test(result),
+);
+check("recommendation renders a diagram", (await page.locator("svg").count()) > 0);
+check("components offer an alternative", /switch this/i.test(result));
+
 check("no runtime errors", errors.length === 0);
 if (errors.length) console.log(errors.slice(0, 8).join("\n"));
 

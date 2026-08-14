@@ -89,9 +89,9 @@ function Sidebar() {
   ];
 
   return (
-    <aside className="min-w-0 lg:sticky lg:top-10 self-start flex flex-col gap-7">
+    <aside className="min-w-0 lg:sticky lg:top-10 self-start grid md:grid-cols-2 lg:grid-cols-1 gap-7 md:gap-x-8 items-start">
       <figure
-        className="relative border border-hair overflow-hidden max-w-[360px] min-w-0"
+        className="relative border border-hair overflow-hidden order-2 md:order-none max-w-[200px] sm:max-w-[260px] md:max-w-[260px] lg:max-w-[360px] min-w-0"
         style={{ background: "var(--surface-2)" }}
       >
         <div style={{ paddingTop: "100%" }} />
@@ -103,7 +103,7 @@ function Sidebar() {
         />
       </figure>
 
-      <div>
+      <div className="order-1 md:order-none">
         <div className="flex items-center gap-2.5 mb-4">
           <HealthDot health="ok" pulse size={9} />
           <span className="mono text-[12px]" style={{ color: "var(--c-text)" }}>
@@ -127,7 +127,7 @@ function Sidebar() {
       </div>
 
       {/* KPIs */}
-      <div>
+      <div className="order-3 md:order-none md:col-start-2 md:row-start-1 md:self-start lg:col-start-auto lg:row-start-auto">
         <Eyebrow className="mb-3" >impact</Eyebrow>
         <div className="grid grid-cols-2 gap-px" style={{ background: "var(--hair)", border: "1px solid var(--hair)" }}>
           {kpis.map((k) => (
@@ -150,9 +150,9 @@ function Sidebar() {
       </div>
 
       {/* contact */}
-      <div>
+      <div className="order-4 md:order-none md:col-span-2 lg:col-span-1">
         <Eyebrow className="mb-2">contact</Eyebrow>
-        <div className="flex flex-col">
+        <div className="flex flex-col md:grid md:grid-cols-2 md:gap-x-6 lg:grid-cols-1">
           {channels.map((c) => (
             <a
               key={c.label}

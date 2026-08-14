@@ -141,7 +141,7 @@ export function BuildPage() {
   return (
     <div className="min-h-[100dvh]">
       <div className="mx-auto w-full max-w-[940px] px-5 sm:px-8 py-8 lg:py-12">
-        <Link to="/" className="mono text-[12px] link-underline" style={{ color: "var(--c-text-dim)" }}>
+        <Link to="/" className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
           ← back to profile
         </Link>
 
@@ -159,7 +159,7 @@ export function BuildPage() {
         {q && (
           <>
             <div className="mt-8 flex items-center gap-3">
-              <div className="h-[3px] flex-1 rounded-full overflow-hidden" style={{ background: "var(--hair)" }}>
+              <div className="h-[4px] flex-1 rounded-full overflow-hidden" style={{ background: "var(--hair-strong)" }}>
                 <div
                   className="h-full rounded-full transition-all duration-300"
                   style={{ width: `${(step / questions.length) * 100}%`, background: "var(--accent)" }}
@@ -180,7 +180,7 @@ export function BuildPage() {
                 </p>
               )}
 
-              <div className="mt-5 flex flex-col gap-2.5">
+              <div className="mt-5 flex flex-col gap-2.5 max-w-[36em]">
                 {q.options.map((o) => (
                   <button
                     key={o.id}
@@ -204,7 +204,7 @@ export function BuildPage() {
                 {step > 0 && (
                   <button
                     onClick={() => setStep((s) => s - 1)}
-                    className="mono text-[12px] link-underline"
+                    className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]"
                     style={{ color: "var(--c-text-dim)" }}
                   >
                     ← back
@@ -212,7 +212,7 @@ export function BuildPage() {
                 )}
                 <button
                   onClick={() => choose(q.id, q.skipDefault, true)}
-                  className="mono text-[12px] link-underline"
+                  className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]"
                   style={{ color: "var(--c-text-dim)" }}
                 >
                   skip — assume a sensible default
@@ -227,12 +227,12 @@ export function BuildPage() {
             <div className="flex items-center gap-4 flex-wrap">
               <button
                 onClick={() => setStep(questions.length - 1)}
-                className="mono text-[12px] link-underline"
+                className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]"
                 style={{ color: "var(--c-text-dim)" }}
               >
                 ← change last answer
               </button>
-              <button onClick={restart} className="mono text-[12px] link-underline" style={{ color: "var(--c-text-dim)" }}>
+              <button onClick={restart} className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
                 start again
               </button>
             </div>

@@ -7,9 +7,8 @@
  * fall back on. Those are exactly the paths a human would have to click through
  * by hand, so they are the ones worth automating.
  *
- * Run against `npm run preview` on port 4173:
- *   npm run build && npx vite preview --port 4173 &
- *   npm run routes
+ * Self-contained — it serves dist itself, emulating GitHub Pages:
+ *   npm run build && npm run routes
  *
  * And against the deployed site, which is the run that matters — the 404 bounce
  * that GitHub Pages depends on for deep links does not exist locally, and it
@@ -17,9 +16,52 @@
  *   BASE_URL=https://sumitgundawar.com npm run routes
  */
 
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { createServer } from "node:http";
+import { extname, join, normalize } from "node:path";
 import { chromium } from "playwright";
 
-const BASE = process.env.BASE_URL || "http://localhost:4173";
+const TYPES = {
+  ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
+  ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp",
+  ".jpg": "image/jpeg", ".ico": "image/x-icon", ".json": "application/json",
+  ".woff": "font/woff", ".woff2": "font/woff2", ".pdf": "application/pdf",
+};
+
+/* Emulate GitHub Pages, not a dev server.
+ *
+ * This distinction is the entire reason the deep-link bug shipped. A dev server
+ * — and the one in shots.mjs — falls back to index.html for any unknown path
+ * and answers 200, so /learn renders and every check passes. GitHub Pages does
+ * the opposite: /learn is a missing file, it answers 404, and serves 404.html,
+ * which is what bounces the browser through the redirect shim. That shim was
+ * broken for as long as the routes existed and nothing local could see it.
+ *
+ * So this server does what Pages does: real file, or 404.html with a 404. */
+function servePages(port, dist = "dist") {
+  const server = createServer((req, res) => {
+    const url = decodeURIComponent((req.url || "/").split("?")[0]);
+    let file = join(dist, normalize(url).replace(/^(\.\.[/\\])+/, ""));
+    if (existsSync(file) && statSync(file).isDirectory()) file = join(file, "index.html");
+
+    if (!existsSync(file)) {
+      const notFound = join(dist, "404.html");
+      res.writeHead(404, { "Content-Type": "text/html" });
+      res.end(existsSync(notFound) ? readFileSync(notFound) : "not found");
+      return;
+    }
+    res.writeHead(200, { "Content-Type": TYPES[extname(file)] || "application/octet-stream" });
+    createReadStream(file).pipe(res);
+  });
+  return new Promise((resolve) => server.listen(port, () => resolve(server)));
+}
+
+/* BASE_URL points the same checks at the deployed site. With it unset the
+   script is self-contained: no preview server to start first, and the local run
+   now reproduces production's 404 semantics. */
+const PORT = 4319;
+const localServer = process.env.BASE_URL ? null : await servePages(PORT);
+const BASE = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 let failures = 0;
 function check(label, ok) {
@@ -136,4 +178,5 @@ check("no runtime errors", errors.length === 0);
 if (errors.length) console.log(errors.slice(0, 8).join("\n"));
 
 await browser.close();
+if (localServer) localServer.close();
 process.exit(failures ? 1 : 0);

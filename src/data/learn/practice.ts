@@ -209,7 +209,7 @@ export const practice: Card[] = [
         check: {
           prompt: "Why wait for the third occurrence before abstracting?",
           options: [
-            "Two cases rarely reveal what actually varies, and a wrong abstraction costs more than duplication",
+            "Two cases rarely reveal what varies, and a wrong abstraction outlasts duplication",
             "Three call sites is the point where shared code pays back the cost of its indirection",
             "Duplicated code is cheaper to read than an abstraction reached from three directions",
             "Extraction tools need three examples before they can infer the right parameters",

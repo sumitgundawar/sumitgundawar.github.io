@@ -73,22 +73,34 @@ export function findProblems(): Problem[] {
  * by more than 25 characters. You could score 94% having read none of it.
  *
  * The fix is not to make the correct answer shorter. It is to write distractors
- * that are real near-misses, which makes them naturally similar in length. So
- * the metric here is spread across all four options, not which one is longest —
- * when every option is within a few characters, longest carries no signal. */
+ * that are real near-misses, which makes them naturally similar in length.
+ *
+ * Two thresholds, because "is the correct answer the longest" is the wrong
+ * question. 79 of 122 are still nominally longest, but almost all of them win
+ * by one to eight characters on options that wrap differently anyway, which is
+ * not something a reader can see. What is visible is a correct answer that
+ * towers over its nearest rival, and a set where one option is obviously the
+ * considered one. So: cap the margin over the runner-up, and cap the spread. */
+const MAX_MARGIN = 8;
 const MAX_SPREAD = 20;
 
 export function findAnswerTells(): Problem[] {
   const tells: Problem[] = [];
   for (const card of cards) {
     for (const topic of card.topics) {
+      const where = `${card.id}/${topic.id}`;
       const lens = topic.check.options.map((o) => o.length);
+      const correct = lens[topic.check.correctIndex];
+      const rivals = lens.filter((_, i) => i !== topic.check.correctIndex);
+
+      const margin = correct - Math.max(...rivals);
+      if (margin > MAX_MARGIN) {
+        tells.push({ where, what: `correct answer is ${margin} chars longer than any distractor` });
+      }
+
       const spread = Math.max(...lens) - Math.min(...lens);
       if (spread > MAX_SPREAD) {
-        tells.push({
-          where: `${card.id}/${topic.id}`,
-          what: `option length spread ${spread} > ${MAX_SPREAD} — distractors are throwaways`,
-        });
+        tells.push({ where, what: `option length spread ${spread} — some distractors are throwaways` });
       }
     }
   }

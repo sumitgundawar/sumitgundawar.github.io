@@ -165,7 +165,7 @@ export const delivery: Card[] = [
           options: [
             "The rename holds an exclusive lock for as long as the table rewrite takes",
             "Rolling the deploy back would leave the new column name with no code reading it",
-            "Deploy and migration are never simultaneous, so one side briefly sees the other's schema",
+            "Deploy and migration are never simultaneous, so one side sees the other's schema",
             "Pooled connections keep prepared statements bound to the old column name",
           ],
           correctIndex: 2,

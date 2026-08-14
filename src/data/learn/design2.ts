@@ -286,9 +286,8 @@ export const design2: Card[] = [
         title: "Object storage versus databases and disks",
         level: "beginner",
         body: [
-          "Object storage such as S3 holds immutable blobs addressed by key, with effectively unlimited capacity and very low cost per gigabyte.",
-          "Storing files in a database inflates backups, slows replication and wastes expensive storage on data that needs no querying.",
-          "The standard shape is the file in object storage and its metadata — key, size, owner, content type — in the database.",
+          "Object storage such as S3 holds immutable blobs addressed by key, with effectively unlimited capacity and a very low cost per gigabyte.",
+          "Putting files in a database instead inflates backups, slows replication, and spends expensive storage on data nothing will ever query. The standard shape is the file in object storage and its metadata — key, size, owner, content type — in the database.",
         ],
         why: "The rule is to store what you query in the database and what you serve in object storage. Blobs in Postgres make every operational task on that database slower forever.",
         check: {
@@ -308,9 +307,8 @@ export const design2: Card[] = [
         title: "Direct uploads with pre-signed URLs",
         level: "intermediate",
         body: [
-          "Routing uploads through your API means large files consume your bandwidth, memory and request timeouts for no benefit.",
-          "A pre-signed URL lets your server authorise an upload and hand the client a time-limited URL to send the bytes straight to object storage.",
-          "The server then learns about completion via an event, and validates type and size before treating the object as real.",
+          "Routing uploads through your API means large files consume your bandwidth, your memory and your request timeouts, to nobody's benefit.",
+          "A pre-signed URL lets your server authorise the upload and hand the client a time-limited URL to send the bytes straight to object storage. The server hears about completion from an event, and validates type and size before treating the object as real.",
         ],
         why: "This removes an entire scaling problem rather than solving it. Your API stays small and fast because the large payloads never touch it.",
         check: {
@@ -331,8 +329,7 @@ export const design2: Card[] = [
         level: "advanced",
         body: [
           "An uploaded video is transcoded into several resolutions and bitrates, then split into short segments with a manifest listing what is available.",
-          "The player measures throughput and switches between renditions per segment, so a dropping connection degrades quality instead of stalling.",
-          "This is HLS or DASH, and it is why streaming survives a train tunnel while a single MP4 does not.",
+          "The player measures throughput and switches renditions per segment, so a failing connection degrades quality instead of stalling. This is HLS or DASH, and it is why streaming survives a train tunnel when a single MP4 does not.",
         ],
         why: "Adaptive bitrate exists because bandwidth is variable and unpredictable. Serving one file forces a choice between buffering for slow connections and wasting quality on fast ones.",
         inPractice: "Netflix encodes each title into many renditions and tunes them per title — an animated film and a dark action film need different bitrates for the same perceived quality.",
@@ -362,9 +359,10 @@ export const design2: Card[] = [
         title: "Authentication and authorisation",
         level: "beginner",
         body: [
-          "Authentication establishes who you are. Authorisation decides what you may do. They fail differently and are often confused in code.",
-          "Most serious access-control bugs are authorisation bugs: the user is correctly identified, and the system simply never checks whether this user may touch this record.",
-          "Checking ownership at the data layer, rather than in each handler, is what stops one missed check becoming a breach.",
+          "Authentication establishes who you are. Authorisation decides what you may do. They fail differently, and they are constantly confused in code.",
+          "Most serious access-control bugs are authorisation bugs. The user is correctly identified, and the system simply never checks whether this user may touch this particular record.",
+          "The reason is structural. Authentication happens once, in one place, so it is hard to forget. Authorisation happens on every request against every resource, so it is easy to miss exactly one.",
+          "Which is why the durable fix is to check ownership where the data is fetched rather than in each handler. A query that cannot return another tenant's row is safer than a hundred handlers that each have to remember to ask.",
         ],
         why: "Insecure direct object reference — changing an id in a URL and seeing someone else's data — is consistently among the most common real vulnerabilities, and it is purely a missing authorisation check.",
         check: {
@@ -384,9 +382,10 @@ export const design2: Card[] = [
         title: "Sessions or JWTs",
         level: "intermediate",
         body: [
-          "A session id is a reference: the server holds the state and can revoke it instantly. It requires a lookup per request.",
-          "A JWT carries claims and a signature, so it validates without a lookup. That is also why it cannot be revoked before it expires.",
-          "The usual compromise is short-lived access tokens with longer-lived refresh tokens that can be revoked.",
+          "A session id is a reference. The server holds the state, can revoke it instantly, and pays a lookup on every request.",
+          "A JWT carries its claims and a signature, so it validates without a lookup — and that is exactly why it cannot be revoked before it expires.",
+          "The usual compromise is short-lived access tokens alongside longer-lived refresh tokens that can be revoked.",
+          "Worth saying plainly: for one application talking to a database it already has open, a session is simpler and better. JWTs earn their keep when the validating service cannot reach your session store — across services, across companies, or at an edge with no database at all.",
         ],
         why: "JWTs are frequently chosen for statelessness and then paired with a revocation list, which reintroduces the lookup and leaves you with the drawbacks of both.",
         check: {
@@ -429,9 +428,10 @@ export const design2: Card[] = [
         title: "Secrets and encryption",
         level: "intermediate",
         body: [
-          "Secrets belong in a manager with rotation and audit, not in environment variables committed to a repository or baked into images.",
-          "Passwords are hashed with a slow algorithm designed for it — bcrypt, scrypt or Argon2 — never a fast general-purpose hash like SHA-256, which is trivially brute-forced.",
-          "Encryption in transit is table stakes. Encryption at rest matters mostly for stolen disks and compliance, and protects far less than people assume.",
+          "Secrets belong in a manager with rotation and an audit trail, not in environment variables committed to a repository or baked into an image.",
+          "Passwords are a separate problem. They are hashed with a slow algorithm built for the job — bcrypt, scrypt or Argon2 — never a fast general-purpose hash like SHA-256, which is brute-forced trivially.",
+          "Encryption in transit is table stakes, and essentially free.",
+          "Encryption at rest is worth less than people assume. It defends against a stolen disk and it satisfies an auditor. It does nothing against an attacker holding application credentials, which is how the data usually leaves.",
         ],
         why: "Using SHA-256 for passwords is fast, which is precisely the flaw: an attacker with the hashes can try billions per second. The slowness of bcrypt is the feature.",
         check: {
@@ -462,8 +462,7 @@ export const design2: Card[] = [
         level: "advanced",
         body: [
           "Many systems need exactly one node doing something — running a scheduled job, accepting writes, coordinating a cluster. Leader election picks that node and replaces it when it dies.",
-          "Doing it correctly is subtle: two nodes both believing they are leader is a split brain, and it corrupts data quietly.",
-          "Almost nobody should implement this. Use etcd, ZooKeeper or a database lease with fencing tokens.",
+          "Doing it correctly is subtle, and two nodes both believing they lead is a split brain that corrupts data quietly. Almost nobody should implement this themselves: use etcd, ZooKeeper, or a database lease with fencing tokens.",
         ],
         why: "The naive version — a lock row with a timeout — fails when the leader pauses for garbage collection, wakes up believing it still holds the lock, and writes over the new leader. Fencing tokens exist to reject those late writes.",
         check: {

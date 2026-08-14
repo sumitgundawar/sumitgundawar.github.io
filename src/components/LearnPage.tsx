@@ -30,10 +30,37 @@ function LevelDot({ level }: { level: Level }) {
   );
 }
 
+/** Stable per-topic shuffle.
+ *
+ *  107 of 109 checks were authored with the answer at index 1, and 103 had it
+ *  as the longest option — so clicking the second button every time scored 98%
+ *  without reading anything. Hand-balancing 122 quizzes is fragile and would
+ *  drift the moment new ones are written, so the order is randomised here
+ *  instead. Seeded by topic id so it is stable across re-renders and does not
+ *  move under the reader between clicking and reading the explanation. */
+function shuffleOptions(topic: Topic) {
+  let seed = 0;
+  for (let i = 0; i < topic.id.length; i++) seed = (seed * 31 + topic.id.charCodeAt(i)) >>> 0;
+  const rand = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const order = topic.check.options.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return {
+    options: order.map((i) => topic.check.options[i]),
+    correctIndex: order.indexOf(topic.check.correctIndex),
+  };
+}
+
 function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
   const [picked, setPicked] = useState<number | null>(null);
+  const shuffled = useMemo(() => shuffleOptions(topic), [topic]);
   const answered = picked !== null;
-  const correct = picked === topic.check.correctIndex;
+  const correct = picked === shuffled.correctIndex;
 
   const answer = (i: number) => {
     if (answered) return;
@@ -42,7 +69,7 @@ function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
       card: cardId,
       topic: topic.id,
       level: topic.level,
-      correct: i === topic.check.correctIndex,
+      correct: i === shuffled.correctIndex,
     });
   };
 
@@ -97,8 +124,8 @@ function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
           {topic.check.prompt}
         </p>
         <div className="flex flex-col gap-2 mt-4">
-          {topic.check.options.map((opt, i) => {
-            const isCorrect = i === topic.check.correctIndex;
+          {shuffled.options.map((opt, i) => {
+            const isCorrect = i === shuffled.correctIndex;
             const show = answered && (i === picked || isCorrect);
             return (
               <button

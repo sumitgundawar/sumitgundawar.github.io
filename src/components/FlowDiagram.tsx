@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePrefersReducedMotion } from "@/lib/hooks";
 import type { Diagram, DiagramNode, NodeKind } from "@/data/learn";
 
@@ -19,6 +19,21 @@ const KIND_COLOR: Record<NodeKind, { fill: string; edge: string; text: string }>
   external: { fill: "var(--n-external)", edge: "var(--n-external-edge)", text: "var(--n-external-text)" },
 };
 
+/** Below this the horizontal layout has to shrink so far that node labels
+ *  render around 7px. Stacking is the only thing that keeps them readable. */
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const on = () => setNarrow(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return narrow;
+}
+
 const KIND_LABEL: Record<NodeKind, string> = {
   client: "Client",
   edge: "Edge / CDN",
@@ -28,12 +43,21 @@ const KIND_LABEL: Record<NodeKind, string> = {
   external: "External",
 };
 
+/** SVG <text> neither wraps nor clips, so an over-long label simply bleeds
+ *  across the box border into whatever is next to it. Measured overflows in
+ *  shipped data reached 343px inside a 140px slot. Truncate to what fits. */
+function fit(text: string, px: number, maxWidth: number): string {
+  const perChar = px * 0.56; // Commit Mono advance, close enough for layout
+  const max = Math.floor(maxWidth / perChar);
+  return text.length <= max ? text : text.slice(0, Math.max(1, max - 1)) + "…";
+}
+
 const W = 168;
 const H = 62;
 const GAP_X = 132; // wide enough that edge labels sit between boxes, not on them
 const GAP_Y = 34;
 const PAD = 18;
-const DEPTH = 5; // base-plate offset that reads as thickness
+const DEPTH = 3; // base-plate offset; subtle enough to read as depth, not as a second box
 
 interface Placed extends DiagramNode {
   x: number;
@@ -43,13 +67,16 @@ interface Placed extends DiagramNode {
 
 export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
   const [hovered, setHovered] = useState<string | null>(null);
+  const narrow = useNarrow();
   // The packets are SMIL, and CSS animation properties do not touch SMIL —
   // the reduced-motion block in index.css never stopped them. Not rendering
   // them is the only thing that actually does.
   const reducedMotion = usePrefersReducedMotion();
 
   const { placed, width, height, byId } = useMemo(() => {
-    const cols = diagram.columns;
+    // One column per row when stacked, so the graph reads top to bottom and
+    // every label renders at full size.
+    const cols = narrow ? diagram.columns.flat().map((n) => [n]) : diagram.columns;
     const tallest = Math.max(...cols.map((c) => c.length));
     const colHeight = (n: number) => n * H + (n - 1) * GAP_Y;
     const full = colHeight(tallest);
@@ -61,8 +88,8 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
         placed.push({
           ...node,
           col: ci,
-          x: PAD + ci * (W + GAP_X),
-          y: PAD + offset + ri * (H + GAP_Y),
+          x: narrow ? PAD : PAD + ci * (W + GAP_X),
+          y: narrow ? PAD + ci * (H + GAP_Y) : PAD + offset + ri * (H + GAP_Y),
         });
       });
     });
@@ -87,10 +114,12 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
       byId: Object.fromEntries(
         placed.map((p) => [p.id, { ...p, y: p.y + above }]),
       ),
-      width: PAD * 2 + cols.length * W + (cols.length - 1) * GAP_X,
-      height: PAD * 2 + full + DEPTH + above + below,
+      width: narrow ? PAD * 2 + W : PAD * 2 + cols.length * W + (cols.length - 1) * GAP_X,
+      height: narrow
+        ? PAD * 2 + cols.length * H + (cols.length - 1) * GAP_Y + DEPTH
+        : PAD * 2 + full + DEPTH + above + below,
     };
-  }, [diagram]);
+  }, [diagram, narrow]);
 
   /** Cubic bezier midpoint — where a label sits. Computing it means labels are
    *  ordinary horizontal text rather than textPath, which rotates every glyph
@@ -117,6 +146,21 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
   const route = (from: Placed, to: Placed, laneOffset: number) => {
     const fy = from.y + H / 2;
     const ty = to.y + H / 2;
+
+    if (narrow) {
+      // Vertical flow: leave the bottom face, enter the top, bowing to the
+      // right so several edges out of one node stay distinguishable.
+      const x = from.x + W / 2;
+      const bow = x + 26 + laneOffset;
+      const p0: [number, number] = [x, from.y + H];
+      const p3: [number, number] = [to.x + W / 2, to.y];
+      const p1: [number, number] = [bow, p0[1] + 18];
+      const p2: [number, number] = [bow, p3[1] - 18];
+      return {
+        d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
+        mid: bezierMid(p0, p1, p2, p3),
+      };
+    }
 
     if (to.col === from.col) {
       const x = from.x + W;
@@ -179,9 +223,9 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
         <svg
           viewBox={`0 0 ${width} ${height}`}
           width="100%"
-          role="img"
+          role="group"
           aria-label={diagram.caption}
-          style={{ minWidth: Math.min(width, 620), display: "block" }}
+          style={{ minWidth: narrow ? undefined : width, display: "block" }}
         >
           <defs>
             <marker
@@ -286,7 +330,9 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                 onFocus={() => setHovered(n.id)}
                 onBlur={() => setHovered(null)}
                 tabIndex={0}
-                style={{ cursor: "pointer", transition: "opacity .18s", outline: "none" }}
+                role="img"
+                aria-label={`${n.label}${n.sub ? `, ${n.sub}` : ""}. ${KIND_LABEL[kind]}.`}
+                style={{ cursor: "pointer", transition: "opacity .18s" }}
               >
                 {/* base plate reads as thickness without an isometric projection */}
                 <rect
@@ -296,7 +342,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                   height={H}
                   rx={9}
                   fill={c.edge}
-                  opacity={0.45}
+                  opacity={0.18}
                 />
                 <rect
                   x={n.x}
@@ -316,7 +362,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                   fontWeight={550}
                   fill={c.text}
                 >
-                  {n.label}
+                  {fit(n.label, 13.5, W - 28)}
                 </text>
                 {n.sub && (
                   <text
@@ -327,7 +373,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                     opacity={0.72}
                     className="mono"
                   >
-                    {n.sub}
+                    {fit(n.sub, 11, W - 28)}
                   </text>
                 )}
               </g>
@@ -336,14 +382,30 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
         </svg>
       </div>
 
-      <figcaption
-        className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]"
-        style={{ color: "var(--c-text-dim)" }}
-      >
+      <figcaption className="mt-2.5 text-[12px]" style={{ color: "var(--c-text-dim)" }}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mono text-[12px] mb-2">
+          {([...new Set(diagram.columns.flat().map((n) => n.kind ?? "service"))] as NodeKind[]).map(
+            (k) => (
+              <span key={k} className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden
+                  style={{
+                    width: 9,
+                    height: 9,
+                    borderRadius: 2,
+                    background: KIND_COLOR[k].fill,
+                    border: `1px solid ${KIND_COLOR[k].edge}`,
+                  }}
+                />
+                {KIND_LABEL[k]}
+              </span>
+            ),
+          )}
+          <span className="opacity-80">dashed = asynchronous</span>
+        </div>
         <span>{diagram.caption}</span>
-        <span className="mono text-[12px] opacity-80">dashed = asynchronous</span>
         {hoveredNode && (
-          <span className="mono text-[12px]" style={{ color: "var(--accent)" }}>
+          <span className="mono text-[12px] ml-3" style={{ color: "var(--accent)" }}>
             {hoveredNode.label}
             {hoveredNode.sub ? ` · ${hoveredNode.sub}` : ""} · {KIND_LABEL[hoveredNode.kind ?? "service"]}
           </span>

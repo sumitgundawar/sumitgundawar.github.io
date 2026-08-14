@@ -107,7 +107,7 @@ function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
                 disabled={answered}
                 className="text-left text-[14.5px] leading-snug px-3.5 py-2.5 rounded-md border transition-colors"
                 style={{
-                  borderColor: show ? (isCorrect ? "var(--lv-beginner)" : "var(--crit)") : "var(--hair)",
+                  borderColor: show ? (isCorrect ? "var(--lv-beginner)" : "var(--crit)") : "var(--hair-strong)",
                   background: show && isCorrect ? "rgba(110,231,183,0.08)" : "transparent",
                   color: show && isCorrect ? "var(--lv-beginner)" : "var(--c-text-dim)",
                   opacity: answered && i !== picked && !isCorrect ? 0.45 : 1,
@@ -288,7 +288,7 @@ export function LearnPage() {
                             track("card_open", { card: c.id, track: c.track });
                           }}
                           className="text-left rounded-lg border p-4 sm:p-5 flex flex-col gap-2 transition-transform hover:-translate-y-0.5"
-                          style={{ borderColor: "var(--hair)", background: "var(--surface)" }}
+                          style={{ borderColor: "var(--hair-strong)", background: "var(--surface)" }}
                         >
                           <span className="text-[16.5px] font-medium leading-snug" style={{ color: "var(--c-text)" }}>
                             {c.title}

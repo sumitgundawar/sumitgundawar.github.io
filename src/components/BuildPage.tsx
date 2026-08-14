@@ -61,7 +61,7 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
   return (
     <div
       className="rounded-lg border p-4 sm:p-5"
-      style={{ borderColor: "var(--hair)", background: "var(--surface)" }}
+      style={{ borderColor: "var(--hair-strong)", background: "var(--surface)" }}
     >
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
         <div className="flex items-baseline gap-2.5 flex-wrap">
@@ -186,7 +186,7 @@ export function BuildPage() {
                     key={o.id}
                     onClick={() => choose(q.id, o.id)}
                     className="text-left rounded-lg border px-4 py-3.5 transition-transform hover:-translate-y-0.5"
-                    style={{ borderColor: "var(--hair)", background: "var(--surface)" }}
+                    style={{ borderColor: "var(--hair-strong)", background: "var(--surface)" }}
                   >
                     <div className="text-[15.5px]" style={{ color: "var(--c-text)" }}>
                       {o.label}

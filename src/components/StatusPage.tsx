@@ -285,8 +285,12 @@ function Work() {
         {services.map((s, i) => (
           <div key={s.id} className="p-5 flex flex-col" style={{ background: "var(--surface)" }}>
             <div className="flex items-baseline gap-2.5 mb-2">
+              {/* No health dot here. Every project carries health "ok", so six
+                  identical green dots said nothing while breaking the one rule
+                  this palette has — colour means health, never decoration.
+                  Worth restoring the moment a project has a status worth
+                  distinguishing. */}
               <span className="mono text-[12px] tnum" style={{ color: "var(--cool)" }}>{String(i + 1).padStart(2, "0")}</span>
-              <HealthDot health={s.health} size={6} />
               {s.url ? (
                 <a href={s.url} target="_blank" rel="noreferrer" className="text-[17px] font-medium link-underline" style={{ color: "var(--c-text)" }}>
                   {s.name}

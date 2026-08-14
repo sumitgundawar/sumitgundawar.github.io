@@ -9,6 +9,7 @@ export default {
         panel: "var(--panel)",
         "panel-2": "var(--panel-2)",
         hair: "var(--hair)",
+        "hair-strong": "var(--hair-strong)",
         fg: "var(--fg)",
         "fg-dim": "var(--fg-dim)",
         // Status — constant across worlds, mean health only

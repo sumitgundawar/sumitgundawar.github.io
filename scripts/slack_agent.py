@@ -57,9 +57,15 @@ BRANCH_MARK = "branch:"
 # to check its own layout work — without that it edits blind and stops at the
 # first plausible change — but a general shell would let an instruction injected
 # by a researched web page run anything. Naming the commands keeps both.
+# npm run routes is here because build and shots cannot see the failure that
+# matters most. Both serve unknown paths as index.html with a 200, so a broken
+# deep link renders perfectly for them; GitHub Pages answers 404 and runs the
+# redirect shim instead. That gap shipped /learn and /build broken for every
+# shared link. route-check emulates Pages, so the agent can now catch it before
+# proposing a change rather than after someone reports a dead URL.
 CLAUDE_TOOLS = (
     "Read,Edit,Write,Glob,Grep,WebSearch,WebFetch,"
-    "Bash(npm run build),Bash(npm run shots)"
+    "Bash(npm run build),Bash(npm run shots),Bash(npm run routes)"
 )
 
 SLACK_TOKEN = os.environ["SLACK_BOT_TOKEN"]
@@ -299,7 +305,20 @@ Rules:
 - Keep TypeScript types correct; do not introduce `any`.
 - Do not touch .github/, scripts/, worker/, package.json dependencies, or CNAME files.
 
-You can run exactly two commands: `npm run build` and `npm run shots`.
+You can run exactly three commands: `npm run build`, `npm run shots` and
+`npm run routes`.
+
+`npm run routes` drives the built site in a real browser: it opens a card, uses
+the back button, loads a deep link cold, walks the whole /build questionnaire,
+and checks the GitHub Pages 404 redirect still decodes. Run it after anything
+touching routing, URLs, index.html or the questionnaire.
+
+It exists because a green build proves almost nothing about behaviour. /learn
+and /build once shipped broken for every shared link — the page rendered, the
+router never restored the path — and neither the build nor the screenshots could
+see it, because a local server answers 200 for unknown paths while GitHub Pages
+answers 404 and runs a redirect shim. This check emulates Pages, so it catches
+that. If it fails, you have broken navigation, whatever the screenshots show.
 
 `npm run shots` builds screenshots of the site at phone (390px), tablet (820px)
 and desktop (1440px) into `.shots/`, and prints any element that extends past

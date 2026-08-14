@@ -32,6 +32,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<StatusPage />} />
           <Route path="/learn" element={<LearnPage />} />
+          <Route path="/learn/:cardId" element={<LearnPage />} />
           <Route path="/build" element={<BuildPage />} />
         </Routes>
       </Suspense>

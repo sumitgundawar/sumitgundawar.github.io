@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FlowDiagram } from "./FlowDiagram";
 import { track } from "@/lib/track";
+import { useProgress, summarise, type Progress } from "@/lib/progress";
 import {
   cards,
   cardsForLevel,
@@ -56,15 +57,30 @@ function shuffleOptions(topic: Topic) {
   };
 }
 
-function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
-  const [picked, setPicked] = useState<number | null>(null);
+function TopicView({
+  topic,
+  cardId,
+  wasCorrect,
+  onAnswered,
+}: {
+  topic: Topic;
+  cardId: string;
+  wasCorrect?: boolean;
+  onAnswered: (topicId: string, correct: boolean) => void;
+}) {
   const shuffled = useMemo(() => shuffleOptions(topic), [topic]);
+  // Seed from stored progress: this component unmounts when the topic is
+  // collapsed, so without this the answer disappears on every close.
+  const [picked, setPicked] = useState<number | null>(() =>
+    wasCorrect === undefined ? null : wasCorrect ? shuffled.correctIndex : -1,
+  );
   const answered = picked !== null;
-  const correct = picked === shuffled.correctIndex;
+  const correct = wasCorrect ?? picked === shuffled.correctIndex;
 
   const answer = (i: number) => {
     if (answered) return;
     setPicked(i);
+    onAnswered(topic.id, i === shuffled.correctIndex);
     track("quiz_answer", {
       card: cardId,
       topic: topic.id,
@@ -162,7 +178,17 @@ function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
   );
 }
 
-function CardDetail({ card, onBack }: { card: Card; onBack: () => void }) {
+function CardDetail({
+  card,
+  onBack,
+  progress,
+  onAnswered,
+}: {
+  card: Card;
+  onBack: () => void;
+  progress: Progress;
+  onAnswered: (topicId: string, correct: boolean) => void;
+}) {
   const [openId, setOpenId] = useState<string | null>(card.topics[0]?.id ?? null);
 
   return (
@@ -202,6 +228,15 @@ function CardDetail({ card, onBack }: { card: Card; onBack: () => void }) {
                 >
                   {t.title}
                 </span>
+                {t.id in progress && (
+                  <span
+                    className="mono text-[12px] shrink-0"
+                    style={{ color: progress[t.id] ? "var(--signal)" : "var(--crit)" }}
+                    title={progress[t.id] ? "answered correctly" : "answered incorrectly"}
+                  >
+                    {progress[t.id] ? "✓" : "×"}
+                  </span>
+                )}
                 <span className="mono text-[12px] uppercase tracking-wide shrink-0" style={{ color: LEVEL_COLOR[t.level] }}>
                   {t.level}
                 </span>
@@ -209,7 +244,14 @@ function CardDetail({ card, onBack }: { card: Card; onBack: () => void }) {
                   {open ? "−" : "+"}
                 </span>
               </button>
-              {open && <TopicView topic={t} cardId={card.id} />}
+              {open && (
+                <TopicView
+                  topic={t}
+                  cardId={card.id}
+                  wasCorrect={progress[t.id]}
+                  onAnswered={onAnswered}
+                />
+              )}
             </div>
           );
         })}
@@ -219,13 +261,50 @@ function CardDetail({ card, onBack }: { card: Card; onBack: () => void }) {
 }
 
 export function LearnPage() {
-  const [level, setLevel] = useState<Level | "all">("all");
-  const [openCard, setOpenCard] = useState<string | null>(null);
+  // Held in the URL rather than component state: 122 topics had no addresses,
+  // so nothing could be linked or bookmarked, and the browser back button left
+  // the page entirely instead of closing the open card.
+  const { cardId } = useParams<{ cardId?: string }>();
+  const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { progress, record, reset } = useProgress();
+
+  const levelParam = params.get("level");
+  const level: Level | "all" =
+    levelParam && (LEVELS as string[]).includes(levelParam) ? (levelParam as Level) : "all";
+
+  const setLevel = (l: Level | "all") => {
+    const next = new URLSearchParams(params);
+    if (l === "all") next.delete("level");
+    else next.set("level", l);
+    setParams(next, { replace: true });
+  };
+
+  const openCard = cardId ?? null;
+  const setOpenCard = (id: string | null) =>
+    navigate(id ? `/learn/${id}${window.location.search}` : `/learn${window.location.search}`);
 
   const visible = useMemo(() => cardsForLevel(level), [level]);
   const current = openCard ? visible.find((c) => c.id === openCard) ?? null : null;
 
   const shownTopics = visible.reduce((n, c) => n + c.topics.length, 0);
+
+  useEffect(() => {
+    const title = current
+      ? `${current.title} — Learn engineering`
+      : "Learn engineering — software engineering and system design";
+    document.title = title;
+    const desc = current
+      ? current.summary
+      : `${topicCount} topics across ${cards.length} cards, from first principles to senior and staff interview level.`;
+    let tag = document.querySelector('meta[name="description"]');
+    if (!tag) {
+      tag = document.createElement("meta");
+      tag.setAttribute("name", "description");
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute("content", desc);
+  }, [current]);
 
   return (
     <div className="min-h-[100dvh]">
@@ -236,7 +315,12 @@ export function LearnPage() {
 
         {current ? (
           <div className="mt-8">
-            <CardDetail card={current} onBack={() => setOpenCard(null)} />
+            <CardDetail
+              card={current}
+              onBack={() => setOpenCard(null)}
+              progress={progress}
+              onAnswered={record}
+            />
           </div>
         ) : (
           <>
@@ -256,6 +340,29 @@ export function LearnPage() {
             {/* The counts used to appear twice — once as a stats row and again
                 inside the filter pills immediately below. Same four numbers,
                 four lines of phone screen, no extra information. */}
+            {(() => {
+              const all = summarise(progress, cards.flatMap((c) => c.topics.map((t) => t.id)));
+              if (!all.answered) return null;
+              return (
+                <div className="mt-6 max-w-[36em]">
+                  <div className="flex items-baseline justify-between mono text-[12px] mb-2" style={{ color: "var(--c-text-dim)" }}>
+                    <span className="tnum">
+                      {all.answered} of {all.total} answered · {all.correct} correct
+                    </span>
+                    <button onClick={reset} className="link-underline inline-flex items-center min-h-[44px]">
+                      reset progress
+                    </button>
+                  </div>
+                  <div className="h-[4px] rounded-full overflow-hidden" style={{ background: "var(--hair-strong)" }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${(all.answered / all.total) * 100}%`, background: "var(--signal)" }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="mt-7 flex flex-wrap gap-2">
               {(["all", ...LEVELS] as const).map((l) => {
                 const on = level === l;
@@ -319,7 +426,14 @@ export function LearnPage() {
                             {c.summary}
                           </span>
                           <span className="mt-auto pt-3 flex items-center gap-2.5 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
-                            <span className="tnum">{c.topics.length} topics</span>
+                            {(() => {
+                              const done = summarise(progress, c.topics.map((t) => t.id));
+                              return (
+                                <span className="tnum" style={done.answered ? { color: "var(--signal)" } : undefined}>
+                                  {done.answered ? `${done.answered}/${done.total} done` : `${done.total} topics`}
+                                </span>
+                              );
+                            })()}
                             <span className="flex items-center gap-1">
                               {levelsHere.map((l) => (
                                 <LevelDot key={l} level={l} />

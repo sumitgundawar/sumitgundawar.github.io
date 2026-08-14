@@ -38,3 +38,4 @@ worker/worker-configuration.d.ts
 # Python
 __pycache__/
 *.pyc
+.DS_Store

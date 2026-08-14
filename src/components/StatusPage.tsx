@@ -96,8 +96,11 @@ function Sidebar() {
       >
         <div style={{ paddingTop: "100%" }} />
         <img
-          src="/sumit-gundawar.png"
+          src="/sumit-gundawar.webp"
           alt="Sumit Gundawar"
+          width={720}
+          height={960}
+          fetchPriority="high"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: "50% 16%" }}
         />

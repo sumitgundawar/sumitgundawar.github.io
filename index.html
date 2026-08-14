@@ -13,7 +13,15 @@
               return s.replace(/~and~/g, "&");
             })
             .join("?");
-          window.history.replaceState(null, null, l.pathname + decoded + l.hash);
+          /* slice(0, -1) drops the trailing slash on pathname before the
+             decoded path is appended. Without it, "/" + "/learn" is "//learn",
+             which is protocol-relative: the browser reads it as the host
+             "learn" and replaceState throws a cross-origin SecurityError. The
+             effect was that every deep link, shared link and refresh on /learn
+             or /build died on arrival, while the site worked perfectly in local
+             preview — a dev server routes those paths itself and never invokes
+             this shim at all. */
+          window.history.replaceState(null, null, l.pathname.slice(0, -1) + decoded + l.hash);
         }
       })(window.location);
     </script>

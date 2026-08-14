@@ -66,6 +66,22 @@ if (await card.count()) {
 await page.goto(`${BASE}/learn?q=redis`, { waitUntil: "networkidle" });
 check("search survives in the query string", page.url().includes("q=redis"));
 
+/* GitHub Pages has no SPA rewrite: /learn is a 404, and 404.html bounces the
+   browser to /?/learn for the shim in index.html to decode back. A dev server
+   routes /learn itself and never runs that shim, so this path is invisible
+   locally and is the only thing a real visitor to a shared link ever hits.
+   It shipped broken — "/" + "/learn" concatenated to "//learn", which is
+   protocol-relative, so the browser resolved the host as "learn". */
+for (const [encoded, expected] of [
+  ["/?/learn", "/learn"],
+  ["/?/learn&q=redis", "/learn?q=redis"],
+  ["/?/build", "/build"],
+]) {
+  await page.goto(BASE + encoded, { waitUntil: "networkidle" });
+  await page.waitForTimeout(400);
+  check(`404 shim decodes ${encoded} to ${expected}`, page.url() === BASE + expected);
+}
+
 await page.goto(`${BASE}/build`, { waitUntil: "networkidle" });
 check("/build renders", (await page.content()).length > 3000);
 

@@ -12,9 +12,10 @@ export const foundations: Card[] = [
         title: "The life of a request",
         level: "beginner",
         body: [
-          "Typing a URL sets off DNS resolution, a TCP handshake, a TLS handshake, then the HTTP request itself. Each costs at least one round trip — TLS 1.3 needs one and TLS 1.2 needs two — and round trips are the thing that costs you.",
-          "A user 200ms away pays that 200ms per round trip. Four round trips before a single byte of content is 800ms of nothing on screen. This is why latency, not bandwidth, dominates perceived speed.",
-          "Once you can name the steps, most performance work becomes obvious: remove round trips, or move the server closer to the user.",
+          "Typing a URL sets off DNS resolution, a TCP handshake, a TLS handshake, and then the HTTP request itself.",
+          "Each of those costs at least one round trip — TLS 1.3 needs one, TLS 1.2 needs two — and round trips are what you actually pay for. A user 200ms away pays that 200ms every single time.",
+          "Four round trips before one byte of content is 800ms of blank screen. Bandwidth does not help here, because the pipe is not full, it is idle and waiting. That is why latency rather than bandwidth decides perceived speed on any connection fast enough to matter.",
+          "Name the steps and most performance work becomes obvious. Remove a round trip, or move the server closer.",
         ],
         why: "Interviewers open with this because it reveals whether you think in terms of round trips or in terms of vague slowness. The answer that names DNS, TCP, TLS and HTTP separately is the one that can then reason about a CDN.",
         check: {
@@ -34,9 +35,8 @@ export const foundations: Card[] = [
         title: "TCP and UDP",
         level: "beginner",
         body: [
-          "TCP guarantees delivery and order. Lost packets are retransmitted, and the receiver waits. UDP does neither: it sends and forgets.",
-          "That guarantee is not free. A single lost packet stalls everything behind it, which is fine for a file and terrible for a live call where the late data is worthless by the time it arrives.",
-          "Video calls, games and DNS use UDP and handle loss themselves. Almost everything else uses TCP.",
+          "TCP guarantees delivery and order: lost packets are retransmitted, and the receiver waits. UDP does neither. It sends and forgets.",
+          "That guarantee is not free. One lost packet stalls everything queued behind it, which is exactly right for a file and useless for a live call, where the retransmitted frame is worthless by the time it lands. Video calls, games and DNS run on UDP and handle loss themselves; nearly everything else takes the guarantee and is glad of it.",
         ],
         why: "Choosing UDP is choosing to write your own reliability for the parts that need it. Worth it when stale data is useless; a mistake when you end up reimplementing TCP badly.",
         check: {
@@ -78,9 +78,8 @@ export const foundations: Card[] = [
         title: "DNS and why it hurts you",
         level: "intermediate",
         body: [
-          "DNS turns a name into an address, and answers are cached at many layers with a TTL you set. A low TTL means fast changes and more lookups; a high TTL means the opposite.",
-          "The catch is that not everyone honours your TTL. Some resolvers hold answers longer, so a migration planned around a 60-second TTL can still send traffic to the old address for hours.",
-          "This is why cutovers are done by changing what the address points at, rather than changing the address.",
+          "DNS turns a name into an address, and the answer is cached at every layer between you and the client for as long as the TTL you set. Low TTL, fast changes and more lookups; high TTL, the reverse.",
+          "The catch is that your TTL is a request, not an instruction. Some resolvers hold answers well past it, so a migration planned around 60 seconds can still be sending traffic to the old address hours later. This is why cutovers change what the address points at, rather than changing the address.",
         ],
         why: "Lowering TTL days ahead of a migration, then failing over at the load balancer rather than in DNS, is the difference between a clean cutover and a long tail of traffic hitting a decommissioned box.",
         check: {
@@ -101,9 +100,10 @@ export const foundations: Card[] = [
         title: "CDNs and edge caching",
         level: "intermediate",
         body: [
-          "A CDN puts copies of your content in data centres near users. The round trips that dominate page load then happen over tens of milliseconds instead of hundreds.",
-          "Static assets are easy. The interesting work is caching HTML and API responses at the edge, which means being deliberate about cache keys and invalidation.",
-          "Modern edge platforms also run code at those locations, so personalisation and auth checks can happen near the user rather than at origin.",
+          "A CDN puts copies of your content in data centres near your users.",
+          "The round trips that dominate page load then take tens of milliseconds instead of hundreds. Nothing about your origin got faster. The distance got shorter.",
+          "Static assets are the easy part. The interesting work is caching HTML and API responses at the edge, which forces you to be deliberate about cache keys and invalidation — which are the two things that go wrong.",
+          "Modern edge platforms also run code at those locations, so personalisation and auth checks can happen near the user instead of at origin.",
         ],
         why: "A CDN is usually the highest-leverage performance change available, because it attacks latency rather than throughput. Adding servers makes a busy system faster; moving content closer makes a distant system faster.",
         inPractice: "Cloudflare and Fastly serve most of their traffic from cache; origin servers see a small fraction of total requests.",
@@ -156,9 +156,8 @@ export const foundations: Card[] = [
         title: "Hash maps and their worst case",
         level: "beginner",
         body: [
-          "A hash map gives average constant-time lookup by turning a key into a bucket index. Collisions are handled by chaining or open addressing.",
-          "The average case assumes keys spread evenly. If an attacker can choose keys that all hash to one bucket, every lookup degrades to scanning a list, and the map becomes a denial-of-service vector.",
-          "Languages now randomise hash seeds per process for exactly this reason.",
+          "A hash map gives average constant-time lookup by turning a key into a bucket index, handling collisions by chaining or by open addressing.",
+          "The average case assumes keys spread evenly. Let an attacker choose keys that all hash to one bucket and every lookup degrades to scanning a list, which turns your hash map into a denial-of-service vector. Languages now randomise the hash seed per process for exactly this reason.",
         ],
         why: "Reaching for a hash map is right almost always. Knowing the degenerate case is what separates using one from being able to defend the choice.",
         check: {
@@ -201,9 +200,8 @@ export const foundations: Card[] = [
         title: "Bloom filters",
         level: "advanced",
         body: [
-          "A Bloom filter answers one question cheaply: is this item definitely absent, or possibly present. It can produce false positives but never false negatives.",
-          "That asymmetry is the whole point. Put one in front of an expensive lookup and you skip the lookup entirely for items that are definitely not there.",
-          "The cost is a few bits per item, far less than storing the keys themselves.",
+          "A Bloom filter answers one question cheaply: is this item definitely absent, or possibly present. False positives happen. False negatives cannot.",
+          "That asymmetry is the whole point. Put one in front of an expensive lookup and everything definitely not there skips the lookup entirely, for a few bits per item — far less than storing the keys would cost.",
         ],
         why: "Useful precisely where a definite no is valuable and a maybe is cheap to verify. Storage engines use them to avoid reading files that cannot contain a key.",
         inPractice: "Cassandra and most LSM-tree storage engines keep a Bloom filter per data file to avoid pointless disk reads.",
@@ -233,9 +231,10 @@ export const foundations: Card[] = [
         title: "ACID, stated plainly",
         level: "beginner",
         body: [
-          "Atomicity: all of a transaction happens or none of it. Consistency: it moves the database between valid states. Isolation: concurrent transactions do not see each other's partial work. Durability: once committed, it survives a crash.",
-          "Isolation is where the detail lives. Most databases default to read committed, not full serialisability, because full isolation is expensive.",
-          "That default allows anomalies most developers never think about, including two transactions reading and updating the same row based on stale reads.",
+          "Atomicity: all of a transaction happens, or none of it. Consistency: it moves the database between valid states. Isolation: concurrent transactions do not see each other's partial work. Durability: once committed, it survives a crash.",
+          "Three of those four are largely settled. Isolation is where the detail lives, and where the surprises are.",
+          "Most databases default to read committed rather than full serialisability, because full isolation is expensive: the database has to behave as though transactions ran one after another, and enforcing that costs you either locks or aborts.",
+          "That default permits anomalies most developers never think about. Two transactions read the same row, each computes from what it read, and one result quietly overwrites the other.",
         ],
         why: "'We use a relational database so we get ACID' is only true at the isolation level you actually configured. Knowing your default is the difference between a guarantee and an assumption.",
         check: {
@@ -277,9 +276,8 @@ export const foundations: Card[] = [
         title: "Normalisation and when to break it",
         level: "intermediate",
         body: [
-          "Normalising stores each fact once, so updates touch one row and the data cannot contradict itself. It costs joins on read.",
-          "Denormalising duplicates data to avoid those joins. Reads get faster and simpler; every copy is now something that can drift out of sync.",
-          "The usual shape is a normalised source of truth plus deliberately denormalised read models kept up to date asynchronously.",
+          "Normalising stores each fact once, so an update touches one row and the data cannot contradict itself. It costs joins on read.",
+          "Denormalising duplicates data to avoid those joins. Reads get faster and simpler, and every copy becomes something that can drift. The usual shape is a normalised source of truth plus deliberately denormalised read models, kept up to date asynchronously.",
         ],
         why: "Denormalisation is not a shortcut, it is a trade of write complexity for read speed. Make it when reads dominate and you have a reliable way to keep copies current.",
         check: {
@@ -321,9 +319,10 @@ export const foundations: Card[] = [
         title: "Connection pooling",
         level: "advanced",
         body: [
-          "Each database connection costs memory and a backend process. Postgres in particular struggles well before most people expect, often in the low hundreds of connections.",
-          "Serverless platforms make this worse: every instance opens its own connections, and instances scale with traffic, so connections multiply exactly when load is highest.",
+          "Each database connection costs memory and, in Postgres, an entire backend process. It struggles well before most people expect — often in the low hundreds.",
+          "Serverless makes this worse. Every instance opens its own connections, and instances scale with traffic, so connections multiply exactly when load is highest.",
           "A pooler sits in front and multiplexes many client connections onto a small number of real ones.",
+          "Which pooling mode you pick decides how much that buys you. Session pooling holds a real connection for the client's whole session and helps very little. Transaction pooling hands it back at every commit and helps enormously, at the price of losing anything that outlives a transaction: prepared statements, session variables, advisory locks.",
         ],
         why: "This is the failure that looks like a database problem and is not. The database is fine; you have exhausted its connection slots. Adding read replicas does not help, and a pooler does.",
         inPractice: "PgBouncer in transaction mode, or a managed equivalent such as Supabase's pooler or RDS Proxy, is the standard fix.",
@@ -354,9 +353,8 @@ export const foundations: Card[] = [
         title: "Processes, threads and async",
         level: "beginner",
         body: [
-          "Processes have separate memory and are isolated. Threads share memory within a process, which makes communication cheap and data races possible. Async runs many tasks on one thread by switching whenever a task waits.",
-          "Async suits IO-bound work, where tasks spend most of their time waiting on network or disk. It does nothing for CPU-bound work, because there is no waiting to exploit.",
-          "Node.js and Python asyncio are single-threaded and async. A CPU-heavy function blocks everything until it finishes.",
+          "Processes have separate memory and are isolated. Threads share memory within a process, which makes communication cheap and data races possible. Async runs many tasks on one thread, switching whenever a task waits.",
+          "Async suits IO-bound work, where tasks spend most of their time waiting on network or disk. It does nothing for CPU-bound work, because there is no waiting to exploit — which is why a CPU-heavy function in Node.js or Python asyncio blocks everything else until it finishes.",
         ],
         why: "Choosing async for CPU-bound work is a common and expensive mistake. The question is what the work waits on, not which model is modern.",
         check: {
@@ -399,9 +397,8 @@ export const foundations: Card[] = [
         title: "Idempotency",
         level: "intermediate",
         body: [
-          "An idempotent operation can run repeatedly with the same result as running once. This matters because networks make retries unavoidable, and a timeout tells you nothing about whether the work happened.",
-          "The standard approach is an idempotency key supplied by the client. The server records the key with its result and returns the stored result if the key reappears.",
-          "Without it, a retried payment is a second payment.",
+          "An idempotent operation can run repeatedly with the same result as running once. This matters because networks make retries unavoidable, and a timeout tells you nothing at all about whether the work happened.",
+          "The standard approach is an idempotency key supplied by the client. The server records the key alongside its result, and returns the stored result if the key comes back. Without it, a retried payment is simply a second payment.",
         ],
         why: "Any endpoint that changes state and can be retried needs this. It is the difference between at-least-once delivery being safe and being a liability.",
         inPractice: "Stripe requires an idempotency key on payment creation for exactly this reason.",
@@ -423,9 +420,8 @@ export const foundations: Card[] = [
         title: "Backpressure",
         level: "advanced",
         body: [
-          "When a system accepts work faster than it can complete it, the backlog grows. Queues fill, memory grows, latency climbs, and eventually it fails at the worst possible moment.",
-          "Backpressure means refusing or slowing intake when downstream cannot keep up. Bounded queues, load shedding and rejecting early are all forms of it.",
-          "Failing fast under overload is better behaviour than accepting everything and collapsing.",
+          "When a system accepts work faster than it can finish it, the backlog grows. Queues fill, memory climbs, latency climbs, and it fails at the worst possible moment.",
+          "Backpressure means refusing or slowing intake when downstream cannot keep up — bounded queues, load shedding, rejecting early. Failing fast under overload is better behaviour than accepting everything and then collapsing.",
         ],
         why: "Unbounded queues look like resilience and are the opposite: they convert a visible, recoverable rejection into a hidden backlog that fails later and harder.",
         check: {

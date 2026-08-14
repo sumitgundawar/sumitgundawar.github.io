@@ -1,8 +1,12 @@
+/* Tailwind v4. The v3 directives below this used to be @tailwind base/
+   components/utilities, which v4 does not recognise — so Preflight was never
+   emitted and every element kept its user-agent margins. That is why headings
+   and figures needed manual resets scattered through the file.
+
+   @config keeps the existing JS theme rather than porting it to @theme; that
+   is a supported path in v4 and a separate change from turning Preflight on. */
+@import "tailwindcss";
 @config "../tailwind.config.js";
-@reference "tailwindcss";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 /*
   Status page for Sumit Gundawar.
@@ -99,30 +103,12 @@
     }
   }
 
+  /* Preflight defaults borders to currentColor, which would make every hairline
+     inherit its element's text colour. This is the one base reset still worth
+     stating; box-sizing, the figure and heading margins, and the body margin
+     that used to live here are all Preflight's job now that it is emitted. */
   * {
     border-color: var(--hair);
-    box-sizing: border-box;
-  }
-
-  /* This project is on Tailwind v4 but still uses the v3 `@tailwind base`
-     directive, so Preflight is never emitted and user-agent defaults survive.
-     The visible symptom was every <figure> carrying the UA's 40px inline
-     margin: diagrams sat misaligned against body text on desktop and lost 23%
-     of their width on a 390px screen, where they can least afford it.
-     Migrating to `@import "tailwindcss"` is the real fix and restyles
-     everything at once, so it is tracked separately; these are the two
-     defaults that actually bite today. */
-  figure {
-    margin: 0;
-  }
-
-  h1,
-  h2,
-  h3,
-  h4 {
-    margin: 0;
-    font-size: inherit;
-    font-weight: inherit;
   }
 
   html {
@@ -139,8 +125,6 @@
   }
 
   body {
-    margin: 0;
-    padding: 0;
     overflow-x: clip;
     background: var(--ink);
     color: var(--c-text);

@@ -161,11 +161,11 @@ function Sidebar() {
               rel={c.href.startsWith("http") ? "noreferrer" : undefined}
               download={c.download ? true : undefined}
               onClick={() => trackClick(c.download ? "cv_download" : "contact_click", { channel: c.label })}
-              className="flex items-center gap-2.5 py-2.5 border-t border-hair group"
+              className="flex items-center gap-2.5 py-3 min-h-[44px] border-t border-hair group"
             >
               <HealthDot health="ok" size={6} />
               <span className="eyebrow w-[58px] shrink-0">{c.label}</span>
-              <span className="mono text-[12px] truncate min-w-0 flex-1 link-underline" style={{ color: "var(--c-text)" }}>
+              <span className="mono text-[12px] truncate min-w-0 flex-1 link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text)" }}>
                 {c.value}
               </span>
               <span className="mono text-[12px]" style={{ color: "var(--cool)" }}>↗</span>
@@ -190,14 +190,14 @@ function CornerNav() {
     >
       <Link
         to="/learn"
-        className="panel mono text-[12px] sm:text-[12px] uppercase tracking-[0.06em] px-3 py-2 sm:px-3.5 sm:py-2.5 link-underline"
+        className="panel mono text-[12px] sm:text-[12px] uppercase tracking-[0.06em] px-3.5 link-underline inline-flex items-center min-h-[44px]"
         style={{ color: "var(--c-text)" }}
       >
         Learn engineering →
       </Link>
       <Link
         to="/build"
-        className="panel mono text-[12px] sm:text-[12px] uppercase tracking-[0.06em] px-3 py-2 sm:px-3.5 sm:py-2.5 link-underline"
+        className="panel mono text-[12px] sm:text-[12px] uppercase tracking-[0.06em] px-3.5 link-underline inline-flex items-center min-h-[44px]"
         style={{ color: "var(--c-text)" }}
       >
         Build a system →
@@ -276,7 +276,7 @@ function Work() {
       <SectionHead
         label="selected work"
         right={
-          <button onClick={() => setOpen(true)} className="mono text-[12px] link-underline" style={{ color: "var(--c-text-dim)" }}>
+          <button onClick={() => setOpen(true)} className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
             13+ shipped — view all ↗
           </button>
         }
@@ -308,7 +308,7 @@ function Work() {
               ))}
             </div>
             {s.url && (
-              <a href={s.url} target="_blank" rel="noreferrer" className="mono text-[12px] mt-3 link-underline self-start" style={{ color: "var(--cool)" }}>
+              <a href={s.url} target="_blank" rel="noreferrer" className="mono text-[12px] mt-3 link-underline self-start inline-flex items-center min-h-[44px]" style={{ color: "var(--cool)" }}>
                 {s.urlLabel} ↗
               </a>
             )}
@@ -328,7 +328,7 @@ function Writing() {
         <SectionHead
           label="writing"
           right={
-            <a href={"https://dataconomy.com/author/sumit-gundawar/"} target="_blank" rel="noreferrer" className="mono text-[12px] link-underline" style={{ color: "var(--c-text-dim)" }}>
+            <a href={"https://dataconomy.com/author/sumit-gundawar/"} target="_blank" rel="noreferrer" className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
               author archive ↗
             </a>
           }
@@ -415,7 +415,7 @@ function SpeakingRecognition() {
             <div key={t.venue} className={`py-4 ${i === 0 ? "" : "border-t border-hair"}`}>
               <div className="flex items-baseline gap-3 flex-wrap">
                 {t.url ? (
-                  <a href={t.url} target="_blank" rel="noreferrer" className="text-[24px] font-medium link-underline tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>
+                  <a href={t.url} target="_blank" rel="noreferrer" className="text-[24px] font-medium link-underline tracking-[-0.01em] inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text)" }}>
                     {t.venue} ↗
                   </a>
                 ) : (
@@ -435,12 +435,12 @@ function SpeakingRecognition() {
             <div key={r.org} className={`py-4 ${i === 0 ? "" : "border-t border-hair"}`}>
               <div className="flex items-baseline gap-3 flex-wrap">
                 <span className="text-[19px] font-medium" style={{ color: "var(--c-text)" }}>{r.role}</span>
-                <a href={r.url} target="_blank" rel="noreferrer" className="text-[15px] link-underline" style={{ color: "var(--cool)" }}>{r.org} ↗</a>
+                <a href={r.url} target="_blank" rel="noreferrer" className="text-[15px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--cool)" }}>{r.org} ↗</a>
                 <span className="mono text-[12px] tnum" style={{ color: "var(--cool)" }}>{r.when}</span>
               </div>
               {r.extraUrl && (
                 <p className="text-[15px] mt-1.5" style={{ color: "var(--c-text-dim)" }}>
-                  <a href={r.extraUrl} target="_blank" rel="noreferrer" className="link-underline" style={{ color: "var(--c-text-dim)" }}>{r.extraLabel} ↗</a>
+                  <a href={r.extraUrl} target="_blank" rel="noreferrer" className="link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>{r.extraLabel} ↗</a>
                 </p>
               )}
             </div>
@@ -503,7 +503,7 @@ function ProductsModal({ onClose }: { onClose: () => void }) {
                   <div className="flex items-baseline gap-2.5">
                     <HealthDot health="ok" size={6} />
                     {p.url ? (
-                      <a href={p.url} target="_blank" rel="noreferrer" className="text-[15px] font-medium link-underline" style={{ color: "var(--c-text)" }}>
+                      <a href={p.url} target="_blank" rel="noreferrer" className="text-[15px] font-medium link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text)" }}>
                         {p.name} ↗
                       </a>
                     ) : (

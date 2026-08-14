@@ -1,8 +1,9 @@
 import type { Card } from "./types";
 
-/* Questions reported from real interview loops at large technology companies.
-   The useful observation is how much overlap there is: the same 25 to 30
-   problems circulate, so preparation transfers between companies. */
+/* Questions that circulate publicly in interview write-ups and candidate
+   reports. Treat the company attributions as indicative rather than sourced —
+   loops vary by team and change over time. The useful observation is the
+   overlap: the same 25 to 30 problems recur, so preparation transfers. */
 
 export const companies: Card[] = [
   {
@@ -16,7 +17,7 @@ export const companies: Card[] = [
         title: "The same thirty questions",
         level: "beginner",
         body: [
-          "Google, Meta, Amazon, Microsoft, Netflix, Uber, Stripe and Airbnb draw from largely the same pool of twenty-five to thirty problems. Preparing for one company prepares you for most of them.",
+          "Publicly shared interview reports from Google, Meta, Amazon, Microsoft, Netflix, Uber, Stripe and Airbnb describe largely the same pool of twenty-five to thirty problems. Preparing for one company prepares you for most of them.",
           "The recurring set: a news feed, a chat system, a video streaming service, a URL shortener, a rate limiter, a ride-hailing match, a payment flow, a notification system, a search or autocomplete, a file sync service, a ticket booking system, and a web crawler.",
           "The variation between companies is less in the question than in what they press on afterwards.",
         ],
@@ -57,25 +58,25 @@ export const companies: Card[] = [
         },
       },
       {
-        id: "bar-2026",
-        title: "What changed: cost and operations are now scored",
+        id: "cost-and-ops",
+        title: "Cost and operations are part of the answer",
         level: "advanced",
         body: [
-          "The questions have barely changed in years. The bar has: with more strong candidates than open senior roles, interviewers separate people on the dimensions that used to be optional.",
-          "Cost and operational judgement are now explicit evaluation criteria rather than bonus points. What does this cost per month, what happens at 3am when it breaks, who is paged, and how do you roll it back.",
-          "Some loops have dropped the whiteboard entirely, asking candidates to design verbally and then revise requirements on the spot.",
+          "The questions have barely changed in years. What separates candidates has shifted toward the dimensions that used to be treated as extra credit.",
+          "Expect to be asked what it costs to run, what happens at 3am when it breaks, who is paged, and how you roll it back. A design with no answer to those reads as unfinished.",
+          "Some loops run without a whiteboard at all, asking you to design aloud and then revise the requirements on the spot.",
         ],
         why: "A technically correct design with no cost estimate and no failure story now reads as incomplete. Saying 'this runs about two hundred a month, and if the cache tier fails we serve stale for up to five minutes rather than going down' is the differentiator.",
         check: {
-          prompt: "Your design is technically sound but you never mention cost or failure handling. In a 2026 senior loop, how does that read?",
+          prompt: "Your design is technically sound but you never mention cost or failure handling. How does that read at senior level?",
           options: [
             "Fine — those are bonus topics",
-            "Incomplete — cost and operational judgement are now explicit criteria, not extras",
+            "Incomplete — running cost and operational behaviour are part of the design, not extras",
             "It depends only on the coding round",
             "Better, since it keeps the answer focused",
           ],
           correctIndex: 1,
-          explain: "The bar moved. With many candidates producing correct designs, operability and cost are where interviewers now separate senior from staff.",
+          explain: "Plenty of candidates produce a correct topology. Operability and cost are where the answer stops being a diagram and starts being a system someone has to run.",
         },
       },
       {

@@ -105,16 +105,19 @@ function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
                 key={i}
                 onClick={() => answer(i)}
                 disabled={answered}
-                className="text-left text-[15px] leading-snug px-3.5 py-2.5 rounded-md border transition-colors"
+                className="text-left text-[15px] leading-snug px-3.5 py-3 rounded-md border transition-colors flex gap-3 items-start min-h-[48px]"
                 style={{
                   borderColor: show ? (isCorrect ? "var(--lv-beginner)" : "var(--crit)") : "var(--hair-strong)",
-                  background: show && isCorrect ? "rgba(110,231,183,0.08)" : "transparent",
-                  color: show && isCorrect ? "var(--lv-beginner)" : "var(--c-text-dim)",
+                  background: show && isCorrect ? "rgba(61,214,140,0.10)" : "var(--surface)",
+                  color: show && isCorrect ? "var(--lv-beginner)" : "var(--c-text)",
                   opacity: answered && i !== picked && !isCorrect ? 0.45 : 1,
                   cursor: answered ? "default" : "pointer",
                 }}
               >
-                {opt}
+                <span className="mono text-[12px] pt-0.5 shrink-0" style={{ color: "var(--c-text-dim)" }}>
+                  {String.fromCharCode(65 + i)}
+                </span>
+                <span className="min-w-0">{opt}</span>
               </button>
             );
           })}
@@ -139,7 +142,7 @@ function CardDetail({ card, onBack }: { card: Card; onBack: () => void }) {
     <div>
       <button
         onClick={onBack}
-        className="mono text-[12px] mb-6 inline-flex items-center gap-1.5 link-underline"
+        className="mono text-[12px] mb-4 inline-flex items-center gap-1.5 link-underline min-h-[44px]"
         style={{ color: "var(--c-text-dim)" }}
       >
         ← all topics
@@ -200,7 +203,7 @@ export function LearnPage() {
   return (
     <div className="min-h-[100dvh]">
       <div className="mx-auto w-full max-w-[940px] px-5 sm:px-8 py-8 lg:py-12">
-        <Link to="/" className="mono text-[12px] link-underline" style={{ color: "var(--c-text-dim)" }}>
+        <Link to="/" className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
           ← back to profile
         </Link>
 
@@ -223,17 +226,9 @@ export function LearnPage() {
               when you refresh.
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
-              <span className="tnum">{cards.length} cards</span>
-              <span className="tnum">{topicCount} topics</span>
-              {LEVELS.map((l) => (
-                <span key={l} className="inline-flex items-center gap-1.5 tnum">
-                  <LevelDot level={l} />
-                  {countByLevel(l)} {l}
-                </span>
-              ))}
-            </div>
-
+            {/* The counts used to appear twice — once as a stats row and again
+                inside the filter pills immediately below. Same four numbers,
+                four lines of phone screen, no extra information. */}
             <div className="mt-7 flex flex-wrap gap-2">
               {(["all", ...LEVELS] as const).map((l) => {
                 const on = level === l;
@@ -244,7 +239,7 @@ export function LearnPage() {
                       setLevel(l);
                       track("level_filter", { level: l });
                     }}
-                    className="mono text-[12px] px-3.5 py-1.5 rounded-full border transition-colors"
+                    className="mono text-[12px] px-4 rounded-full border transition-colors inline-flex items-center min-h-[44px]"
                     style={{
                       borderColor: on ? (l === "all" ? "var(--c-text)" : LEVEL_COLOR[l]) : "var(--hair)",
                       color: on ? (l === "all" ? "var(--c-text)" : LEVEL_COLOR[l]) : "var(--c-text-dim)",
@@ -267,17 +262,17 @@ export function LearnPage() {
               const inTrack = visible.filter((c) => c.track === tr.id);
               if (!inTrack.length) return null;
               return (
-                <section key={tr.id} className="mt-11">
-                  <div className="flex items-baseline gap-3 flex-wrap">
-                    <h2 className="text-[19px] font-semibold tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>
+                <section key={tr.id} className="mt-16">
+                  <div>
+                    <h2 className="text-[24px] font-semibold tracking-[-0.015em]" style={{ color: "var(--c-text)" }}>
                       {tr.label}
                     </h2>
-                    <span className="text-[15px]" style={{ color: "var(--c-text-dim)" }}>
+                    <p className="mt-1.5 text-[15px] max-w-[42em]" style={{ color: "var(--c-text-dim)" }}>
                       {tr.blurb}
-                    </span>
+                    </p>
                   </div>
 
-                  <div className="mt-4 grid sm:grid-cols-2 gap-3">
+                  <div className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
                     {inTrack.map((c) => {
                       const levelsHere = LEVELS.filter((l) => c.topics.some((t) => t.level === l));
                       return (
@@ -287,7 +282,7 @@ export function LearnPage() {
                             setOpenCard(c.id);
                             track("card_open", { card: c.id, track: c.track });
                           }}
-                          className="text-left rounded-lg border p-4 sm:p-5 flex flex-col gap-2 transition-transform hover:-translate-y-0.5"
+                          className="text-left rounded-lg border p-4 sm:p-5 flex flex-col gap-2 h-full transition-transform hover:-translate-y-0.5"
                           style={{ borderColor: "var(--hair-strong)", background: "var(--surface)" }}
                         >
                           <span className="text-[19px] font-medium leading-snug" style={{ color: "var(--c-text)" }}>
@@ -296,7 +291,7 @@ export function LearnPage() {
                           <span className="text-[15px] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
                             {c.summary}
                           </span>
-                          <span className="mt-1.5 flex items-center gap-2.5 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
+                          <span className="mt-auto pt-3 flex items-center gap-2.5 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
                             <span className="tnum">{c.topics.length} topics</span>
                             <span className="flex items-center gap-1">
                               {levelsHere.map((l) => (

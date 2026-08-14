@@ -331,7 +331,7 @@ export const design: Card[] = [
         body: [
           "When a network partition splits your system, you either refuse requests to stay consistent, or answer them and risk divergence. That is the whole choice.",
           "Partitions are not optional, so the real question is what to do during one, not whether to sacrifice partition tolerance.",
-          "Banks usually choose consistency and reject. Social feeds usually choose availability and reconcile later.",
+          "It is rarely uniform within one company. A core ledger chooses consistency and refuses; the ATM in the lobby chooses availability, dispenses anyway, and reconciles later with an overdraft fee — which is Brewer's own illustration of the trade.",
         ],
         why: "'We chose AP' is meaningless without saying what happens to conflicting writes afterwards. The interesting engineering is the reconciliation, not the letter.",
         check: {

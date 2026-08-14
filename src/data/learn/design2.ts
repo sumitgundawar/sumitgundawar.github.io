@@ -485,12 +485,12 @@ export const design2: Card[] = [
           prompt: "Why are consensus clusters usually 3 or 5 nodes rather than 4?",
           options: [
             "Odd numbers are faster",
-            "A majority quorum needs an odd count to avoid ties; 4 nodes tolerate the same single failure as 3 at higher cost",
+            "Fault tolerance is floor((n-1)/2), so 4 nodes tolerate the same single failure as 3 while costing more",
             "Even clusters cannot elect a leader",
             "It is a licensing constraint",
           ],
           correctIndex: 1,
-          explain: "3 and 4 both tolerate one failure, so the fourth node adds cost and no resilience. 5 is the next step that tolerates two.",
+          explain: "3 and 4 both tolerate one failure, so the fourth node adds cost and no resilience; 5 is the next step that tolerates two. Note the common explanation — that odd sizes avoid ties — is wrong: a majority of 4 is 3, so a majority quorum cannot tie.",
         },
       },
       {

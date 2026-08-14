@@ -76,7 +76,7 @@ export const TRACKS: { id: Track; label: string; blurb: string }[] = [
   { id: "foundations", label: "Foundations", blurb: "What everything else assumes you already know." },
   { id: "design", label: "System design", blurb: "The building blocks, and when each one is the wrong choice." },
   { id: "delivery", label: "Delivery and infrastructure", blurb: "Getting it running, and keeping it running." },
-  { id: "practice", label: "Engineering practice", blurb: "Testing, security, APIs, and how teams actually work." },
+  { id: "practice", label: "Engineering practice", blurb: "Testing, code quality, and how teams actually work." },
   { id: "case-study", label: "Case studies", blurb: "How Netflix, Uber and others actually built it." },
   { id: "interview", label: "Interview preparation", blurb: "Senior and staff level: what is being assessed, and how to show it." },
 ];

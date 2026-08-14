@@ -12,7 +12,7 @@ export const foundations: Card[] = [
         title: "The life of a request",
         level: "beginner",
         body: [
-          "Typing a URL sets off DNS resolution, a TCP handshake, a TLS handshake, then the HTTP request itself. Each is a round trip, and round trips are the thing that costs you.",
+          "Typing a URL sets off DNS resolution, a TCP handshake, a TLS handshake, then the HTTP request itself. Each costs at least one round trip — TLS 1.3 needs one and TLS 1.2 needs two — and round trips are the thing that costs you.",
           "A user 200ms away pays that 200ms per round trip. Four round trips before a single byte of content is 800ms of nothing on screen. This is why latency, not bandwidth, dominates perceived speed.",
           "Once you can name the steps, most performance work becomes obvious: remove round trips, or move the server closer to the user.",
         ],
@@ -56,7 +56,7 @@ export const foundations: Card[] = [
         title: "HTTP/1.1, HTTP/2 and HTTP/3",
         level: "intermediate",
         body: [
-          "HTTP/1.1 allows one outstanding request per connection, so browsers open six connections per host and developers bundle files to work around it.",
+          "HTTP/1.1 pipelining is in the spec but effectively unused, so in practice a connection carries one request at a time. Browsers open six per host and developers bundle files to work around it.",
           "HTTP/2 multiplexes many streams over one connection, which removes the need for most bundling tricks. It still runs on TCP, so one lost packet blocks every stream sharing that connection.",
           "HTTP/3 moves to QUIC over UDP, where each stream is independent. Loss affects one stream instead of all of them, which matters most on mobile networks.",
         ],
@@ -236,15 +236,15 @@ export const foundations: Card[] = [
         ],
         why: "'We use a relational database so we get ACID' is only true at the isolation level you actually configured. Knowing your default is the difference between a guarantee and an assumption.",
         check: {
-          prompt: "Two transactions read a balance of 100 and each subtract 60, both committing. What prevents this by default?",
+          prompt: "Two transactions SELECT a balance of 100 into application code, each compute 40, and each write it back. What prevents the lost update by default?",
           options: [
             "Atomicity, in every database",
             "Nothing at read committed — you need a higher isolation level or explicit locking",
             "Durability handles it",
-            "The database always serialises writes to the same row",
+            "Row locks, which serialise the two writes",
           ],
           correctIndex: 1,
-          explain: "This is a lost update, and read committed permits it. Fix it with SELECT FOR UPDATE, an atomic decrement, or serialisable isolation.",
+          explain: "Read committed permits this because the value was read into the application and written back later. Note that a single UPDATE ... SET balance = balance - 60 would be safe: row locks serialise it. The gap between reading and writing is what creates the bug.",
         },
       },
       {
@@ -258,7 +258,7 @@ export const foundations: Card[] = [
         ],
         why: "The instinct to add an index per slow query produces tables with fifteen indexes and slow writes. The question is always which queries matter, not which are slow.",
         check: {
-          prompt: "You have an index on (country, city). Which query does it not help?",
+          prompt: "You have an index on (country, city). Which query can it not seek on efficiently?",
           options: [
             "WHERE country = 'UK'",
             "WHERE country = 'UK' AND city = 'London'",
@@ -266,7 +266,7 @@ export const foundations: Card[] = [
             "WHERE country = 'UK' ORDER BY city",
           ],
           correctIndex: 2,
-          explain: "A composite index is sorted by the leading column first. Without country, the index has no useful ordering for city, so the database falls back to a scan.",
+          explain: "A composite index is sorted by its leading column, so without country there is no seekable prefix for city. Some engines can still skip-scan or use it as a narrower substitute for a full table scan, but neither is a real seek.",
         },
       },
       {

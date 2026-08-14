@@ -13,8 +13,7 @@ export const delivery: Card[] = [
         level: "beginner",
         body: [
           "A container packages your application with its dependencies and a filesystem, sharing the host kernel. It starts in milliseconds because there is no operating system to boot.",
-          "The problem it solves is environment drift: the same image runs identically on a laptop, in CI and in production, because the image is the environment.",
-          "A virtual machine gives stronger isolation by running its own kernel, at the cost of size and startup time.",
+          "The problem it solves is environment drift: the same image runs identically on a laptop, in CI and in production, because the image is the environment. A virtual machine gives stronger isolation by running its own kernel, at the cost of size and of startup time.",
         ],
         why: "Containers are about reproducibility first and density second. If your deployment already produces an identical artefact — a single Go binary, a Lambda zip — the reproducibility argument is weaker and containers buy you less.",
         check: {
@@ -34,9 +33,10 @@ export const delivery: Card[] = [
         title: "Docker or Kubernetes, and why",
         level: "intermediate",
         body: [
-          "Docker builds and runs containers. Kubernetes schedules them across many machines: restarting failures, rolling out new versions, scaling on demand and routing traffic to healthy instances.",
-          "They are not alternatives. The real question is whether you need an orchestrator at all, and the honest answer for most products is no.",
-          "Kubernetes brings genuine operational weight: networking, ingress, RBAC, upgrades, and a large surface to secure and debug.",
+          "Docker builds and runs containers. Kubernetes schedules them across many machines — restarting failures, rolling out new versions, scaling on demand, routing traffic to healthy instances.",
+          "They are not alternatives. The real question is whether you need an orchestrator at all, and for most products the honest answer is no.",
+          "Kubernetes brings genuine operational weight: networking, ingress, RBAC, upgrades, and a large surface to secure and to debug.",
+          "The middle option is the one people skip. A managed container platform — Cloud Run, ECS Fargate, App Runner — takes your image and runs it with autoscaling and rollouts while handing you almost none of the cluster. That covers a great many systems that reached for Kubernetes instead.",
         ],
         why: "Reach for Kubernetes when you have many services with different scaling profiles, need bin-packing across a fleet, or are standardising across teams. For a handful of services, a managed container platform — ECS Fargate, Cloud Run, App Runner — gives most of the benefit with a fraction of the operational cost. Choosing Kubernetes for one service is buying a scheduling problem you did not have.",
         diagram: {
@@ -111,9 +111,8 @@ export const delivery: Card[] = [
         title: "What a pipeline should do",
         level: "beginner",
         body: [
-          "Continuous integration runs the checks — build, tests, lint, type check — on every change, so breakage is caught in minutes rather than at release.",
-          "Continuous delivery keeps every passing commit deployable. Continuous deployment goes further and ships it automatically.",
-          "The value is proportional to speed. A pipeline taking forty minutes stops being feedback and becomes something people work around.",
+          "Continuous integration runs the checks — build, tests, lint, type check — on every change, so breakage surfaces in minutes rather than at release. Continuous delivery keeps every passing commit deployable; continuous deployment goes further and ships it automatically.",
+          "The value is proportional to speed. A pipeline taking forty minutes has stopped being feedback and become something people work around.",
         ],
         why: "Pipeline duration is a product decision, not an infrastructure detail. Past roughly ten minutes people stop waiting, start batching changes, and the benefit of small deploys disappears.",
         check: {
@@ -156,8 +155,9 @@ export const delivery: Card[] = [
         level: "advanced",
         body: [
           "Schema changes and code deploys are not atomic, so during any deploy the old code may run against the new schema, or the reverse.",
-          "The expand-and-contract pattern handles this: add the new column, write to both, backfill, switch reads, then drop the old column in a later release.",
-          "Renaming or dropping a column in the same release as the code change guarantees a window where one of them is broken.",
+          "The expand-and-contract pattern handles this: add the new column, write to both, backfill, switch reads, and drop the old column in a later release.",
+          "Renaming or dropping a column in the same release as the code change guarantees a window where one of the two is broken.",
+          "Watch the lock as well. Adding a nullable column is instant on a modern Postgres; changing a type, or building an index the ordinary way, takes a lock that queues every other query behind it. CREATE INDEX CONCURRENTLY exists precisely because the obvious version takes the table down.",
         ],
         why: "This is the most common cause of self-inflicted deploy outages. Splitting a rename into three deploys feels slow and is the only version that stays up.",
         check: {
@@ -177,9 +177,8 @@ export const delivery: Card[] = [
         title: "Feature flags",
         level: "intermediate",
         body: [
-          "A flag separates deploying code from releasing behaviour. Code ships dark, then is enabled for a cohort, then for everyone.",
-          "That makes rollback a configuration change rather than a redeploy, which is far faster during an incident.",
-          "Flags accumulate. Every one is a branch in the code, and stale flags become permanent complexity, so removal has to be part of the process.",
+          "A flag separates deploying code from releasing behaviour. Code ships dark, is enabled for a cohort, then for everyone — which turns a rollback into a configuration change rather than a redeploy, and that is a great deal faster during an incident.",
+          "Flags accumulate. Every one is a branch in the code, and stale flags become permanent complexity, so removing them has to be part of the process rather than something everyone means to get to.",
         ],
         why: "Flags are how you deploy on Friday safely. The discipline that makes them work is deleting them: a codebase with two hundred live flags has an untestable number of behaviour combinations.",
         check: {

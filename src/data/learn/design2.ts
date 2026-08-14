@@ -559,9 +559,8 @@ export const design2: Card[] = [
         title: "OLTP and OLAP",
         level: "beginner",
         body: [
-          "Transactional databases are tuned for many small reads and writes of individual rows, stored row by row.",
-          "Analytical stores are tuned for scanning a few columns across billions of rows, stored column by column so unread columns cost nothing.",
-          "Running heavy analytics on your production database competes for the same resources serving users, which is how a dashboard causes an outage.",
+          "Transactional databases are tuned for many small reads and writes of individual rows, and store data row by row. Analytical stores are tuned for scanning a few columns across billions of rows, and store it column by column, so the columns you did not ask for cost nothing.",
+          "Running heavy analytics on your production database puts them in competition for the same resources that are serving users. That is how a dashboard causes an outage.",
         ],
         why: "Columnar storage is the reason a warehouse scans a billion rows in seconds. It is a different physical layout, not just a bigger machine.",
         check: {
@@ -604,9 +603,8 @@ export const design2: Card[] = [
         title: "Change data capture",
         level: "advanced",
         body: [
-          "CDC reads the database's own replication log and turns committed changes into a stream of events. It captures every change, in commit order, without the application doing anything.",
-          "Compared with polling for updated rows, it misses nothing, catches deletes, and adds no query load.",
-          "It is the standard way to feed search indexes, caches, warehouses and downstream services from a single source of truth.",
+          "CDC reads the database's own replication log and turns committed changes into a stream of events. It captures every change, in commit order, without the application doing anything at all.",
+          "Compared with polling for updated rows it misses nothing, it catches deletes, and it adds no query load. That is what makes it the standard way to feed search indexes, caches, warehouses and downstream services from one source of truth.",
         ],
         why: "CDC solves the dual-write problem structurally: there is one commit, and everything downstream derives from it. That is why it beats having the application publish events alongside its writes.",
         inPractice: "Debezium reading Postgres or MySQL logs into Kafka is the common implementation.",

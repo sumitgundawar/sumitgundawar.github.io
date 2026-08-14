@@ -76,13 +76,14 @@ export const interview: Card[] = [
         check: {
           prompt: "Which answer signals seniority?",
           options: [
-            "We would use Kafka because it scales",
-            "A queue here decouples the write path, at the cost of eventual consistency — the user sees pending until it drains",
-            "We would add caching",
-            "We would use microservices",
+            "Kafka handles millions of events a second, so throughput will not be our bottleneck",
+            "A queue decouples the write path, at the cost of the user seeing pending until it drains",
+            "We would cache reads at the edge, which takes a large bite out of p99 latency",
+            "Microservices let each team deploy on its own schedule without coordinating releases",
           ],
           correctIndex: 1,
-          explain: "It names the benefit, the cost, and the user-visible consequence. The others name technologies without decisions.",
+          explain:
+            "All four are true. Only one is a decision. The others state a benefit and stop there, which leaves the interviewer to supply the cost — and they will. Naming it yourself, in terms of what the user sees, is the difference the rubric is measuring.",
         },
       },
     ],

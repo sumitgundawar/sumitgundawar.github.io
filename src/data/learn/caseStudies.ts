@@ -90,12 +90,12 @@ export const caseStudies: Card[] = [
         check: {
           prompt: "Why prefer versioned keys and short TTLs over coordinated global invalidation?",
           options: [
-            "It uses less memory",
-            "A global delete must succeed everywhere to be correct; versioning makes stale entries unreachable without coordination",
-            "TTLs are more accurate",
-            "It avoids needing a cache",
+            "Cross-region deletes add latency to the write path, which users feel on every save",
+            "Short TTLs already bound staleness, so invalidation messages become redundant",
+            "A delete must reach every region to be correct; a new key version needs no coordination",
+            "Versioned keys let each region choose which version to serve, avoiding contention",
           ],
-          correctIndex: 1,
+          correctIndex: 2,
           explain: "Coordinated invalidation is a distributed transaction across regions and fails when the network does. Versioning degrades gracefully instead.",
         },
       },

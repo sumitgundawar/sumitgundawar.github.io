@@ -90,15 +90,17 @@ export const security: Card[] = [
         why: "Validating the URL string is the intuitive fix and the one that does not hold, because the string is not what gets connected to. The check has to happen on the resolved address, at connect time, on every hop.",
         inPractice: "The 2019 Capital One breach began with SSRF used to reach the instance metadata service and retrieve role credentials.",
         check: {
-          prompt: "You block localhost and 169.254.169.254 in submitted webhook URLs. Why is this insufficient?",
+          prompt:
+            "You reject submitted webhook URLs whose host is in any private or link-local range. Assume the range list is complete. Why is this still insufficient?",
           options: [
-            "Those addresses are not actually sensitive",
-            "An attacker-controlled hostname can resolve to an internal address, and a redirect can retarget the request after validation",
-            "Blocklists are slow to evaluate",
-            "It is sufficient if you also require HTTPS",
+            "The hostname is resolved after the check, so DNS and redirects can retarget the request",
+            "The list omits the IPv6 forms of those ranges, which resolve to the same services",
+            "Requiring HTTPS closes the gap, since internal services lack a valid certificate",
+            "Range blocking rejects legitimate customers whose endpoints sit behind NAT",
           ],
-          correctIndex: 1,
-          explain: "You validated a string, not a destination. DNS rebinding and redirects both move the actual target after the check, so validation has to happen on the resolved IP at connect time.",
+          correctIndex: 0,
+          explain:
+            "Every option here describes something real, but only the first survives a complete range list. You validated a string; the connection is made to whatever the name resolves to at connect time, and a 302 moves the target again after that. Validation has to happen on the resolved IP, on every hop.",
         },
       },
       {

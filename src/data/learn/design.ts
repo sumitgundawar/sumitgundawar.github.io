@@ -223,10 +223,10 @@ export const design: Card[] = [
         check: {
           prompt: "Your broker advertises exactly-once. Do consumers still need to be idempotent?",
           options: [
-            "No, the broker handles it",
-            "Yes — the guarantee does not extend to external side effects, and redelivery after a partial failure is still possible",
-            "Only for high-volume topics",
-            "Only if using multiple consumer groups",
+            "No — the broker deduplicates by message ID, so a handler is entered at most once",
+            "Yes — the guarantee covers broker state, not the email or charge your handler performs",
+            "Only above the throughput where the broker degrades to at-least-once delivery",
+            "Only when consumers are spread across groups, since each group gets its own copy",
           ],
           correctIndex: 1,
           explain: "Exactly-once is scoped to the broker's own state. Once your handler sends an email or charges a card, only idempotency protects you.",

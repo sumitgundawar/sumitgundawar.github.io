@@ -209,12 +209,12 @@ export const practice: Card[] = [
         check: {
           prompt: "Why wait for the third occurrence before abstracting?",
           options: [
-            "Three is a convention",
-            "Two examples rarely reveal the real axis of variation, and a wrong abstraction is costlier to undo than duplication",
-            "It reduces file count",
-            "Compilers optimise better",
+            "Two cases rarely reveal what actually varies, and a wrong abstraction costs more than duplication",
+            "Three call sites is the point where shared code pays back the cost of its indirection",
+            "Duplicated code is cheaper to read than an abstraction reached from three directions",
+            "Extraction tools need three examples before they can infer the right parameters",
           ],
-          correctIndex: 1,
+          correctIndex: 0,
           explain: "You need enough examples to see what genuinely varies. Guessing early produces parameters that fight the next requirement.",
         },
       },

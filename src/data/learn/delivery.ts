@@ -163,12 +163,12 @@ export const delivery: Card[] = [
         check: {
           prompt: "Why can't you rename a column and deploy the matching code together?",
           options: [
-            "Databases forbid renames",
-            "The two are not simultaneous, so briefly either old code sees a missing column or new code sees the old name",
-            "Renames lock the table permanently",
-            "ORMs cannot handle renames",
+            "The rename holds an exclusive lock for as long as the table rewrite takes",
+            "Rolling the deploy back would leave the new column name with no code reading it",
+            "Deploy and migration are never simultaneous, so one side briefly sees the other's schema",
+            "Pooled connections keep prepared statements bound to the old column name",
           ],
-          correctIndex: 1,
+          correctIndex: 2,
           explain: "There is always a window where code and schema disagree. Expand and contract keeps both readable throughout.",
         },
       },
@@ -305,13 +305,14 @@ export const delivery: Card[] = [
         check: {
           prompt: "A service handles steady, high traffic all day. Why might serverless be the wrong choice?",
           options: [
-            "It cannot handle high traffic",
-            "Per-invocation pricing is worse than always-on capacity at steady volume, and cold starts add tail latency",
-            "It does not support databases",
-            "It requires containers anyway",
+            "Per-invocation pricing loses to reserved capacity once there is no idle time to save",
+            "Cold starts on every request add tail latency that steady traffic cannot amortise",
+            "Functions cannot hold a connection pool, so each call reopens the database",
+            "Account concurrency limits cap sustained throughput below a container fleet",
           ],
-          correctIndex: 1,
-          explain: "Serverless is priced for idle time you do not have. Constant traffic is exactly where reserved capacity is cheaper and more predictable.",
+          correctIndex: 0,
+          explain:
+            "Serverless is priced for idle time you do not have. Note that cold starts are the wrong objection here: steady traffic is exactly the case where instances stay warm and you rarely pay one. The pricing argument is the one that survives.",
         },
       },
     ],

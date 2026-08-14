@@ -64,6 +64,37 @@ export function findProblems(): Problem[] {
   return problems;
 }
 
+/* The length tell.
+ *
+ * Writing a question, the correct answer is the one you have the most to say
+ * about, so it comes out longest — and every distractor is a throwaway you
+ * spent no time on. Done across a whole quiz bank it becomes a free answer key:
+ * at one point 115 of 122 correct answers were the longest option, 104 of them
+ * by more than 25 characters. You could score 94% having read none of it.
+ *
+ * The fix is not to make the correct answer shorter. It is to write distractors
+ * that are real near-misses, which makes them naturally similar in length. So
+ * the metric here is spread across all four options, not which one is longest —
+ * when every option is within a few characters, longest carries no signal. */
+const MAX_SPREAD = 20;
+
+export function findAnswerTells(): Problem[] {
+  const tells: Problem[] = [];
+  for (const card of cards) {
+    for (const topic of card.topics) {
+      const lens = topic.check.options.map((o) => o.length);
+      const spread = Math.max(...lens) - Math.min(...lens);
+      if (spread > MAX_SPREAD) {
+        tells.push({
+          where: `${card.id}/${topic.id}`,
+          what: `option length spread ${spread} > ${MAX_SPREAD} — distractors are throwaways`,
+        });
+      }
+    }
+  }
+  return tells;
+}
+
 if (import.meta.env?.DEV) {
   const problems = findProblems();
   if (problems.length) {
@@ -71,5 +102,9 @@ if (import.meta.env?.DEV) {
       `[learn content] ${problems.length} problem(s):\n` +
         problems.map((p) => `  ${p.where}: ${p.what}`).join("\n"),
     );
+  }
+  const tells = findAnswerTells();
+  if (tells.length) {
+    console.warn(`[learn content] ${tells.length} quiz(zes) still have the length tell`);
   }
 }

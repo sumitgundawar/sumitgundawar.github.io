@@ -90,13 +90,14 @@ export const design2: Card[] = [
         check: {
           prompt: "Why sign webhook payloads with an HMAC rather than relying on a secret URL?",
           options: [
-            "To compress the payload",
-            "A URL can leak and cannot be verified; a signature proves the body came from you and was not altered",
-            "To support HTTP/2",
-            "To allow retries",
+            "A secret URL cannot be rotated without every receiver redeploying at the same time",
+            "TLS already authenticates the caller, so the secret in the URL is doing nothing",
+            "A URL leaks into logs and proxies, and proves nothing about the body that arrived with it",
+            "Signing lets the receiver replay a delivery safely, which is what makes retries possible",
           ],
-          correctIndex: 1,
-          explain: "A secret URL is a bearer token in a place that leaks — logs, referrers, proxies. A signature over the body authenticates every individual request.",
+          correctIndex: 2,
+          explain:
+            "A secret URL is a bearer token in the one place that leaks by default — access logs, referrers, proxies. A signature authenticates each individual body instead. TLS is not the answer: it authenticates the server being called, and tells the receiver nothing about who called it.",
         },
       },
       {
@@ -387,13 +388,14 @@ export const design2: Card[] = [
         check: {
           prompt: "Why can't you immediately revoke a standard JWT?",
           options: [
-            "It is encrypted",
-            "It is self-contained and validated by signature, so the server consults no state that could mark it invalid",
-            "It has no expiry",
-            "Only the client can revoke it",
+            "The signature covers an expiry claim, which cannot be altered after issue",
+            "It is held only by the client, so the server has no stored copy it could delete",
+            "Validation is local by design, so no server reads state that could mark it dead",
+            "Revoking means rotating the signing key, which invalidates every token at once",
           ],
-          correctIndex: 1,
-          explain: "Validation is local by design. Revocation requires shared state, which is exactly what the token was chosen to avoid.",
+          correctIndex: 2,
+          explain:
+            "Validation is local by design, and revocation needs shared state — precisely what the token was chosen to avoid. Rotating the signing key does revoke it, but it revokes everyone's at once, which is a blast radius rather than a mechanism.",
         },
       },
       {
@@ -462,13 +464,14 @@ export const design2: Card[] = [
         check: {
           prompt: "A leader stalls for 30s, its lease expires, a new leader is elected, then the old one resumes and writes. What prevents corruption?",
           options: [
-            "A longer lease",
-            "Fencing tokens — each leadership term has an increasing number, and stale-term writes are rejected",
-            "Retrying the write",
-            "A faster health check",
+            "A lease longer than the worst-case pause, so expiry cannot happen mid-write",
+            "The old leader notices the new one on resume and stands down before writing",
+            "Quorum writes, since the old leader can no longer reach a majority of replicas",
+            "Fencing tokens — storage rejects any write carrying a superseded term number",
           ],
-          correctIndex: 1,
-          explain: "You cannot prevent the pause, so the storage layer must reject writes carrying an old term number. That is what fencing does.",
+          correctIndex: 3,
+          explain:
+            "A longer lease is the tempting answer and it does not work: there is no bound on how long a process can be paused by GC, a hypervisor, or a swapped-out page, so any lease you pick can be exceeded. You cannot prevent the pause. The storage layer has to reject the write, which is what a fencing token lets it do.",
         },
       },
       {

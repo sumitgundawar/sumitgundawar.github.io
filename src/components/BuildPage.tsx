@@ -12,28 +12,45 @@ import {
 } from "@/data/build";
 import type { Diagram } from "@/data/learn";
 
-/** Lay the recommended components out as a request flowing left to right. */
+/** Lay the recommended components out as a request flowing left to right.
+ *
+ *  Edges come from each component's declared dependencies. Deriving them from
+ *  column position instead — which is what this did originally — produced
+ *  confident nonsense: "CDN to authentication", "video pipeline to database",
+ *  and no edge at all between the application server and the database. */
 function toDiagram(recs: Recommendation[]): Diagram {
   const order: Record<string, number> = { client: 0, edge: 1, service: 2, queue: 3, data: 4, external: 4 };
-  const columns: Recommendation[][] = [[], [], [], [], []];
-  recs.forEach((r) => columns[order[r.kind] ?? 2].push(r));
-  const used = columns.filter((c) => c.length);
+  const present = new Set(recs.map((r) => r.id));
 
   const edges: Diagram["edges"] = [];
-  for (let i = 0; i < used.length - 1; i++) {
-    const a = used[i];
-    const b = used[i + 1];
-    a.forEach((from, j) => {
-      const to = b[Math.min(j, b.length - 1)];
-      if (to) edges.push({ from: from.id, to: to.id, async: to.kind === "queue" || to.kind === "external" });
-    });
-  }
+  const seen = new Set<string>();
+  const add = (from: string, to: string, isAsync: boolean) => {
+    const key = `${from}->${to}`;
+    if (from === to || !present.has(to) || seen.has(key)) return;
+    seen.add(key);
+    edges.push({ from, to, async: isAsync });
+  };
+  recs.forEach((r) => {
+    r.dependsOn?.forEach((to) => add(r.id, to, false));
+    r.dependsOnAsync?.forEach((to) => add(r.id, to, true));
+  });
+
+  // A component nothing points at and which points nowhere would float
+  // unconnected, so give it the one honest edge it has: the app server uses it.
+  const linked = new Set(edges.flatMap((e) => [e.from, e.to]));
+  const host = recs.find((r) => r.id === "api") ?? recs[0];
+  recs.forEach((r) => {
+    if (r.id !== host?.id && !linked.has(r.id)) add(host.id, r.id, r.kind === "external");
+  });
+
+  const columns: Recommendation[][] = [[], [], [], [], []];
+  recs.forEach((r) => columns[order[r.kind] ?? 2].push(r));
 
   return {
     caption: "Your architecture — hover any component for the reasoning",
-    columns: used.map((col) =>
-      col.map((r) => ({ id: r.id, label: r.name, sub: r.pick, kind: r.kind })),
-    ),
+    columns: columns
+      .filter((c) => c.length)
+      .map((col) => col.map((r) => ({ id: r.id, label: r.name, sub: r.pick, kind: r.kind }))),
     edges,
   };
 }

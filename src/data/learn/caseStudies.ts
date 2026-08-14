@@ -1,0 +1,438 @@
+import type { Card } from "./types";
+
+/* The classic system design interview questions, answered the way a senior or
+   staff candidate would: the constraint first, then the decision it forces. */
+
+export const caseStudies: Card[] = [
+  {
+    id: "netflix",
+    title: "Netflix",
+    summary: "Streaming to hundreds of millions: why the hard part is delivery, not video.",
+    track: "case-study",
+    topics: [
+      {
+        id: "netflix-cdn",
+        title: "Open Connect: their own CDN",
+        level: "intermediate",
+        body: [
+          "Netflix is a large share of internet traffic at peak. Buying that from a commercial CDN would be enormously expensive and still not fast enough.",
+          "Instead they build Open Connect appliances and give them to ISPs for free, installed inside the ISP's own network. The video is already past the congested peering links before your request happens.",
+          "Popular titles are pushed to those boxes overnight, during off-peak hours, predicted per region.",
+        ],
+        why: "The insight is that streaming is a predictable, cacheable workload. You know tomorrow's popular titles, so you can pre-position the bytes and turn a bandwidth problem into a storage problem — storage being far cheaper.",
+        diagram: {
+          caption: "Playback: control plane on AWS, bytes from a box inside your ISP",
+          columns: [
+            [{ id: "app", label: "Client app", sub: "TV, phone, browser", kind: "client" }],
+            [
+              { id: "api", label: "Playback API", sub: "AWS", kind: "service" },
+              { id: "steer", label: "Steering service", sub: "picks best OCA", kind: "service" },
+            ],
+            [
+              { id: "oca", label: "Open Connect", sub: "inside the ISP", kind: "edge" },
+              { id: "meta", label: "Metadata + auth", sub: "AWS", kind: "data" },
+            ],
+            [{ id: "s3", label: "Master storage", sub: "S3, all renditions", kind: "data" }],
+          ],
+          edges: [
+            { from: "app", to: "api", label: "play title" },
+            { from: "api", to: "meta", label: "entitlement" },
+            { from: "api", to: "steer" },
+            { from: "steer", to: "app", label: "returns OCA URL" },
+            { from: "app", to: "oca", label: "video segments" },
+            { from: "s3", to: "oca", label: "pre-positioned overnight", async: true },
+          ],
+        },
+        check: {
+          prompt: "Why can Netflix pre-position content but a social feed cannot?",
+          options: [
+            "Video files are smaller",
+            "Their catalogue is finite and demand is predictable, so tomorrow's popular titles can be copied in advance",
+            "ISPs refuse to host social content",
+            "Social feeds are not cacheable at all",
+          ],
+          correctIndex: 1,
+          explain: "Pre-positioning needs predictable demand over a bounded catalogue. A feed is generated per user from content that did not exist an hour ago.",
+        },
+      },
+      {
+        id: "netflix-microservices",
+        title: "Microservices and the failure budget",
+        level: "advanced",
+        body: [
+          "The Netflix backend is hundreds of services. A single home page assembles rows from many of them, so the probability that all are healthy at once is low.",
+          "The system is therefore designed to render with whatever is available: if personalisation fails, show a sensible default row rather than an error.",
+          "Chaos engineering came from here. Terminating instances deliberately in production is how you find out whether the fallbacks actually work.",
+        ],
+        why: "At that number of dependencies, treating any failure as fatal guarantees constant outages. Fallbacks are not a nicety, they are what makes the architecture viable at all.",
+        check: {
+          prompt: "With 200 services each 99.9% available, what does that imply for a page needing all of them?",
+          options: [
+            "Still 99.9%",
+            "Roughly 82% — independent failures compound, so the page must tolerate missing pieces",
+            "99.9% divided by 200",
+            "It depends only on the slowest service",
+          ],
+          correctIndex: 1,
+          explain: "0.999 to the power of 200 is about 0.82. Compounding is why every non-essential dependency needs a fallback.",
+        },
+      },
+      {
+        id: "netflix-caching",
+        title: "EVCache and cache invalidation across regions",
+        level: "advanced",
+        body: [
+          "EVCache is Netflix's distributed cache layer, built on memcached, replicated within a region and across availability zones.",
+          "Rather than coordinating precise global invalidation, they lean on short TTLs and versioned keys. A write bumps a version, and old entries simply become unreachable and expire.",
+          "Cross-region coordinated deletes would be slower, more fragile, and would fail exactly when the network is degraded.",
+        ],
+        why: "This is the practical answer to cache invalidation at global scale: make staleness bounded and self-healing rather than trying to make it zero. A delete that must succeed everywhere is a distributed transaction in disguise.",
+        check: {
+          prompt: "Why prefer versioned keys and short TTLs over coordinated global invalidation?",
+          options: [
+            "It uses less memory",
+            "A global delete must succeed everywhere to be correct; versioning makes stale entries unreachable without coordination",
+            "TTLs are more accurate",
+            "It avoids needing a cache",
+          ],
+          correctIndex: 1,
+          explain: "Coordinated invalidation is a distributed transaction across regions and fails when the network does. Versioning degrades gracefully instead.",
+        },
+      },
+    ],
+  },
+
+  {
+    id: "uber",
+    title: "Uber",
+    summary: "Matching riders to drivers in real time, over geography, at city scale.",
+    track: "case-study",
+    topics: [
+      {
+        id: "uber-geo",
+        title: "Geospatial indexing with H3",
+        level: "advanced",
+        body: [
+          "Finding nearby drivers with latitude and longitude comparisons means scanning everything. Neither coordinate alone narrows the search usefully.",
+          "Uber divides the world into hexagonal cells — their H3 library — so a location becomes a cell id. Finding nearby drivers becomes looking up a few cell ids, which is a hash lookup.",
+          "Hexagons are used rather than squares because every neighbour is equidistant, which makes expanding the search ring uniform.",
+        ],
+        why: "The move is turning a continuous two-dimensional problem into a discrete key lookup. Once location is a key, ordinary tools — hash maps, caches, shards — all work again.",
+        diagram: {
+          caption: "A ride request: match on cells, then track over a persistent connection",
+          columns: [
+            [
+              { id: "rider", label: "Rider app", kind: "client" },
+              { id: "driver", label: "Driver app", sub: "pings location", kind: "client" },
+            ],
+            [{ id: "gw", label: "API gateway", sub: "WebSocket", kind: "edge" }],
+            [
+              { id: "match", label: "Matching", sub: "supply and demand", kind: "service" },
+              { id: "loc", label: "Location service", sub: "H3 cell index", kind: "service" },
+              { id: "price", label: "Pricing", sub: "surge by cell", kind: "service" },
+            ],
+            [
+              { id: "geo", label: "Driver index", sub: "Redis, cell to drivers", kind: "data" },
+              { id: "trips", label: "Trip store", sub: "sharded by city", kind: "data" },
+              { id: "kafka", label: "Event stream", sub: "Kafka", kind: "queue" },
+            ],
+          ],
+          edges: [
+            { from: "driver", to: "gw", label: "location every few sec" },
+            { from: "gw", to: "loc" },
+            { from: "loc", to: "geo", label: "update cell" },
+            { from: "rider", to: "gw", label: "request ride" },
+            { from: "gw", to: "match" },
+            { from: "match", to: "geo", label: "drivers in nearby cells" },
+            { from: "match", to: "price" },
+            { from: "match", to: "trips", label: "create trip" },
+            { from: "trips", to: "kafka", label: "events", async: true },
+          ],
+        },
+        check: {
+          prompt: "Why does cell-based indexing beat comparing latitude and longitude ranges?",
+          options: [
+            "It is more accurate",
+            "It turns a two-dimensional range scan into a lookup of a few discrete keys",
+            "It uses less storage",
+            "It avoids needing a database",
+          ],
+          correctIndex: 1,
+          explain: "A bounding-box query on two independent columns cannot use one index efficiently. A cell id is a single key, so hashing and sharding work normally.",
+        },
+      },
+      {
+        id: "uber-surge",
+        title: "Surge pricing as a control loop",
+        level: "advanced",
+        body: [
+          "Surge is not primarily a revenue mechanism, it is a feedback loop balancing supply and demand within a geographic cell.",
+          "When requests outnumber available drivers in a cell, the multiplier rises. That suppresses some demand and attracts drivers from neighbouring cells, and the imbalance closes.",
+          "It must be computed per small area and updated continuously, because conditions differ street by street and change within minutes.",
+        ],
+        why: "Framing it as a control system rather than pricing explains the design: it needs fast feedback, small granularity, and damping so it does not oscillate.",
+        check: {
+          prompt: "What does surge pricing primarily do to the system?",
+          options: [
+            "Increases revenue per ride",
+            "Acts as a feedback loop that reduces demand and attracts supply until the imbalance closes",
+            "Reduces server load",
+            "Prioritises premium users",
+          ],
+          correctIndex: 1,
+          explain: "It is a control loop over a local imbalance. Revenue is a side effect; the function is clearing the market in that cell.",
+        },
+      },
+      {
+        id: "uber-sharding",
+        title: "Sharding by city",
+        level: "intermediate",
+        body: [
+          "Trips are overwhelmingly local. A rider and driver are in the same city, and almost no query needs to join across cities.",
+          "That makes city, or region, an excellent shard key: traffic distributes naturally and cross-shard queries are rare.",
+          "It also isolates failure and allows per-city configuration, since regulations and pricing differ by market.",
+        ],
+        why: "A good shard key follows a natural boundary in the domain. City works because it matches how the data is actually queried; user id would scatter the two halves of every trip.",
+        check: {
+          prompt: "Why is city a good shard key for trips?",
+          options: [
+            "Cities are equal in size",
+            "Trips are local, so almost every query stays within one shard",
+            "It produces the fewest shards",
+            "It simplifies the schema",
+          ],
+          correctIndex: 1,
+          explain: "Locality is the point: rider, driver and trip share a city, so queries rarely cross shards. Uneven city sizes are handled by splitting large ones.",
+        },
+      },
+    ],
+  },
+
+  {
+    id: "twitter-feed",
+    title: "Twitter and news feeds",
+    summary: "Fan-out on write versus read, and the celebrity problem.",
+    track: "case-study",
+    topics: [
+      {
+        id: "fanout",
+        title: "Fan-out on write or on read",
+        level: "advanced",
+        body: [
+          "Fan-out on write pushes each post into every follower's precomputed timeline. Reads are then a single fast lookup, and writes are expensive.",
+          "Fan-out on read builds the timeline when requested by querying everyone you follow. Writes are cheap and reads are expensive.",
+          "With a million followers, fan-out on write means a million inserts per post. With a user following thousands of accounts, fan-out on read means a huge query per refresh.",
+        ],
+        why: "Neither works alone, which is the actual answer: fan out on write for ordinary accounts, and merge in celebrity posts at read time. The hybrid exists because the follower distribution is extremely skewed.",
+        diagram: {
+          caption: "Hybrid: precomputed timelines for most, merged at read for large accounts",
+          columns: [
+            [{ id: "poster", label: "User posts", kind: "client" }],
+            [{ id: "write", label: "Write service", kind: "service" }],
+            [
+              { id: "fan", label: "Fan-out worker", sub: "normal accounts", kind: "queue" },
+              { id: "celeb", label: "Celebrity store", sub: "not fanned out", kind: "data" },
+            ],
+            [
+              { id: "tl", label: "Timeline cache", sub: "Redis per user", kind: "data" },
+              { id: "reader", label: "Read service", sub: "merges both", kind: "service" },
+            ],
+          ],
+          edges: [
+            { from: "poster", to: "write" },
+            { from: "write", to: "fan", label: "if followers < threshold", async: true },
+            { from: "write", to: "celeb", label: "if large account" },
+            { from: "fan", to: "tl", label: "insert per follower", async: true },
+            { from: "tl", to: "reader" },
+            { from: "celeb", to: "reader", label: "merged at read" },
+          ],
+        },
+        check: {
+          prompt: "Why is pure fan-out on write impractical for accounts with millions of followers?",
+          options: [
+            "Timelines would be too long",
+            "One post causes millions of writes, creating a huge spike and delaying delivery",
+            "Followers cannot be enumerated",
+            "Redis cannot store that many keys",
+          ],
+          correctIndex: 1,
+          explain: "The write amplification is the problem. Excluding large accounts from fan-out and merging them at read keeps both paths bounded.",
+        },
+      },
+      {
+        id: "timeline-ranking",
+        title: "Ranking a timeline",
+        level: "advanced",
+        body: [
+          "Reverse chronological is simple and predictable. Ranked feeds score each candidate on predicted engagement, recency, affinity and content type.",
+          "Ranking needs candidates first: retrieve a few hundred plausible posts cheaply, then score them expensively. Scoring everything is not affordable.",
+          "The two-stage shape — cheap retrieval, expensive ranking — is how nearly all recommendation systems are built.",
+        ],
+        why: "Candidate generation then ranking is the general pattern worth carrying into any recommendation question. It bounds the expensive step regardless of corpus size.",
+        check: {
+          prompt: "Why do feed systems separate candidate generation from ranking?",
+          options: [
+            "To support A/B testing",
+            "Scoring every possible item is unaffordable, so a cheap step narrows to a few hundred before the expensive model runs",
+            "Because ranking models cannot read databases",
+            "To keep the feed chronological",
+          ],
+          correctIndex: 1,
+          explain: "It bounds the cost of the expensive stage. Retrieval is cheap and approximate; ranking is precise and applied to a small set.",
+        },
+      },
+    ],
+  },
+
+  {
+    id: "whatsapp",
+    title: "WhatsApp and chat",
+    summary: "Delivery guarantees, ordering and end-to-end encryption at billions of messages.",
+    track: "case-study",
+    topics: [
+      {
+        id: "chat-delivery",
+        title: "Delivery, receipts and offline users",
+        level: "intermediate",
+        body: [
+          "A message is stored server-side until delivered, then usually deleted. The server is a relay with a queue, not an archive.",
+          "The three ticks — sent, delivered, read — are acknowledgements flowing back at each stage, and each is a separate event.",
+          "Offline users make this a queue-per-recipient problem, drained when the device reconnects.",
+        ],
+        why: "Treating chat as a per-recipient queue rather than a shared log is what makes offline delivery and multi-device sync tractable.",
+        diagram: {
+          caption: "Message path with an offline recipient",
+          columns: [
+            [{ id: "a", label: "Sender", kind: "client" }],
+            [{ id: "gw", label: "Gateway", sub: "persistent socket", kind: "edge" }],
+            [
+              { id: "msg", label: "Message service", kind: "service" },
+              { id: "q", label: "Per-user queue", sub: "undelivered", kind: "queue" },
+            ],
+            [
+              { id: "b", label: "Recipient", sub: "offline, then reconnects", kind: "client" },
+              { id: "push", label: "Push notification", sub: "APNs, FCM", kind: "external" },
+            ],
+          ],
+          edges: [
+            { from: "a", to: "gw", label: "send" },
+            { from: "gw", to: "msg" },
+            { from: "msg", to: "q", label: "store if offline" },
+            { from: "msg", to: "push", label: "wake device", async: true },
+            { from: "q", to: "b", label: "drain on reconnect" },
+            { from: "b", to: "msg", label: "delivered ack" },
+            { from: "msg", to: "a", label: "ticks", async: true },
+          ],
+        },
+        check: {
+          prompt: "Why does the server queue per recipient rather than keeping one shared log?",
+          options: [
+            "It uses less storage",
+            "Each recipient has independent delivery state, and messages are removed once that recipient has them",
+            "Shared logs cannot be encrypted",
+            "It preserves global ordering",
+          ],
+          correctIndex: 1,
+          explain: "Delivery is per device and per user. A per-recipient queue makes 'what does this device still need' a direct question.",
+        },
+      },
+      {
+        id: "e2e",
+        title: "End-to-end encryption and its consequences",
+        level: "advanced",
+        body: [
+          "With end-to-end encryption the server relays ciphertext it cannot read. Keys live on devices, and each conversation has its own session.",
+          "That removes entire categories of server-side feature: search across history, server-side spam classification on content, and web access without a linked device.",
+          "Multi-device support becomes hard, because each device needs its own keys and its own copy of the session state.",
+        ],
+        why: "This is the clearest example of a security decision constraining the product. Choosing E2E means accepting that the server cannot help with anything requiring message content.",
+        check: {
+          prompt: "Which feature becomes structurally hard under end-to-end encryption?",
+          options: [
+            "Delivery receipts",
+            "Server-side search across a user's message history",
+            "Group messaging",
+            "Push notifications",
+          ],
+          correctIndex: 1,
+          explain: "The server holds only ciphertext, so it cannot index content. Search must happen on-device over locally decrypted messages.",
+        },
+      },
+    ],
+  },
+
+  {
+    id: "classic-designs",
+    title: "Classic interview systems",
+    summary: "URL shortener, rate limiter, ticket booking, file sync — the ones that come up most.",
+    track: "case-study",
+    topics: [
+      {
+        id: "url-shortener",
+        title: "URL shortener",
+        level: "beginner",
+        body: [
+          "The core is a mapping from short key to long URL, read far more than written, which makes it a caching problem more than a storage one.",
+          "Keys can be generated by base62-encoding a counter, or by hashing and handling collisions. A counter gives short sequential keys but leaks volume; hashing does not.",
+          "Redirects should be 301 or 302 deliberately: 301 is cached by browsers, which is fast but makes click analytics impossible.",
+        ],
+        why: "The 301-versus-302 choice is the interesting decision. If you need per-click analytics you must use 302 and accept the traffic, because a cached 301 never reaches your server again.",
+        check: {
+          prompt: "Why might a URL shortener choose 302 over 301?",
+          options: [
+            "302 is faster",
+            "301 is cached by browsers, so subsequent clicks never reach the server and cannot be counted",
+            "301 is deprecated",
+            "302 supports HTTPS",
+          ],
+          correctIndex: 1,
+          explain: "Permanent redirects are cached aggressively. That is a performance win and an analytics loss, so the answer depends on which you need.",
+        },
+      },
+      {
+        id: "ticket-booking",
+        title: "Ticket booking and seat reservation",
+        level: "advanced",
+        body: [
+          "The defining constraint is that a seat must not be sold twice, under a load spike concentrated on a few popular events.",
+          "Seats are held with a short-lived reservation — typically a few minutes — created atomically, so a user has exclusive claim while paying.",
+          "Expired holds must be released reliably, which means a background reaper or a TTL, not just an application timer.",
+        ],
+        why: "This is where optimistic concurrency stops working. Under contention for the same rows, optimistic retries mostly fail, so an explicit hold with a TTL is the correct model.",
+        check: {
+          prompt: "Why hold a seat rather than only checking availability at payment time?",
+          options: [
+            "It reduces database load",
+            "Without an exclusive hold, two users can both pass the availability check and both pay for one seat",
+            "Payment providers require it",
+            "It simplifies pricing",
+          ],
+          correctIndex: 1,
+          explain: "The gap between checking and paying is where the race lives. An atomic hold closes it, and the TTL stops abandoned carts locking inventory forever.",
+        },
+      },
+      {
+        id: "file-sync",
+        title: "File sync, Dropbox style",
+        level: "advanced",
+        body: [
+          "Files are split into chunks, each hashed. Only chunks whose hash changed are uploaded, so editing one page of a large document transfers very little.",
+          "Identical chunks across users are stored once, which is deduplication and a large storage saving.",
+          "Conflicts happen when two devices edit while offline. The usual resolution is to keep both as a conflicted copy rather than silently choosing a winner.",
+        ],
+        why: "Content-addressed chunking gives deduplication, delta sync and integrity checking from one idea. Preferring a conflicted copy over automatic merge is a deliberate choice: silent data loss is worse than a confusing filename.",
+        check: {
+          prompt: "Why hash file chunks rather than whole files?",
+          options: [
+            "Hashing whole files is too slow",
+            "Only changed chunks need uploading, and identical chunks can be stored once across all users",
+            "Whole-file hashes collide more often",
+            "It enables encryption",
+          ],
+          correctIndex: 1,
+          explain: "Chunk-level hashing gives delta sync and cross-user deduplication together. A whole-file hash tells you only that something changed.",
+        },
+      },
+    ],
+  },
+];

@@ -1,172 +1,246 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Eyebrow } from "./primitives";
-import { Reveal, SectionHead } from "./StatusPage";
+import { FlowDiagram } from "./FlowDiagram";
+import { track } from "@/lib/track";
 import {
-  identity,
-  buildQuestions,
-  buildRecommendation,
-  type BuildAnswers,
-  type BuildComponent,
-  type BuildRecommendation,
-} from "@/data/content";
+  questions,
+  recommend,
+  costBand,
+  headline,
+  type Answers,
+  type Recommendation,
+} from "@/data/build";
+import type { Diagram } from "@/data/learn";
 
-function ResultRow({ label, component }: { label: string; component: BuildComponent }) {
-  return (
-    <div className="py-4 border-t border-hair first:border-t-0">
-      <Eyebrow className="mb-1.5">{label}</Eyebrow>
-      <p className="text-[15px] leading-relaxed" style={{ color: "var(--c-text)" }}>{component.value}</p>
-      <p className="text-[13.5px] leading-relaxed mt-2 max-w-[64ch]" style={{ color: "var(--c-text-dim)" }}>
-        <span className="mono" style={{ color: "var(--cool)" }}>why — </span>
-        {component.why}
-      </p>
-    </div>
-  );
+/** Lay the recommended components out as a request flowing left to right. */
+function toDiagram(recs: Recommendation[]): Diagram {
+  const order: Record<string, number> = { client: 0, edge: 1, service: 2, queue: 3, data: 4, external: 4 };
+  const columns: Recommendation[][] = [[], [], [], [], []];
+  recs.forEach((r) => columns[order[r.kind] ?? 2].push(r));
+  const used = columns.filter((c) => c.length);
+
+  const edges: Diagram["edges"] = [];
+  for (let i = 0; i < used.length - 1; i++) {
+    const a = used[i];
+    const b = used[i + 1];
+    a.forEach((from, j) => {
+      const to = b[Math.min(j, b.length - 1)];
+      if (to) edges.push({ from: from.id, to: to.id, async: to.kind === "queue" || to.kind === "external" });
+    });
+  }
+
+  return {
+    caption: "Your architecture — hover any component for the reasoning",
+    columns: used.map((col) =>
+      col.map((r) => ({ id: r.id, label: r.name, sub: r.pick, kind: r.kind })),
+    ),
+    edges,
+  };
 }
 
-function FlowNode({ label, short }: { label: string; short: string }) {
-  return (
-    <div className="flex-1 border border-hair px-4 py-3.5" style={{ background: "var(--surface)" }}>
-      <Eyebrow className="mb-1.5">{label}</Eyebrow>
-      <p className="text-[14px] font-medium leading-snug" style={{ color: "var(--c-text)" }}>{short}</p>
-    </div>
-  );
-}
+function ComponentCard({ rec }: { rec: Recommendation }) {
+  const [showAlts, setShowAlts] = useState(false);
 
-function FlowArrow() {
   return (
     <div
-      aria-hidden
-      className="mono flex items-center justify-center shrink-0 text-[14px] py-0.5 sm:py-0 sm:px-1.5"
-      style={{ color: "var(--c-text-dim)" }}
+      className="rounded-lg border p-4 sm:p-5"
+      style={{ borderColor: "var(--hair)", background: "var(--surface)" }}
     >
-      <span className="sm:hidden">↓</span>
-      <span className="hidden sm:inline">→</span>
-    </div>
-  );
-}
+      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+        <div className="flex items-baseline gap-2.5 flex-wrap">
+          <span className="text-[16.5px] font-medium" style={{ color: "var(--c-text)" }}>
+            {rec.name}
+          </span>
+          <span className="mono text-[13px]" style={{ color: "var(--accent)" }}>
+            {rec.pick}
+          </span>
+        </div>
+        {rec.optional && (
+          <span className="mono text-[11px] uppercase tracking-wide" style={{ color: "var(--lv-intermediate)" }}>
+            add when needed
+          </span>
+        )}
+      </div>
 
-function RequestFlow({ result }: { result: BuildRecommendation }) {
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-stretch">
-      <FlowNode label="domain" short={result.domain.short} />
-      <FlowArrow />
-      <FlowNode label="edge / cdn" short={result.edge.short} />
-      <FlowArrow />
-      <FlowNode label="compute" short={result.compute.short} />
-      <FlowArrow />
-      <FlowNode label="data" short={result.data.short} />
+      <p className="mt-2.5 text-[14.5px] leading-[1.6]" style={{ color: "var(--c-text-dim)" }}>
+        {rec.why}
+      </p>
+
+      <p className="mt-2 text-[13.5px] leading-relaxed mono" style={{ color: "var(--c-text-dim)", opacity: 0.85 }}>
+        {rec.where}
+      </p>
+
+      <button
+        onClick={() => {
+          setShowAlts((s) => !s);
+          if (!showAlts) track("build_alternatives", { component: rec.id });
+        }}
+        className="mono text-[12px] mt-3 link-underline"
+        style={{ color: "var(--accent-2)" }}
+      >
+        {showAlts ? "hide alternatives" : `switch this · ${rec.alternatives.length} alternatives`}
+      </button>
+
+      {showAlts && (
+        <div className="mt-3 flex flex-col gap-2.5">
+          {rec.alternatives.map((alt) => (
+            <div key={alt.name} className="border-l-2 pl-3" style={{ borderColor: "var(--hair)" }}>
+              <div className="text-[14px] font-medium" style={{ color: "var(--c-text)" }}>
+                {alt.name}
+              </div>
+              <div className="text-[13.5px] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+                {alt.when}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 export function BuildPage() {
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<BuildAnswers>({});
+  const [answers, setAnswers] = useState<Answers>({});
+  const done = step >= questions.length;
 
-  const done = step >= buildQuestions.length;
-  const question = buildQuestions[step];
+  const recs = useMemo(() => (done ? recommend(answers) : []), [done, answers]);
+  const diagram = useMemo(() => (recs.length ? toDiagram(recs) : null), [recs]);
 
-  const pick = (value: string) => {
-    if (!question) return;
-    setAnswers((prev) => ({ ...prev, [question.id]: value }));
+  const choose = (qid: string, oid: string, skipped = false) => {
+    setAnswers((a) => ({ ...a, [qid]: oid }));
     setStep((s) => s + 1);
+    track(skipped ? "build_skip" : "build_answer", { question: qid, answer: oid });
   };
 
-  const startOver = () => {
+  const restart = () => {
     setAnswers({});
     setStep(0);
+    track("build_restart", {});
   };
 
-  const result = done ? buildRecommendation(answers) : null;
+  const q = !done ? questions[step] : null;
 
   return (
     <div className="min-h-[100dvh]">
-      <div className="mx-auto w-full max-w-[820px] px-5 sm:px-8 py-8 lg:py-12">
-        <div className="mb-8">
-          <Link to="/" className="mono text-[12px] link-underline" style={{ color: "var(--c-text-dim)" }}>
-            ← {identity.name}
-          </Link>
-        </div>
+      <div className="mx-auto w-full max-w-[940px] px-5 sm:px-8 py-8 lg:py-12">
+        <Link to="/" className="mono text-[12.5px] link-underline" style={{ color: "var(--c-text-dim)" }}>
+          ← back to profile
+        </Link>
 
         <h1
-          className="font-semibold leading-[1.05] tracking-[-0.015em]"
-          style={{ fontSize: "clamp(26px, 3.6vw, 36px)", color: "var(--c-text)" }}
+          className="mt-7 font-semibold leading-[1.05] tracking-[-0.02em]"
+          style={{ fontSize: "clamp(30px, 5vw, 44px)", color: "var(--c-text)" }}
         >
           Build a system
         </h1>
-        <p className="mt-3 text-[15.5px] leading-relaxed max-w-[58ch]" style={{ color: "var(--c-text-dim)" }}>
-          A short questionnaire that sizes a starting architecture to your actual expected traffic, so
-          you don't pay for infrastructure you don't need — or under-build for what you do. Deterministic
-          rules, not a model guessing — every recommendation below states why.
+        <p className="mt-3.5 text-[16px] leading-relaxed max-w-[64ch]" style={{ color: "var(--c-text-dim)" }}>
+          Ten questions, then an architecture sized to what you are actually building. Every component
+          comes with why it is there, what it costs, and what you would use instead.
         </p>
 
-        {!done ? (
-          <Reveal as="div" className="mt-10">
-            <div className="mono text-[11.5px] tnum mb-2 flex items-baseline justify-between" style={{ color: "var(--cool)" }}>
-              <span>step {step + 1} / {buildQuestions.length}</span>
+        {q && (
+          <>
+            <div className="mt-8 flex items-center gap-3">
+              <div className="h-[3px] flex-1 rounded-full overflow-hidden" style={{ background: "var(--hair)" }}>
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{ width: `${(step / questions.length) * 100}%`, background: "var(--accent)" }}
+                />
+              </div>
+              <span className="mono text-[12px] tnum shrink-0" style={{ color: "var(--c-text-dim)" }}>
+                {step + 1} / {questions.length}
+              </span>
             </div>
-            <div className="h-[2px] w-full mb-7" style={{ background: "var(--hair)" }}>
-              <div
-                className="h-full transition-[width] duration-300"
-                style={{ width: `${(step / buildQuestions.length) * 100}%`, background: "var(--cool)" }}
-              />
-            </div>
-            <SectionHead label={question.prompt} />
-            <div className="flex flex-col gap-2">
-              {question.options.map((opt) => (
+
+            <div className="mt-8">
+              <h2 className="text-[21px] sm:text-[24px] font-semibold tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>
+                {q.prompt}
+              </h2>
+              {q.help && (
+                <p className="mt-2.5 text-[14.5px] leading-relaxed max-w-[60ch]" style={{ color: "var(--c-text-dim)" }}>
+                  {q.help}
+                </p>
+              )}
+
+              <div className="mt-5 flex flex-col gap-2.5">
+                {q.options.map((o) => (
+                  <button
+                    key={o.id}
+                    onClick={() => choose(q.id, o.id)}
+                    className="text-left rounded-lg border px-4 py-3.5 transition-transform hover:-translate-y-0.5"
+                    style={{ borderColor: "var(--hair)", background: "var(--surface)" }}
+                  >
+                    <div className="text-[15.5px]" style={{ color: "var(--c-text)" }}>
+                      {o.label}
+                    </div>
+                    {o.hint && (
+                      <div className="text-[13.5px] mt-0.5" style={{ color: "var(--c-text-dim)" }}>
+                        {o.hint}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-5 flex items-center gap-5">
+                {step > 0 && (
+                  <button
+                    onClick={() => setStep((s) => s - 1)}
+                    className="mono text-[12.5px] link-underline"
+                    style={{ color: "var(--c-text-dim)" }}
+                  >
+                    ← back
+                  </button>
+                )}
                 <button
-                  key={opt.value}
-                  onClick={() => pick(opt.value)}
-                  className="text-left text-[15px] px-4 py-3 border border-hair transition-colors hover:bg-[var(--surface-2)] hover:border-[var(--cool)]"
-                  style={{ color: "var(--c-text)", background: "var(--surface)" }}
+                  onClick={() => choose(q.id, q.skipDefault, true)}
+                  className="mono text-[12.5px] link-underline"
+                  style={{ color: "var(--c-text-dim)" }}
                 >
-                  {opt.label}
+                  skip — assume a sensible default
                 </button>
-              ))}
+              </div>
             </div>
-            {step > 0 && (
+          </>
+        )}
+
+        {done && diagram && (
+          <div className="mt-9">
+            <div className="flex items-center gap-4 flex-wrap">
               <button
-                onClick={() => setStep((s) => s - 1)}
-                className="mono text-[12px] link-underline mt-6"
+                onClick={() => setStep(questions.length - 1)}
+                className="mono text-[12.5px] link-underline"
                 style={{ color: "var(--c-text-dim)" }}
               >
-                ← back
+                ← change last answer
               </button>
-            )}
-          </Reveal>
-        ) : (
-          <Reveal as="div" className="mt-10">
-            <SectionHead label={`recommendation: ${result!.tier}`} />
-            <p className="text-[14.5px] leading-relaxed max-w-[64ch] mb-7 -mt-3" style={{ color: "var(--c-text-dim)" }}>
-              {result!.tierNote}
+              <button onClick={restart} className="mono text-[12.5px] link-underline" style={{ color: "var(--c-text-dim)" }}>
+                start again
+              </button>
+            </div>
+
+            <p className="mt-6 text-[16px] leading-relaxed max-w-[66ch]" style={{ color: "var(--c-text)" }}>
+              {headline(answers)}
+            </p>
+            <p className="mt-2.5 mono text-[13.5px]" style={{ color: "var(--accent)" }}>
+              {costBand(answers)}
             </p>
 
-            <Eyebrow className="mb-3">request flow</Eyebrow>
-            <RequestFlow result={result!} />
+            <FlowDiagram diagram={diagram} id="build-result" />
 
-            <div className="mt-8 border border-hair px-5" style={{ background: "var(--surface)" }}>
-              <ResultRow label="domain" component={result!.domain} />
-              <ResultRow label="edge / cdn" component={result!.edge} />
-              <ResultRow label="compute" component={result!.compute} />
-              <ResultRow label="data" component={result!.data} />
+            <div className="mt-7 grid gap-3">
+              {recs.map((r) => (
+                <ComponentCard key={r.id} rec={r} />
+              ))}
             </div>
 
-            <div className="mt-6">
-              <Eyebrow className="mb-3">principle</Eyebrow>
-              <p className="text-[14.5px] leading-relaxed max-w-[64ch]" style={{ color: "var(--c-text-dim)" }}>
-                {result!.principle}
-              </p>
-            </div>
-
-            <button
-              onClick={startOver}
-              className="mono text-[12px] link-underline mt-8"
-              style={{ color: "var(--c-text-dim)" }}
-            >
-              ← start over
-            </button>
-          </Reveal>
+            <p className="mt-8 text-[14px] leading-relaxed max-w-[64ch]" style={{ color: "var(--c-text-dim)" }}>
+              Anything marked add when needed is deliberately not part of the first build. Add it when you
+              have measured that you need it, not before — every component you skip is one you do not have
+              to operate, secure or pay for.
+            </p>
+          </div>
         )}
       </div>
     </div>

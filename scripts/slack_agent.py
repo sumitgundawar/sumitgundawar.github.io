@@ -27,6 +27,10 @@ import urllib.request
 from datetime import datetime
 
 SLACK_API = "https://slack.com/api/"
+# Big requests genuinely take hours. 30 minutes killed a real task mid-flight;
+# keep this comfortably under the job timeout so a timeout is reported, not
+# cut off by GitHub with no message at all.
+CLAUDE_TIMEOUT = 3 * 60 * 60
 BRANCH_PREFIX = "bot/"
 
 # Words that mean "put the site back", not "make me a change".
@@ -352,19 +356,28 @@ def recent_conversation(messages, task_ts, keep=10):
     )
 
 
+class RanOutOfTime(Exception):
+    """Claude was still working when the clock ran out."""
+
+
 def run_claude(task, history=""):
-    res = subprocess.run(
-        [
-            "claude", "-p", TASK_PROMPT.format(task=task, history=history),
-            "--output-format", "json",
-            "--permission-mode", "acceptEdits",
-            "--allowedTools", CLAUDE_TOOLS,
-            # Default effort under-does exactly the multi-file, look-then-fix
-            # work this is for; xhigh is the setting for agentic coding.
-            "--effort", "xhigh",
-        ],
-        capture_output=True, text=True, timeout=1800,
-    )
+    try:
+        res = subprocess.run(
+            [
+                "claude", "-p", TASK_PROMPT.format(task=task, history=history),
+                "--output-format", "json",
+                "--permission-mode", "acceptEdits",
+                "--allowedTools", CLAUDE_TOOLS,
+                # Default effort under-does exactly the multi-file, look-then-fix
+                # work this is for; xhigh is the setting for agentic coding.
+                "--effort", "xhigh",
+            ],
+            capture_output=True, text=True, timeout=CLAUDE_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        # Never let this become the default error: the exception stringifies to
+        # the whole command, which means the entire prompt lands in Slack.
+        raise RanOutOfTime(CLAUDE_TIMEOUT // 60) from None
     if res.returncode != 0:
         raise RuntimeError(f"claude exited {res.returncode}: {res.stderr.strip()[:400]}")
     try:
@@ -387,7 +400,25 @@ def do_task(task, ts, history=""):
     git("fetch", "origin", "main")
     git("checkout", "-B", branch, "origin/main")
 
-    answer = run_claude(task, history)
+    partial = False
+    try:
+        answer = run_claude(task, history)
+    except RanOutOfTime as exc:
+        # Half an hour of work should not evaporate because the request was
+        # bigger than one run. Keep whatever compiles and label it honestly.
+        if not git("status", "--porcelain"):
+            say(
+                f"That ran for {exc.args[0]} minutes without finishing and had "
+                f"nothing to keep. It is too big for one go — try splitting it, "
+                f"for example one card or one level at a time."
+            )
+            return FAILED
+        partial = True
+        answer = (
+            f"Ran out of time after {exc.args[0]} minutes, so this is unfinished. "
+            f"What is here builds and is worth a look, but expect gaps — ask for "
+            f"the rest in smaller pieces."
+        )
 
     # No edits usually means you asked a question rather than requested a
     # change. Claude has already answered it, so pass that on instead of
@@ -407,12 +438,12 @@ def do_task(task, ts, history=""):
 
     diff = f"https://github.com/{REPO}/compare/main...{branch}"
     say(
-        f"{answer}\n\n"
+        f"{'[unfinished] ' if partial else ''}{answer}\n\n"
         f"Build passed. Diff: {diff}\n"
         f"{BRANCH_MARK} `{branch}`\n\n"
         f"{PROPOSAL_MARK}, :x: to discard."
     )
-    return AWAITING
+    return AWAITING if not partial else FAILED
 
 
 def do_approve(proposal_ts, branch):

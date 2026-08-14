@@ -19,7 +19,9 @@ permissions:
 jobs:
   agent:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Must exceed CLAUDE_TIMEOUT in slack_agent.py, or GitHub kills the job
+    # before the script can report the timeout and keep any partial work.
+    timeout-minutes: 210
     steps:
       - name: Checkout
         uses: actions/checkout@v4

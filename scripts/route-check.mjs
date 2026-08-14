@@ -9,7 +9,12 @@
  *
  * Run against `npm run preview` on port 4173:
  *   npm run build && npx vite preview --port 4173 &
- *   node scripts/route-check.mjs
+ *   npm run routes
+ *
+ * And against the deployed site, which is the run that matters — the 404 bounce
+ * that GitHub Pages depends on for deep links does not exist locally, and it
+ * shipped broken precisely because nothing ever exercised it:
+ *   BASE_URL=https://sumitgundawar.com npm run routes
  */
 
 import { chromium } from "playwright";
@@ -25,12 +30,27 @@ function check(label, ok) {
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 
-/* A router that throws still renders the shell, so a screenshot looks fine and
-   the page is dead. Collect anything the console reports. */
+/* A router that throws still renders the shell, so a screenshot looks fine while
+   the page is dead. Collect anything that fails.
+
+   Every path the client router owns. On GitHub Pages each of these is a real
+   missing file, so the network 404 is the bounce firing, not a fault. Keep this
+   in step with the routes in App.tsx. Correctness is still asserted separately —
+   the deep-link check requires the page to actually render — so exempting the
+   request here cannot hide a broken route, only a broken asset it never was. */
+const isAppRoute = (path) => /^\/(learn(\/[a-z0-9-]+)?|build)$/.test(path);
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
-page.on("console", (m) => {
-  if (m.type() === "error") errors.push(`console: ${m.text()}`);
+
+/* Judge failed requests by the URL that actually failed, not by the console
+   text. The console message for a 404 carries no URL, so matching on it means
+   guessing from whatever page.url() happens to be mid-navigation — which is
+   how an exemption ends up swallowing real failures. */
+page.on("response", (r) => {
+  if (r.status() < 400) return;
+  const path = new URL(r.url()).pathname.replace(/\/$/, "");
+  if (isAppRoute(path)) return; // the bounce itself
+  errors.push(`${r.status()} ${r.url()}`);
 });
 
 await page.goto(`${BASE}/`, { waitUntil: "networkidle" });

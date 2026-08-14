@@ -11,12 +11,22 @@
 
 @layer base {
   :root {
+    /* Boundaries.
+       These were all between 1.04:1 and 1.33:1, which is why nothing on the
+       site had a visible edge — 31 learn cards, the timeline, every divider and
+       every quiet panel dissolved into one sheet of near-black.
+
+       Two tiers rather than one number. Fills separate softly, because a card
+       background does not need to shout. Borders that are actual UI components
+       — cards you click, quiz options you answer — use --hair-strong and clear
+       WCAG 1.4.11's 3:1 against the surface behind them. Measured, not guessed. */
     --ink: #0e1110;
-    --surface: #161a18;
-    --surface-2: #1c211e;
-    --line: #262c29;
-    --c-text: #edebe3;
-    --c-text-dim: #aab1a6;
+    --surface: #262a28;      /* 1.31:1 on ink */
+    --surface-2: #333735;    /* 1.20:1 on surface */
+    --line: #424845;         /* 2.03:1 on ink, 1.55:1 on surface */
+    --hair-strong: #6d7370;  /* 3.92:1 on ink, 3.00:1 on surface */
+    --c-text: #edebe3;       /* 12.18:1 on surface */
+    --c-text-dim: #aab1a6;   /* 6.61:1 on surface */
 
     --signal: #3dd68c;
     --warn: #e8b23a;
@@ -35,43 +45,46 @@
     --radius: 2px;
 
     /* Learning surfaces.
-       The status page uses colour only for health. Teaching material needs
-       colour to carry meaning — which layer of the stack a box is, how hard a
-       topic is — so these hues exist alongside, not instead of, the ones above.
-       Fills are low-alpha tints of the stroke so they stay legible on dark. */
-    --accent: #6ee7b7;
-    --accent-2: #7dd3fc;
-    --diagram-bg: #121614;
+       These were six unmodified Tailwind defaults sitting beside the
+       hand-mixed status colours above, at visibly different saturation — so the
+       diagrams read as pasted in from another design system, because they were.
+       Re-mixed at the saturation of --signal and --warn, and the duplicates
+       collapsed: accent IS signal, accent-2 IS cool, beginner IS signal.
+       Eleven chromatic values down to six. */
+    --accent: var(--signal);
+    --accent-2: var(--cool);
+    --diagram-bg: #050706;   /* below the page, so the frame reads as recessed */
 
-    --n-client: rgba(167, 139, 250, 0.14);
-    --n-client-edge: #a78bfa;
+    --n-client: rgba(143, 127, 214, 0.16);
+    --n-client-edge: #8f7fd6;
     --n-client-text: #ddd6fe;
 
-    --n-edge: rgba(125, 211, 252, 0.14);
-    --n-edge-edge: #7dd3fc;
+    --n-edge: rgba(91, 159, 196, 0.16);
+    --n-edge-edge: #5b9fc4;
     --n-edge-text: #d4eefd;
 
-    --n-service: rgba(110, 231, 183, 0.13);
-    --n-service-edge: #6ee7b7;
+    --n-service: rgba(61, 214, 140, 0.14);
+    --n-service-edge: var(--signal);
     --n-service-text: #d6f7ea;
 
-    --n-data: rgba(252, 211, 77, 0.13);
-    --n-data-edge: #fcd34d;
+    --n-data: rgba(232, 178, 58, 0.14);
+    --n-data-edge: var(--warn);
     --n-data-text: #fdefc7;
 
-    --n-queue: rgba(244, 114, 182, 0.13);
-    --n-queue-edge: #f472b6;
+    --n-queue: rgba(209, 106, 158, 0.15);
+    --n-queue-edge: #d16a9e;
     --n-queue-text: #fbd7ea;
 
-    --n-external: rgba(148, 163, 184, 0.13);
-    --n-external-edge: #94a3b8;
+    --n-external: rgba(125, 138, 145, 0.16);
+    --n-external-edge: #7d8a91;
     --n-external-text: #dde3ea;
 
     /* Difficulty. Green to amber to rose reads as increasing effort without
-       implying that advanced is an error state. */
-    --lv-beginner: #6ee7b7;
-    --lv-intermediate: #fcd34d;
-    --lv-advanced: #f472b6;
+       implying that advanced is an error state. Shares the node hues rather
+       than introducing three more. */
+    --lv-beginner: var(--signal);
+    --lv-intermediate: var(--warn);
+    --lv-advanced: #d16a9e;
   }
 
   /* Anything that animates continuously must stop when the reader has asked
@@ -117,13 +130,18 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
-    overflow-x: hidden;
+    /* `clip` not `hidden`: overflow-x:hidden on html or body establishes a
+       scroll container, which silently disables position:sticky for every
+       descendant. That is why the sidebar was declared sticky and still
+       scrolled away, leaving a 544px empty column down four fifths of the
+       page. `clip` contains the same overflow without breaking sticky. */
+    overflow-x: clip;
   }
 
   body {
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
+    overflow-x: clip;
     background: var(--ink);
     color: var(--c-text);
     font-size: 16px;

@@ -337,13 +337,13 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
       </div>
 
       <figcaption
-        className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px]"
+        className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]"
         style={{ color: "var(--c-text-dim)" }}
       >
         <span>{diagram.caption}</span>
-        <span className="mono text-[11.5px] opacity-80">dashed = asynchronous</span>
+        <span className="mono text-[12px] opacity-80">dashed = asynchronous</span>
         {hoveredNode && (
-          <span className="mono text-[11.5px]" style={{ color: "var(--accent)" }}>
+          <span className="mono text-[12px]" style={{ color: "var(--accent)" }}>
             {hoveredNode.label}
             {hoveredNode.sub ? ` · ${hoveredNode.sub}` : ""} · {KIND_LABEL[hoveredNode.kind ?? "service"]}
           </span>

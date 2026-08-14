@@ -72,6 +72,18 @@ for (const vp of VIEWPORTS) {
     deviceScaleFactor: 1,
   });
   await page.goto(`http://localhost:${port}${path}`, { waitUntil: "networkidle" });
+
+  // Sections reveal on scroll via IntersectionObserver, which never fires for
+  // below-fold content during a full-page capture — Playwright resizes the
+  // viewport, so scrolling does not help either. The result was that every
+  // screenshot showed the first two sections and blank space for the rest,
+  // which made this tool quietly useless for reviewing the home page.
+  // Force the revealed end state: that is what we want to look at anyway.
+  await page.evaluate(async () => {
+    document.querySelectorAll(".reveal").forEach((el) => el.classList.add("in"));
+    await new Promise((r) => setTimeout(r, 150));
+  });
+
   await page.waitForTimeout(400); // let fonts settle so text metrics are real
 
   // Horizontal overflow is the most common mobile break and is easy to miss in

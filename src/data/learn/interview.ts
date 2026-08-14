@@ -15,7 +15,7 @@ export const interview: Card[] = [
           "Spend the first five minutes on requirements. What must it do, what scale, what matters most — latency, consistency, cost. Write the numbers down.",
           "Then a rough estimate, a high-level design of five or six boxes, and depth on the two or three parts that are genuinely hard. Leave five minutes for bottlenecks and what you would change at ten times the load.",
         ],
-        why: "Candidates who start drawing boxes immediately fail on scope, not knowledge. Establishing constraints first is what makes every later decision defensible rather than arbitrary.",
+        why: "Candidates who start drawing boxes immediately fail on scope, not knowledge. Establishing constraints first is what makes every later decision defensible instead of arbitrary.",
         diagram: {
           caption: "How to spend the time",
           columns: [
@@ -67,7 +67,7 @@ export const interview: Card[] = [
         title: "Talking about tradeoffs",
         level: "advanced",
         body: [
-          "Every design decision costs something, and naming the cost is the strongest signal available, because it shows you have run a system rather than read about one.",
+          "Every design decision costs something, and naming the cost is the strongest signal available, because it shows you have run a system, not read about one.",
           "'I would cache this' is weak. 'I would cache this with a 60-second TTL, accepting up to a minute of staleness because prices update hourly' is a decision. Volunteering the failure mode is better still: say what breaks under partition, under a hot key, or when the cache is cold.",
         ],
         why: "Interviewers are testing judgement, not recall. Anyone can name Redis; the differentiator is knowing when it is wrong and saying so unprompted.",
@@ -102,7 +102,7 @@ export const interview: Card[] = [
           "A staff engineer works across teams, on problems that are ambiguous before they are hard. Much of the work is deciding what should be built, and getting agreement.",
           "The visible difference in interviews is scope: seniors discuss the system, staff discuss the system in the context of the organisation running it.",
         ],
-        why: "Promotion to staff is rarely earned by writing more code. It comes from multiplying other people's output and choosing the right problem, which is why the interview probes influence and judgement rather than depth alone.",
+        why: "Promotion to staff is rarely earned by writing more code. It comes from multiplying other people's output and choosing the right problem, which is why the interview probes influence and judgement more than depth alone.",
         check: {
           prompt: "Which is the clearest staff-level signal?",
           options: [

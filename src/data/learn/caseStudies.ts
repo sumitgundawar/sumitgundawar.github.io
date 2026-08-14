@@ -60,7 +60,7 @@ export const caseStudies: Card[] = [
         level: "advanced",
         body: [
           "The Netflix backend is hundreds of services. A single home page assembles rows from many of them, so the probability that all are healthy at once is low.",
-          "The system is therefore designed to render with whatever is available: if personalisation fails, show a sensible default row rather than an error.",
+          "The system is therefore designed to render with whatever is available: if personalisation fails, show a sensible default row instead of an error.",
           "Chaos engineering came from here. Terminating instances deliberately in production is how you find out whether the fallbacks actually work.",
         ],
         why: "At that number of dependencies, treating any failure as fatal guarantees constant outages. Fallbacks are not a nicety, they are what makes the architecture viable at all.",
@@ -84,7 +84,7 @@ export const caseStudies: Card[] = [
           "EVCache is Netflix's distributed cache layer, built on memcached, replicated within a region and across availability zones.",
           "Rather than coordinating precise global invalidation, they lean on short TTLs and versioned keys: a write bumps a version, and old entries simply become unreachable and expire. Cross-region coordinated deletes would be slower, more fragile, and would fail exactly when the network was already degraded.",
         ],
-        why: "This is the practical answer to cache invalidation at global scale: make staleness bounded and self-healing rather than trying to make it zero. A delete that must succeed everywhere is a distributed transaction in disguise.",
+        why: "This is the practical answer to cache invalidation at global scale: make staleness bounded and self-healing instead of trying to make it zero. A delete that must succeed everywhere is a distributed transaction in disguise.",
         check: {
           prompt: "Why prefer versioned keys and short TTLs over coordinated global invalidation?",
           options: [
@@ -167,7 +167,7 @@ export const caseStudies: Card[] = [
           "When requests outnumber available drivers in a cell, the multiplier rises. That suppresses some demand and attracts drivers from neighbouring cells, and the imbalance closes.",
           "It must be computed per small area and updated continuously, because conditions differ street by street and change within minutes.",
         ],
-        why: "Framing it as a control system rather than pricing explains the design: it needs fast feedback, small granularity, and damping so it does not oscillate.",
+        why: "Framing it as a control system, not a pricing lever, explains the design: it needs fast feedback, small granularity, and damping so it does not oscillate.",
         check: {
           prompt: "What does surge pricing primarily do to the system?",
           options: [
@@ -218,7 +218,7 @@ export const caseStudies: Card[] = [
           "Fan-out on write pushes each post into every follower's precomputed timeline. Reads become a single fast lookup, and writes get expensive.",
           "Fan-out on read builds the timeline when it is requested, by querying everyone you follow. Writes are cheap and reads are expensive.",
           "Neither survives the extremes. A million followers means a million inserts per post; following thousands of accounts means an enormous query on every refresh.",
-          "Which is why real systems run both. Fan out on write for ordinary accounts, leave the handful with millions of followers out of it entirely, and merge their posts in at read time. The cost then tracks the median user rather than the most extreme one in the system.",
+          "Which is why real systems run both. Fan out on write for ordinary accounts, leave the handful with millions of followers out of it entirely, and merge their posts in at read time. The cost then tracks the median user, not the most extreme one in the system.",
         ],
         why: "Neither works alone, which is the actual answer: fan out on write for ordinary accounts, and merge in celebrity posts at read time. The hybrid exists because the follower distribution is extremely skewed.",
         diagram: {
@@ -294,7 +294,7 @@ export const caseStudies: Card[] = [
           "A message is stored server-side until delivered, then usually deleted. The server is a relay with a queue attached, not an archive.",
           "The three ticks — sent, delivered, read — are acknowledgements flowing back at each stage, each one a separate event. Offline users make this a queue-per-recipient problem, drained when the device finally reconnects.",
         ],
-        why: "Treating chat as a per-recipient queue rather than a shared log is what makes offline delivery and multi-device sync tractable.",
+        why: "Treating chat as a per-recipient queue instead of a shared log is what makes offline delivery and multi-device sync tractable.",
         diagram: {
           caption: "Message path with an offline recipient",
           columns: [
@@ -414,7 +414,7 @@ export const caseStudies: Card[] = [
         body: [
           "Files are split into chunks, each hashed. Only chunks whose hash changed are uploaded, so editing one page of a large document transfers very little.",
           "Identical chunks across users are stored once, which is deduplication and a large storage saving.",
-          "Conflicts happen when two devices edit while offline. The usual resolution is to keep both as a conflicted copy rather than silently choosing a winner.",
+          "Conflicts happen when two devices edit while offline. The usual resolution is to keep both as a conflicted copy instead of silently picking a winner.",
         ],
         why: "Content-addressed chunking gives deduplication, delta sync and integrity checking from one idea. Preferring a conflicted copy over automatic merge is a deliberate choice: silent data loss is worse than a confusing filename.",
         check: {

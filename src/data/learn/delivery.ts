@@ -111,7 +111,7 @@ export const delivery: Card[] = [
         title: "What a pipeline should do",
         level: "beginner",
         body: [
-          "Continuous integration runs the checks — build, tests, lint, type check — on every change, so breakage surfaces in minutes rather than at release. Continuous delivery keeps every passing commit deployable; continuous deployment goes further and ships it automatically.",
+          "Continuous integration runs the checks — build, tests, lint, type check — on every change, so breakage surfaces in minutes, not at release. Continuous delivery keeps every passing commit deployable; continuous deployment goes further and ships it automatically.",
           "The value is proportional to speed. A pipeline taking forty minutes has stopped being feedback and become something people work around.",
         ],
         why: "Pipeline duration is a product decision, not an infrastructure detail. Past roughly ten minutes people stop waiting, start batching changes, and the benefit of small deploys disappears.",
@@ -120,7 +120,7 @@ export const delivery: Card[] = [
           options: [
             "Compute spend, since every run holds a runner far longer than it needs",
             "People batch changes to avoid the wait, making each deploy bigger and riskier",
-            "Flaky tests get retried rather than fixed, because a rerun is the cheap option",
+            "Flaky tests get retried instead of fixed, because a rerun is the cheap option",
             "Feedback lands after the author has moved on, costing a context switch",
           ],
           correctIndex: 1,
@@ -136,7 +136,7 @@ export const delivery: Card[] = [
           "Blue-green runs a complete second environment and switches traffic in one step, which makes rollback instant at the cost of double the infrastructure.",
           "Canary sends a small percentage to the new version and watches error rates before proceeding, which limits blast radius to the sampled traffic.",
         ],
-        why: "Canary is the strongest default because it fails small: problems surface on one percent of traffic rather than all of it. It requires metrics good enough to make the go or no-go call automatically.",
+        why: "Canary is the strongest default because it fails small: problems surface on one percent of traffic, not on all of it. It requires metrics good enough to make the go or no-go call automatically.",
         check: {
           prompt: "What must be true for a rolling deploy to be safe?",
           options: [
@@ -177,8 +177,8 @@ export const delivery: Card[] = [
         title: "Feature flags",
         level: "intermediate",
         body: [
-          "A flag separates deploying code from releasing behaviour. Code ships dark, is enabled for a cohort, then for everyone — which turns a rollback into a configuration change rather than a redeploy, and that is a great deal faster during an incident.",
-          "Flags accumulate. Every one is a branch in the code, and stale flags become permanent complexity, so removing them has to be part of the process rather than something everyone means to get to.",
+          "A flag separates deploying code from releasing behaviour. Code ships dark, is enabled for a cohort, then for everyone — which turns a rollback into a configuration change, not a redeploy, and that is a great deal faster during an incident.",
+          "Flags accumulate. Every one is a branch in the code, and stale flags become permanent complexity, so removing them has to be part of the process, not something everyone means to get to.",
         ],
         why: "Flags are how you deploy on Friday safely. The discipline that makes them work is deleting them: a codebase with two hundred live flags has an untestable number of behaviour combinations.",
         check: {
@@ -210,7 +210,7 @@ export const delivery: Card[] = [
           "The three major clouds offer the same primitives under different names: compute, object storage, managed relational databases, queues, a CDN. AWS has the broadest catalogue and the most third-party support; GCP is strong on data and Kubernetes; Azure wins where an organisation already runs Microsoft identity and licensing.",
           "Learn the concepts, not the product names. An interviewer asking about object storage does not care whether you say S3, GCS or Blob Storage.",
         ],
-        why: "Choosing a cloud is usually decided by existing commitments, team familiarity and pricing agreements rather than technical superiority. The technical differences matter far less than the migration cost of being wrong.",
+        why: "Choosing a cloud is usually decided by existing commitments, team familiarity and pricing agreements, and seldom on technical superiority. The technical differences matter far less than the migration cost of being wrong.",
         check: {
           prompt: "You need durable object storage, a managed relational database and a queue. Which cloud can do it?",
           options: [

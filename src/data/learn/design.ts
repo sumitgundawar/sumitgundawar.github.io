@@ -33,8 +33,8 @@ export const design: Card[] = [
           "Explicit invalidation deletes the key when the underlying data changes. Fresher, but every write path must know every key it affects, and one missed path means permanently stale data.",
           "Versioned keys sidestep deletion entirely. Include a version or timestamp in the key, and bump it on write. Old entries are never read again and expire on their own.",
         ],
-        why: "Versioned keys are usually the best of the three because they make invalidation a write to one value rather than a fan-out of deletes. Deleting keys correctly requires knowing every key derived from a piece of data, and that knowledge rots.",
-        inPractice: "Netflix leans on short TTLs plus versioned keys rather than trying to invalidate precisely across regions — with EVCache replicating within a region, a coordinated global delete is slower and less reliable than simply letting stale entries age out.",
+        why: "Versioned keys are usually the best of the three because they make invalidation a write to one value instead of a fan-out of deletes. Deleting keys correctly requires knowing every key derived from a piece of data, and that knowledge rots.",
+        inPractice: "Netflix leans on short TTLs plus versioned keys instead of trying to invalidate precisely across regions — with EVCache replicating within a region, a coordinated global delete is slower and less reliable than simply letting stale entries age out.",
         check: {
           prompt: "A product appears with an old price on some pages after an update. Which approach avoids this class of bug most reliably?",
           options: [
@@ -104,7 +104,7 @@ export const design: Card[] = [
           ],
           correctIndex: 3,
           explain:
-            "Stale permissions are a security bug rather than a performance tradeoff: the failure grants access instead of costing latency. Session validity is the close call — it is cached constantly in practice, but with seconds-long TTLs and a revocation list precisely because it carries the same risk in weaker form.",
+            "Stale permissions are a security bug, not a performance tradeoff: the failure grants access instead of costing latency. Session validity is the close call — it is cached constantly in practice, but with seconds-long TTLs and a revocation list precisely because it carries the same risk in weaker form.",
         },
       },
     ],
@@ -164,7 +164,7 @@ export const design: Card[] = [
         body: [
           "A shallow health check confirms the process is alive. A deep one confirms it can reach its dependencies.",
           "Deep checks catch more, and can take an entire fleet out when a shared dependency wobbles. The failure is correlated by construction: every node checks the same database, so every node fails the check in the same second.",
-          "The usual compromise is a deep check that degrades rather than fails. Report unhealthy only after several consecutive failures, and never let a dependency the request path does not need mark you down.",
+          "The usual compromise is a deep check that degrades instead of failing. Report unhealthy only after several consecutive failures, and never let a dependency the request path does not need mark you down.",
           "Connection draining then lets a server finish its in-flight requests before it leaves the pool, so a deploy does not drop live traffic. Keep readiness and liveness separate while you are there — not ready yet and needs restarting call for very different responses.",
         ],
         why: "Making the health check depend on the database means a brief database blip marks every server unhealthy simultaneously, turning a degraded system into a total outage.",
@@ -216,7 +216,7 @@ export const design: Card[] = [
         level: "intermediate",
         body: [
           "At-most-once may drop messages. At-least-once may deliver twice. Exactly-once is what everyone wants, and end to end in a distributed system it is not achievable.",
-          "What gets sold as exactly-once is at-least-once delivery plus idempotent processing, so a duplicate has no additional effect. That is a real and reachable goal, and it puts the responsibility in the consumer rather than the broker — which is why buying a broker does not buy it for you.",
+          "What gets sold as exactly-once is at-least-once delivery plus idempotent processing, so a duplicate has no additional effect. That is a real and reachable goal, and it puts the responsibility in the consumer, not the broker — which is why buying a broker does not buy it for you.",
         ],
         why: "Selecting a broker for its exactly-once badge and skipping idempotency is the classic mistake. The guarantee applies within the broker, not across your side effects — a duplicate email has already been sent.",
         check: {
@@ -419,7 +419,7 @@ export const design: Card[] = [
           ],
           correctIndex: 3,
           explain:
-            "Waiting longer holds resources longer, so failing fast is what stops the failure spreading. A bulkhead is genuinely part of the answer and pairs with a breaker rather than replacing it: it caps how much of you one dependency can consume, but on its own it lets every call into that pool keep waiting the full 30 seconds.",
+            "Waiting longer holds resources longer, so failing fast is what stops the failure spreading. A bulkhead is genuinely part of the answer and pairs with a breaker instead of replacing it: it caps how much of you one dependency can consume, but on its own it lets every call into that pool keep waiting the full 30 seconds.",
         },
       },
       {
@@ -431,7 +431,7 @@ export const design: Card[] = [
           "That requires deciding in advance which features are optional and what each fallback is — cached data, a default, or simply hiding the section. The alternative is that any dependency failure becomes a total failure, which is a design decision made by omission.",
         ],
         why: "This is the difference between an outage and a degraded experience most users never notice. It costs almost nothing at design time and is expensive to retrofit.",
-        inPractice: "Netflix's home page renders with cached or default rows when the personalisation service is unavailable, rather than failing the page.",
+        inPractice: "Netflix's home page renders with cached or default rows when the personalisation service is unavailable, instead of failing the page.",
         check: {
           prompt: "The recommendation service is down. What is the correct product page behaviour?",
           options: [
@@ -478,7 +478,7 @@ export const design: Card[] = [
           "An average hides the tail. A system averaging 100ms can still be taking five seconds on one request in a hundred, and p50 describes the typical experience while p95 and p99 describe the worst of it.",
           "The tail is where users churn, and it is invisible in the mean. One caution while you are moving to percentiles: averaging them across servers is meaningless. A percentile has to be computed over the whole population, not averaged out of per-host summaries.",
         ],
-        why: "Reporting p99 rather than mean is a small change that surfaces problems users complain about but dashboards do not show. It also makes capacity conversations honest.",
+        why: "Reporting p99 instead of the mean is a small change that surfaces problems users complain about but dashboards do not show. It also makes capacity conversations honest.",
         check: {
           prompt: "Average latency is 100ms and users complain of slowness. Most likely explanation?",
           options: [
@@ -499,7 +499,7 @@ export const design: Card[] = [
           "An SLI is a measurement, such as the fraction of requests served under 300ms. An SLO is the target for it. The gap between that target and 100 percent is the error budget.",
           "The budget turns reliability into a resource. Spend it shipping quickly; when it runs out, stop shipping and fix stability. That replaces the argument about whether features or reliability come first with a number both sides already agreed to.",
         ],
-        why: "Chasing 100 percent is the wrong target: each extra nine costs disproportionately more, and perfect reliability means you shipped too slowly. The budget makes the trade explicit rather than political.",
+        why: "Chasing 100 percent is the wrong target: each extra nine costs disproportionately more, and perfect reliability means you shipped too slowly. The budget makes the trade explicit instead of political.",
         check: {
           prompt: "What is the point of an error budget?",
           options: [

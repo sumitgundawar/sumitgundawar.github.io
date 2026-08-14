@@ -14,7 +14,7 @@ export const foundations: Card[] = [
         body: [
           "Typing a URL sets off DNS resolution, a TCP handshake, a TLS handshake, and then the HTTP request itself.",
           "Each of those costs at least one round trip — TLS 1.3 needs one, TLS 1.2 needs two — and round trips are what you actually pay for. A user 200ms away pays that 200ms every single time.",
-          "Four round trips before one byte of content is 800ms of blank screen. Bandwidth does not help here, because the pipe is not full, it is idle and waiting. That is why latency rather than bandwidth decides perceived speed on any connection fast enough to matter.",
+          "Four round trips before one byte of content is 800ms of blank screen. Bandwidth does not help here, because the pipe is not full, it is idle and waiting. That is why latency, not bandwidth, decides perceived speed on any connection fast enough to matter.",
           "Name the steps and most performance work becomes obvious. Remove a round trip, or move the server closer.",
         ],
         why: "Interviewers open with this because it reveals whether you think in terms of round trips or in terms of vague slowness. The answer that names DNS, TCP, TLS and HTTP separately is the one that can then reason about a CDN.",
@@ -81,7 +81,7 @@ export const foundations: Card[] = [
           "DNS turns a name into an address, and the answer is cached at every layer between you and the client for as long as the TTL you set. Low TTL, fast changes and more lookups; high TTL, the reverse.",
           "The catch is that your TTL is a request, not an instruction. Some resolvers hold answers well past it, so a migration planned around 60 seconds can still be sending traffic to the old address hours later. This is why cutovers change what the address points at, rather than changing the address.",
         ],
-        why: "Lowering TTL days ahead of a migration, then failing over at the load balancer rather than in DNS, is the difference between a clean cutover and a long tail of traffic hitting a decommissioned box.",
+        why: "Lowering TTL days ahead of a migration, then failing over at the load balancer instead of in DNS, is the difference between a clean cutover and a long tail of traffic hitting a decommissioned box.",
         check: {
           prompt: "You set a 60-second DNS TTL and cut over. Hours later, some traffic still hits the old server. Why?",
           options: [
@@ -105,7 +105,7 @@ export const foundations: Card[] = [
           "Static assets are the easy part. The interesting work is caching HTML and API responses at the edge, which forces you to be deliberate about cache keys and invalidation — which are the two things that go wrong.",
           "Modern edge platforms also run code at those locations, so personalisation and auth checks can happen near the user instead of at origin.",
         ],
-        why: "A CDN is usually the highest-leverage performance change available, because it attacks latency rather than throughput. Adding servers makes a busy system faster; moving content closer makes a distant system faster.",
+        why: "A CDN is usually the highest-leverage performance change available, because it attacks latency instead of throughput. Adding servers makes a busy system faster; moving content closer makes a distant system faster.",
         inPractice: "Cloudflare and Fastly serve most of their traffic from cache; origin servers see a small fraction of total requests.",
         check: {
           prompt: "Your API is fast under load tests but slow for real users abroad. What helps most?",
@@ -178,7 +178,7 @@ export const foundations: Card[] = [
         level: "intermediate",
         body: [
           "A balanced binary tree is fine in memory. On disk it is poor, because each level is a separate read and disk reads are expensive.",
-          "A B-tree stores many keys per node, matched to the size of a disk page. Fanout is high, depth is low, and a lookup in a large table takes a handful of reads rather than dozens.",
+          "A B-tree stores many keys per node, matched to the size of a disk page. Fanout is high, depth is low, and a lookup in a large table takes a handful of reads instead of dozens.",
           "This is why almost every relational index is a B-tree, and why index depth barely grows as tables get large.",
         ],
         why: "The structure is chosen to match the storage medium, not for elegance. That is the general lesson: data structure choice follows the cost model of where the data lives.",
@@ -192,7 +192,7 @@ export const foundations: Card[] = [
           ],
           correctIndex: 1,
           explain:
-            "Disk reads dominate, so the goal is fewer levels. Packing many keys per node makes a lookup cost a handful of reads rather than one per level. Matching node size to the page is true and it is how fanout gets high in the first place — it is the mechanism, not the reason.",
+            "Disk reads dominate, so the goal is fewer levels. Packing many keys per node makes a lookup cost a handful of reads instead of one per level. Matching node size to the page is true and it is how fanout gets high in the first place — it is the mechanism, not the reason.",
         },
       },
       {
@@ -233,7 +233,7 @@ export const foundations: Card[] = [
         body: [
           "Atomicity: all of a transaction happens, or none of it. Consistency: it moves the database between valid states. Isolation: concurrent transactions do not see each other's partial work. Durability: once committed, it survives a crash.",
           "Three of those four are largely settled. Isolation is where the detail lives, and where the surprises are.",
-          "Most databases default to read committed rather than full serialisability, because full isolation is expensive: the database has to behave as though transactions ran one after another, and enforcing that costs you either locks or aborts.",
+          "Most databases default to read committed, not full serialisability, because full isolation is expensive: the database has to behave as though transactions ran one after another, and enforcing that costs you either locks or aborts.",
           "That default permits anomalies most developers never think about. Two transactions read the same row, each computes from what it read, and one result quietly overwrites the other.",
         ],
         why: "'We use a relational database so we get ACID' is only true at the isolation level you actually configured. Knowing your default is the difference between a guarantee and an assumption.",
@@ -412,7 +412,7 @@ export const foundations: Card[] = [
           ],
           correctIndex: 2,
           explain:
-            "A timeout is ambiguous by nature; the key lets the server tell a retry from a new request. PUT being idempotent is a statement about what the method promises, not about what your handler does — naming it PUT and charging the card twice breaks the promise rather than fulfilling it.",
+            "A timeout is ambiguous by nature; the key lets the server tell a retry from a new request. PUT being idempotent is a statement about what the method promises, not about what your handler does — naming it PUT and charging the card twice breaks the promise instead of keeping it.",
         },
       },
       {
@@ -427,7 +427,7 @@ export const foundations: Card[] = [
         check: {
           prompt: "Under heavy load, a service with an unbounded in-memory queue eventually crashes. Why is a bounded queue better?",
           options: [
-            "It rejects work early and visibly, rather than failing catastrophically later",
+            "It rejects work early and visibly, instead of failing catastrophically later",
             "It bounds memory, so the process stays inside its container's limit",
             "It keeps latency predictable, since the queue cannot grow past its bound",
             "A fixed-size buffer can be preallocated, avoiding allocation under load",

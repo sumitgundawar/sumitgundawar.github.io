@@ -12,9 +12,8 @@ export const practice: Card[] = [
         title: "The testing pyramid",
         level: "beginner",
         body: [
-          "Unit tests are fast, numerous and isolate one piece of logic. Integration tests check that components work together. End-to-end tests drive the real system through its interface.",
-          "The pyramid says have many of the first and few of the last, because cost and flakiness rise as scope grows.",
-          "An inverted pyramid — mostly end-to-end — produces a suite that is slow, flaky, and eventually ignored.",
+          "Unit tests are fast, numerous, and isolate one piece of logic. Integration tests check that components work together. End-to-end tests drive the real system through its interface.",
+          "The pyramid says have many of the first and few of the last, because cost and flakiness both rise with scope. An inverted pyramid — mostly end-to-end — produces a suite that is slow, flaky, and eventually ignored by everyone.",
         ],
         why: "The shape follows from feedback speed. A failing unit test names the broken function; a failing end-to-end test tells you something in the system is wrong, and you still have to find it.",
         check: {
@@ -34,9 +33,8 @@ export const practice: Card[] = [
         title: "Coverage and what it does not tell you",
         level: "intermediate",
         body: [
-          "Coverage measures which lines executed during tests. It does not measure whether anything was asserted, or whether the assertions are meaningful.",
-          "A test that calls a function and checks nothing produces full coverage of that function and catches no regression at all.",
-          "Mandating a coverage percentage reliably produces tests written to satisfy the number rather than to catch failures.",
+          "Coverage measures which lines executed during tests. It says nothing about whether anything was asserted, or whether the assertions mean anything.",
+          "A test that calls a function and checks nothing produces full coverage of that function and catches no regression whatever. Which is why mandating a coverage percentage reliably produces tests written to satisfy the number rather than to catch failures.",
         ],
         why: "Coverage is useful as a discovery tool — finding untested areas — and harmful as a target, because it is trivially gameable and becomes the goal instead of correctness.",
         check: {
@@ -110,8 +108,7 @@ export const practice: Card[] = [
         level: "beginner",
         body: [
           "Agile is a set of preferences: working software over documentation, responding to change over following a plan, short cycles with real feedback.",
-          "Scrum implements that with fixed sprints, defined roles and ceremonies. Kanban drops sprints and limits work in progress instead, pulling the next item when capacity frees.",
-          "Kanban suits interrupt-driven work such as support. Scrum suits planned feature work with a stable team.",
+          "Scrum implements that with fixed sprints, defined roles and ceremonies. Kanban drops sprints and limits work in progress instead, pulling the next item as capacity frees. Kanban suits interrupt-driven work such as support; scrum suits planned feature work with a stable team.",
         ],
         why: "Both fail the same way: adopting the ceremonies without the feedback. Standups and sprints with no working software to show and no willingness to change the plan is waterfall with extra meetings.",
         check: {
@@ -128,7 +125,8 @@ export const practice: Card[] = [
         body: [
           "Review catches defects, but its larger effects are spreading context across the team and keeping the codebase coherent.",
           "Small pull requests get real review. Large ones get approved, because nobody can hold two thousand lines in their head.",
-          "Separating blocking concerns from suggestions makes review faster and less adversarial: say which comments must be addressed.",
+          "Separating blocking concerns from suggestions makes review faster and less adversarial. Say which comments must be addressed and which are taste.",
+          "The most useful comment names the case that breaks rather than the preference that was violated. 'This is null when the user has never logged in' can be acted on. 'I would extract this' starts an argument about style with no way to settle it.",
         ],
         why: "PR size is the single biggest lever on review quality. Splitting work into reviewable pieces is a design skill, and the reason large PRs get rubber-stamped is capacity, not laziness.",
         check: {

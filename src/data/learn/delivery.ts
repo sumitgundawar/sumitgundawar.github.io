@@ -207,8 +207,7 @@ export const delivery: Card[] = [
         title: "The core services, by concept",
         level: "beginner",
         body: [
-          "The three major clouds offer the same primitives with different names: compute, object storage, managed relational databases, queues, and a CDN.",
-          "AWS has the broadest catalogue and the most third-party support. GCP is strong on data and Kubernetes. Azure wins where an organisation already runs Microsoft identity and licensing.",
+          "The three major clouds offer the same primitives under different names: compute, object storage, managed relational databases, queues, a CDN. AWS has the broadest catalogue and the most third-party support; GCP is strong on data and Kubernetes; Azure wins where an organisation already runs Microsoft identity and licensing.",
           "Learn the concepts, not the product names. An interviewer asking about object storage does not care whether you say S3, GCS or Blob Storage.",
         ],
         why: "Choosing a cloud is usually decided by existing commitments, team familiarity and pricing agreements rather than technical superiority. The technical differences matter far less than the migration cost of being wrong.",
@@ -229,9 +228,8 @@ export const delivery: Card[] = [
         title: "Right-sizing: build for the traffic you have",
         level: "intermediate",
         body: [
-          "Ten thousand visitors a month is roughly four requests a minute at peak. A single small server, or a static site on a CDN, handles that without noticing.",
-          "Multi-region clusters, autoscaling groups and service meshes are answers to problems that begin several orders of magnitude higher.",
-          "Over-engineering costs money, but the larger cost is complexity: more moving parts to operate, debug and secure, while the product is still unproven.",
+          "Ten thousand visitors a month is roughly four requests a minute at peak. A single small server, or a static site on a CDN, handles that without noticing. Multi-region clusters, autoscaling groups and service meshes answer problems that begin several orders of magnitude higher.",
+          "Over-engineering costs money, and the larger cost is complexity — more moving parts to operate, debug and secure, while the product is still unproven.",
         ],
         why: "The right architecture for an unvalidated product is the one you can change quickly. Premature scale locks in decisions before you know the access patterns, and those are the expensive ones to reverse.",
         diagram: {

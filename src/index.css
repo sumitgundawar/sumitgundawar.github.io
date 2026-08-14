@@ -33,6 +33,57 @@
 
     --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
     --radius: 2px;
+
+    /* Learning surfaces.
+       The status page uses colour only for health. Teaching material needs
+       colour to carry meaning — which layer of the stack a box is, how hard a
+       topic is — so these hues exist alongside, not instead of, the ones above.
+       Fills are low-alpha tints of the stroke so they stay legible on dark. */
+    --accent: #6ee7b7;
+    --accent-2: #7dd3fc;
+    --diagram-bg: #121614;
+
+    --n-client: rgba(167, 139, 250, 0.14);
+    --n-client-edge: #a78bfa;
+    --n-client-text: #ddd6fe;
+
+    --n-edge: rgba(125, 211, 252, 0.14);
+    --n-edge-edge: #7dd3fc;
+    --n-edge-text: #d4eefd;
+
+    --n-service: rgba(110, 231, 183, 0.13);
+    --n-service-edge: #6ee7b7;
+    --n-service-text: #d6f7ea;
+
+    --n-data: rgba(252, 211, 77, 0.13);
+    --n-data-edge: #fcd34d;
+    --n-data-text: #fdefc7;
+
+    --n-queue: rgba(244, 114, 182, 0.13);
+    --n-queue-edge: #f472b6;
+    --n-queue-text: #fbd7ea;
+
+    --n-external: rgba(148, 163, 184, 0.13);
+    --n-external-edge: #94a3b8;
+    --n-external-text: #dde3ea;
+
+    /* Difficulty. Green to amber to rose reads as increasing effort without
+       implying that advanced is an error state. */
+    --lv-beginner: #6ee7b7;
+    --lv-intermediate: #fcd34d;
+    --lv-advanced: #f472b6;
+  }
+
+  /* Anything that animates continuously must stop when the reader has asked
+     for less motion — the diagram packets loop forever otherwise. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
   }
 
   * {

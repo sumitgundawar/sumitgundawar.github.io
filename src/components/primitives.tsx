@@ -50,7 +50,7 @@ export function Eyebrow({
 
 export function Tag({ children }: { children: React.ReactNode }) {
   return (
-    <span className="mono text-[11px] text-fg-dim border border-hair px-1.5 py-1 leading-none whitespace-nowrap">
+    <span className="mono text-[12px] text-fg-dim border border-hair px-1.5 py-1 leading-none whitespace-nowrap">
       {children}
     </span>
   );

@@ -130,13 +130,18 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
-    overflow-x: hidden;
+    /* `clip` not `hidden`: overflow-x:hidden on html or body establishes a
+       scroll container, which silently disables position:sticky for every
+       descendant. That is why the sidebar was declared sticky and still
+       scrolled away, leaving a 544px empty column down four fifths of the
+       page. `clip` contains the same overflow without breaking sticky. */
+    overflow-x: clip;
   }
 
   body {
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
+    overflow-x: clip;
     background: var(--ink);
     color: var(--c-text);
     font-size: 16px;

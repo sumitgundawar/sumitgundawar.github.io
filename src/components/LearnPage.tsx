@@ -48,9 +48,9 @@ function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
 
   return (
     <div className="pb-8 pt-1">
-      <div className="flex flex-col gap-3 max-w-[68ch]">
+      <div className="flex flex-col gap-3 max-w-[36em]">
         {topic.body.map((p, i) => (
-          <p key={i} className="text-[15.5px] leading-[1.65]" style={{ color: "var(--c-text-dim)" }}>
+          <p key={i} className="text-[15px] leading-[1.65]" style={{ color: "var(--c-text-dim)" }}>
             {p}
           </p>
         ))}
@@ -60,10 +60,10 @@ function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
 
       {topic.why && (
         <div
-          className="mt-5 border-l-2 pl-4 py-1 max-w-[68ch]"
+          className="mt-5 border-l-2 pl-4 py-1 max-w-[36em]"
           style={{ borderColor: "var(--accent)" }}
         >
-          <div className="mono text-[11px] uppercase tracking-[0.09em] mb-1.5" style={{ color: "var(--accent)" }}>
+          <div className="mono text-[12px] uppercase tracking-[0.09em] mb-1.5" style={{ color: "var(--accent)" }}>
             why this choice
           </div>
           <p className="text-[15px] leading-[1.65]" style={{ color: "var(--c-text)" }}>
@@ -74,10 +74,10 @@ function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
 
       {topic.inPractice && (
         <div
-          className="mt-4 border-l-2 pl-4 py-1 max-w-[68ch]"
+          className="mt-4 border-l-2 pl-4 py-1 max-w-[36em]"
           style={{ borderColor: "var(--accent-2)" }}
         >
-          <div className="mono text-[11px] uppercase tracking-[0.09em] mb-1.5" style={{ color: "var(--accent-2)" }}>
+          <div className="mono text-[12px] uppercase tracking-[0.09em] mb-1.5" style={{ color: "var(--accent-2)" }}>
             in practice
           </div>
           <p className="text-[15px] leading-[1.65]" style={{ color: "var(--c-text)" }}>
@@ -87,13 +87,13 @@ function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
       )}
 
       <div
-        className="mt-6 rounded-lg border p-4 sm:p-5 max-w-[68ch]"
+        className="mt-6 rounded-lg border p-4 sm:p-5 max-w-[36em]"
         style={{ borderColor: "var(--hair)", background: "var(--surface-2)" }}
       >
-        <div className="mono text-[11px] uppercase tracking-[0.09em] mb-2.5" style={{ color: "var(--c-text-dim)" }}>
+        <div className="mono text-[12px] uppercase tracking-[0.09em] mb-2.5" style={{ color: "var(--c-text-dim)" }}>
           check yourself
         </div>
-        <p className="text-[15.5px] leading-relaxed" style={{ color: "var(--c-text)" }}>
+        <p className="text-[15px] leading-relaxed" style={{ color: "var(--c-text)" }}>
           {topic.check.prompt}
         </p>
         <div className="flex flex-col gap-2 mt-4">
@@ -105,7 +105,7 @@ function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
                 key={i}
                 onClick={() => answer(i)}
                 disabled={answered}
-                className="text-left text-[14.5px] leading-snug px-3.5 py-2.5 rounded-md border transition-colors"
+                className="text-left text-[15px] leading-snug px-3.5 py-2.5 rounded-md border transition-colors"
                 style={{
                   borderColor: show ? (isCorrect ? "var(--lv-beginner)" : "var(--crit)") : "var(--hair-strong)",
                   background: show && isCorrect ? "rgba(110,231,183,0.08)" : "transparent",
@@ -120,7 +120,7 @@ function TopicView({ topic, cardId }: { topic: Topic; cardId: string }) {
           })}
         </div>
         {answered && (
-          <p className="text-[14px] mt-4 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+          <p className="text-[15px] mt-4 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
             <span style={{ color: correct ? "var(--lv-beginner)" : "var(--crit)" }}>
               {correct ? "Correct. " : "Not quite. "}
             </span>
@@ -139,16 +139,16 @@ function CardDetail({ card, onBack }: { card: Card; onBack: () => void }) {
     <div>
       <button
         onClick={onBack}
-        className="mono text-[12.5px] mb-6 inline-flex items-center gap-1.5 link-underline"
+        className="mono text-[12px] mb-6 inline-flex items-center gap-1.5 link-underline"
         style={{ color: "var(--c-text-dim)" }}
       >
         ← all topics
       </button>
 
-      <h2 className="text-[24px] sm:text-[28px] font-semibold tracking-[-0.015em]" style={{ color: "var(--c-text)" }}>
+      <h2 className="text-[24px] sm:text-[30px] font-semibold tracking-[-0.015em]" style={{ color: "var(--c-text)" }}>
         {card.title}
       </h2>
-      <p className="mt-2 text-[15.5px] leading-relaxed max-w-[62ch]" style={{ color: "var(--c-text-dim)" }}>
+      <p className="mt-2 text-[15px] leading-relaxed max-w-[33em]" style={{ color: "var(--c-text-dim)" }}>
         {card.summary}
       </p>
 
@@ -167,15 +167,15 @@ function CardDetail({ card, onBack }: { card: Card; onBack: () => void }) {
               >
                 <LevelDot level={t.level} />
                 <span
-                  className="text-[16.5px] font-medium flex-1 min-w-0"
+                  className="text-[19px] font-medium flex-1 min-w-0"
                   style={{ color: open ? "var(--c-text)" : "var(--c-text-dim)" }}
                 >
                   {t.title}
                 </span>
-                <span className="mono text-[11px] uppercase tracking-wide shrink-0" style={{ color: LEVEL_COLOR[t.level] }}>
+                <span className="mono text-[12px] uppercase tracking-wide shrink-0" style={{ color: LEVEL_COLOR[t.level] }}>
                   {t.level}
                 </span>
-                <span className="mono text-[13px] shrink-0 w-4 text-right" style={{ color: "var(--c-text-dim)" }}>
+                <span className="mono text-[12px] shrink-0 w-4 text-right" style={{ color: "var(--c-text-dim)" }}>
                   {open ? "−" : "+"}
                 </span>
               </button>
@@ -200,7 +200,7 @@ export function LearnPage() {
   return (
     <div className="min-h-[100dvh]">
       <div className="mx-auto w-full max-w-[940px] px-5 sm:px-8 py-8 lg:py-12">
-        <Link to="/" className="mono text-[12.5px] link-underline" style={{ color: "var(--c-text-dim)" }}>
+        <Link to="/" className="mono text-[12px] link-underline" style={{ color: "var(--c-text-dim)" }}>
           ← back to profile
         </Link>
 
@@ -216,14 +216,14 @@ export function LearnPage() {
             >
               Learn engineering
             </h1>
-            <p className="mt-3.5 text-[16px] leading-relaxed max-w-[64ch]" style={{ color: "var(--c-text-dim)" }}>
+            <p className="mt-3.5 text-[15px] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
               Software engineering and system design, from first principles to the decisions senior and
               staff interviews actually probe. Every topic explains why a choice was made, not just what
               it was. Answer the check at the end of each — there are no accounts, and your score resets
               when you refresh.
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 mono text-[12.5px]" style={{ color: "var(--c-text-dim)" }}>
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
               <span className="tnum">{cards.length} cards</span>
               <span className="tnum">{topicCount} topics</span>
               {LEVELS.map((l) => (
@@ -244,7 +244,7 @@ export function LearnPage() {
                       setLevel(l);
                       track("level_filter", { level: l });
                     }}
-                    className="mono text-[12.5px] px-3.5 py-1.5 rounded-full border transition-colors"
+                    className="mono text-[12px] px-3.5 py-1.5 rounded-full border transition-colors"
                     style={{
                       borderColor: on ? (l === "all" ? "var(--c-text)" : LEVEL_COLOR[l]) : "var(--hair)",
                       color: on ? (l === "all" ? "var(--c-text)" : LEVEL_COLOR[l]) : "var(--c-text-dim)",
@@ -258,7 +258,7 @@ export function LearnPage() {
             </div>
 
             {level !== "all" && (
-              <p className="mt-3 text-[13.5px]" style={{ color: "var(--c-text-dim)" }}>
+              <p className="mt-3 text-[15px]" style={{ color: "var(--c-text-dim)" }}>
                 Showing {shownTopics} {level} topics across {visible.length} cards.
               </p>
             )}
@@ -272,7 +272,7 @@ export function LearnPage() {
                     <h2 className="text-[19px] font-semibold tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>
                       {tr.label}
                     </h2>
-                    <span className="text-[14px]" style={{ color: "var(--c-text-dim)" }}>
+                    <span className="text-[15px]" style={{ color: "var(--c-text-dim)" }}>
                       {tr.blurb}
                     </span>
                   </div>
@@ -290,13 +290,13 @@ export function LearnPage() {
                           className="text-left rounded-lg border p-4 sm:p-5 flex flex-col gap-2 transition-transform hover:-translate-y-0.5"
                           style={{ borderColor: "var(--hair-strong)", background: "var(--surface)" }}
                         >
-                          <span className="text-[16.5px] font-medium leading-snug" style={{ color: "var(--c-text)" }}>
+                          <span className="text-[19px] font-medium leading-snug" style={{ color: "var(--c-text)" }}>
                             {c.title}
                           </span>
-                          <span className="text-[14px] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+                          <span className="text-[15px] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
                             {c.summary}
                           </span>
-                          <span className="mt-1.5 flex items-center gap-2.5 mono text-[11.5px]" style={{ color: "var(--c-text-dim)" }}>
+                          <span className="mt-1.5 flex items-center gap-2.5 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
                             <span className="tnum">{c.topics.length} topics</span>
                             <span className="flex items-center gap-1">
                               {levelsHere.map((l) => (

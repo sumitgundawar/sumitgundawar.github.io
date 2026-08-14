@@ -52,9 +52,8 @@ export const design: Card[] = [
         title: "Redis beyond get and set",
         level: "intermediate",
         body: [
-          "Redis stores structures, not just strings. Sorted sets give you leaderboards and time-ordered feeds with range queries. Hashes let you update one field of an object without rewriting it.",
-          "Sets handle membership and deduplication. Lists work as simple queues. Streams add consumer groups and acknowledgements for real message processing.",
-          "Using the right structure is often the difference between one operation and a read-modify-write round trip.",
+          "Redis stores structures, not just strings. Sorted sets give you leaderboards and time-ordered feeds with range queries. Hashes let you update one field of an object without rewriting the whole thing.",
+          "Sets handle membership and deduplication, lists work as simple queues, and streams add consumer groups and acknowledgements for real message processing. Picking the right one is often the difference between a single operation and a read-modify-write round trip.",
         ],
         why: "Treating Redis as a string cache is the most common way to leave performance on the table. A sorted set does ranking server-side; strings force you to fetch, sort in the application, and write back.",
         check: {
@@ -91,9 +90,8 @@ export const design: Card[] = [
         title: "What not to cache",
         level: "advanced",
         body: [
-          "Caching adds a second source of truth and a new class of bug. It is worth it when reads dominate, the data tolerates staleness, and recomputation is genuinely expensive.",
-          "Data that changes on nearly every read gains nothing: you pay the write cost and still miss. Per-user data with no reuse often falls here too.",
-          "Anything where stale means wrong, such as permissions or balances, should be read from the source or cached with very tight bounds and explicit invalidation.",
+          "Caching adds a second source of truth and a new class of bug. It earns that when reads dominate, the data tolerates staleness, and recomputation is genuinely expensive.",
+          "Data that changes on nearly every read gains nothing — you pay the write cost and still miss — and per-user data with no reuse usually lands there too. Anything where stale means wrong, such as permissions or balances, should be read from the source, or cached with very tight bounds and explicit invalidation.",
         ],
         why: "The honest question is not what to cache but what staleness is acceptable for. If the answer is none, caching is the wrong tool and the fix is a faster query or a better index.",
         check: {
@@ -124,8 +122,9 @@ export const design: Card[] = [
         level: "beginner",
         body: [
           "Round robin sends each request to the next server. Fine when requests cost roughly the same, poor when they do not.",
-          "Least connections routes to whichever server is handling fewest requests, which handles uneven work better.",
-          "Consistent hashing sends the same key to the same server, which matters when servers hold local state or cache.",
+          "Least connections routes to whichever server is handling fewest requests, which copes far better with uneven work.",
+          "Consistent hashing sends the same key to the same server, which matters when servers hold local state or a cache.",
+          "The choice follows from what your requests look like. Uniform and stateless, and round robin is enough. Wildly variable durations, and it is least connections. Anything cached or held per server, and it is hashing — accepting that you have just made your traffic distribution depend on your key distribution.",
         ],
         why: "Round robin is the default and is wrong whenever request cost varies wildly — one slow endpoint drags a server down while the balancer keeps feeding it work.",
         check: {
@@ -140,9 +139,8 @@ export const design: Card[] = [
         title: "Consistent hashing",
         level: "advanced",
         body: [
-          "Hashing a key modulo the number of servers works until the count changes. Add one server and almost every key maps somewhere new, which invalidates every cache at once.",
-          "Consistent hashing places servers and keys on a ring. Adding or removing a node only moves the keys between it and its neighbour, roughly one over n of the total.",
-          "Virtual nodes spread each physical server across many ring positions, which evens out the distribution.",
+          "Hashing a key modulo the number of servers works until that number changes. Add one server and almost every key maps somewhere new, which invalidates every cache at once.",
+          "Consistent hashing places servers and keys on a ring, so adding or removing a node only moves the keys between it and its neighbour — roughly one over n of the total. Virtual nodes spread each physical server across many ring positions, which evens out a distribution that would otherwise be lumpy.",
         ],
         why: "This is the technique that makes distributed caches and sharded stores survivable. Without it, scaling the cluster is an outage.",
         inPractice: "Used by Cassandra, DynamoDB and every serious distributed cache for exactly this reason.",
@@ -164,9 +162,10 @@ export const design: Card[] = [
         title: "Health checks and draining",
         level: "intermediate",
         body: [
-          "A shallow health check confirms the process is alive. A deep one confirms it can reach its dependencies. Deep checks catch more, and can take an entire fleet out when a shared dependency wobbles.",
-          "Connection draining lets a server finish in-flight requests before it is removed, so deploys do not drop live traffic.",
-          "Separating readiness from liveness matters: not ready yet and needs restarting are different conditions with different responses.",
+          "A shallow health check confirms the process is alive. A deep one confirms it can reach its dependencies.",
+          "Deep checks catch more, and can take an entire fleet out when a shared dependency wobbles. The failure is correlated by construction: every node checks the same database, so every node fails the check in the same second.",
+          "The usual compromise is a deep check that degrades rather than fails. Report unhealthy only after several consecutive failures, and never let a dependency the request path does not need mark you down.",
+          "Connection draining then lets a server finish its in-flight requests before it leaves the pool, so a deploy does not drop live traffic. Keep readiness and liveness separate while you are there — not ready yet and needs restarting call for very different responses.",
         ],
         why: "Making the health check depend on the database means a brief database blip marks every server unhealthy simultaneously, turning a degraded system into a total outage.",
         check: {
@@ -195,8 +194,7 @@ export const design: Card[] = [
         title: "What a queue actually buys you",
         level: "beginner",
         body: [
-          "A queue lets a request return before the work is done. The user gets a fast response and the work happens behind them.",
-          "It also absorbs spikes. A burst that would overwhelm a synchronous system becomes a backlog that drains at whatever rate the workers manage.",
+          "A queue lets a request return before the work is done. The user gets a fast response, and the work happens behind them. It also absorbs spikes: a burst that would overwhelm a synchronous system becomes a backlog that drains at whatever rate the workers manage.",
           "The cost is that the system is now eventually consistent, and you owe the user a way to see the outcome.",
         ],
         why: "Adding a queue converts a latency problem into a state problem. That is usually a good trade for email, image processing or reports, and a bad one for anything the user is waiting to see.",
@@ -217,9 +215,8 @@ export const design: Card[] = [
         title: "At-most-once, at-least-once, exactly-once",
         level: "intermediate",
         body: [
-          "At-most-once may drop messages. At-least-once may deliver twice. Exactly-once is what everyone wants and is not achievable end to end in a distributed system.",
-          "What people call exactly-once is at-least-once delivery combined with idempotent processing, so duplicates have no additional effect.",
-          "That is a real and achievable goal, and it puts the responsibility in the consumer rather than the broker.",
+          "At-most-once may drop messages. At-least-once may deliver twice. Exactly-once is what everyone wants, and end to end in a distributed system it is not achievable.",
+          "What gets sold as exactly-once is at-least-once delivery plus idempotent processing, so a duplicate has no additional effect. That is a real and reachable goal, and it puts the responsibility in the consumer rather than the broker — which is why buying a broker does not buy it for you.",
         ],
         why: "Selecting a broker for its exactly-once badge and skipping idempotency is the classic mistake. The guarantee applies within the broker, not across your side effects — a duplicate email has already been sent.",
         check: {
@@ -240,8 +237,7 @@ export const design: Card[] = [
         level: "advanced",
         body: [
           "Ordering guarantees are usually per partition, not global. Kafka orders within a partition; across partitions there is no order at all.",
-          "Keying by entity, such as user id, puts all events for that entity in one partition and preserves their order relative to each other.",
-          "Global ordering means one partition, which means one consumer, which means no parallelism. That is the trade.",
+          "Keying by entity — user id, order id — puts all of that entity's events in one partition and preserves their order relative to each other, which is almost always the ordering you actually needed. Global ordering means one partition, which means one consumer, which means no parallelism. That is the trade.",
         ],
         why: "Wanting strict global ordering usually means the design is wrong. Per-entity ordering is almost always what is actually needed, and it parallelises.",
         check: {
@@ -293,8 +289,9 @@ export const design: Card[] = [
         level: "intermediate",
         body: [
           "A read replica copies the primary and serves reads, which scales read capacity. Writes still go to one place.",
-          "Replication is asynchronous by default, so a replica is always slightly behind. Usually milliseconds, occasionally much more under load.",
-          "That gap causes read-your-own-writes bugs: a user saves something, is read from a replica, and sees the old value.",
+          "Replication is asynchronous by default, so a replica is always slightly behind — usually milliseconds, occasionally a great deal more under load.",
+          "That gap causes read-your-own-writes bugs. A user saves something, the next read lands on a replica, and they see the old value and conclude it did not save.",
+          "The fix is not stronger consistency but a narrower rule: after a user writes, pin that user's reads to the primary for a few seconds. It costs almost nothing and it removes the only staleness anybody actually notices.",
         ],
         why: "The standard fix is to route a user's reads to the primary briefly after they write. Making all reads go to the primary defeats the point of having replicas at all.",
         check: {
@@ -315,8 +312,9 @@ export const design: Card[] = [
         level: "advanced",
         body: [
           "Sharding splits data across databases so writes scale. The shard key decides which shard holds a row, and it is the hardest decision to reverse.",
-          "A poor key creates hotspots. Sharding by country puts most traffic on one shard. Sharding by timestamp puts all current writes on the newest shard.",
-          "Queries that span shards become slow and complicated, so the key should match how the data is actually read.",
+          "A poor key creates hotspots. Sharding by country puts most traffic on one shard; sharding by timestamp puts every current write on the newest one.",
+          "Queries that span shards get slow and complicated, so the key has to match how the data is read, not how it is naturally grouped.",
+          "Resharding later means moving live data while still serving traffic from it. That is why the honest order is replicas, caching, better indexes and a bigger machine first — all of which are reversible, and none of which this is.",
         ],
         why: "Shard last. Read replicas, caching, better indexes and a bigger instance all come first, because they are reversible. Sharding changes your data model permanently.",
         check: {
@@ -355,8 +353,7 @@ export const design: Card[] = [
         level: "advanced",
         body: [
           "Eventual consistency means replicas converge given no new writes. It says nothing about how long that takes, and users notice the gap.",
-          "The engineering work is mostly in the interface: show the pending state, use optimistic updates, and avoid pretending an action is complete when it is queued.",
-          "Read-your-own-writes is usually the guarantee users actually care about, and it is much cheaper than full consistency.",
+          "The engineering work is mostly in the interface: show the pending state, use optimistic updates, and do not pretend an action is complete when it is merely queued. Read-your-own-writes is the guarantee users actually care about, and it is far cheaper than full consistency.",
         ],
         why: "Most consistency complaints are interface problems, not database problems. Showing 'processing' honestly costs nothing and removes the perception of a bug.",
         check: {
@@ -386,9 +383,8 @@ export const design: Card[] = [
         title: "Token bucket and sliding window",
         level: "intermediate",
         body: [
-          "A fixed window counter is simple and allows double the limit across a boundary: full quota at the end of one window, full quota at the start of the next.",
-          "A sliding window smooths that by weighting the previous window. A token bucket refills at a steady rate and allows bursts up to the bucket size.",
-          "Token bucket is usually the best fit for APIs because real traffic is bursty and a strict rate feels broken.",
+          "A fixed window counter is simple, and it allows double the limit across a boundary: a full quota at the end of one window, another full quota at the start of the next.",
+          "A sliding window smooths that by weighting the previous window; a token bucket refills at a steady rate and permits bursts up to the bucket size. Token bucket usually fits an API best, because real traffic is bursty and a strictly even rate feels broken to whoever is using it.",
         ],
         why: "Choose based on whether bursts are acceptable. Token bucket permits them deliberately; sliding window suppresses them. Fixed window is simplest and has a known flaw at the edges.",
         check: {
@@ -432,8 +428,7 @@ export const design: Card[] = [
         level: "advanced",
         body: [
           "Not every dependency is essential. If recommendations are down, the product page should still render without them.",
-          "That requires deciding in advance which features are optional and what the fallback is: cached data, a default, or simply hiding the section.",
-          "The alternative is that any dependency failure becomes a total failure, which is a design choice made by omission.",
+          "That requires deciding in advance which features are optional and what each fallback is — cached data, a default, or simply hiding the section. The alternative is that any dependency failure becomes a total failure, which is a design decision made by omission.",
         ],
         why: "This is the difference between an outage and a degraded experience most users never notice. It costs almost nothing at design time and is expensive to retrofit.",
         inPractice: "Netflix's home page renders with cached or default rows when the personalisation service is unavailable, rather than failing the page.",
@@ -480,9 +475,8 @@ export const design: Card[] = [
         title: "Percentiles, not averages",
         level: "intermediate",
         body: [
-          "An average hides the tail. A system with 100ms average latency can still have one request in a hundred taking five seconds.",
-          "p50 describes the typical experience, p95 and p99 describe the worst of it. The tail is where users churn, and it is invisible in the mean.",
-          "Averaging percentiles across servers is meaningless. Percentiles must be computed over the whole population.",
+          "An average hides the tail. A system averaging 100ms can still be taking five seconds on one request in a hundred, and p50 describes the typical experience while p95 and p99 describe the worst of it.",
+          "The tail is where users churn, and it is invisible in the mean. One caution while you are moving to percentiles: averaging them across servers is meaningless. A percentile has to be computed over the whole population, not averaged out of per-host summaries.",
         ],
         why: "Reporting p99 rather than mean is a small change that surfaces problems users complain about but dashboards do not show. It also makes capacity conversations honest.",
         check: {
@@ -502,9 +496,8 @@ export const design: Card[] = [
         title: "SLIs, SLOs and error budgets",
         level: "advanced",
         body: [
-          "An SLI is a measurement, such as the fraction of requests served under 300ms. An SLO is the target for it. The gap between the target and 100 percent is the error budget.",
-          "The budget turns reliability into a resource. Spend it on shipping quickly; when it runs out, stop shipping and fix stability.",
-          "This replaces arguments about whether to prioritise features or reliability with a number both sides already agreed.",
+          "An SLI is a measurement, such as the fraction of requests served under 300ms. An SLO is the target for it. The gap between that target and 100 percent is the error budget.",
+          "The budget turns reliability into a resource. Spend it shipping quickly; when it runs out, stop shipping and fix stability. That replaces the argument about whether features or reliability come first with a number both sides already agreed to.",
         ],
         why: "Chasing 100 percent is the wrong target: each extra nine costs disproportionately more, and perfect reliability means you shipped too slowly. The budget makes the trade explicit rather than political.",
         check: {

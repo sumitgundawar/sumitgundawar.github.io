@@ -138,9 +138,10 @@ export const design2: Card[] = [
         title: "Polling, long polling, SSE, WebSockets",
         level: "beginner",
         body: [
-          "Polling asks repeatedly on a timer. Simple, wasteful, and latency is bounded by the interval. Long polling holds the request open until there is news, which cuts waste but ties up a connection.",
-          "Server-sent events are a one-way stream from server to client over plain HTTP, with automatic reconnection built in.",
-          "WebSockets give a persistent two-way channel, which is what you need when the client also sends frequently.",
+          "Polling asks repeatedly on a timer. Simple, wasteful, and latency is bounded by whatever interval you chose.",
+          "Long polling holds the request open until there is news, which cuts the waste but ties up a connection for the duration.",
+          "Server-sent events are a one-way stream from server to client over plain HTTP, with automatic reconnection built into the browser.",
+          "WebSockets give a persistent two-way channel, which is what you need when the client also sends frequently. Read the four as a cost ladder: each step buys lower latency and charges you in held connections and server-side state.",
         ],
         why: "SSE is underrated: if data only flows server to client — notifications, live prices, progress — it is far simpler than WebSockets and works through ordinary HTTP infrastructure.",
         check: {
@@ -178,9 +179,8 @@ export const design2: Card[] = [
         title: "Presence and typing indicators",
         level: "advanced",
         body: [
-          "Presence looks trivial and is one of the most expensive features in a chat product. Every state change potentially notifies everyone who can see that user.",
-          "The volume is quadratic in the worst case, and the data is worthless within seconds, so it is usually kept in memory with short TTLs rather than persisted.",
-          "Typing indicators are throttled hard and often dropped under load, because they are the first thing worth sacrificing.",
+          "Presence looks trivial and is one of the most expensive features in a chat product. Every state change potentially notifies everyone who can see that user, which is quadratic in the worst case.",
+          "The data is also worthless within seconds, so it lives in memory behind short TTLs rather than being persisted. Typing indicators get throttled hard and dropped under load, because they are the first thing worth sacrificing.",
         ],
         why: "Presence is the standard example of a feature whose cost is invisible in the spec. Recognising it as a fan-out problem rather than a storage problem is the insight being tested.",
         check: {

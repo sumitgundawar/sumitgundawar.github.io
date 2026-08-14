@@ -107,7 +107,41 @@ export function findAnswerTells(): Problem[] {
   return tells;
 }
 
+/* Structural uniformity.
+ *
+ * Every one of the 122 topics used to have exactly three paragraphs, with a
+ * body-length standard deviation of 9.7 words. Nothing was wrong with any
+ * individual topic; read four in a row and the rhythm gives the game away —
+ * what it is, the complication, a short closing generalisation, every time.
+ *
+ * This does not check individual topics, because no individual topic is the
+ * problem. It checks the shape of the whole corpus: if any one paragraph count
+ * dominates, the template is back. */
+const MAX_SHARE = 0.55;
+
+export function findUniformity(): Problem[] {
+  const counts = new Map<number, number>();
+  let total = 0;
+  for (const card of cards) {
+    for (const topic of card.topics) {
+      counts.set(topic.body.length, (counts.get(topic.body.length) ?? 0) + 1);
+      total++;
+    }
+  }
+  const out: Problem[] = [];
+  for (const [paras, n] of counts) {
+    if (n / total > MAX_SHARE) {
+      out.push({
+        where: "corpus",
+        what: `${Math.round((n / total) * 100)}% of topics have ${paras} paragraphs — the template is showing`,
+      });
+    }
+  }
+  return out;
+}
+
 if (import.meta.env?.DEV) {
+  for (const u of findUniformity()) console.warn(`[learn content] ${u.what}`);
   const problems = findProblems();
   if (problems.length) {
     console.error(

@@ -85,7 +85,8 @@ export const security: Card[] = [
         body: [
           "SSRF is making your server fetch a URL an attacker chose. Any feature that takes a URL — webhook registration, image import, link preview — is a candidate.",
           "The damage is that your server sits inside the network. It can reach internal services, admin panels and, on a cloud instance, the metadata endpoint that hands out credentials.",
-          "Blocklisting hostnames fails: DNS can resolve to an internal address, and redirects move the target after validation. Resolve the address and check it, follow redirects with the same check, or egress through a proxy that only allows known hosts.",
+          "Blocklisting hostnames fails. DNS can resolve to an internal address, and a redirect moves the target after you have validated it.",
+          "What works is checking the resolved address rather than the string, re-checking it on every redirect hop, or egressing through a proxy that only permits known hosts. The proxy is the only one of the three that stays correct when somebody adds a new URL-fetching feature and never hears about the rule.",
         ],
         why: "Validating the URL string is the intuitive fix and the one that does not hold, because the string is not what gets connected to. The check has to happen on the resolved address, at connect time, on every hop.",
         inPractice: "The 2019 Capital One breach began with SSRF used to reach the instance metadata service and retrieve role credentials.",

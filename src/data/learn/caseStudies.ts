@@ -16,8 +16,7 @@ export const caseStudies: Card[] = [
         level: "intermediate",
         body: [
           "Netflix is a large share of internet traffic at peak. Buying that from a commercial CDN would be enormously expensive and still not fast enough.",
-          "Instead they build Open Connect appliances and give them to ISPs for free, installed inside the ISP's own network. The video is already past the congested peering links before your request happens.",
-          "Popular titles are pushed to those boxes overnight, during off-peak hours, predicted per region.",
+          "So they build Open Connect appliances and give them to ISPs free, installed inside the ISP's own network — the video is already past the congested peering links before your request happens. Popular titles are pushed to those boxes overnight, during off-peak hours, predicted per region.",
         ],
         why: "The insight is that streaming is a predictable, cacheable workload. You know tomorrow's popular titles, so you can pre-position the bytes and turn a bandwidth problem into a storage problem — storage being far cheaper.",
         diagram: {
@@ -83,8 +82,7 @@ export const caseStudies: Card[] = [
         level: "advanced",
         body: [
           "EVCache is Netflix's distributed cache layer, built on memcached, replicated within a region and across availability zones.",
-          "Rather than coordinating precise global invalidation, they lean on short TTLs and versioned keys. A write bumps a version, and old entries simply become unreachable and expire.",
-          "Cross-region coordinated deletes would be slower, more fragile, and would fail exactly when the network is degraded.",
+          "Rather than coordinating precise global invalidation, they lean on short TTLs and versioned keys: a write bumps a version, and old entries simply become unreachable and expire. Cross-region coordinated deletes would be slower, more fragile, and would fail exactly when the network was already degraded.",
         ],
         why: "This is the practical answer to cache invalidation at global scale: make staleness bounded and self-healing rather than trying to make it zero. A delete that must succeed everywhere is a distributed transaction in disguise.",
         check: {
@@ -113,9 +111,8 @@ export const caseStudies: Card[] = [
         title: "Geospatial indexing with H3",
         level: "advanced",
         body: [
-          "Finding nearby drivers with latitude and longitude comparisons means scanning everything. Neither coordinate alone narrows the search usefully.",
-          "Uber divides the world into hexagonal cells — their H3 library — so a location becomes a cell id. Finding nearby drivers becomes looking up a few cell ids, which is a hash lookup.",
-          "Hexagons are used rather than squares because every neighbour is equidistant, which makes expanding the search ring uniform.",
+          "Finding nearby drivers by comparing latitude and longitude means scanning everything, because neither coordinate on its own narrows the search usefully.",
+          "Uber divides the world into hexagonal cells — their H3 library — so a location becomes a cell id, and finding nearby drivers becomes looking up a handful of ids. Hexagons rather than squares because every neighbour is equidistant, which makes expanding the search ring uniform.",
         ],
         why: "The move is turning a continuous two-dimensional problem into a discrete key lookup. Once location is a key, ordinary tools — hash maps, caches, shards — all work again.",
         diagram: {
@@ -188,9 +185,8 @@ export const caseStudies: Card[] = [
         title: "Sharding by city",
         level: "intermediate",
         body: [
-          "Trips are overwhelmingly local. A rider and driver are in the same city, and almost no query needs to join across cities.",
-          "That makes city, or region, an excellent shard key: traffic distributes naturally and cross-shard queries are rare.",
-          "It also isolates failure and allows per-city configuration, since regulations and pricing differ by market.",
+          "Trips are overwhelmingly local. A rider and a driver are in the same city, and almost no query needs to join across cities.",
+          "That makes city, or region, an excellent shard key: traffic distributes naturally and cross-shard queries are rare. It also isolates failure and allows per-city configuration, which matters because regulation and pricing differ by market.",
         ],
         why: "A good shard key follows a natural boundary in the domain. City works because it matches how the data is actually queried; user id would scatter the two halves of every trip.",
         check: {
@@ -219,9 +215,10 @@ export const caseStudies: Card[] = [
         title: "Fan-out on write or on read",
         level: "advanced",
         body: [
-          "Fan-out on write pushes each post into every follower's precomputed timeline. Reads are then a single fast lookup, and writes are expensive.",
-          "Fan-out on read builds the timeline when requested by querying everyone you follow. Writes are cheap and reads are expensive.",
-          "With a million followers, fan-out on write means a million inserts per post. With a user following thousands of accounts, fan-out on read means a huge query per refresh.",
+          "Fan-out on write pushes each post into every follower's precomputed timeline. Reads become a single fast lookup, and writes get expensive.",
+          "Fan-out on read builds the timeline when it is requested, by querying everyone you follow. Writes are cheap and reads are expensive.",
+          "Neither survives the extremes. A million followers means a million inserts per post; following thousands of accounts means an enormous query on every refresh.",
+          "Which is why real systems run both. Fan out on write for ordinary accounts, leave the handful with millions of followers out of it entirely, and merge their posts in at read time. The cost then tracks the median user rather than the most extreme one in the system.",
         ],
         why: "Neither works alone, which is the actual answer: fan out on write for ordinary accounts, and merge in celebrity posts at read time. The hybrid exists because the follower distribution is extremely skewed.",
         diagram: {
@@ -265,8 +262,7 @@ export const caseStudies: Card[] = [
         level: "advanced",
         body: [
           "Reverse chronological is simple and predictable. Ranked feeds score each candidate on predicted engagement, recency, affinity and content type.",
-          "Ranking needs candidates first: retrieve a few hundred plausible posts cheaply, then score them expensively. Scoring everything is not affordable.",
-          "The two-stage shape — cheap retrieval, expensive ranking — is how nearly all recommendation systems are built.",
+          "Ranking needs candidates first: retrieve a few hundred plausible posts cheaply, then score those expensively, because scoring everything is not affordable. That two-stage shape — cheap retrieval, expensive ranking — is how very nearly every recommendation system is built.",
         ],
         why: "Candidate generation then ranking is the general pattern worth carrying into any recommendation question. It bounds the expensive step regardless of corpus size.",
         check: {

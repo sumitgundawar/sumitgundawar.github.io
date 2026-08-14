@@ -177,9 +177,8 @@ export const practice: Card[] = [
         title: "Coupling and cohesion",
         level: "intermediate",
         body: [
-          "Coupling is how much modules depend on each other. Cohesion is how related the contents of one module are. The target is low coupling, high cohesion.",
-          "Tight coupling means a change in one place forces changes elsewhere, and it is why some codebases resist every modification.",
-          "Splitting by layer — all controllers together, all models together — often produces low cohesion, because one feature spreads across every folder.",
+          "Coupling is how much modules depend on each other. Cohesion is how related the contents of one module are. The target is low coupling and high cohesion.",
+          "Tight coupling means a change in one place forces a change in another, and it is why some codebases resist every modification. Splitting by layer — all controllers together, all models together — usually produces low cohesion, because a single feature ends up spread across every folder you have.",
         ],
         why: "Organising by feature rather than by technical layer usually raises cohesion: everything that changes together lives together, so a change touches one directory.",
         check: {
@@ -199,9 +198,8 @@ export const practice: Card[] = [
         title: "Premature abstraction",
         level: "advanced",
         body: [
-          "Abstracting after one use guesses at what varies. The guess is usually wrong, and the abstraction then obstructs the change it was meant to accommodate.",
-          "Duplication is cheaper to fix than the wrong abstraction: you can see all the copies, whereas an abstraction hides the differences behind parameters.",
-          "Wait until the third occurrence, when the actual axis of variation is visible.",
+          "Abstracting after one use is a guess at what varies. The guess is usually wrong, and the abstraction then obstructs the very change it was built to accommodate.",
+          "Duplication is cheaper to fix than a wrong abstraction: you can see all the copies, whereas an abstraction hides the differences behind parameters. Wait for the third occurrence, when the actual axis of variation is finally visible.",
         ],
         why: "The cost asymmetry is the point. Removing duplication later is mechanical; unwinding a wrong abstraction means untangling every caller that adapted to it.",
         check: {

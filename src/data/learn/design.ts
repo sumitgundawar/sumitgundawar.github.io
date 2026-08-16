@@ -215,10 +215,13 @@ export const design: Card[] = [
         title: "At-most-once, at-least-once, exactly-once",
         level: "intermediate",
         body: [
-          "At-most-once may drop messages. At-least-once may deliver twice. Exactly-once is what everyone wants, and end to end in a distributed system it is not achievable.",
-          "What gets sold as exactly-once is at-least-once delivery plus idempotent processing, so a duplicate has no additional effect. That is a real and reachable goal, and it puts the responsibility in the consumer, not the broker, which is why buying a broker does not buy it for you.",
+          "At-most-once may drop messages. At-least-once may deliver twice. Exactly-once is what everyone wants, and end to end in a distributed system it is not achievable, because the acknowledgement itself can be lost and the sender cannot tell a lost ack from a lost message.",
+          "What gets sold as exactly-once is at-least-once delivery plus idempotent processing, so a duplicate has no additional effect. Kafka's exactly-once semantics are real but scoped: they cover reading from a topic, writing to a topic, and committing the offset, as one atomic unit inside Kafka. The moment your handler calls Stripe, that guarantee has left the building.",
+          "The rate matters for how much you care. Duplicates are rare, in the region of one in ten thousand under normal operation, and then arrive in a cluster during a rebalance or a network partition, which is exactly when you are least able to reason about them. Designing for the average rate is how you get a bad afternoon during an incident.",
+          "Idempotency in practice is a table of processed message ids with a unique constraint, checked inside the same transaction as the work. Insert the id, do the work, commit. A duplicate hits the constraint and rolls back having done nothing. Keep the ids for longer than your broker's maximum redelivery window, and remember that a natural key from the payload, an order id, is often better than the broker's message id, which changes on republish.",
         ],
-        why: "Selecting a broker for its exactly-once badge and skipping idempotency is the classic mistake. The guarantee applies within the broker, not across your side effects, a duplicate email has already been sent.",
+        why:
+          "The question is never whether duplicates happen; it is whether the second one costs anything. Once the handler is idempotent, at-least-once is sufficient and the broker's guarantees stop being interesting, which is why buying a broker that advertises exactly-once buys you very little.",
         diagram: {
           "caption": "Exactly-once is at-least-once plus a consumer that can absorb a repeat",
           "columns": [
@@ -276,10 +279,13 @@ export const design: Card[] = [
         title: "Ordering and partitions",
         level: "advanced",
         body: [
-          "Ordering guarantees are usually per partition, not global. Kafka orders within a partition; across partitions there is no order at all.",
-          "Keying by entity, user id, order id, puts all of that entity's events in one partition and preserves their order relative to each other, which is almost always the ordering you actually needed. Global ordering means one partition, which means one consumer, which means no parallelism. That is the trade.",
+          "Ordering guarantees are usually per partition, not global. Kafka orders within a partition; across partitions there is no order at all, and a consumer reading two partitions sees them interleaved arbitrarily.",
+          "Keying by entity is what makes this workable. Hash the user id, or the order id, and every event for that entity lands in the same partition and arrives in the order it was produced. That is almost always the ordering you actually needed: nobody cares whether user A's update preceded user B's, but everyone cares that A's address change is not overtaken by A's earlier one.",
+          "The cost is that a partition is the unit of parallelism. Ten partitions means at most ten consumers in a group, and adding an eleventh does nothing. Choosing the count is a one-way door in practice, because increasing it changes which partition a key hashes to, so events for one entity end up split across the old and new partitions and ordering breaks for exactly the keys you were protecting.",
+          "Global ordering means one partition, one consumer, and no parallelism. It is occasionally the right answer, for a ledger or an audit log, and it should be a deliberate decision with a throughput number attached rather than something arrived at by accident.",
         ],
-        why: "Wanting strict global ordering usually means the design is wrong. Per-entity ordering is almost always what is actually needed, and it parallelises.",
+        why:
+          "The useful question is not whether you need ordering but what you need it within. Almost every system that thinks it needs global ordering needs per-entity ordering, and the difference is the entire throughput of the system.",
         diagram: {
           "caption": "Key by entity: order within a user, parallelism across users",
           "columns": [
@@ -345,11 +351,13 @@ export const design: Card[] = [
         title: "Retries and dead letter queues",
         level: "intermediate",
         body: [
-          "A message that fails is usually retried. Without a limit, a permanently broken message is retried forever, consuming capacity and burying real work.",
-          "A dead letter queue holds messages that failed repeatedly, so the main queue keeps flowing and failures can be inspected.",
-          "Retries should back off exponentially with jitter, or every consumer retries in lockstep and hammers the failing dependency together.",
+          "A message that fails is usually retried. Without a limit, a permanently broken message is retried forever: it consumes a consumer slot, it is redelivered ahead of newer work in some brokers, and it can hold up an entire partition while everything behind it waits.",
+          "A dead letter queue is where a message goes once it has failed enough times. The main queue keeps flowing, the failure is preserved rather than dropped, and someone can look at it. That last part is the point and the part usually skipped: a dead letter queue nobody reads is a slower way of deleting messages.",
+          "Retries need backoff with jitter. Pure exponential backoff keeps every client synchronised, because they all wait the same intervals from the same failure, so the failing dependency is hit by the whole fleet at once, recovers, and is hit again. Full jitter, a random wait between zero and the current ceiling, spreads them out. AWS published the arithmetic on this and the difference is not marginal.",
+          "Distinguish what is worth retrying. A 503 or a timeout is transient and deserves the full ladder; a 400, a schema violation or a foreign key that will never exist is permanent, and retrying it eight times over a day just delays the moment someone finds out. Route those to the dead letter immediately, with the error attached, so the queue tells you what is wrong rather than only that something is.",
         ],
-        why: "An unmonitored dead letter queue is the same as dropping messages, just slower. The queue is only useful if someone is alerted when it fills.",
+        why:
+          "The retry policy is where a queue stops being a buffer and becomes a system with behaviour. Getting the limit and the backoff right is what decides whether a downstream blip is invisible or becomes your outage too.",
         diagram: {
           "caption": "Bounded retries, then somewhere to put what will never succeed",
           "columns": [
@@ -431,12 +439,13 @@ export const design: Card[] = [
         title: "Read replicas and replication lag",
         level: "intermediate",
         body: [
-          "A read replica copies the primary and serves reads, which scales read capacity. Writes still go to one place.",
-          "Replication is asynchronous by default, so a replica is always slightly behind, usually milliseconds, occasionally a great deal more under load.",
-          "That gap causes read-your-own-writes bugs. A user saves something, the next read lands on a replica, and they see the old value and conclude it did not save.",
-          "The fix is not stronger consistency but a narrower rule: after a user writes, pin that user's reads to the primary for a few seconds. It costs almost nothing and it removes the only staleness anybody actually notices.",
+          "A read replica copies the primary and serves reads, which scales read capacity. Writes still go to one place, so this buys nothing for a write-heavy workload; it is the right move when reads outnumber writes by ten to one or more, which most applications do.",
+          "Replication is asynchronous by default, so a replica is always slightly behind. Usually single-digit milliseconds, and then a bulk update, a long transaction or a network hiccup pushes it to seconds or minutes, and the lag is worst exactly when traffic is highest.",
+          "That gap causes read-your-own-writes bugs. A user saves their profile, the next read lands on a replica that has not caught up, and they see the old value and conclude it did not save. They press save again. Now you have a duplicate, and a support ticket that says the site is broken, which it is.",
+          "The fix is not stronger consistency but a narrower rule: after a user writes, pin that user's reads to the primary for a few seconds. A cookie or a session flag carrying a timestamp is enough, and it costs almost nothing because only the writing user pays. The alternatives are worse: reading everything from the primary throws away the reason you added replicas, and waiting for synchronous replication makes every write as slow as your slowest replica.",
         ],
-        why: "The standard fix is to route a user's reads to the primary briefly after they write. Making all reads go to the primary defeats the point of having replicas at all.",
+        why:
+          "Replication lag is not a bug to be eliminated, it is the price of the read capacity. The engineering is in deciding which reads can tolerate it, and the honest answer is nearly all of them except the ones belonging to the person who just wrote.",
         diagram: {
           "caption": "Reads scale out; the write path does not, and the gap is what users notice",
           "columns": [
@@ -582,10 +591,13 @@ export const design: Card[] = [
         title: "Token bucket and sliding window",
         level: "intermediate",
         body: [
-          "A fixed window counter is simple, and it allows double the limit across a boundary: a full quota at the end of one window, another full quota at the start of the next.",
-          "A sliding window smooths that by weighting the previous window; a token bucket refills at a steady rate and permits bursts up to the bucket size. Token bucket usually fits an API best, because real traffic is bursty and a strictly even rate feels broken to whoever is using it.",
+          "A fixed window counter is simple, and it allows double the limit across a boundary: a full quota at the end of one window, another full quota at the start of the next. A limit of 100 a minute permits 200 in the two seconds either side of the boundary, which is the burst you were trying to prevent.",
+          "A sliding window fixes that by weighting the previous window: at twenty seconds into the current one, it counts a third of the current window plus two thirds of the last. A token bucket takes a different approach, refilling at a steady rate up to a maximum, so a caller who has been quiet can spend the accumulated tokens at once.",
+          "Token bucket usually fits an API best, because real traffic is bursty and a strictly even rate feels broken to whoever is using it. A bucket of 100 refilling at 10 a second lets a client that has idled for ten seconds fire 100 requests immediately, then settle to 10 a second, which is what a paginating client or a page loading twelve resources actually does.",
+          "Where you count matters as much as how. Per-IP catches the obvious abuse and punishes an office behind one NAT; per-key is right for an authenticated API but useless before login; per-user-per-endpoint is the most correct and the most state. Return 429 with a Retry-After, because a client that does not know when to come back will either hammer you or give up entirely, and both are worse than telling it.",
         ],
-        why: "Choose based on whether bursts are acceptable. Token bucket permits them deliberately; sliding window suppresses them. Fixed window is simplest and has a known flaw at the edges.",
+        why:
+          "Limits exist to protect a resource, so the shape should follow what that resource cannot absorb. A bucket that permits bursts is right when the cost is throughput; a strict rate is right when the cost is a downstream call you pay for per invocation.",
         diagram: {
           "caption": "A bucket refills at a steady rate and permits a burst up to its size",
           "columns": [
@@ -653,11 +665,13 @@ export const design: Card[] = [
         title: "Circuit breakers and timeouts",
         level: "intermediate",
         body: [
-          "A slow dependency is worse than a dead one: callers pile up waiting, threads and connections are consumed, and the failure spreads upstream.",
-          "A circuit breaker trips after repeated failures and fails fast for a while, then lets a trial request through to test recovery.",
-          "Every network call needs a timeout. A missing timeout means waiting indefinitely, which is how one slow service takes down everything that calls it.",
+          "A slow dependency is worse than a dead one. A dead one fails immediately and you move on; a slow one holds a thread, a connection and a socket for every caller waiting on it, and those are finite.",
+          "The arithmetic is unforgiving. A service with 200 worker threads calling a dependency that has degraded to 30 seconds, at 100 requests a second, saturates every thread in two seconds and then queues. From outside, your service is down, and the only thing wrong with it is that it is politely waiting.",
+          "A circuit breaker counts failures over a window and trips once they cross a threshold, then fails fast for a cooling period, then lets a single trial request through to test recovery. Closed, open, half-open. The half-open state is what stops it flapping: one request decides, rather than the full load arriving the instant the timer expires.",
+          "Every network call needs a timeout, and it has to be shorter than your caller's. A chain where each hop waits longer than the one above it means the top has already given up while everything below is still working, holding resources for a response nobody will read. Add a bulkhead where one dependency matters more than the rest: a separate connection pool for it caps how much of you it can consume, which a breaker alone does not do.",
         ],
-        why: "Retries without a breaker amplify an outage, a struggling service gets more traffic exactly when it is least able to serve it. The breaker is what stops retries becoming an attack on your own system.",
+        why:
+          "Waiting longer holds resources longer, which is why the instinct to raise the timeout makes an outage worse. Failing fast is what frees them, and it is also what turns a partial failure into a degraded page rather than a total one.",
         diagram: {
           "caption": "Fail fast so a slow dependency cannot hold your threads",
           "columns": [

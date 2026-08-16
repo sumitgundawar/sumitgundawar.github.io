@@ -311,12 +311,13 @@ export const design2: Card[] = [
         title: "Keeping the index in sync",
         level: "advanced",
         body: [
-          "The search index is a second copy of the data, so it can drift.",
-          "Dual writes, writing to the database and the index in the same request, fail the moment one succeeds and the other does not, and nothing about that failure is visible until somebody searches for the missing thing.",
-          "The reliable pattern is to write to the database and derive the index from its change log, so the database stays the single source of truth and the index is always a function of it.",
-          "You also need a full reindex path. Mappings change, drift accumulates, and eventually the only honest fix is to rebuild into a fresh index and swap the alias over.",
+          "The search index is a second copy of the data, so it can drift. Dual writes, writing to the database and the index in the same request, fail the moment one succeeds and the other does not, and nothing about that failure is visible until somebody searches for the missing thing.",
+          "Drift is silent and cumulative. Each individual miss is rare, a failed call here, a timeout there, but nothing corrects them, so the index degrades steadily and the only signal is a user saying they cannot find a product that plainly exists. By then the gap is weeks old and there is no log of which writes were lost.",
+          "The reliable pattern is to write to the database and derive the index from its change log, so the database stays the single source of truth and the index is always a function of it. Deletes come through as well, which polling an updated_at column misses entirely: a deleted row simply stops appearing in the query, and the document stays in the index forever.",
+          "You also need a full reindex path, and you will use it more than you expect. Mappings change, an analyser is wrong, a bug corrupts a field. Build into a new index under a versioned name and swap an alias when it is ready: the swap is atomic, search never goes down, and the previous index is still there when the new one turns out to be worse.",
         ],
-        why: "Change data capture beats dual writes because it has one commit point. With dual writes there is always a window where a crash leaves the two permanently inconsistent.",
+        why:
+          "Two systems, two commits and no atomicity is the whole problem, and no amount of retrying fixes it. Deriving one from the other's log replaces coordination with a single authoritative ordering.",
         diagram: {
           "caption": "Derive the index from the log, so the database stays the only source of truth",
           "columns": [

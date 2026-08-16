@@ -206,11 +206,13 @@ export const security: Card[] = [
         title: "The write-ahead log and the outbox",
         level: "advanced",
         body: [
-          "Databases write changes to a log before applying them, which is what makes durability and crash recovery possible, and what replication and change data capture read from.",
-          "The outbox pattern uses this. Instead of writing to the database and publishing an event separately, you insert the event into an outbox table inside the same transaction, and a relay reads that table and publishes.",
-          "One commit, so the event and the state change cannot disagree. The relay may publish twice, which is why consumers still need idempotency.",
+          "Writing to your database and then publishing an event is two operations that can fail independently. Commit succeeds, the process dies before the publish, and the event is gone: the order exists and nothing downstream will ever hear about it. Publish first and you have the opposite problem, an event for an order that was never created.",
+          "The outbox pattern makes it one operation. The event is written to an outbox table in the same transaction as the data, so both commit or neither does. A separate relay reads that table and publishes, marking rows as sent.",
+          "Delivery is still at-least-once. The relay can publish and die before recording that it did, so the same event goes out twice, which is why consumers stay idempotent. What the outbox removes is the possibility of losing an event entirely, and losing one is far worse than seeing one twice.",
+          "The relay can poll the table or read the database's replication log directly. Polling every second is simple and adds a query and a second of latency; change data capture via the write-ahead log has no polling delay and no query load, at the cost of running Debezium or similar. Either way the outbox needs an index on unsent rows and a cleanup job, because a table nobody prunes becomes the slowest part of the write path.",
         ],
-        why: "This is the concrete answer to the dual-write problem. Publishing after commit means a crash in between loses the event; publishing before means it may describe a state that rolled back. The outbox makes both impossible with the transaction you already have.",
+        why:
+          "This is dual writes solved properly rather than mitigated. Retries and reconciliation reduce how often the gap between commit and publish loses an event; putting the event inside the transaction removes the gap.",
         diagram: {
           "caption": "The event is written in the same transaction as the data, so it cannot be lost",
           "columns": [

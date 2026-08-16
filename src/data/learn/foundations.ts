@@ -397,10 +397,13 @@ export const foundations: Card[] = [
         title: "Idempotency",
         level: "intermediate",
         body: [
-          "An idempotent operation can run repeatedly with the same result as running once. This matters because networks make retries unavoidable, and a timeout tells you nothing at all about whether the work happened.",
-          "The standard approach is an idempotency key supplied by the client. The server records the key alongside its result, and returns the stored result if the key comes back. Without it, a retried payment is simply a second payment.",
+          "An idempotent operation can run repeatedly with the same result as running once. This matters because networks make retries unavoidable, and a timeout tells you nothing at all about whether the work happened: the request may never have arrived, or it may have completed and the response been lost on the way back.",
+          "The standard approach is an idempotency key supplied by the client, unique per logical operation rather than per attempt. The server records the key alongside its result, and returns the stored result if the key comes back. Without it, a retried payment is simply a second payment.",
+          "The subtlety is what you store and when. Recording the key before doing the work means a crash mid-operation leaves a key with no result and the retry is refused forever. Recording it after means two concurrent retries both pass the check. The usual answer is to insert the key immediately with a pending state, under a unique constraint so the second attempt collides, then update it with the result. A pending key older than a few minutes is stale and can be reclaimed.",
+          "Not everything needs a key. GET, PUT and DELETE are idempotent by their own semantics, and an update that sets an absolute value is naturally safe to repeat where one that increments is not. The key is for the operations that are neither, which in practice means anything that creates something or moves money.",
         ],
-        why: "Any endpoint that changes state and can be retried needs this. It is the difference between at-least-once delivery being safe and being a liability.",
+        why:
+          "The interesting half is the concurrency, not the concept. Storing a key is easy; deciding what happens when two retries arrive at once, or when the first attempt died between charging the card and writing the result, is where the design actually lives.",
         inPractice: "Stripe requires an idempotency key on payment creation for exactly this reason.",
         diagram: {
           "caption": "The key is what lets the server tell a retry from a new request",

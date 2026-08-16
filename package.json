@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "shots": "node scripts/shots.mjs",
     "routes": "node scripts/route-check.mjs",
-    "deploy:pages": "npm run build && rm -f dist/404.html && wrangler pages deploy dist --project-name sumitgundawar --branch main",
+    "deploy:pages": "npm run build && rm -f dist/404.html && npx wrangler pages deploy dist --project-name sumitgundawar --branch main",
     "gen:topics": "tsx scripts/gen-worker-topics.mjs"
   },
   "dependencies": {

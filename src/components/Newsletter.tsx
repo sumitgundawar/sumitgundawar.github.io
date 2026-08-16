@@ -51,7 +51,7 @@ export function Newsletter() {
         <h2
           id="newsletter-h"
           className="mono uppercase font-semibold"
-          style={{ fontSize: "12px", letterSpacing: "0.14em", color: "var(--c-text-dim)" }}
+          style={{ fontSize: "var(--fs-label)", letterSpacing: "0.14em", color: "var(--c-text-dim)" }}
         >
           newsletter
         </h2>
@@ -59,13 +59,13 @@ export function Newsletter() {
       </div>
 
       <div className="max-w-[36em]">
-        <p className="text-[15px] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+        <p className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
           Occasional writing on building systems that survive production: what broke, why, and what the
           fix actually cost.
         </p>
 
         {state === "done" ? (
-          <p className="mono text-[13px] mt-4" style={{ color: "var(--accent)" }} role="status">
+          <p className="mono text-[length:var(--fs-input)] mt-4" style={{ color: "var(--accent)" }} role="status">
             You are on the list. A welcome note is on its way.
           </p>
         ) : (
@@ -82,13 +82,13 @@ export function Newsletter() {
               disabled={state === "busy"}
               placeholder="you@example.com"
               autoComplete="email"
-              className="mono text-[13px] flex-1 min-w-0 px-3 min-h-[44px]"
+              className="mono text-[length:var(--fs-input)] flex-1 min-w-0 px-3 min-h-[44px]"
               style={{ background: "var(--surface)", border: "1px solid var(--hair-strong)", color: "var(--c-text)" }}
             />
             <button
               type="submit"
               disabled={state === "busy"}
-              className="mono text-[12px] uppercase tracking-[0.08em] px-4 min-h-[44px] shrink-0"
+              className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em] px-4 min-h-[44px] shrink-0"
               style={{ border: "1px solid var(--hair-strong)", background: "var(--surface-2)", color: "var(--c-text)" }}
             >
               {state === "busy" ? "…" : "subscribe"}
@@ -97,12 +97,12 @@ export function Newsletter() {
         )}
 
         {state === "error" && (
-          <p className="mono text-[12px] mt-2" style={{ color: "var(--warn)" }} role="alert">
+          <p className="mono text-[length:var(--fs-label)] mt-2" style={{ color: "var(--warn)" }} role="alert">
             {message}
           </p>
         )}
 
-        <p className="mono text-[11px] mt-3 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+        <p className="mono text-[length:var(--fs-micro)] mt-3 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
           Unsubscribe from any email, in one click. Your address is stored to send this and nothing
           else, and is never passed on.
         </p>

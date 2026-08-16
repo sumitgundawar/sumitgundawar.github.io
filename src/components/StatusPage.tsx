@@ -43,7 +43,7 @@ export function SectionHead({ label, right }: { label: string; right?: ReactNode
       <span aria-hidden className="inline-block shrink-0" style={{ width: 7, height: 7, background: "var(--cool)" }} />
       <h2
         className="mono uppercase font-semibold"
-        style={{ fontSize: "12px", letterSpacing: "0.14em", color: "var(--c-text-dim)" }}
+        style={{ fontSize: "var(--fs-label)", letterSpacing: "0.14em", color: "var(--c-text-dim)" }}
       >
         {label}
       </h2>
@@ -123,20 +123,20 @@ function Sidebar() {
       <div className="order-1 md:order-none min-w-0">
         <div className="flex items-center gap-2.5 mb-4">
           <HealthDot health="ok" pulse size={9} />
-          <span className="mono text-[12px]" style={{ color: "var(--c-text)" }}>
+          <span className="mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text)" }}>
             Shipping in production
           </span>
-          <span className="mono text-[12px] uppercase tracking-[0.08em] ml-auto" style={{ color: "var(--signal)" }}>
+          <span className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em] ml-auto" style={{ color: "var(--signal)" }}>
             {identity.status}
           </span>
         </div>
         <h1
           className="font-semibold leading-[1.0] tracking-[-0.02em]"
-          style={{ fontSize: "clamp(30px, 4vw, 40px)", color: "var(--c-text)" }}
+          style={{ fontSize: "var(--fs-page)", color: "var(--c-text)" }}
         >
           {identity.name}
         </h1>
-        <p className="mono text-[15px] mt-3 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+        <p className="mono text-[length:var(--fs-body)] mt-3 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
           {identity.title}
           <br />
           {identity.location}
@@ -155,10 +155,10 @@ function Sidebar() {
               >
                 {k.value}
               </div>
-              <div className="mono text-[12px] uppercase tracking-[0.06em] mt-2" style={{ color: "var(--c-text)" }}>
+              <div className="mono text-[length:var(--fs-label)] uppercase tracking-[0.06em] mt-2" style={{ color: "var(--c-text)" }}>
                 {k.label}
               </div>
-              <div className="text-[12px] mt-1 leading-snug" style={{ color: "var(--c-text-dim)" }}>
+              <div className="text-[length:var(--fs-label)] mt-1 leading-snug" style={{ color: "var(--c-text-dim)" }}>
                 {k.note}
               </div>
             </div>
@@ -182,14 +182,14 @@ function Sidebar() {
             >
               <HealthDot health="ok" size={6} />
               <span className="eyebrow w-[58px] shrink-0">{c.label}</span>
-              <span className="mono text-[12px] truncate min-w-0 flex-1 link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text)" }}>
+              <span className="mono text-[length:var(--fs-label)] truncate min-w-0 flex-1 link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text)" }}>
                 {c.value}
               </span>
-              <span className="mono text-[12px]" style={{ color: "var(--cool)" }}>↗</span>
+              <span className="mono text-[length:var(--fs-label)]" style={{ color: "var(--cool)" }}>↗</span>
             </a>
           ))}
         </div>
-        <p className="text-[15px] mt-4 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+        <p className="text-[length:var(--fs-body)] mt-4 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
           {identity.availability}
         </p>
       </div>
@@ -214,14 +214,14 @@ function CornerNav() {
     >
       <Link
         to="/learn"
-        className="panel mono text-[12px] sm:text-[12px] uppercase tracking-[0.06em] px-3.5 link-underline inline-flex items-center min-h-[44px]"
+        className="panel mono text-[length:var(--fs-label)] sm:text-[length:var(--fs-label)] uppercase tracking-[0.06em] px-3.5 link-underline inline-flex items-center min-h-[44px]"
         style={{ color: "var(--c-text)" }}
       >
-        Learn engineering →
+        How I build things →
       </Link>
       <Link
         to="/build"
-        className="panel mono text-[12px] sm:text-[12px] uppercase tracking-[0.06em] px-3.5 link-underline inline-flex items-center min-h-[44px]"
+        className="panel mono text-[length:var(--fs-label)] sm:text-[length:var(--fs-label)] uppercase tracking-[0.06em] px-3.5 link-underline inline-flex items-center min-h-[44px]"
         style={{ color: "var(--c-text)" }}
       >
         Build a system →
@@ -237,12 +237,11 @@ function Lead() {
     <header className="reveal in">
       <p
         className="font-medium leading-[1.12] tracking-[-0.015em] max-w-[14em] sm:max-w-none"
-        style={{ fontSize: "clamp(26px, 3.6vw, 44px)", color: "var(--c-text)" }}
+        style={{ fontSize: "var(--fs-hero)", color: "var(--c-text)" }}
       >
-        I build the systems that are still standing at 3am: APIs, data pipelines,
-        and the integrations everything else quietly depends on.
+        I build the systems that are still standing at 3am.
       </p>
-      <p className="mt-5 text-[19px] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+      <p className="mt-5 text-[length:var(--fs-item)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
         {identity.bio}
       </p>
     </header>
@@ -266,18 +265,18 @@ function Profile() {
               <span className="eyebrow" style={{ fontSize: 12 }}>{r.label}</span>
             </div>
             <div className="min-w-0">
-              <div className="text-[19px] font-medium leading-snug" style={{ color: "var(--c-text)" }}>
+              <div className="text-[length:var(--fs-item)] font-medium leading-snug" style={{ color: "var(--c-text)" }}>
                 {r.title}
               </div>
               {/* Employer on its own line. Role and employer are two different
                   facts, and running them together behind a separator made a
                   long line that wrapped badly and read as one job title. */}
               {r.org && (
-                <div className="mono text-[13px] mt-1" style={{ color: "var(--cool)" }}>
+                <div className="mono text-[length:var(--fs-input)] mt-1" style={{ color: "var(--cool)" }}>
                   {r.org}
                 </div>
               )}
-              <p className="text-[15px] mt-1.5 leading-relaxed max-w-[32em]" style={{ color: "var(--c-text-dim)" }}>
+              <p className="text-[length:var(--fs-body)] mt-1.5 leading-relaxed max-w-[32em]" style={{ color: "var(--c-text-dim)" }}>
                 {r.line}
               </p>
               {r.tags && (
@@ -288,7 +287,7 @@ function Profile() {
                 </div>
               )}
             </div>
-            <div className="mono text-[12px] sm:text-right tnum" style={{ color: "var(--c-text-dim)" }}>
+            <div className="mono text-[length:var(--fs-label)] sm:text-right tnum" style={{ color: "var(--c-text-dim)" }}>
               {r.dates}
             </div>
           </div>
@@ -308,7 +307,7 @@ function Work() {
       <SectionHead
         label="selected work"
         right={
-          <button onClick={() => setOpen(true)} className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
+          <button onClick={() => setOpen(true)} className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
             13+ shipped, view all ↗
           </button>
         }
@@ -322,16 +321,16 @@ function Work() {
                   this palette has, colour means health, never decoration.
                   Worth restoring the moment a project has a status worth
                   distinguishing. */}
-              <span className="mono text-[12px] tnum" style={{ color: "var(--cool)" }}>{String(i + 1).padStart(2, "0")}</span>
+              <span className="mono text-[length:var(--fs-label)] tnum" style={{ color: "var(--cool)" }}>{String(i + 1).padStart(2, "0")}</span>
               {s.url ? (
-                <a href={s.url} target="_blank" rel="noreferrer" className="text-[24px] font-medium link-underline tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>
+                <a href={s.url} target="_blank" rel="noreferrer" className="text-[length:var(--fs-item)] font-medium link-underline tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>
                   {s.name}
                 </a>
               ) : (
-                <h3 className="text-[24px] font-medium tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>{s.name}</h3>
+                <h3 className="text-[length:var(--fs-item)] font-medium tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>{s.name}</h3>
               )}
             </div>
-            <p className="text-[15px] leading-relaxed flex-1" style={{ color: "var(--c-text-dim)" }}>
+            <p className="text-[length:var(--fs-body)] leading-relaxed flex-1" style={{ color: "var(--c-text-dim)" }}>
               {s.slo}
             </p>
             <div className="flex flex-wrap items-center gap-1.5 mt-4">
@@ -340,7 +339,7 @@ function Work() {
               ))}
             </div>
             {s.url && (
-              <a href={s.url} target="_blank" rel="noreferrer" className="mono text-[12px] mt-3 link-underline self-start inline-flex items-center min-h-[44px]" style={{ color: "var(--cool)" }}>
+              <a href={s.url} target="_blank" rel="noreferrer" className="mono text-[length:var(--fs-label)] mt-3 link-underline self-start inline-flex items-center min-h-[44px]" style={{ color: "var(--cool)" }}>
                 {s.urlLabel} ↗
               </a>
             )}
@@ -360,7 +359,7 @@ function Writing() {
         <SectionHead
           label="writing"
           right={
-            <Link to="/writing" className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
+            <Link to="/writing" className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
               all writing, and the feed →
             </Link>
           }
@@ -375,17 +374,17 @@ function Writing() {
               onClick={() => trackClick("article_click", { title: a.title, publication: a.publication })}
               className={`block py-6 group ${i === 0 ? "" : "border-t border-hair"}`}
             >
-              <div className="flex items-baseline justify-between gap-4 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
+              <div className="flex items-baseline justify-between gap-4 mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
                 <span className="uppercase tracking-[0.07em]">{a.publication}</span>
                 <span className="tnum shrink-0">{a.date}</span>
               </div>
               <h3
                 className="serif mt-2 leading-snug link-underline inline"
-                style={{ fontSize: "19px", color: "var(--c-text)" }}
+                style={{ fontSize: "var(--fs-item)", color: "var(--c-text)" }}
               >
                 {a.title}
               </h3>
-              <p className="text-[15px] mt-2.5 leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+              <p className="text-[length:var(--fs-body)] mt-2.5 leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
                 {a.summary}
               </p>
             </a>
@@ -421,17 +420,17 @@ function Podcasts() {
               className="p-6 block group min-w-0"
               style={{ background: "var(--surface)" }}
             >
-              <div className="flex items-baseline justify-between gap-3 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
+              <div className="flex items-baseline justify-between gap-3 mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
                 <span className="uppercase tracking-[0.07em] min-w-0 truncate">{p.show}</span>
                 <span className="tnum shrink-0" style={{ color: "var(--cool)" }}>{p.when}</span>
               </div>
               <h3
                 className="mt-3 leading-snug link-underline inline font-medium tracking-[-0.01em]"
-                style={{ fontSize: "19px", color: "var(--c-text)" }}
+                style={{ fontSize: "var(--fs-item)", color: "var(--c-text)" }}
               >
                 {p.title} ↗
               </h3>
-              <p className="text-[15px] mt-2.5 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+              <p className="text-[length:var(--fs-body)] mt-2.5 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
                 {p.summary}
               </p>
             </a>
@@ -455,16 +454,16 @@ function SpeakingRecognition() {
             <div key={t.venue} className={`py-4 ${i === 0 ? "" : "border-t border-hair"}`}>
               <div className="flex items-baseline gap-3 flex-wrap">
                 {t.url ? (
-                  <a href={t.url} target="_blank" rel="noreferrer" className="text-[24px] font-medium link-underline tracking-[-0.01em] inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text)" }}>
+                  <a href={t.url} target="_blank" rel="noreferrer" className="text-[length:var(--fs-item)] font-medium link-underline tracking-[-0.01em] inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text)" }}>
                     {t.venue} ↗
                   </a>
                 ) : (
-                  <span className="text-[19px] font-medium" style={{ color: "var(--c-text)" }}>{t.venue}</span>
+                  <span className="text-[length:var(--fs-item)] font-medium" style={{ color: "var(--c-text)" }}>{t.venue}</span>
                 )}
-                <span className="mono text-[12px] tnum" style={{ color: "var(--cool)" }}>{t.when}</span>
-                {t.placeholder && <span className="mono text-[12px] border border-hair px-1.5 py-0.5" style={{ color: "var(--warn)" }}>tbc</span>}
+                <span className="mono text-[length:var(--fs-label)] tnum" style={{ color: "var(--cool)" }}>{t.when}</span>
+                {t.placeholder && <span className="mono text-[length:var(--fs-label)] border border-hair px-1.5 py-0.5" style={{ color: "var(--warn)" }}>tbc</span>}
               </div>
-              <p className="text-[15px] mt-1.5 leading-snug" style={{ color: "var(--c-text-dim)" }}>{t.title}</p>
+              <p className="text-[length:var(--fs-body)] mt-1.5 leading-snug" style={{ color: "var(--c-text-dim)" }}>{t.title}</p>
             </div>
           ))}
         </div>
@@ -474,12 +473,17 @@ function SpeakingRecognition() {
           {recognition.map((r, i) => (
             <div key={r.org} className={`py-4 ${i === 0 ? "" : "border-t border-hair"}`}>
               <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="text-[19px] font-medium" style={{ color: "var(--c-text)" }}>{r.role}</span>
-                <a href={r.url} target="_blank" rel="noreferrer" className="text-[15px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--cool)" }}>{r.org} ↗</a>
-                <span className="mono text-[12px] tnum" style={{ color: "var(--cool)" }}>{r.when}</span>
+                <span className="text-[length:var(--fs-item)] font-medium" style={{ color: "var(--c-text)" }}>{r.role}</span>
+                <a href={r.url} target="_blank" rel="noreferrer" className="text-[length:var(--fs-body)] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--cool)" }}>{r.org} ↗</a>
+                <span className="mono text-[length:var(--fs-label)] tnum" style={{ color: "var(--cool)" }}>{r.when}</span>
               </div>
+              {r.note && (
+                <p className="text-[length:var(--fs-body)] mt-1.5 leading-snug" style={{ color: "var(--c-text-dim)" }}>
+                  {r.note}
+                </p>
+              )}
               {r.extraUrl && (
-                <p className="text-[15px] mt-1.5" style={{ color: "var(--c-text-dim)" }}>
+                <p className="text-[length:var(--fs-body)] mt-1.5" style={{ color: "var(--c-text-dim)" }}>
                   <a href={r.extraUrl} target="_blank" rel="noreferrer" className="link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>{r.extraLabel} ↗</a>
                 </p>
               )}
@@ -523,11 +527,11 @@ function ProductsModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-hair">
           <div className="flex items-center gap-2.5">
             <HealthDot health="ok" size={8} />
-            <span className="mono text-[12px]" style={{ color: "var(--c-text)" }}>
+            <span className="mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text)" }}>
               13+ shipped products
             </span>
           </div>
-          <button onClick={onClose} className="mono text-[12px] border border-hair px-2 py-1 rounded-sm" style={{ color: "var(--c-text-dim)" }}>
+          <button onClick={onClose} className="mono text-[length:var(--fs-label)] border border-hair px-2 py-1 rounded-sm" style={{ color: "var(--c-text-dim)" }}>
             esc
           </button>
         </div>
@@ -543,19 +547,19 @@ function ProductsModal({ onClose }: { onClose: () => void }) {
                   <div className="flex items-baseline gap-2.5">
                     <HealthDot health="ok" size={6} />
                     {p.url ? (
-                      <a href={p.url} target="_blank" rel="noreferrer" className="text-[15px] font-medium link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text)" }}>
+                      <a href={p.url} target="_blank" rel="noreferrer" className="text-[length:var(--fs-body)] font-medium link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text)" }}>
                         {p.name} ↗
                       </a>
                     ) : (
-                      <span className="text-[15px] font-medium" style={{ color: "var(--c-text)" }}>{p.name}</span>
+                      <span className="text-[length:var(--fs-body)] font-medium" style={{ color: "var(--c-text)" }}>{p.name}</span>
                     )}
                   </div>
-                  <p className="text-[15px] mt-1 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>{p.line}</p>
+                  <p className="text-[length:var(--fs-body)] mt-1 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>{p.line}</p>
                 </div>
               ))}
             </div>
           ))}
-          <p className="px-5 py-4 border-t border-hair mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
+          <p className="px-5 py-4 border-t border-hair mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
             A selection. Several internal tools are not listed here.
           </p>
         </div>
@@ -577,9 +581,9 @@ function Education() {
             className={`grid sm:grid-cols-[1fr_auto] gap-x-6 gap-y-1 py-6 ${i === 0 ? "" : "border-t border-hair"}`}
           >
             <div className="min-w-0">
-              <div className="text-[19px] font-medium leading-snug" style={{ color: "var(--c-text)" }}>{e.degree}</div>
-              <div className="mono text-[12px] mt-1" style={{ color: "var(--cool)" }}>{e.school}</div>
-              <p className="text-[15px] mt-2 leading-relaxed max-w-[33em]" style={{ color: "var(--c-text-dim)" }}>{e.detail}</p>
+              <div className="text-[length:var(--fs-item)] font-medium leading-snug" style={{ color: "var(--c-text)" }}>{e.degree}</div>
+              <div className="mono text-[length:var(--fs-label)] mt-1" style={{ color: "var(--cool)" }}>{e.school}</div>
+              <p className="text-[length:var(--fs-body)] mt-2 leading-relaxed max-w-[33em]" style={{ color: "var(--c-text-dim)" }}>{e.detail}</p>
               {e.tags && (
                 <div className="flex flex-wrap gap-1.5 mt-3.5">
                   {e.tags.map((t) => (
@@ -588,7 +592,7 @@ function Education() {
                 </div>
               )}
             </div>
-            <div className="mono text-[12px] sm:text-right tnum shrink-0" style={{ color: "var(--c-text-dim)" }}>
+            <div className="mono text-[length:var(--fs-label)] sm:text-right tnum shrink-0" style={{ color: "var(--c-text-dim)" }}>
               {e.dates}
               <div className="mt-0.5" style={{ color: "var(--c-text-dim)", opacity: 0.7 }}>{e.place}</div>
             </div>
@@ -611,7 +615,7 @@ function Footer() {
     hour12: false,
   }).format(now);
   return (
-    <footer className="mt-16 pt-5 border-t border-hair flex items-center justify-between mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
+    <footer className="mt-16 pt-5 border-t border-hair flex items-center justify-between mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
       <span>© {identity.name}</span>
       <span className="tnum">London · {london}</span>
     </footer>

@@ -54,10 +54,10 @@ export function AskBox({ topicId }: { topicId: string }) {
 
       {thread.map((t, i) => (
         <div key={i} className="mb-4">
-          <div className="mono text-[12px] mb-1.5" style={{ color: "var(--c-text-dim)" }}>
+          <div className="mono text-[length:var(--fs-label)] mb-1.5" style={{ color: "var(--c-text-dim)" }}>
             {t.q}
           </div>
-          <div className="text-[15px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--c-text)" }}>
+          <div className="text-[length:var(--fs-body)] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--c-text)" }}>
             {t.a}
           </div>
         </div>
@@ -71,7 +71,7 @@ export function AskBox({ topicId }: { topicId: string }) {
               type="button"
               onClick={() => void submit(s)}
               disabled={busy}
-              className="mono text-[11px] px-2.5 min-h-[44px] inline-flex items-center text-left"
+              className="mono text-[length:var(--fs-micro)] px-2.5 min-h-[44px] inline-flex items-center text-left"
               style={{ border: "1px solid var(--hair)", color: "var(--c-text-dim)" }}
             >
               {s}
@@ -97,13 +97,13 @@ export function AskBox({ topicId }: { topicId: string }) {
           onChange={(e) => setQ(e.target.value)}
           disabled={busy}
           placeholder={busy ? "Thinking…" : "Ask a follow-up"}
-          className="mono text-[13px] flex-1 min-w-0 px-3 min-h-[44px]"
+          className="mono text-[length:var(--fs-input)] flex-1 min-w-0 px-3 min-h-[44px]"
           style={{ background: "var(--surface)", border: "1px solid var(--hair-strong)", color: "var(--c-text)" }}
         />
         <button
           type="submit"
           disabled={busy || !q.trim()}
-          className="mono text-[12px] uppercase tracking-[0.08em] px-3.5 min-h-[44px]"
+          className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em] px-3.5 min-h-[44px]"
           style={{
             border: "1px solid var(--hair-strong)",
             color: busy || !q.trim() ? "var(--c-text-dim)" : "var(--c-text)",
@@ -115,11 +115,11 @@ export function AskBox({ topicId }: { topicId: string }) {
       </form>
 
       {error && (
-        <div className="mono text-[12px] mt-2" style={{ color: "var(--warn)" }} role="status">
+        <div className="mono text-[length:var(--fs-label)] mt-2" style={{ color: "var(--warn)" }} role="status">
           {error}
         </div>
       )}
-      <div className="mono text-[11px] mt-2" style={{ color: "var(--c-text-dim)" }}>
+      <div className="mono text-[length:var(--fs-micro)] mt-2" style={{ color: "var(--c-text-dim)" }}>
         Answers are generated and can be wrong. The topic above is the reviewed version.
       </div>
     </div>

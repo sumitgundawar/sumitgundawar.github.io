@@ -269,13 +269,13 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
             className="mt-2 p-3"
             style={{ background: "var(--surface)", border: "1px solid var(--hair-strong)" }}
           >
-            <div className="mono text-[12px]" style={{ color: "var(--c-text)" }}>
+            <div className="mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text)" }}>
               {node.label}
               {node.sub ? ` · ${node.sub}` : ""}
               <span style={{ color: "var(--c-text-dim)" }}> · {KIND_LABEL[node.kind ?? "service"]}</span>
             </div>
             {(edgesIn.length > 0 || edgesOut.length > 0) && (
-              <div className="mono text-[11px] mt-1.5" style={{ color: "var(--c-text-dim)" }}>
+              <div className="mono text-[length:var(--fs-micro)] mt-1.5" style={{ color: "var(--c-text-dim)" }}>
                 {edgesIn.map((e, i) => (
                   <div key={`i${i}`}>
                     ← from {diagram.columns.flat().find((n) => n.id === e.from)?.label}
@@ -296,7 +296,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
         );
       })()}
 
-      <figcaption id={`${id}-layered-cap`} className="mono text-[12px] mt-2" style={{ color: "var(--c-text-dim)" }}>
+      <figcaption id={`${id}-layered-cap`} className="mono text-[length:var(--fs-label)] mt-2" style={{ color: "var(--c-text-dim)" }}>
         {diagram.caption} · front to back is the path a request takes
       </figcaption>
     </figure>

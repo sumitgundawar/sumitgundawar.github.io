@@ -12,6 +12,9 @@ const LearnPage = lazy(() =>
 const BuildPage = lazy(() =>
   import("@/components/BuildPage").then((m) => ({ default: m.BuildPage })),
 );
+const ExitPrompt = lazy(() =>
+  import("@/components/ExitPrompt").then((m) => ({ default: m.ExitPrompt })),
+);
 const WritingPage = lazy(() =>
   import("@/components/WritingPage").then((m) => ({ default: m.WritingPage })),
 );
@@ -67,6 +70,7 @@ export default function App() {
       <SkipLink />
       <AnalyticsListener />
       <ScrollReset />
+      <ExitPrompt />
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<StatusPage />} />

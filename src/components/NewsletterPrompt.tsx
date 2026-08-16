@@ -81,13 +81,13 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
       aria-label="Newsletter"
     >
       {state === "done" ? (
-        <p className="mono text-[13px]" style={{ color: "var(--accent)" }} role="status">
+        <p className="mono text-[length:var(--fs-input)]" style={{ color: "var(--accent)" }} role="status">
           You are on the list. A welcome note is on its way.
         </p>
       ) : (
         <>
           <div className="flex items-start justify-between gap-4">
-            <p className="text-[15px] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text)" }}>
+            <p className="text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text)" }}>
               {line}
             </p>
             <button
@@ -98,7 +98,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
                 trackClick("newsletter_dismiss", { context });
               }}
               aria-label="Dismiss"
-              className="mono text-[13px] shrink-0 min-h-[44px] min-w-[44px]"
+              className="mono text-[length:var(--fs-input)] shrink-0 min-h-[44px] min-w-[44px]"
               style={{ color: "var(--c-text-dim)" }}
             >
               ✕
@@ -118,13 +118,13 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
               disabled={state === "busy"}
               placeholder="you@example.com"
               autoComplete="email"
-              className="mono text-[13px] flex-1 min-w-0 px-3 min-h-[44px]"
+              className="mono text-[length:var(--fs-input)] flex-1 min-w-0 px-3 min-h-[44px]"
               style={{ background: "var(--surface-2)", border: "1px solid var(--hair-strong)", color: "var(--c-text)" }}
             />
             <button
               type="submit"
               disabled={state === "busy"}
-              className="mono text-[12px] uppercase tracking-[0.08em] px-4 min-h-[44px] shrink-0"
+              className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em] px-4 min-h-[44px] shrink-0"
               style={{ border: "1px solid var(--hair-strong)", background: "var(--surface-2)", color: "var(--c-text)" }}
             >
               {state === "busy" ? "…" : "subscribe"}
@@ -132,11 +132,11 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
           </form>
 
           {state === "error" && (
-            <p className="mono text-[12px] mt-2" style={{ color: "var(--warn)" }} role="alert">
+            <p className="mono text-[length:var(--fs-label)] mt-2" style={{ color: "var(--warn)" }} role="alert">
               {message}
             </p>
           )}
-          <p className="mono text-[11px] mt-3" style={{ color: "var(--c-text-dim)" }}>
+          <p className="mono text-[length:var(--fs-micro)] mt-3" style={{ color: "var(--c-text-dim)" }}>
             Unsubscribe in one click, from any email.
           </p>
         </>

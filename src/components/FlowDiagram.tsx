@@ -386,8 +386,8 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
         </svg>
       </div>
 
-      <figcaption className="mt-2.5 text-[12px]" style={{ color: "var(--c-text-dim)" }}>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mono text-[12px] mb-2">
+      <figcaption className="mt-2.5 text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mono text-[length:var(--fs-label)] mb-2">
           {([...new Set(diagram.columns.flat().map((n) => n.kind ?? "service"))] as NodeKind[]).map(
             (k) => (
               <span key={k} className="inline-flex items-center gap-1.5">
@@ -409,7 +409,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
         </div>
         <span>{diagram.caption}</span>
         {hoveredNode && (
-          <span className="mono text-[12px] ml-3" style={{ color: "var(--accent)" }}>
+          <span className="mono text-[length:var(--fs-label)] ml-3" style={{ color: "var(--accent)" }}>
             {hoveredNode.label}
             {hoveredNode.sub ? ` · ${hoveredNode.sub}` : ""} · {KIND_LABEL[hoveredNode.kind ?? "service"]}
           </span>

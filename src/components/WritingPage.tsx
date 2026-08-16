@@ -26,7 +26,7 @@ export function WritingPage() {
       <div className="mx-auto w-full max-w-[1280px] px-5 sm:px-8 lg:px-10 pt-16 sm:pt-20 lg:pt-12 pb-8 lg:pb-12">
         <Link
           to="/"
-          className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]"
+          className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"
           style={{ color: "var(--c-text-dim)" }}
         >
           ← back to profile
@@ -34,12 +34,12 @@ export function WritingPage() {
 
         <h1
           className="font-semibold tracking-[-0.02em] mt-6"
-          style={{ fontSize: "clamp(28px, 3.6vw, 40px)", color: "var(--c-text)" }}
+          style={{ fontSize: "var(--fs-page)", color: "var(--c-text)" }}
         >
           Writing
         </h1>
 
-        <p className="mt-3 text-[17px] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+        <p className="mt-3 text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
           {sorted.length} pieces on building systems that survive production, published across{" "}
           {Object.keys(byPublication).length} outlets. Each one opens with an incident that actually
           happened.
@@ -49,12 +49,12 @@ export function WritingPage() {
           <a
             href="/feed.xml"
             onClick={() => trackClick("feed_click", {})}
-            className="mono text-[12px] uppercase tracking-[0.08em] px-3 min-h-[44px] inline-flex items-center"
+            className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em] px-3 min-h-[44px] inline-flex items-center"
             style={{ border: "1px solid var(--hair-strong)", background: "var(--surface-2)", color: "var(--c-text)" }}
           >
             RSS feed
           </a>
-          <span className="mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
+          <span className="mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
             no email needed
           </span>
         </div>
@@ -71,7 +71,7 @@ export function WritingPage() {
               style={{ background: "var(--surface)" }}
             >
               <div
-                className="flex items-baseline justify-between gap-3 mono text-[12px]"
+                className="flex items-baseline justify-between gap-3 mono text-[length:var(--fs-label)]"
                 style={{ color: "var(--c-text-dim)" }}
               >
                 <span className="uppercase tracking-[0.07em] min-w-0 truncate">{a.publication}</span>
@@ -81,18 +81,18 @@ export function WritingPage() {
               </div>
               <h2
                 className="serif mt-2.5 leading-snug link-underline inline"
-                style={{ fontSize: "21px", color: "var(--c-text)" }}
+                style={{ fontSize: "var(--fs-item)", color: "var(--c-text)" }}
               >
                 {a.title} ↗
               </h2>
-              <p className="text-[15px] mt-2.5 leading-relaxed max-w-[46em]" style={{ color: "var(--c-text-dim)" }}>
+              <p className="text-[length:var(--fs-body)] mt-2.5 leading-relaxed max-w-[46em]" style={{ color: "var(--c-text-dim)" }}>
                 {a.summary}
               </p>
             </a>
           ))}
         </div>
 
-        <p className="mt-10 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
+        <p className="mt-10 mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
           {identity.name} · {identity.location}
         </p>
       </div>

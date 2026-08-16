@@ -11,7 +11,7 @@ export const identity = {
   email: "sumitgundawar3@gmail.com",
   status: "Open to roles",
   availability: "Open to software engineering and data roles, London or remote.",
-  bio: "Software and data engineer with dual Master's degrees, both Distinction. Sole engineer on a multi-product clinical platform in London, building the APIs, the integrations that keep payments and logistics in step, and the AI features that are allowed nowhere near a patient without a human reading them first. Before that, the pipelines and demand forecasting behind PepsiCo's global supply chain, across 25 million product and customer combinations.",
+  bio: "Sole engineer on a multi-product clinical platform in London: the APIs, the integrations that keep payments and logistics in step, and AI features that reach no patient without a human reading them first. Before that, the pipelines behind PepsiCo's global supply chain, across 25 million product and customer combinations.",
   careerStart: "2019-06-01T00:00:00Z",
 };
 
@@ -437,6 +437,8 @@ export const frameworks: Framework[] = [
 
 export interface Recognition {
   role: string;
+  /** One line of context under the headline role. */
+  note?: string;
   org: string;
   when: string;
   url: string;
@@ -446,8 +448,9 @@ export interface Recognition {
 
 export const recognition: Recognition[] = [
   {
-    role: "Presented two awards",
+    role: "Judge",
     org: "The AI Awards",
+    note: "Judging panel, and presented two awards on stage at the 2026 ceremony",
     when: "2026",
     url: "https://theaiawards.co.uk/",
     extraUrl: "https://theaiawards.co.uk/awards-photos-2026/",

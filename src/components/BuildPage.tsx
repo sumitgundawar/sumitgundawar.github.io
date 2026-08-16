@@ -67,25 +67,25 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
     >
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
         <div className="flex items-baseline gap-2.5 flex-wrap">
-          <span className="text-[19px] font-medium" style={{ color: "var(--c-text)" }}>
+          <span className="text-[length:var(--fs-item)] font-medium" style={{ color: "var(--c-text)" }}>
             {rec.name}
           </span>
-          <span className="mono text-[12px]" style={{ color: "var(--accent)" }}>
+          <span className="mono text-[length:var(--fs-label)]" style={{ color: "var(--accent)" }}>
             {rec.pick}
           </span>
         </div>
         {rec.optional && (
-          <span className="mono text-[12px] uppercase tracking-wide" style={{ color: "var(--lv-intermediate)" }}>
+          <span className="mono text-[length:var(--fs-label)] uppercase tracking-wide" style={{ color: "var(--lv-intermediate)" }}>
             add when needed
           </span>
         )}
       </div>
 
-      <p className="mt-2.5 text-[15px] leading-[1.6]" style={{ color: "var(--c-text-dim)" }}>
+      <p className="mt-2.5 text-[length:var(--fs-body)] leading-[1.6]" style={{ color: "var(--c-text-dim)" }}>
         {rec.why}
       </p>
 
-      <p className="mt-2 text-[15px] leading-relaxed mono" style={{ color: "var(--c-text-dim)", opacity: 0.85 }}>
+      <p className="mt-2 text-[length:var(--fs-body)] leading-relaxed mono" style={{ color: "var(--c-text-dim)", opacity: 0.85 }}>
         {rec.where}
       </p>
 
@@ -94,7 +94,7 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
           setShowAlts((s) => !s);
           if (!showAlts) track("build_alternatives", { component: rec.id });
         }}
-        className="mono text-[12px] mt-3 link-underline"
+        className="mono text-[length:var(--fs-label)] mt-3 link-underline"
         style={{ color: "var(--accent-2)" }}
       >
         {showAlts ? "hide alternatives" : `switch this · ${rec.alternatives.length} alternatives`}
@@ -104,10 +104,10 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
         <div className="mt-3 flex flex-col gap-2.5">
           {rec.alternatives.map((alt) => (
             <div key={alt.name} className="border-l-2 pl-3" style={{ borderColor: "var(--hair)" }}>
-              <div className="text-[15px] font-medium" style={{ color: "var(--c-text)" }}>
+              <div className="text-[length:var(--fs-body)] font-medium" style={{ color: "var(--c-text)" }}>
                 {alt.name}
               </div>
-              <div className="text-[15px] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+              <div className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
                 {alt.when}
               </div>
             </div>
@@ -188,17 +188,17 @@ export function BuildPage() {
   return (
     <main id="content" className="min-h-[100dvh]">
       <div className="mx-auto w-full max-w-[940px] px-5 sm:px-8 py-8 lg:py-12">
-        <Link to="/" className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
+        <Link to="/" className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
           ← back to profile
         </Link>
 
         <h1
           className="mt-7 font-semibold leading-[1.05] tracking-[-0.02em]"
-          style={{ fontSize: "clamp(30px, 5vw, 44px)", color: "var(--c-text)" }}
+          style={{ fontSize: "var(--fs-page)", color: "var(--c-text)" }}
         >
           Build a system
         </h1>
-        <p className="mt-3.5 text-[15px] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+        <p className="mt-3.5 text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
           Ten questions, then an architecture sized to what you are actually building. Every component
           comes with why it is there, what it costs, and what you would use instead.
         </p>
@@ -212,17 +212,17 @@ export function BuildPage() {
                   style={{ width: `${(step / questions.length) * 100}%`, background: "var(--accent)" }}
                 />
               </div>
-              <span className="mono text-[12px] tnum shrink-0" style={{ color: "var(--c-text-dim)" }}>
+              <span className="mono text-[length:var(--fs-label)] tnum shrink-0" style={{ color: "var(--c-text-dim)" }}>
                 {step + 1} / {questions.length}
               </span>
             </div>
 
             <div className="mt-8">
-              <h2 className="text-[24px] sm:text-[24px] font-semibold tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>
+              <h2 className="text-[length:var(--fs-item)] sm:text-[length:var(--fs-item)] font-semibold tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>
                 {q.prompt}
               </h2>
               {q.help && (
-                <p className="mt-2.5 text-[15px] leading-relaxed max-w-[32em]" style={{ color: "var(--c-text-dim)" }}>
+                <p className="mt-2.5 text-[length:var(--fs-body)] leading-relaxed max-w-[32em]" style={{ color: "var(--c-text-dim)" }}>
                   {q.help}
                 </p>
               )}
@@ -235,11 +235,11 @@ export function BuildPage() {
                     className="text-left rounded-lg border px-4 py-3.5 transition-transform hover:-translate-y-0.5"
                     style={{ borderColor: "var(--hair-strong)", background: "var(--surface)" }}
                   >
-                    <div className="text-[15px]" style={{ color: "var(--c-text)" }}>
+                    <div className="text-[length:var(--fs-body)]" style={{ color: "var(--c-text)" }}>
                       {o.label}
                     </div>
                     {o.hint && (
-                      <div className="text-[15px] mt-0.5" style={{ color: "var(--c-text-dim)" }}>
+                      <div className="text-[length:var(--fs-body)] mt-0.5" style={{ color: "var(--c-text-dim)" }}>
                         {o.hint}
                       </div>
                     )}
@@ -251,7 +251,7 @@ export function BuildPage() {
                 {step > 0 && (
                   <button
                     onClick={() => setStep((s) => s - 1)}
-                    className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]"
+                    className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"
                     style={{ color: "var(--c-text-dim)" }}
                   >
                     ← back
@@ -259,7 +259,7 @@ export function BuildPage() {
                 )}
                 <button
                   onClick={() => choose(q.id, q.skipDefault, true)}
-                  className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]"
+                  className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"
                   style={{ color: "var(--c-text-dim)" }}
                 >
                   skip, assume a sensible default
@@ -274,17 +274,17 @@ export function BuildPage() {
             <div className="flex items-center gap-4 flex-wrap">
               <button
                 onClick={() => setStep(questions.length - 1)}
-                className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]"
+                className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"
                 style={{ color: "var(--c-text-dim)" }}
               >
                 ← change last answer
               </button>
-              <button onClick={restart} className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
+              <button onClick={restart} className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
                 start again
               </button>
               <button
                 onClick={copyLink}
-                className="mono text-[12px] uppercase tracking-[0.08em] px-3 min-h-[44px] inline-flex items-center"
+                className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em] px-3 min-h-[44px] inline-flex items-center"
                 style={{
                   border: "1px solid var(--hair-strong)",
                   background: "var(--surface-2)",
@@ -303,10 +303,10 @@ export function BuildPage() {
               line="If this was useful, I write occasionally about the decisions behind architectures like this one: what broke in production, why, and what the fix actually cost."
             />
 
-            <p className="mt-6 text-[15px] leading-relaxed max-w-[35em]" style={{ color: "var(--c-text)" }}>
+            <p className="mt-6 text-[length:var(--fs-body)] leading-relaxed max-w-[35em]" style={{ color: "var(--c-text)" }}>
               {headline(answers)}
             </p>
-            <p className="mt-2.5 mono text-[15px]" style={{ color: "var(--accent)" }}>
+            <p className="mt-2.5 mono text-[length:var(--fs-body)]" style={{ color: "var(--accent)" }}>
               {costBand(answers)}
             </p>
 
@@ -318,7 +318,7 @@ export function BuildPage() {
               ))}
             </div>
 
-            <p className="mt-8 text-[15px] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+            <p className="mt-8 text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
               Anything marked add when needed is deliberately not part of the first build. Add it when you
               have measured that you need it, not before, every component you skip is one you do not have
               to operate, secure or pay for.

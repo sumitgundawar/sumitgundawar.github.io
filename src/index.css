@@ -123,6 +123,27 @@
     overflow-x: clip;
   }
 
+  /* One type scale, named by role.
+   *
+   * The components had eight hard-coded pixel sizes and four different clamp()
+   * ranges for what were three or four actual roles, so the same kind of thing
+   * rendered at 19px in one section and 24px in another. The worst case: a
+   * speaking entry was 24px when it had a link and 19px when it did not, which
+   * made the size a function of whether a URL existed rather than of what the
+   * text was.
+   *
+   * Sizes are roles, not measurements. Reach for the role. */
+  :root {
+    --fs-micro: 11px;   /* legend, fine print */
+    --fs-label: 12px;   /* mono eyebrows, meta, tags */
+    --fs-input: 13px;   /* form controls */
+    --fs-body: 15px;    /* body copy, the default */
+    --fs-item: 19px;    /* the title of a card, row or entry */
+    --fs-section: 24px; /* a heading above a group */
+    --fs-page: clamp(28px, 3.6vw, 40px);  /* the one h1 on a page */
+    --fs-hero: clamp(26px, 3.6vw, 44px);  /* the lead sentence, profile only */
+  }
+
   body {
     overflow-x: clip;
     background: var(--ink);

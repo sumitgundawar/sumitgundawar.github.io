@@ -32,7 +32,7 @@ export function DiagramViews({ diagram, id }: { diagram: Diagram; id: string }) 
                 trackClick("diagram_view", { view: v, diagram: id });
               }}
               aria-pressed={on}
-              className="mono text-[11px] uppercase tracking-[0.08em] px-2.5 min-h-[44px] inline-flex items-center"
+              className="mono text-[length:var(--fs-micro)] uppercase tracking-[0.08em] px-2.5 min-h-[44px] inline-flex items-center"
               style={{
                 background: on ? "var(--surface-2)" : "transparent",
                 border: `1px solid ${on ? "var(--hair-strong)" : "var(--hair)"}`,

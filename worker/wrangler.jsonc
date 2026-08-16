@@ -21,5 +21,10 @@
   },
 
   // Weekly analytics digest to Slack. Monday morning, UTC.
+  // Rate limiting state. The in-memory limiter it replaces lived in one
+  // isolate, and Workers run many, so a caller simply hit a fresh counter on
+  // the next request and the limit did close to nothing.
+  "kv_namespaces": [{ "binding": "RATE", "id": "ecd045716a8141de8ce9a5c6038cecbd" }],
+
   "triggers": { "crons": ["0 9 * * 1"] }
 }

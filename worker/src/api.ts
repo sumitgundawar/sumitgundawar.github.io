@@ -21,6 +21,8 @@ export interface ApiEnv {
   SITE_ORIGIN?: string;
   RESEND_API_KEY?: string;
   RESEND_AUDIENCE_ID?: string;
+  RATE?: KVNamespace;
+  PURGE_TOKEN?: string;
   REPORT_EMAIL?: string;
   REPORT_FROM?: string;
 }
@@ -80,19 +82,40 @@ async function sb(env: ApiEnv, path: string, init: RequestInit = {}) {
    identify anybody, which is why no IP address or user agent is stored. */
 const SESSION_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 
-/** Very small in-memory limiter. Not durable across isolates, which is fine:
- *  it exists to stop one bored visitor emptying the model quota, not to be a
- *  billing control. */
-const hits = new Map<string, { n: number; until: number }>();
-function rateLimited(key: string, limit: number, windowMs: number): boolean {
-  const now = Date.now();
-  const cur = hits.get(key);
-  if (!cur || now > cur.until) {
-    hits.set(key, { n: 1, until: now + windowMs });
+/* Bump this whenever the learn material changes in a way that would make a
+   previously cached answer wrong. Every cached answer keys off it, so one
+   change orphans the lot without deleting anything. */
+export const CONTENT_VERSION = "2026-08-16";
+
+/* Rate limiting in KV, not in memory.
+ *
+ * The previous version kept counters in a module-level Map. Workers run many
+ * isolates and recycle them freely, so a caller landing on a fresh isolate got
+ * a fresh counter: the limit read like a limit and enforced almost nothing.
+ * That is fine for a toy and not fine on an endpoint that spends a metered
+ * model credential.
+ *
+ * KV is eventually consistent, so this is approximate at the edges and two
+ * simultaneous requests can both see the same count. That is acceptable here.
+ * The job is to stop one visitor draining the quota, not to be a billing
+ * control, and an approximate limit that survives isolate recycling is worth
+ * far more than an exact one that does not.
+ *
+ * A KV failure allows the request. An analytics beacon or a question must not
+ * fail because the limiter is unavailable; failing open is the right call when
+ * the thing being protected is a budget rather than a door.
+ */
+async function rateLimited(env: ApiEnv, key: string, limit: number, windowSec: number): Promise<boolean> {
+  if (!env.RATE) return false;
+  try {
+    const raw = await env.RATE.get(key);
+    const n = raw ? Number(raw) : 0;
+    if (n >= limit) return true;
+    await env.RATE.put(key, String(n + 1), { expirationTtl: Math.max(60, windowSec) });
+    return false;
+  } catch {
     return false;
   }
-  cur.n += 1;
-  return cur.n > limit;
 }
 
 export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext): Promise<Response | null> {
@@ -127,7 +150,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
     const question = (body?.question ?? "").trim();
     if (!SESSION_RE.test(session)) return json({ error: "bad session" }, 400, origin);
     if (!question || question.length > 2000) return json({ error: "bad question" }, 400, origin);
-    if (rateLimited(`ask:${session}`, 12, 60_000)) return json({ error: "slow down" }, 429, origin);
+    if (await rateLimited(env, `ask:${session}`, 12, 60)) return json({ error: "slow down" }, 429, origin);
 
     // Find or open the thread for this reader and topic.
     const found = await sb(
@@ -179,11 +202,55 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
 
     const messages: ChatMessage[] = [system, ...prior, { role: "user", content: question }];
 
-    let result;
+    /* Cache the first question on a topic, and only that one.
+     *
+     * The suggested prompts mean many readers ask a topic the identical
+     * question, and answering it from the edge is instant and free. Later turns
+     * are never cached: they depend on the thread, and serving one person's
+     * conversation to another would be both wrong and a privacy failure. The
+     * key is the topic plus the normalised question, so it cannot collide
+     * across topics, and it holds for a day rather than forever because the
+     * material underneath it changes. */
+    const cacheable = prior.length === 0;
+    /* The key carries a content version.
+     *
+     * A cached answer is only correct while the topic it was grounded in is
+     * unchanged. Rewrite the topic and the cached answer is now confidently
+     * describing a page that no longer says that, which is worse than a slow
+     * answer. Rather than hunting keys to delete, the version is part of the
+     * key: bumping CONTENT_VERSION orphans every old entry at once and they
+     * expire on their own. Cache invalidation done as a write to one value
+     * instead of a fan-out of deletes, which is the same trick the material on
+     * this site recommends for exactly this problem. */
+    const cacheKey = `ans:${CONTENT_VERSION}:${body?.topicId ?? "-"}:${question.toLowerCase().replace(/\s+/g, " ").slice(0, 200)}`;
+
+    let result: { text: string; model: string; attempts: { model: string; reason: string }[] } | undefined;
+
+    if (cacheable && env.RATE) {
+      const hit = await env.RATE.get(cacheKey).catch(() => null);
+      if (hit) {
+        // Still recorded, so the thread continues correctly from here.
+        await sb(env, "ai_messages", {
+          method: "POST",
+          body: JSON.stringify([
+            { conversation_id: convId, role: "user", content: question, model: null },
+            { conversation_id: convId, role: "assistant", content: hit, model: "cache" },
+          ]),
+        });
+        return json({ answer: hit }, 200, origin);
+      }
+    }
+
     try {
       result = await runChain(env.NVIDIA_API_KEY, messages);
     } catch {
       return json({ error: "unavailable" }, 503, origin);
+    }
+
+    if (cacheable && env.RATE) {
+      ctx.waitUntil(
+        env.RATE.put(cacheKey, result.text, { expirationTtl: 86_400 }).catch(() => {}),
+      );
     }
 
     /* Awaited, not fire-and-forget.
@@ -234,7 +301,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
       | null;
     const session = b?.session ?? "";
     if (!SESSION_RE.test(session)) return json({ error: "bad session" }, 400, origin);
-    if (rateLimited(`track:${session}`, 120, 60_000)) return json({ ok: true }, 200, origin);
+    if (await rateLimited(env, `track:${session}`, 120, 60)) return json({ ok: true }, 200, origin);
 
     const country = req.headers.get("cf-ipcountry") ?? null;
 
@@ -271,6 +338,27 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
     return json({ ok: true }, 200, origin);
   }
 
+  /* ---- purge: drop cached answers for one topic, or all ---- */
+  if (url.pathname === "/api/purge" && req.method === "POST") {
+    /* Guarded by the same admin token the relay already uses, because an open
+       purge endpoint is a free way to make every question expensive again. */
+    const token = req.headers.get("X-Admin-Token") ?? "";
+    if (!env.PURGE_TOKEN || token !== env.PURGE_TOKEN) return json({ error: "not found" }, 404, origin);
+    if (!env.RATE) return json({ error: "no cache bound" }, 500, origin);
+
+    const topic = (await req.json().catch(() => ({}))) as { topicId?: string };
+    const prefix = topic.topicId ? `ans:${CONTENT_VERSION}:${topic.topicId}:` : `ans:`;
+    let removed = 0;
+    let cursor: string | undefined;
+    do {
+      const page = await env.RATE.list({ prefix, cursor });
+      await Promise.all(page.keys.map((k) => env.RATE!.delete(k.name)));
+      removed += page.keys.length;
+      cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
+    return json({ purged: removed }, 200, origin);
+  }
+
   /* ---- subscribe: newsletter, single opt-in ---- */
   if (url.pathname === "/api/subscribe" && req.method === "POST") {
     const b = (await req.json().catch(() => null)) as { email?: string; source?: string } | null;
@@ -282,7 +370,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 254) {
       return json({ error: "That does not look like an email address." }, 400, origin);
     }
-    if (rateLimited(`sub:${req.headers.get("cf-connecting-ip") ?? "anon"}`, 5, 60_000)) {
+    if (await rateLimited(env, `sub:${req.headers.get("cf-connecting-ip") ?? "anon"}`, 5, 3600)) {
       return json({ error: "Too many attempts. Try again shortly." }, 429, origin);
     }
 
@@ -320,6 +408,33 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
         console.log(JSON.stringify({ at: "subscribe_insert_failed", status: created.status }));
         return json({ error: "Could not sign you up just now." }, 500, origin);
       }
+    }
+
+    /* Add to the broadcast audience as well as the database.
+       The database stays the source of truth: a list that exists only inside a
+       vendor is a list you cannot leave with. Resend holds a copy so broadcasts
+       can be sent from its own interface. Failure here does not fail the
+       signup, because the subscriber is already recorded and a sync can be
+       replayed; refusing the signup over it would lose the reader instead. */
+    if (env.RESEND_API_KEY && env.RESEND_AUDIENCE_ID) {
+      ctx.waitUntil(
+        fetch(`https://api.resend.com/audiences/${env.RESEND_AUDIENCE_ID}/contacts`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ email, unsubscribed: false }),
+        })
+          .then(async (r) => {
+            if (r.ok) {
+              await sb(env, `subscribers?email=eq.${encodeURIComponent(email)}`, {
+                method: "PATCH",
+                body: JSON.stringify({ synced_to_resend: true }),
+              });
+            } else {
+              console.log(JSON.stringify({ at: "resend_sync_failed", status: r.status }));
+            }
+          })
+          .catch(() => {}),
+      );
     }
 
     if (env.RESEND_API_KEY) {
@@ -369,10 +484,27 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
   if (url.pathname === "/api/unsubscribe" && req.method === "GET") {
     const token = url.searchParams.get("token") ?? "";
     if (/^[a-f0-9]{32}$/.test(token)) {
-      await sb(env, `subscribers?token=eq.${token}`, {
+      const rows = await sb(env, `subscribers?token=eq.${token}&select=email`, {
         method: "PATCH",
+        headers: { Prefer: "return=representation" },
         body: JSON.stringify({ status: "unsubscribed", unsubscribed_at: new Date().toISOString() }),
-      });
+      }).then((r) => r.json() as Promise<{ email: string }[]>);
+
+      /* Unsubscribing in both places, not just ours. If Resend still holds them
+         as subscribed, the next broadcast reaches someone who has opted out,
+         which is the one failure here that is actually unlawful rather than
+         merely untidy. */
+      const email = rows[0]?.email;
+      if (email && env.RESEND_API_KEY && env.RESEND_AUDIENCE_ID) {
+        await fetch(
+          `https://api.resend.com/audiences/${env.RESEND_AUDIENCE_ID}/contacts/${encodeURIComponent(email)}`,
+          {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ unsubscribed: true }),
+          },
+        ).catch(() => {});
+      }
     }
     return new Response(
       `<!doctype html><meta charset=utf-8><body style="font-family:-apple-system,sans-serif;background:#0e1110;color:#e8eae9;display:grid;place-items:center;height:100vh;margin:0;">Unsubscribed. You will not be emailed again.`,

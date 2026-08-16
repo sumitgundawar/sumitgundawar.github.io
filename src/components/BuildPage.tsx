@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { FlowDiagram } from "./FlowDiagram";
 import { track } from "@/lib/track";
@@ -117,8 +118,27 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
 }
 
 export function BuildPage() {
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Answers>({});
+  /* Answers live in the URL as well as in state.
+     The result is the most shareable thing on the site, a costed architecture
+     with the reasoning attached, and until now the only way to show someone was
+     a screenshot: ten questions in, the URL still said /build. The same problem
+     was fixed for /learn months ago and this one was missed. Compact encoding,
+     question id to option id, so the link stays short enough to paste. */
+  const [params, setParams] = useSearchParams();
+
+  const fromUrl = useMemo<Answers>(() => {
+    const raw = params.get("a");
+    if (!raw) return {};
+    const out: Answers = {};
+    for (const pair of raw.split(",")) {
+      const [q, o] = pair.split(":");
+      if (q && o) out[q] = o;
+    }
+    return out;
+  }, [params]);
+
+  const [step, setStep] = useState(() => (Object.keys(fromUrl).length ? questions.length : 0));
+  const [answers, setAnswers] = useState<Answers>(fromUrl);
   const done = step >= questions.length;
 
   const recs = useMemo(() => (done ? recommend(answers) : []), [done, answers]);
@@ -130,11 +150,37 @@ export function BuildPage() {
     track(skipped ? "build_skip" : "build_answer", { question: qid, answer: oid });
   };
 
+  const [copied, setCopied] = useState(false);
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      track("build_share", {});
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* Clipboard is blocked without a user gesture in some browsers, and over
+         http. The URL is in the address bar either way, so failing quietly is
+         better than an error about a convenience. */
+    }
+  };
+
   const restart = () => {
     setAnswers({});
+    setParams({}, { replace: true });
     setStep(0);
     track("build_restart", {});
   };
+
+  /* Written only at the end. Updating it per question would put ten entries in
+     the back stack for one run, so Back would walk the questionnaire rather
+     than leaving the page. */
+  useEffect(() => {
+    if (!done) return;
+    const encoded = Object.entries(answers).map(([q, o]) => `${q}:${o}`).join(",");
+    if (encoded && params.get("a") !== encoded) {
+      setParams({ a: encoded }, { replace: true });
+    }
+  }, [done, answers, params, setParams]);
 
   const q = !done ? questions[step] : null;
 
@@ -234,6 +280,17 @@ export function BuildPage() {
               </button>
               <button onClick={restart} className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
                 start again
+              </button>
+              <button
+                onClick={copyLink}
+                className="mono text-[12px] uppercase tracking-[0.08em] px-3 min-h-[44px] inline-flex items-center"
+                style={{
+                  border: "1px solid var(--hair-strong)",
+                  background: "var(--surface-2)",
+                  color: copied ? "var(--accent)" : "var(--c-text)",
+                }}
+              >
+                {copied ? "link copied" : "copy link"}
               </button>
             </div>
 

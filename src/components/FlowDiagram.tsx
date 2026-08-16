@@ -20,13 +20,18 @@ const KIND_COLOR: Record<NodeKind, { fill: string; edge: string; text: string }>
 };
 
 /** Below this the horizontal layout has to shrink so far that node labels
- *  render around 7px. Stacking is the only thing that keeps them readable. */
+ *  render around 7px. Stacking is the only thing that keeps them readable.
+ *
+ *  1023 rather than 767: at iPad portrait the horizontal diagram is 1104px wide
+ *  inside an 876px column, so it had to be scrolled sideways, while the stacked
+ *  layout that already existed would have fitted. Tablets now get the layout
+ *  built for them instead of the desktop one in a narrower box. */
 function useNarrow(): boolean {
   const [narrow, setNarrow] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches,
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches,
   );
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
+    const mq = window.matchMedia("(max-width: 1023px)");
     const on = () => setNarrow(mq.matches);
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);

@@ -42,6 +42,12 @@ const ALLOWED_EXACT = new Set([
   "http://localhost:4319",
   "http://localhost:5173",
   "http://localhost:4173",
+  /* The Pages production apex. The preview regex below requires a subdomain
+     label, so it matches main.sumitgundawar.pages.dev and misses the apex
+     entirely, which left the whole API refused on the deployment that serves
+     every route correctly. Neither deployment was whole: one had a working API
+     and 404d every route, the other had the routes and no API. */
+  "https://sumitgundawar.pages.dev",
 ]);
 
 function corsOrigin(req: Request, env: ApiEnv): string {

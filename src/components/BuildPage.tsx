@@ -139,7 +139,7 @@ export function BuildPage() {
   const q = !done ? questions[step] : null;
 
   return (
-    <div className="min-h-[100dvh]">
+    <main id="content" className="min-h-[100dvh]">
       <div className="mx-auto w-full max-w-[940px] px-5 sm:px-8 py-8 lg:py-12">
         <Link to="/" className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
           ← back to profile
@@ -260,6 +260,6 @@ export function BuildPage() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

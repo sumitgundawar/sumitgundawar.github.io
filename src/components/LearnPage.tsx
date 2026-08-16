@@ -155,7 +155,11 @@ function TopicView({
               <button
                 key={i}
                 onClick={() => answer(i)}
-                disabled={answered}
+                /* aria-disabled, not disabled. A disabled button leaves the tab
+                   order entirely, so a screen reader user who answered could not
+                   get back to the options to hear which one was right. The click
+                   is guarded in answer() already. */
+                aria-disabled={answered}
                 className="text-left text-[15px] leading-snug px-3.5 py-3 rounded-md border transition-colors flex gap-3 items-start min-h-[48px]"
                 style={{
                   borderColor: show ? (isCorrect ? "var(--lv-beginner)" : "var(--crit)") : "var(--hair-strong)",
@@ -174,7 +178,9 @@ function TopicView({
           })}
         </div>
         {answered && (
-          <p className="text-[15px] mt-4 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+          /* role=status so the outcome and the reasoning are announced. Without
+             it a screen reader user answered and heard nothing at all. */
+          <p role="status" className="text-[15px] mt-4 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
             <span style={{ color: correct ? "var(--lv-beginner)" : "var(--crit)" }}>
               {correct ? "Correct. " : "Not quite. "}
             </span>
@@ -213,9 +219,12 @@ function CardDetail({
         ← all topics
       </button>
 
-      <h2 className="text-[24px] sm:text-[30px] font-semibold tracking-[-0.015em]" style={{ color: "var(--c-text)" }}>
+      {/* h1, not h2. Every deep-linked topic URL, which is what the
+          sitemap advertises, previously started its heading order at h2 with
+          no h1 anywhere on the page. */}
+      <h1 className="text-[24px] sm:text-[30px] font-semibold tracking-[-0.015em]" style={{ color: "var(--c-text)" }}>
         {card.title}
-      </h2>
+      </h1>
       <p className="mt-2 text-[15px] leading-relaxed max-w-[33em]" style={{ color: "var(--c-text-dim)" }}>
         {card.summary}
       </p>
@@ -321,7 +330,7 @@ export function LearnPage() {
   }, [current]);
 
   return (
-    <div className="min-h-[100dvh]">
+    <main id="content" className="min-h-[100dvh]">
       <div className="mx-auto w-full max-w-[940px] px-5 sm:px-8 py-8 lg:py-12">
         <Link to="/" className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
           ← back to profile
@@ -424,12 +433,16 @@ export function LearnPage() {
                     {inTrack.map((c) => {
                       const levelsHere = LEVELS.filter((l) => c.topics.some((t) => t.level === l));
                       return (
-                        <button
+                        /* A link, not a button. As a button these were
+                           invisible to crawlers, so the only route to 122
+                           topics was the sitemap, and a reader could not
+                           cmd-click, middle-click or copy the link of any of
+                           them, which is exactly what someone triaging a study
+                           resource does. The routing already existed. */
+                        <Link
                           key={c.id}
-                          onClick={() => {
-                            setOpenCard(c.id);
-                            track("card_open", { card: c.id, track: c.track });
-                          }}
+                          to={`/learn/${c.id}${window.location.search}`}
+                          onClick={() => track("card_open", { card: c.id, track: c.track })}
                           className="text-left rounded-lg border p-4 sm:p-5 flex flex-col gap-2 h-full transition-transform hover:-translate-y-0.5"
                           style={{ borderColor: "var(--hair-strong)", background: "var(--surface)" }}
                         >
@@ -454,7 +467,7 @@ export function LearnPage() {
                               ))}
                             </span>
                           </span>
-                        </button>
+                        </Link>
                       );
                     })}
                   </div>
@@ -464,6 +477,6 @@ export function LearnPage() {
           </>
         )}
       </div>
-    </div>
+    </main>
   );
 }

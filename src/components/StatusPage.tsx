@@ -69,7 +69,7 @@ export function StatusPage() {
       <div className="mx-auto w-full max-w-[1280px] px-5 sm:px-8 lg:px-10 pt-16 sm:pt-20 lg:pt-12 pb-8 lg:pb-12">
         <div className="grid lg:grid-cols-[360px_minmax(0,1fr)] gap-10 lg:gap-16 items-start">
           <Sidebar />
-          <div className="min-w-0 lg:pt-6">
+          <main id="content" className="min-w-0 lg:pt-6">
             <Lead />
             <Profile />
             <Work />
@@ -79,7 +79,7 @@ export function StatusPage() {
             <Education />
             <Newsletter />
             <Footer />
-          </div>
+          </main>
         </div>
       </div>
     </div>
@@ -202,7 +202,14 @@ function Sidebar() {
 function CornerNav() {
   return (
     <nav
+      /* Background but no padding. The links carry their own panel background;
+         the container had none, so content scrolled through the gap between the
+         two of them. Padding and a border fixed that and cost 10px of height,
+         which was enough to wrap the nav onto two rows at 360px and put it back
+         on top of the name. The background alone covers the gap and changes no
+         geometry. */
       className="fixed top-3 right-3 sm:top-5 sm:right-5 z-50 flex flex-wrap justify-end gap-2"
+      style={{ background: "var(--ink)" }}
       aria-label="Primary"
     >
       <Link

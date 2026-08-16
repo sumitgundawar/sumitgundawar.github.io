@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Sumit Gundawar</title>
+    <link>https://sumitgundawar.com/writing</link>
+    <atom:link href="https://sumitgundawar.com/feed.xml" rel="self" type="application/rss+xml" />
+    <description>Writing on building systems that survive production.</description>
+    <language>en-GB</language>
+    <lastBuildDate>Sun, 16 Aug 2026 21:15:24 GMT</lastBuildDate>
+    <item>
+      <title>The Unanswerable Test Suite: How to Test AI Systems That Sound Right When They Are Wrong</title>
+      <link>https://softwaretestingnews.co.uk/the-unanswerable-test-suite/</link>
+      <guid isPermaLink="true">https://softwaretestingnews.co.uk/the-unanswerable-test-suite/</guid>
+      <pubDate>Fri, 17 Jul 2026 00:00:00 GMT</pubDate>
+      <source url="https://sumitgundawar.com/writing">Software Testing News</source>
+      <description>Argues that testing an AI system needs a suite built from questions it should refuse, not just ones it should answer, opening with a consulting firm's AI-generated report caught citing sources that never existed. Proposes tracking refusal rates directly and anchoring factual claims to source documents with deterministic checks, not another model's judgement.</description>
+    </item>
+    <item>
+      <title>The Quiet Failure Mode of AI Features: When Your Cached Outputs Go Stale</title>
+      <link>https://aitechtrend.com/ai-cached-outputs/</link>
+      <guid isPermaLink="true">https://aitechtrend.com/ai-cached-outputs/</guid>
+      <pubDate>Mon, 13 Jul 2026 00:00:00 GMT</pubDate>
+      <source url="https://sumitgundawar.com/writing">AITechTrend</source>
+      <description>Traces a semantic-search bug to a bulk update that bypassed the save hook, leaving cached embeddings stale with no visible error. Lays out a three-layer defence: mark on change, recompute in the background, and run a reconciliation sweep that catches whatever the first two miss.</description>
+    </item>
+    <item>
+      <title>You Might Not Need a Hosted Embedding API</title>
+      <link>https://aitechtrend.com/embedding-api/</link>
+      <guid isPermaLink="true">https://aitechtrend.com/embedding-api/</guid>
+      <pubDate>Wed, 01 Jul 2026 00:00:00 GMT</pubDate>
+      <source url="https://sumitgundawar.com/writing">AITechTrend</source>
+      <description>Opens with the 2025 Shai-Hulud npm worm harvesting credentials straight out of build environments, to question why small corpora default to a hosted embedding API. For a few thousand documents, argues for a local model behind an abstracted scoring layer: no per-query cost, a smaller attack surface, and room to graduate to a hosted service if scale ever demands it.</description>
+    </item>
+    <item>
+      <title>The JVS Audit: Why Your Cross-Platform Dashboards Are Quietly Lying to You</title>
+      <link>https://aitechtrend.com/the-jvs-audit-why-your-cross-platform-dashboards-are-quietly-lying-to-you/</link>
+      <guid isPermaLink="true">https://aitechtrend.com/the-jvs-audit-why-your-cross-platform-dashboards-are-quietly-lying-to-you/</guid>
+      <pubDate>Thu, 04 Jun 2026 00:00:00 GMT</pubDate>
+      <source url="https://sumitgundawar.com/writing">AITechTrend</source>
+      <description>A tool-agnostic audit for cross-platform dashboards, opening with the 2020 case where nearly 16,000 COVID results were lost to a spreadsheet row limit. JVS is Join, Validate, Standardise: catch silent row multiplication, measure key match rates, and hold one authoritative definition per metric.</description>
+    </item>
+    <item>
+      <title>Design your AI agents around how they fail, not what they can do</title>
+      <link>https://dataconomy.com/2026/06/01/design-your-ai-agents-around-how-they-fail-not-what-they-can-do/</link>
+      <guid isPermaLink="true">https://dataconomy.com/2026/06/01/design-your-ai-agents-around-how-they-fail-not-what-they-can-do/</guid>
+      <pubDate>Mon, 01 Jun 2026 00:00:00 GMT</pubDate>
+      <source url="https://sumitgundawar.com/writing">Dataconomy</source>
+      <description>Argues agentic systems should be designed from their failure modes, opening with the Moffatt v. Air Canada chatbot case. Introduces FRAME: failure classification, recovery logic, awareness boundaries, monitoring hooks, and an escalation protocol.</description>
+    </item>
+    <item>
+      <title>Treat every data migration like it will go wrong</title>
+      <link>https://dataconomy.com/2026/05/25/treat-every-data-migration-like-it-will-go-wrong/</link>
+      <guid isPermaLink="true">https://dataconomy.com/2026/05/25/treat-every-data-migration-like-it-will-go-wrong/</guid>
+      <pubDate>Mon, 25 May 2026 00:00:00 GMT</pubDate>
+      <source url="https://sumitgundawar.com/writing">Dataconomy</source>
+      <description>Makes the case for applying the same rigour to data scripts as to application code, opening with the 2017 GitLab data-loss incident. Advocates dry-run-by-default, idempotent markers, paired verification scripts, and a migration log.</description>
+    </item>
+    <item>
+      <title>Time is a feature: One decision that removes a whole class of bugs</title>
+      <link>https://dataconomy.com/2026/05/18/time-is-a-feature-one-decision-that-removes-a-whole-class-of-bugs/</link>
+      <guid isPermaLink="true">https://dataconomy.com/2026/05/18/time-is-a-feature-one-decision-that-removes-a-whole-class-of-bugs/</guid>
+      <pubDate>Mon, 18 May 2026 00:00:00 GMT</pubDate>
+      <source url="https://sumitgundawar.com/writing">Dataconomy</source>
+      <description>Treats time as a design decision, opening with the 2012 leap-second outage. Store timestamps in UTC, choose one human-facing timezone, declare schedules against a fixed zone, compare against start-of-day, and freeze the clock in tests.</description>
+    </item>
+  </channel>
+</rss>

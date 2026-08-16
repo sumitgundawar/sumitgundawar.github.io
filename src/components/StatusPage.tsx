@@ -360,9 +360,9 @@ function Writing() {
         <SectionHead
           label="writing"
           right={
-            <a href={"https://dataconomy.com/author/sumit-gundawar/"} target="_blank" rel="noreferrer" className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
-              author archive ↗
-            </a>
+            <Link to="/writing" className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
+              all writing, and the feed →
+            </Link>
           }
         />
         <div>

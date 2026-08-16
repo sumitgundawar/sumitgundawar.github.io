@@ -12,6 +12,9 @@ const LearnPage = lazy(() =>
 const BuildPage = lazy(() =>
   import("@/components/BuildPage").then((m) => ({ default: m.BuildPage })),
 );
+const WritingPage = lazy(() =>
+  import("@/components/WritingPage").then((m) => ({ default: m.WritingPage })),
+);
 
 function AnalyticsListener() {
   useAnalyticsPageview();
@@ -70,6 +73,7 @@ export default function App() {
           <Route path="/learn" element={<LearnPage />} />
           <Route path="/learn/:cardId" element={<LearnPage />} />
           <Route path="/build" element={<BuildPage />} />
+          <Route path="/writing" element={<WritingPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

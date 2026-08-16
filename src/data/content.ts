@@ -81,10 +81,11 @@ export const education: EduRow[] = [
   },
   {
     school: "Savitribai Phule Pune University",
-    degree: "BSc, Computer Science",
-    detail: "Foundations in computer science.",
+    degree: "BSc, Computer Science, First Class with Distinction",
+    detail: "1654/1900 overall, at Dr. D. Y. Patil Arts, Commerce & Science College, Pune. Compiler construction, operating systems, computer networks, system programming and computer graphics, alongside 8051 architecture and interfacing, which is the part that made the hardware work. Full marks in the internet programming project and in practical mathematics. Built a line-following robot at a robotics workshop run in collaboration with IIT Delhi: infrared sensors reading the contrast under the chassis, a microcontroller correcting the steering continuously, and a control loop that had to be tuned rather than calculated.",
     dates: "Jun 2016 to Apr 2019",
     place: "Maharashtra, India",
+    tags: ["8051", "C / C++", "Java", "Robotics"],
   },
 ];
 

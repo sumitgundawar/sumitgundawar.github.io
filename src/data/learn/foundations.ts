@@ -13,7 +13,7 @@ export const foundations: Card[] = [
         level: "beginner",
         body: [
           "Typing a URL sets off DNS resolution, a TCP handshake, a TLS handshake, and then the HTTP request itself.",
-          "Each of those costs at least one round trip — TLS 1.3 needs one, TLS 1.2 needs two — and round trips are what you actually pay for. A user 200ms away pays that 200ms every single time.",
+          "Each of those costs at least one round trip, TLS 1.3 needs one, TLS 1.2 needs two, and round trips are what you actually pay for. A user 200ms away pays that 200ms every single time.",
           "Four round trips before one byte of content is 800ms of blank screen. Bandwidth does not help here, because the pipe is not full, it is idle and waiting. That is why latency, not bandwidth, decides perceived speed on any connection fast enough to matter.",
           "Name the steps and most performance work becomes obvious. Remove a round trip, or move the server closer.",
         ],
@@ -88,7 +88,7 @@ export const foundations: Card[] = [
             "The change propagates down from the root servers, which takes hours",
             "Negative caching of the old record persists independently of its TTL",
             "Clients that already opened a connection keep using it until it closes",
-            "TTL is advisory — some resolvers and clients cache for longer than you ask",
+            "TTL is advisory, some resolvers and clients cache for longer than you ask",
           ],
           correctIndex: 3,
           explain:
@@ -102,7 +102,7 @@ export const foundations: Card[] = [
         body: [
           "A CDN puts copies of your content in data centres near your users.",
           "The round trips that dominate page load then take tens of milliseconds instead of hundreds. Nothing about your origin got faster. The distance got shorter.",
-          "Static assets are the easy part. The interesting work is caching HTML and API responses at the edge, which forces you to be deliberate about cache keys and invalidation — which are the two things that go wrong.",
+          "Static assets are the easy part. The interesting work is caching HTML and API responses at the edge, which forces you to be deliberate about cache keys and invalidation, which are the two things that go wrong.",
           "Modern edge platforms also run code at those locations, so personalisation and auth checks can happen near the user instead of at origin.",
         ],
         why: "A CDN is usually the highest-leverage performance change available, because it attacks latency instead of throughput. Adding servers makes a busy system faster; moving content closer makes a distant system faster.",
@@ -148,7 +148,7 @@ export const foundations: Card[] = [
           ],
           correctIndex: 0,
           explain:
-            "Big-O drops constants, and constants are exactly what decides it at small n. Insertion sort's near-zero overhead wins despite the worse asymptotic class. Its behaviour on nearly-sorted input is real and is what Timsort exploits, but that is not why quicksort hands off to it — the handoff happens on partitions of arbitrary order.",
+            "Big-O drops constants, and constants are exactly what decides it at small n. Insertion sort's near-zero overhead wins despite the worse asymptotic class. Its behaviour on nearly-sorted input is real and is what Timsort exploits, but that is not why quicksort hands off to it, the handoff happens on partitions of arbitrary order.",
         },
       },
       {
@@ -192,7 +192,7 @@ export const foundations: Card[] = [
           ],
           correctIndex: 1,
           explain:
-            "Disk reads dominate, so the goal is fewer levels. Packing many keys per node makes a lookup cost a handful of reads instead of one per level. Matching node size to the page is true and it is how fanout gets high in the first place — it is the mechanism, not the reason.",
+            "Disk reads dominate, so the goal is fewer levels. Packing many keys per node makes a lookup cost a handful of reads instead of one per level. Matching node size to the page is true and it is how fanout gets high in the first place, it is the mechanism, not the reason.",
         },
       },
       {
@@ -201,7 +201,7 @@ export const foundations: Card[] = [
         level: "advanced",
         body: [
           "A Bloom filter answers one question cheaply: is this item definitely absent, or possibly present. False positives happen. False negatives cannot.",
-          "That asymmetry is the whole point. Put one in front of an expensive lookup and everything definitely not there skips the lookup entirely, for a few bits per item — far less than storing the keys would cost.",
+          "That asymmetry is the whole point. Put one in front of an expensive lookup and everything definitely not there skips the lookup entirely, for a few bits per item, far less than storing the keys would cost.",
         ],
         why: "Useful precisely where a definite no is valuable and a maybe is cheap to verify. Storage engines use them to avoid reading files that cannot contain a key.",
         inPractice: "Cassandra and most LSM-tree storage engines keep a Bloom filter per data file to avoid pointless disk reads.",
@@ -243,7 +243,7 @@ export const foundations: Card[] = [
             "Row locks, which serialise the two writes so the second sees the first",
             "Atomicity, which is precisely the property the A in ACID is naming here",
             "The database detects the write-write conflict and aborts one transaction",
-            "Nothing at read committed — you need a higher isolation level, or a lock",
+            "Nothing at read committed, you need a higher isolation level, or a lock",
           ],
           correctIndex: 3,
           explain: "Read committed permits this because the value was read into the application and written back later. Note that a single UPDATE ... SET balance = balance - 60 would be safe: row locks serialise it. The gap between reading and writing is what creates the bug.",
@@ -301,7 +301,7 @@ export const foundations: Card[] = [
           "Document stores suit data read as a whole unit, with a shape that varies per record. Key-value stores suit lookups by a single known key at very high volume.",
           "The honest version is that most applications fit a relational model, and Postgres handles JSON well enough to cover the semi-structured parts.",
         ],
-        why: "'It scales better' is not a reason on its own — a managed Postgres handles more load than most products ever see. The reasons that hold up are access pattern and data shape.",
+        why: "'It scales better' is not a reason on its own, a managed Postgres handles more load than most products ever see. The reasons that hold up are access pattern and data shape.",
         check: {
           prompt: "Which is a sound reason to pick a document store over Postgres?",
           options: [
@@ -319,7 +319,7 @@ export const foundations: Card[] = [
         title: "Connection pooling",
         level: "advanced",
         body: [
-          "Each database connection costs memory and, in Postgres, an entire backend process. It struggles well before most people expect — often in the low hundreds.",
+          "Each database connection costs memory and, in Postgres, an entire backend process. It struggles well before most people expect, often in the low hundreds.",
           "Serverless makes this worse. Every instance opens its own connections, and instances scale with traffic, so connections multiply exactly when load is highest.",
           "A pooler sits in front and multiplexes many client connections onto a small number of real ones.",
           "Which pooling mode you pick decides how much that buys you. Session pooling holds a real connection for the client's whole session and helps very little. Transaction pooling hands it back at every commit and helps enormously, at the price of losing anything that outlives a transaction: prepared statements, session variables, advisory locks.",
@@ -354,7 +354,7 @@ export const foundations: Card[] = [
         level: "beginner",
         body: [
           "Processes have separate memory and are isolated. Threads share memory within a process, which makes communication cheap and data races possible. Async runs many tasks on one thread, switching whenever a task waits.",
-          "Async suits IO-bound work, where tasks spend most of their time waiting on network or disk. It does nothing for CPU-bound work, because there is no waiting to exploit — which is why a CPU-heavy function in Node.js or Python asyncio blocks everything else until it finishes.",
+          "Async suits IO-bound work, where tasks spend most of their time waiting on network or disk. It does nothing for CPU-bound work, because there is no waiting to exploit, which is why a CPU-heavy function in Node.js or Python asyncio blocks everything else until it finishes.",
         ],
         why: "Choosing async for CPU-bound work is a common and expensive mistake. The question is what the work waits on, not which model is modern.",
         check: {
@@ -412,7 +412,7 @@ export const foundations: Card[] = [
           ],
           correctIndex: 2,
           explain:
-            "A timeout is ambiguous by nature; the key lets the server tell a retry from a new request. PUT being idempotent is a statement about what the method promises, not about what your handler does — naming it PUT and charging the card twice breaks the promise instead of keeping it.",
+            "A timeout is ambiguous by nature; the key lets the server tell a retry from a new request. PUT being idempotent is a statement about what the method promises, not about what your handler does, naming it PUT and charging the card twice breaks the promise instead of keeping it.",
         },
       },
       {
@@ -421,7 +421,7 @@ export const foundations: Card[] = [
         level: "advanced",
         body: [
           "When a system accepts work faster than it can finish it, the backlog grows. Queues fill, memory climbs, latency climbs, and it fails at the worst possible moment.",
-          "Backpressure means refusing or slowing intake when downstream cannot keep up — bounded queues, load shedding, rejecting early. Failing fast under overload is better behaviour than accepting everything and then collapsing.",
+          "Backpressure means refusing or slowing intake when downstream cannot keep up, bounded queues, load shedding, rejecting early. Failing fast under overload is better behaviour than accepting everything and then collapsing.",
         ],
         why: "Unbounded queues look like resilience and are the opposite: they convert a visible, recoverable rejection into a hidden backlog that fails later and harder.",
         check: {

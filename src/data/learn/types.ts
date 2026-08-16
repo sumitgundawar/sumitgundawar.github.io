@@ -30,7 +30,7 @@ export interface DiagramEdge {
   from: string;
   to: string;
   label?: string;
-  /** Dashed means asynchronous — the caller does not wait. */
+  /** Dashed means asynchronous, the caller does not wait. */
   async?: boolean;
 }
 
@@ -48,7 +48,7 @@ export interface Topic {
   /** Two to four short paragraphs. Concrete over general. */
   body: string[];
   diagram?: Diagram;
-  /** The tradeoff. Why this and not the obvious alternative — the part
+  /** The tradeoff. Why this and not the obvious alternative, the part
    *  interviews actually probe, and the part most material leaves out. */
   why?: string;
   /** How a company at scale really does it, named. */

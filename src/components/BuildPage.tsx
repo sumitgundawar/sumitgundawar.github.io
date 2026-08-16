@@ -15,7 +15,7 @@ import type { Diagram } from "@/data/learn";
 /** Lay the recommended components out as a request flowing left to right.
  *
  *  Edges come from each component's declared dependencies. Deriving them from
- *  column position instead — which is what this did originally — produced
+ *  column position instead, which is what this did originally, produced
  *  confident nonsense: "CDN to authentication", "video pipeline to database",
  *  and no edge at all between the application server and the database. */
 function toDiagram(recs: Recommendation[]): Diagram {
@@ -47,7 +47,7 @@ function toDiagram(recs: Recommendation[]): Diagram {
   recs.forEach((r) => columns[order[r.kind] ?? 2].push(r));
 
   return {
-    caption: "Your architecture — hover any component for the reasoning",
+    caption: "Your architecture, hover any component for the reasoning",
     columns: columns
       .filter((c) => c.length)
       .map((col) => col.map((r) => ({ id: r.id, label: r.name, sub: r.pick, kind: r.kind }))),
@@ -215,7 +215,7 @@ export function BuildPage() {
                   className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]"
                   style={{ color: "var(--c-text-dim)" }}
                 >
-                  skip — assume a sensible default
+                  skip, assume a sensible default
                 </button>
               </div>
             </div>
@@ -254,7 +254,7 @@ export function BuildPage() {
 
             <p className="mt-8 text-[15px] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
               Anything marked add when needed is deliberately not part of the first build. Add it when you
-              have measured that you need it, not before — every component you skip is one you do not have
+              have measured that you need it, not before, every component you skip is one you do not have
               to operate, secure or pay for.
             </p>
           </div>

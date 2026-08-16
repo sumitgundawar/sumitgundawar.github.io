@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
  *
  * Previously nothing was kept at all: TopicView is mounted conditionally, so
  * collapsing a topic destroyed the answer. Answer a question, collapse it,
- * expand it again and your answer was gone — across a curriculum of 122 topics
+ * expand it again and your answer was gone, across a curriculum of 122 topics
  * that people would work through over weeks.
  *
  * localStorage rather than a backend, deliberately. There are no accounts here

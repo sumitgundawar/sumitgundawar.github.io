@@ -60,7 +60,7 @@ export function StatusPage() {
       <CornerNav />
       {/* The nav is fixed, so it is out of flow and lands on top of whatever is
           beneath it. It occupies y=12..56 on phones and y=20..64 from sm up,
-          while content began at 32px — so the CTAs sat over the status line on
+          while content began at 32px, so the CTAs sat over the status line on
           mobile and over the lead paragraph on desktop. Clear it explicitly.
           Below lg the nav spans most of the width and the whole page must start
           under it; at lg it is only top-right, so the left column is unaffected
@@ -292,7 +292,7 @@ function Work() {
         label="selected work"
         right={
           <button onClick={() => setOpen(true)} className="mono text-[12px] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
-            13+ shipped — view all ↗
+            13+ shipped, view all ↗
           </button>
         }
       />
@@ -302,7 +302,7 @@ function Work() {
             <div className="flex items-baseline gap-2.5 mb-2">
               {/* No health dot here. Every project carries health "ok", so six
                   identical green dots said nothing while breaking the one rule
-                  this palette has — colour means health, never decoration.
+                  this palette has, colour means health, never decoration.
                   Worth restoring the moment a project has a status worth
                   distinguishing. */}
               <span className="mono text-[12px] tnum" style={{ color: "var(--cool)" }}>{String(i + 1).padStart(2, "0")}</span>

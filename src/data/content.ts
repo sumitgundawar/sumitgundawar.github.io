@@ -11,7 +11,7 @@ export const identity = {
   email: "sumitgundawar3@gmail.com",
   status: "Open to roles",
   availability: "Open to software engineering and data roles, London or remote.",
-  bio: "Software and data engineer with dual Master's degrees (Distinction). Builds API platforms, integrations, and AI-enabled products in London's health-tech sector. Previously engineered enterprise data pipelines and forecasting systems contributing to $200M+ in revenue impact at PepsiCo and Hilton.",
+  bio: "Software and data engineer with dual Master's degrees (Distinction). Builds API platforms, integrations, and AI-enabled products in London's health-tech sector. Previously engineered enterprise data pipelines and forecasting systems contributing to approximately $60M in annual revenue impact at PepsiCo.",
   careerStart: "2019-06-01T00:00:00Z",
 };
 
@@ -33,7 +33,7 @@ export const timeline: TimelineRow[] = [
     label: "Now",
     title: "Software Engineer & Innovation Integration · By Dr Vali",
     line: "Builds public and admin REST APIs (Node.js/Express, OAuth, RBAC, rate limiting to 5,000 req/sec/IP) and webhook-driven integrations across Stripe, Magento, and Intercom with idempotency and retries. Led a full Magento rebuild and shipped 13+ products end to end, from schema design to on-call.",
-    dates: "May 2025 — present",
+    dates: "May 2025 to present",
     tags: ["Node.js", "Express", "TypeScript", "React", "Next.js", "MongoDB", "Redis", "Docker", "Stripe", "Magento"],
     health: "ok",
   },
@@ -42,7 +42,7 @@ export const timeline: TimelineRow[] = [
     label: "Previously",
     title: "Data Analyst · Enterprise Pipelines & ML · LatentView Analytics",
     line: "Architected event-driven distributed pipelines processing 25M+ weekly records with PySpark on Azure Databricks for PepsiCo's global supply chain; cut processing time 38% (13h → 8h). ML segmentation for Hilton delivered +26% retention and $10M annual uplift. Clients: PepsiCo, Hilton, Unilever.",
-    dates: "Jun 2021 — Jun 2023",
+    dates: "Jun 2021 to Jun 2023",
     tags: ["PySpark", "Azure Databricks", "Teradata", "Presto", "SQL Server", "Power BI"],
     health: "ok",
   },
@@ -60,17 +60,17 @@ export interface EduRow {
 export const education: EduRow[] = [
   {
     school: "University of East London",
-    degree: "MSc, Data Science — Distinction",
+    degree: "MSc, Data Science, Distinction",
     detail: "GPA 8.5/10. Thesis (Distinction): anomaly detection in stock-market data with deep learning on cloud platforms. Built an LLM response-evaluation framework for hallucination and safety testing. Access and Participation Board member.",
-    dates: "Sep 2023 — Sep 2024",
+    dates: "Sep 2023 to Sep 2024",
     place: "London, UK",
     tags: ["LLM evaluation", "Deep learning", "Cloud"],
   },
   {
     school: "Vellore Institute of Technology",
-    degree: "MCA, Computer Applications — IEEE Published",
+    degree: "MCA, Computer Applications, IEEE Published",
     detail: "GPA 9.26/10. IEEE paper: object detection via transfer learning on CIFAR-10, 96% accuracy. Merit Scholarship recipient.",
-    dates: "Jul 2019 — Jun 2021",
+    dates: "Jul 2019 to Jun 2021",
     place: "Tamil Nadu, India",
     tags: ["Deep learning", "Research"],
   },
@@ -78,7 +78,7 @@ export const education: EduRow[] = [
     school: "Savitribai Phule Pune University",
     degree: "BSc, Computer Science",
     detail: "Foundations in computer science.",
-    dates: "Jun 2016 — Apr 2019",
+    dates: "Jun 2016 to Apr 2019",
     place: "Maharashtra, India",
   },
 ];
@@ -128,7 +128,7 @@ export interface Kpi {
 }
 
 export const kpis: Kpi[] = [
-  { value: "$200M+", label: "revenue impact", note: "PepsiCo supply-chain forecasting" },
+  { value: "$60M", label: "revenue impact", note: "PepsiCo supply-chain forecasting" },
   { value: "25M+", label: "weekly records", note: "distributed data pipelines" },
   { value: "$10M", label: "revenue uplift", note: "+26% retention, Hilton" },
   { value: "13+", label: "products shipped", note: "as sole engineer" },
@@ -155,7 +155,7 @@ export const services: ServiceNode[] = [
   {
     id: "pepsico",
     name: "Enterprise Forecast Pipeline",
-    slo: "Event-driven distributed pipeline processing 25M+ weekly records for PepsiCo's global supply chain. Cut processing time 38% (13h → 8h); contributed to systems with $200M+ in enterprise revenue impact.",
+    slo: "Event-driven distributed pipeline processing 25M+ weekly records for PepsiCo's global supply chain. Cut processing time 38% (13h → 8h); contributed to systems with approximately $60M in annual revenue impact.",
     stack: ["PySpark", "Azure Databricks", "Teradata", "SQL Server"],
     health: "ok",
   },
@@ -211,7 +211,7 @@ export const allProducts: Product[] = [
   { name: "BDV Claude Marketplace", line: "Internal Claude Code plugin suite: podcast-scripting skills plus scheduled agents that email a weekly trend briefing.", org: "By Dr Vali" },
   { name: "UGC Tool", line: "Next.js application for user-generated content workflows.", org: "By Dr Vali" },
   { name: "Deck Links", line: "Next.js tool for shareable deck and link management.", org: "By Dr Vali" },
-  { name: "PepsiCo Demand Forecasting", line: "Store × product, eight-week-ahead model. 51% → 83% accuracy, £200M+ revenue impact.", org: "LatentView" },
+  { name: "PepsiCo Demand Forecasting", line: "Store × product, eight-week-ahead model. 72% forecast accuracy across 25M+ combinations.", org: "LatentView" },
   { name: "Warehouse Picker Accuracy", line: "Per-hour and per-day accuracy tracking across US operations. +13% accuracy.", org: "LatentView" },
 ];
 
@@ -441,7 +441,7 @@ export interface Recognition {
 
 export const recognition: Recognition[] = [
   {
-    role: "Judge",
+    role: "Presented two awards",
     org: "The AI Awards",
     when: "2026",
     url: "https://theaiawards.co.uk/",

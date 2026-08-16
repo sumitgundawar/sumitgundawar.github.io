@@ -13,7 +13,7 @@ export const practice: Card[] = [
         level: "beginner",
         body: [
           "Unit tests are fast, numerous, and isolate one piece of logic. Integration tests check that components work together. End-to-end tests drive the real system through its interface.",
-          "The pyramid says have many of the first and few of the last, because cost and flakiness both rise with scope. An inverted pyramid — mostly end-to-end — produces a suite that is slow, flaky, and eventually ignored by everyone.",
+          "The pyramid says have many of the first and few of the last, because cost and flakiness both rise with scope. An inverted pyramid, mostly end-to-end, produces a suite that is slow, flaky, and eventually ignored by everyone.",
         ],
         why: "The shape follows from feedback speed. A failing unit test names the broken function; a failing end-to-end test tells you something in the system is wrong, and you still have to find it.",
         check: {
@@ -36,7 +36,7 @@ export const practice: Card[] = [
           "Coverage measures which lines executed during tests. It says nothing about whether anything was asserted, or whether the assertions mean anything.",
           "A test that calls a function and checks nothing produces full coverage of that function and catches no regression whatever. Which is why mandating a coverage percentage reliably produces tests written to satisfy the number rather than to catch failures.",
         ],
-        why: "Coverage is useful as a discovery tool — finding untested areas — and harmful as a target, because it is trivially gameable and becomes the goal instead of correctness.",
+        why: "Coverage is useful as a discovery tool, finding untested areas, and harmful as a target, because it is trivially gameable and becomes the goal instead of correctness.",
         check: {
           prompt: "A module has 100% coverage and a regression ships. How?",
           options: [
@@ -77,7 +77,7 @@ export const practice: Card[] = [
   {
     id: "engineering-models",
     title: "How teams work",
-    summary: "Waterfall, agile, scrum, kanban — what each assumes and when it breaks.",
+    summary: "Waterfall, agile, scrum, kanban, what each assumes and when it breaks.",
     track: "practice",
     topics: [
       {
@@ -86,7 +86,7 @@ export const practice: Card[] = [
         level: "beginner",
         body: [
           "Waterfall runs in sequence: gather requirements, design, build, test, release. Each stage completes before the next begins, and the client sees the result at the end.",
-          "It works when requirements genuinely cannot change — regulated work, physical manufacturing, fixed-scope contracts — and where the cost of change late is enormous.",
+          "It works when requirements genuinely cannot change, regulated work, physical manufacturing, fixed-scope contracts, and where the cost of change late is enormous.",
           "It fails for software because requirements are discovered by using the thing, and waterfall defers that discovery to the point where change is most expensive.",
         ],
         why: "The cost-of-change curve is the whole argument. If change is cheap and information arrives during building, front-loading every decision is the wrong bet.",
@@ -178,15 +178,15 @@ export const practice: Card[] = [
         level: "intermediate",
         body: [
           "Coupling is how much modules depend on each other. Cohesion is how related the contents of one module are. The target is low coupling and high cohesion.",
-          "Tight coupling means a change in one place forces a change in another, and it is why some codebases resist every modification. Splitting by layer — all controllers together, all models together — usually produces low cohesion, because a single feature ends up spread across every folder you have.",
+          "Tight coupling means a change in one place forces a change in another, and it is why some codebases resist every modification. Splitting by layer, all controllers together, all models together, usually produces low cohesion, because a single feature ends up spread across every folder you have.",
         ],
         why: "Organising by feature rather than by technical layer usually raises cohesion: everything that changes together lives together, so a change touches one directory.",
         check: {
           prompt: "Adding a field means editing six files across six folders. What is the likely problem?",
           options: [
             "Too much indirection, so one concept is spread over several abstractions",
-            "Missing abstraction — the six files should share a single definition",
-            "Low cohesion — the code is organised by technical layer, not by feature",
+            "Missing abstraction, the six files should share a single definition",
+            "Low cohesion, the code is organised by technical layer, not by feature",
             "The field belongs in a shared type that each layer should import",
           ],
           correctIndex: 2,

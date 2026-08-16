@@ -15,7 +15,7 @@ export const delivery: Card[] = [
           "A container packages your application with its dependencies and a filesystem, sharing the host kernel. It starts in milliseconds because there is no operating system to boot.",
           "The problem it solves is environment drift: the same image runs identically on a laptop, in CI and in production, because the image is the environment. A virtual machine gives stronger isolation by running its own kernel, at the cost of size and of startup time.",
         ],
-        why: "Containers are about reproducibility first and density second. If your deployment already produces an identical artefact — a single Go binary, a Lambda zip — the reproducibility argument is weaker and containers buy you less.",
+        why: "Containers are about reproducibility first and density second. If your deployment already produces an identical artefact, a single Go binary, a Lambda zip, the reproducibility argument is weaker and containers buy you less.",
         check: {
           prompt: "Why does a container start far faster than a VM?",
           options: [
@@ -33,12 +33,12 @@ export const delivery: Card[] = [
         title: "Docker or Kubernetes, and why",
         level: "intermediate",
         body: [
-          "Docker builds and runs containers. Kubernetes schedules them across many machines — restarting failures, rolling out new versions, scaling on demand, routing traffic to healthy instances.",
+          "Docker builds and runs containers. Kubernetes schedules them across many machines, restarting failures, rolling out new versions, scaling on demand, routing traffic to healthy instances.",
           "They are not alternatives. The real question is whether you need an orchestrator at all, and for most products the honest answer is no.",
           "Kubernetes brings genuine operational weight: networking, ingress, RBAC, upgrades, and a large surface to secure and to debug.",
-          "The middle option is the one people skip. A managed container platform — Cloud Run, ECS Fargate, App Runner — takes your image and runs it with autoscaling and rollouts while handing you almost none of the cluster. That covers a great many systems that reached for Kubernetes instead.",
+          "The middle option is the one people skip. A managed container platform, Cloud Run, ECS Fargate, App Runner, takes your image and runs it with autoscaling and rollouts while handing you almost none of the cluster. That covers a great many systems that reached for Kubernetes instead.",
         ],
-        why: "Reach for Kubernetes when you have many services with different scaling profiles, need bin-packing across a fleet, or are standardising across teams. For a handful of services, a managed container platform — ECS Fargate, Cloud Run, App Runner — gives most of the benefit with a fraction of the operational cost. Choosing Kubernetes for one service is buying a scheduling problem you did not have.",
+        why: "Reach for Kubernetes when you have many services with different scaling profiles, need bin-packing across a fleet, or are standardising across teams. For a handful of services, a managed container platform, ECS Fargate, Cloud Run, App Runner, gives most of the benefit with a fraction of the operational cost. Choosing Kubernetes for one service is buying a scheduling problem you did not have.",
         diagram: {
           caption: "Same container image, three levels of orchestration",
           columns: [
@@ -66,7 +66,7 @@ export const delivery: Card[] = [
         check: {
           prompt: "You run three services with modest, similar traffic. What is the strongest argument against Kubernetes?",
           options: [
-            "The operational surface — upgrades, networking, RBAC — costs more than it saves",
+            "The operational surface, upgrades, networking, RBAC, costs more than it saves",
             "Three services cannot fill a node, so you pay for capacity that sits idle",
             "The control plane needs more resources than the three services do",
             "Autoscaling cannot help when traffic is modest and steady all day",
@@ -111,7 +111,7 @@ export const delivery: Card[] = [
         title: "What a pipeline should do",
         level: "beginner",
         body: [
-          "Continuous integration runs the checks — build, tests, lint, type check — on every change, so breakage surfaces in minutes, not at release. Continuous delivery keeps every passing commit deployable; continuous deployment goes further and ships it automatically.",
+          "Continuous integration runs the checks, build, tests, lint, type check, on every change, so breakage surfaces in minutes, not at release. Continuous delivery keeps every passing commit deployable; continuous deployment goes further and ships it automatically.",
           "The value is proportional to speed. A pipeline taking forty minutes has stopped being feedback and become something people work around.",
         ],
         why: "Pipeline duration is a product decision, not an infrastructure detail. Past roughly ten minutes people stop waiting, start batching changes, and the benefit of small deploys disappears.",
@@ -124,7 +124,7 @@ export const delivery: Card[] = [
             "Feedback lands after the author has moved on, costing a context switch",
           ],
           correctIndex: 1,
-          explain: "Slow feedback changes behaviour. Batching produces large, hard-to-debug releases — the opposite of what CI is for.",
+          explain: "Slow feedback changes behaviour. Batching produces large, hard-to-debug releases, the opposite of what CI is for.",
         },
       },
       {
@@ -146,7 +146,7 @@ export const delivery: Card[] = [
             "The new and old versions must interoperate, since both serve traffic at once",
           ],
           correctIndex: 3,
-          explain: "A rolling deploy is a period of mixed versions. Any change that breaks compatibility — a removed API field, an incompatible migration — breaks during the roll.",
+          explain: "A rolling deploy is a period of mixed versions. Any change that breaks compatibility, a removed API field, an incompatible migration, breaks during the roll.",
         },
       },
       {
@@ -177,7 +177,7 @@ export const delivery: Card[] = [
         title: "Feature flags",
         level: "intermediate",
         body: [
-          "A flag separates deploying code from releasing behaviour. Code ships dark, is enabled for a cohort, then for everyone — which turns a rollback into a configuration change, not a redeploy, and that is a great deal faster during an incident.",
+          "A flag separates deploying code from releasing behaviour. Code ships dark, is enabled for a cohort, then for everyone, which turns a rollback into a configuration change, not a redeploy, and that is a great deal faster during an incident.",
           "Flags accumulate. Every one is a branch in the code, and stale flags become permanent complexity, so removing them has to be part of the process, not something everyone means to get to.",
         ],
         why: "Flags are how you deploy on Friday safely. The discipline that makes them work is deleting them: a codebase with two hundred live flags has an untestable number of behaviour combinations.",
@@ -229,7 +229,7 @@ export const delivery: Card[] = [
         level: "intermediate",
         body: [
           "Ten thousand visitors a month is roughly four requests a minute at peak. A single small server, or a static site on a CDN, handles that without noticing. Multi-region clusters, autoscaling groups and service meshes answer problems that begin several orders of magnitude higher.",
-          "Over-engineering costs money, and the larger cost is complexity — more moving parts to operate, debug and secure, while the product is still unproven.",
+          "Over-engineering costs money, and the larger cost is complexity, more moving parts to operate, debug and secure, while the product is still unproven.",
         ],
         why: "The right architecture for an unvalidated product is the one you can change quickly. Premature scale locks in decisions before you know the access patterns, and those are the expensive ones to reverse.",
         diagram: {
@@ -266,7 +266,7 @@ export const delivery: Card[] = [
             "Around 240 requests a minute, which still fits on a single instance",
             "Enough that a load balancer and two instances are the sensible floor",
             "Little in aggregate, though the peaks will still need autoscaling",
-            "Roughly four requests a minute at peak — one small server is ample",
+            "Roughly four requests a minute at peak, one small server is ample",
           ],
           correctIndex: 3,
           explain: "Convert to requests per second before choosing anything. The number is tiny, and the architecture should reflect that.",

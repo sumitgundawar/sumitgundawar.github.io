@@ -67,7 +67,7 @@ export function findProblems(): Problem[] {
 /* The length tell.
  *
  * Writing a question, the correct answer is the one you have the most to say
- * about, so it comes out longest — and every distractor is a throwaway you
+ * about, so it comes out longest, and every distractor is a throwaway you
  * spent no time on. Done across a whole quiz bank it becomes a free answer key:
  * at one point 115 of 122 correct answers were the longest option, 104 of them
  * by more than 25 characters. You could score 94% having read none of it.
@@ -100,7 +100,7 @@ export function findAnswerTells(): Problem[] {
 
       const spread = Math.max(...lens) - Math.min(...lens);
       if (spread > MAX_SPREAD) {
-        tells.push({ where, what: `option length spread ${spread} — some distractors are throwaways` });
+        tells.push({ where, what: `option length spread ${spread}, some distractors are throwaways` });
       }
     }
   }
@@ -111,8 +111,7 @@ export function findAnswerTells(): Problem[] {
  *
  * Every one of the 122 topics used to have exactly three paragraphs, with a
  * body-length standard deviation of 9.7 words. Nothing was wrong with any
- * individual topic; read four in a row and the rhythm gives the game away —
- * what it is, the complication, a short closing generalisation, every time.
+ * individual topic; read four in a row and the rhythm gives the game away, * what it is, the complication, a short closing generalisation, every time.
  *
  * This does not check individual topics, because no individual topic is the
  * problem. It checks the shape of the whole corpus: if any one paragraph count
@@ -133,7 +132,7 @@ export function findUniformity(): Problem[] {
     if (n / total > MAX_SHARE) {
       out.push({
         where: "corpus",
-        what: `${Math.round((n / total) * 100)}% of topics have ${paras} paragraphs — the template is showing`,
+        what: `${Math.round((n / total) * 100)}% of topics have ${paras} paragraphs, the template is showing`,
       });
     }
   }

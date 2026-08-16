@@ -4,8 +4,7 @@ import { StatusPage } from "@/components/StatusPage";
 import { useAnalyticsPageview } from "@/lib/hooks";
 
 /* The profile page is the entry point and stays in the main bundle. The two
-   learning pages carry the entire curriculum — around 200kB of source data —
-   which someone landing here and leaving should never download. */
+   learning pages carry the entire curriculum, around 200kB of source data, which someone landing here and leaving should never download. */
 const LearnPage = lazy(() =>
   import("@/components/LearnPage").then((m) => ({ default: m.LearnPage })),
 );

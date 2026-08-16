@@ -45,9 +45,21 @@ function servePages(port, dist = "dist") {
     if (existsSync(file) && statSync(file).isDirectory()) file = join(file, "index.html");
 
     if (!existsSync(file)) {
+      /* Cloudflare Pages serves index.html with a 200 for unknown paths, via
+         the _redirects rewrite. It only falls back to 404.html when one exists,
+         which is why that file was removed: its presence overrides the rewrite.
+
+         This emulator still read it and crashed the handler once it was gone,
+         which failed six checks and sent me looking for a bug in a component
+         that was fine. Mirror what Pages actually does now. */
       const notFound = join(dist, "404.html");
-      res.writeHead(404, { "Content-Type": "text/html" });
-      res.end(existsSync(notFound) ? readFileSync(notFound) : "not found");
+      if (existsSync(notFound)) {
+        res.writeHead(404, { "Content-Type": "text/html" });
+        res.end(readFileSync(notFound));
+      } else {
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(readFileSync(join(dist, "index.html")));
+      }
       return;
     }
     res.writeHead(200, { "Content-Type": TYPES[extname(file)] || "application/octet-stream" });

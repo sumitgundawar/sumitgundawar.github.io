@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FlowDiagram } from "./FlowDiagram";
+import { DiagramViews } from "./DiagramViews";
 import { track } from "@/lib/track";
 import { useProgress, summarise, type Progress } from "@/lib/progress";
 import {
@@ -99,7 +100,7 @@ function TopicView({
         ))}
       </div>
 
-      {topic.diagram && <FlowDiagram diagram={topic.diagram} id={`${cardId}-${topic.id}`} />}
+      {topic.diagram && <DiagramViews diagram={topic.diagram} id={`${cardId}-${topic.id}`} />}
 
       {topic.why && (
         <div

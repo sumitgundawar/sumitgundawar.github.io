@@ -19,6 +19,8 @@ export const design2: Card[] = [
           "The value is that everything already understands it, caches, proxies, browsers and load balancers all act correctly on a GET without being told anything about your application. Most APIs called RESTful are really HTTP-with-JSON, which is fine; the parts worth keeping are correct verbs, correct status codes, and cacheable GETs.",
         ],
         why: "Sticking to standard verbs and codes is not pedantry: it is what lets a CDN cache your GET, a proxy retry safely, and a client library behave sensibly without custom logic.",
+        inPractice:
+          "Stripe's API is the usual reference: correct verbs, correct status codes, and an idempotency key on every mutating call. The parts that make it pleasant are the boring conventions, not anything novel.",
         check: {
           prompt: "Why does using POST for a read-only search endpoint cost you something?",
           options: [
@@ -41,6 +43,8 @@ export const design2: Card[] = [
           "It moves the complexity to the server. Arbitrary client queries can be arbitrarily expensive, so you need depth limits, cost analysis and dataloader batching to avoid N+1 database calls, and HTTP caching largely stops working, because every query is a POST to a single endpoint.",
         ],
         why: "GraphQL earns its keep with many clients that need different shapes of the same data, a mobile app and a web app, say. For a single first-party client it is usually complexity without payoff.",
+        inPractice:
+          "GitHub's GraphQL API charges a computed cost per query against an hourly budget, rather than counting requests. That is the practical answer to arbitrary client queries: price them instead of forbidding them.",
         check: {
           prompt: "What is the main operational cost of adopting GraphQL?",
           options: [
@@ -63,6 +67,8 @@ export const design2: Card[] = [
           "It is markedly faster and smaller on the wire than JSON, and the schema makes breaking changes visible at build time. It is also awkward from a browser without a proxy, and much harder to debug by hand, because you cannot read it.",
         ],
         why: "The usual split is gRPC between your own services, where performance and schemas matter, and REST or GraphQL at the public edge, where reach and debuggability matter more.",
+        inPractice:
+          "Google runs gRPC internally at very large scale and exposes REST and JSON at the public edge. The split is the recommendation, and it is theirs.",
         check: {
           prompt: "Where does gRPC typically fit best?",
           options: [
@@ -168,6 +174,8 @@ export const design2: Card[] = [
           "Without that telemetry every version is maintained forever, because nobody can prove it is safe to remove. Measuring per-version usage is what turns deprecation into a decision rather than a hope.",
         ],
         why: "Most teams version and then never remove anything, so every version is maintained forever. Measuring usage per version is what makes deprecation possible at all.",
+        inPractice:
+          "Stripe pins each account to the API version current when it first integrated, and runs request and response transforms between versions. It is expensive to maintain and it means they have never broken an existing integration.",
         check: {
           prompt: "Which is a backwards-compatible API change?",
           options: [

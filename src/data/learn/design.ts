@@ -17,6 +17,8 @@ export const design: Card[] = [
           "Write-behind: writes go to cache and are flushed to the database later. Fastest writes, and a crash between the two loses data.",
         ],
         why: "Cache-aside wins by default because the failure mode is mild, a miss costs a database read. Write-behind trades durability for speed, which is only acceptable when the data is genuinely disposable.",
+        inPractice:
+          "Facebook's memcached deployment is cache-aside: the application reads the cache, misses, reads MySQL, and populates. Their 2013 paper is largely about the failure modes that shape causes, in particular the thundering herd on a hot key after invalidation.",
         check: {
           prompt: "Which strategy risks losing committed writes if the cache node dies?",
           options: ["Cache-aside", "Write-through", "Write-behind", "Read-through"],
@@ -73,6 +75,8 @@ export const design: Card[] = [
           "A hot key is one entry so popular that a single Redis node becomes the bottleneck. Replicate it across nodes or add a small local in-process cache in front.",
         ],
         why: "These are the failures that only appear under real traffic, which is why they are asked about. All three are caused by synchronised behaviour, and all three are fixed by deliberately desynchronising it.",
+        inPractice:
+          "Facebook's answer to the stampede is a lease: on a miss, one client gets a token and permission to recompute while everyone else waits or serves stale. It is the same shape as a short lock, expressed as a token the cache hands out.",
         check: {
           prompt: "Every hour, database load spikes hard for a few seconds. Caches were warmed at deploy with the same TTL. What is happening?",
           options: [
@@ -94,6 +98,8 @@ export const design: Card[] = [
           "Data that changes on nearly every read gains nothing, you pay the write cost and still miss, and per-user data with no reuse usually lands there too. Anything where stale means wrong, such as permissions or balances, should be read from the source, or cached with very tight bounds and explicit invalidation.",
         ],
         why: "The honest question is not what to cache but what staleness is acceptable for. If the answer is none, caching is the wrong tool and the fix is a faster query or a better index.",
+        inPractice:
+          "AWS IAM is eventually consistent by design and says so: a policy change may take seconds to propagate globally. That is the honest version of caching permissions, with the staleness written into the contract rather than hidden.",
         check: {
           prompt: "Which is the weakest candidate for caching?",
           options: [
@@ -198,6 +204,8 @@ export const design: Card[] = [
           "The cost is that the system is now eventually consistent, and you owe the user a way to see the outcome.",
         ],
         why: "Adding a queue converts a latency problem into a state problem. That is usually a good trade for email, image processing or reports, and a bad one for anything the user is waiting to see.",
+        inPractice:
+          "Stripe's API returns a charge in a pending state and sends the final outcome by webhook, so the response means accepted rather than settled. The interface is honest about the difference, which is the part that makes asynchrony tolerable.",
         check: {
           prompt: "You move a piece of work behind a queue. What does the caller lose the moment it receives its response?",
           options: [
@@ -334,6 +342,8 @@ export const design: Card[] = [
             }
           ]
         },
+        inPractice:
+          "Kafka guarantees order within a partition and nothing across partitions, which is why keying by entity id is the standard practice rather than a trick. LinkedIn built it that way for exactly this reason.",
         check: {
           prompt: "Events for one user arrive out of order across partitions. Best fix?",
           options: [
@@ -413,6 +423,8 @@ export const design: Card[] = [
             }
           ]
         },
+        inPractice:
+          "AWS SQS has a redrive policy: set a maximum receive count and the message moves to a dead letter queue automatically, with a redrive action to send them back once the bug is fixed. The replay path is the part worth copying.",
         check: {
           prompt: "Why add jitter to exponential backoff?",
           options: [
@@ -502,6 +514,8 @@ export const design: Card[] = [
             }
           ]
         },
+        inPractice:
+          "GitHub's 2018 incident report describes a network partition that left replicas behind the primary, and the decision to serve stale data rather than fail. The write-up is a good account of what read-your-own-writes costs when it is not designed in.",
         check: {
           prompt: "A user updates their profile and immediately sees the old version. Cause?",
           options: [
@@ -525,6 +539,8 @@ export const design: Card[] = [
           "Resharding later means moving live data while still serving traffic from it. That is why the honest order is replicas, caching, better indexes and a bigger machine first, all of which are reversible, and none of which this is.",
         ],
         why: "Shard last. Read replicas, caching, better indexes and a bigger instance all come first, because they are reversible. Sharding changes your data model permanently.",
+        inPractice:
+          "Notion sharded Postgres by workspace in 2021 and wrote it up honestly: the migration took months, the key was chosen because almost every query is scoped to one workspace, and resharding later was the part they most wanted to avoid.",
         check: {
           prompt: "Which shard key most likely creates a hotspot for a global consumer app?",
           options: ["Hash of user id", "Country", "Random UUID", "Hash of account id"],
@@ -542,6 +558,8 @@ export const design: Card[] = [
           "It is rarely uniform within one company. A core ledger chooses consistency and refuses; the ATM in the lobby chooses availability, dispenses anyway, and reconciles later with an overdraft fee, which is Brewer's own illustration of the trade.",
         ],
         why: "'We chose AP' is meaningless without saying what happens to conflicting writes afterwards. The interesting engineering is the reconciliation, not the letter.",
+        inPractice:
+          "DynamoDB lets you choose per read: eventually consistent by default, strongly consistent on request at twice the cost and higher latency. The tradeoff is a parameter rather than a property of the system.",
         check: {
           prompt: "During a partition, your system keeps accepting writes on both sides. What must you also design?",
           options: [
@@ -564,6 +582,8 @@ export const design: Card[] = [
           "The engineering work is mostly in the interface: show the pending state, use optimistic updates, and do not pretend an action is complete when it is merely queued. Read-your-own-writes is the guarantee users actually care about, and it is far cheaper than full consistency.",
         ],
         why: "Most consistency complaints are interface problems, not database problems. Showing 'processing' honestly costs nothing and removes the perception of a bug.",
+        inPractice:
+          "Amazon's shopping basket resolves conflicting writes by taking the union, so a partition can lose a removal but never a purchase. Dynamo's paper is explicit that this is a business decision expressed as a merge rule.",
         check: {
           prompt: "Cheapest way to stop eventual consistency feeling broken to users?",
           options: [
@@ -648,6 +668,8 @@ export const design: Card[] = [
             }
           ]
         },
+        inPractice:
+          "GitHub's REST API returns X-RateLimit-Remaining and X-RateLimit-Reset on every response, so a client can pace itself rather than discover the limit by hitting it. Stripe does the same and documents the retry behaviour it expects.",
         check: {
           prompt: "With a fixed window of 100 requests per minute, how many can a client send in a two-second span?",
           options: [
@@ -728,6 +750,8 @@ export const design: Card[] = [
             }
           ]
         },
+        inPractice:
+          "Netflix built Hystrix for this and then retired it, having concluded that adaptive concurrency limits beat hand-tuned thresholds. The lesson people take from Hystrix is the pattern; the lesson Netflix took is that the numbers should not be constants.",
         check: {
           prompt: "A downstream service slows to 30s per call. Your service becomes unavailable too. What prevents this?",
           options: [

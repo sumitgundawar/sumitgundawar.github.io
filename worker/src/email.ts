@@ -165,7 +165,7 @@ export function renderReportEmail(d: ReportData): string {
 
     <tr><td style="padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
       <div style="border-top:1px solid ${LINE};padding-top:14px;font-size:12px;color:${DIM};">
-        First-party data from the site itself. No cookies, no third party, no personal data stored.
+        Measured by the site itself. No personal data stored, and no third party involved in these numbers.
       </div>
     </td></tr>
 

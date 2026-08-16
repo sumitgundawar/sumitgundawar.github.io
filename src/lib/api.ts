@@ -11,9 +11,12 @@ const API = "https://site-agent-relay.sumitgundawar3.workers.dev";
 const SESSION_KEY = "sg-session-v1";
 
 /* A random id, minted once and kept. Enough to count returning readers and
-   follow a path through the site; not enough to identify anyone, which is what
-   keeps this clear of the consent banner that the Google Analytics cookies
-   would otherwise require. */
+   follow a path through the site; not enough to identify anyone.
+   
+   Note this is only true of this analytics path. Google Analytics is still
+   loaded in index.html and sets its own cookies, which under UK PECR does need
+   consent. Removing GA would make the whole site's claim honest, and everything
+   the weekly report uses already comes from here rather than from GA. */
 export function sessionKey(): string {
   if (typeof window === "undefined") return "";
   try {

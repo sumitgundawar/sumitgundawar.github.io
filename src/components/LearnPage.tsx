@@ -2,8 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FlowDiagram } from "./FlowDiagram";
 import { DiagramViews } from "./DiagramViews";
+import { AskBox } from "./AskBox";
+import { trackQuiz } from "@/lib/api";
 import { track } from "@/lib/track";
 import { useProgress, summarise, type Progress } from "@/lib/progress";
+import { usePageDwell } from "@/lib/hooks";
 import {
   cards,
   cardsForLevel,
@@ -88,6 +91,10 @@ function TopicView({
       level: topic.level,
       correct: i === shuffled.correctIndex,
     });
+    /* First-party too. GA tells you a quiz was answered; this records which
+       option was chosen, which is the part that says whether a distractor is
+       working or whether an explanation is not. */
+    trackQuiz(topic.id, i, i === shuffled.correctIndex);
   };
 
   return (
@@ -175,6 +182,10 @@ function TopicView({
           </p>
         )}
       </div>
+
+      {/* After the check, not before: the question is worth attempting before
+          the assistant is on hand to answer it for you. */}
+      <AskBox topicId={topic.id} topicText={[topic.title, ...topic.body, topic.why ?? ""].join("\n\n")} />
     </div>
   );
 }
@@ -280,6 +291,8 @@ export function LearnPage() {
     else next.set("level", l);
     setParams(next, { replace: true });
   };
+
+  usePageDwell(cardId ? `/learn/${cardId}` : "/learn", cardId);
 
   const openCard = cardId ?? null;
   const setOpenCard = (id: string | null) =>

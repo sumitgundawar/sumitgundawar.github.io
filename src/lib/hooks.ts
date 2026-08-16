@@ -1,3 +1,4 @@
+import { trackView } from "./api";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -70,4 +71,32 @@ export function useNow(interval = 1000): number {
     return () => window.clearInterval(id);
   }, [interval]);
   return now;
+}
+
+
+/* Page views with dwell, sent once per route change and once on the way out.
+ *
+ * Dwell is the number that makes views interpretable: a topic with many views
+ * and three seconds of dwell was mis-sold by its title, and one with few views
+ * and two minutes is buried. It is sent with keepalive so closing the tab, the
+ * commonest way to end a visit, still reports it. visibilitychange rather than
+ * unload, because unload has not been reliable on mobile Safari for years. */
+export function usePageDwell(path: string, topicId?: string): void {
+  useEffect(() => {
+    const started = Date.now();
+    let sent = false;
+    const send = () => {
+      if (sent) return;
+      sent = true;
+      trackView(path, topicId, Date.now() - started);
+    };
+    const onHide = () => {
+      if (document.visibilityState === "hidden") send();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      send(); // route change counts as leaving the page
+    };
+  }, [path, topicId]);
 }

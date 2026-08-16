@@ -12,7 +12,7 @@
  * Regenerate with `npx wrangler types` after changing bindings in
  * wrangler.jsonc — do not extend this by hand.
  */
-import { handleApi, postWeekly, type ApiEnv } from "./api";
+import { handleApi, handleReportPreview, postWeekly, type ApiEnv } from "./api";
 
 interface Env extends ApiEnv {
   // secrets, set with `wrangler secret put`
@@ -122,6 +122,8 @@ export default {
          One deployment, one set of secrets, and the NVIDIA and Supabase
          credentials stay in exactly one place. Handled before the Slack path
          because that path assumes every POST is a Slack event. */
+      const preview = await handleReportPreview(request, env);
+      if (preview) return preview;
       const api = await handleApi(request, env, ctx);
       if (api) return api;
 

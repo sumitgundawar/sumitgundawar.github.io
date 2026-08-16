@@ -20,7 +20,7 @@ const SUGGESTIONS = [
   "How would this fail in production?",
 ];
 
-export function AskBox({ topicId, topicText }: { topicId: string; topicText: string }) {
+export function AskBox({ topicId }: { topicId: string }) {
   const [q, setQ] = useState("");
   const [thread, setThread] = useState<{ q: string; a: string }[]>([]);
   const [busy, setBusy] = useState(false);
@@ -35,7 +35,7 @@ export function AskBox({ topicId, topicText }: { topicId: string; topicText: str
     setQ("");
     trackClick("ask_question", { topic: topicId });
     try {
-      const a = await ask(text, topicId, topicText);
+      const a = await ask(text, topicId);
       setThread((t) => [...t, { q: text, a }]);
     } catch (err) {
       // The chain has already tried every model that answers. If it got here

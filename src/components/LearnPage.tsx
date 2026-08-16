@@ -185,7 +185,7 @@ function TopicView({
 
       {/* After the check, not before: the question is worth attempting before
           the assistant is on hand to answer it for you. */}
-      <AskBox topicId={topic.id} topicText={[topic.title, ...topic.body, topic.why ?? ""].join("\n\n")} />
+      <AskBox topicId={topic.id} />
     </div>
   );
 }

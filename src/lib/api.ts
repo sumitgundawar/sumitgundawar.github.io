@@ -67,8 +67,12 @@ export async function loadProgress(): Promise<Record<string, boolean> | null> {
   }
 }
 
-export async function ask(question: string, topicId?: string, topicText?: string): Promise<string> {
-  const res = await post("/api/ask", { question, topicId, topicText });
+/* topicText is deliberately not sent. The server looks the topic up by id from
+   its own copy of the material: a client-supplied body went into the system
+   prompt, which made every guardrail negotiable by the caller and made the
+   answer cache poisonable. */
+export async function ask(question: string, topicId?: string): Promise<string> {
+  const res = await post("/api/ask", { question, topicId });
   if (!res) throw new Error("offline");
   if (res.status === 429) throw new Error("Too many questions at once. Give it a moment.");
   if (!res.ok) throw new Error("The assistant is unavailable right now.");

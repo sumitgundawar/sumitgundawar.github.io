@@ -15,6 +15,11 @@
   "vars": {
     "GITHUB_REPO": "sumitgundawar/sumitgundawar.github.io",
     "SLACK_CHANNEL_ID": "C0BPGE51GTX",
-    "SLACK_ALLOWED_USER_ID": "U0BPJ0ULVDL"
-  }
+    "SLACK_ALLOWED_USER_ID": "U0BPJ0ULVDL",
+    "SITE_ORIGIN": "https://sumitgundawar.com",
+    "SUPABASE_URL": "https://jkshqtamzuzmpqftnqhv.supabase.co"
+  },
+
+  // Weekly analytics digest to Slack. Monday morning, UTC.
+  "triggers": { "crons": ["0 9 * * 1"] }
 }

@@ -12,8 +12,10 @@
  * Regenerate with `npx wrangler types` after changing bindings in
  * wrangler.jsonc — do not extend this by hand.
  */
-interface Env {
-  // secrets — set with `wrangler secret put`
+import { handleApi, postWeekly, type ApiEnv } from "./api";
+
+interface Env extends ApiEnv {
+  // secrets, set with `wrangler secret put`
   SLACK_SIGNING_SECRET: string;
   GITHUB_TOKEN: string;
   // vars — set in wrangler.jsonc
@@ -116,6 +118,13 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     try {
+      /* The site's own API shares this Worker rather than getting its own.
+         One deployment, one set of secrets, and the NVIDIA and Supabase
+         credentials stay in exactly one place. Handled before the Slack path
+         because that path assumes every POST is a Slack event. */
+      const api = await handleApi(request, env, ctx);
+      if (api) return api;
+
       if (request.method !== "POST") {
         return new Response("site-agent relay: ok", { status: 200 });
       }

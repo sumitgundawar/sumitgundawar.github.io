@@ -1,0 +1,18 @@
+# Hashed asset filenames change whenever their contents change, so they can be
+# cached permanently. This is the single biggest win available on a static site
+# and GitHub Pages does not let you set it.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML must not be cached hard, or a deploy takes a day to reach anyone.
+# stale-while-revalidate serves the old copy instantly and refreshes behind it.
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), interest-cohort=()

@@ -388,27 +388,35 @@ function Podcasts() {
     <Reveal className="mt-16">
       <div id="podcast" style={{ scrollMarginTop: 24 }}>
         <SectionHead label="podcast" />
-        <div>
-          {podcasts.map((p, i) => (
+        {/* Same card treatment as speaking and recognition: a hairline grid with
+            each entry on its own panel. Podcasts were a plain stacked list, which
+            read as less substantial than the talks despite being the same kind of
+            thing. */}
+        <div
+          className="grid sm:grid-cols-2 gap-px"
+          style={{ background: "var(--hair)", border: "1px solid var(--hair)" }}
+        >
+          {podcasts.map((p) => (
             <a
               key={p.id}
               href={p.url}
               target="_blank"
               rel="noreferrer"
               onClick={() => trackClick("podcast_click", { title: p.title, show: p.show })}
-              className={`block py-6 group ${i === 0 ? "" : "border-t border-hair"}`}
+              className="p-6 block group min-w-0"
+              style={{ background: "var(--surface)" }}
             >
-              <div className="flex items-baseline justify-between gap-4 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
-                <span className="uppercase tracking-[0.07em]">{p.show}</span>
-                <span className="tnum shrink-0">{p.when}</span>
+              <div className="flex items-baseline justify-between gap-3 mono text-[12px]" style={{ color: "var(--c-text-dim)" }}>
+                <span className="uppercase tracking-[0.07em] min-w-0 truncate">{p.show}</span>
+                <span className="tnum shrink-0" style={{ color: "var(--cool)" }}>{p.when}</span>
               </div>
               <h3
-                className="serif mt-2 leading-snug link-underline inline"
+                className="mt-3 leading-snug link-underline inline font-medium tracking-[-0.01em]"
                 style={{ fontSize: "19px", color: "var(--c-text)" }}
               >
-                {p.title}
+                {p.title} ↗
               </h3>
-              <p className="text-[15px] mt-2.5 leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+              <p className="text-[15px] mt-2.5 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
                 {p.summary}
               </p>
             </a>

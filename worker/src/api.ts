@@ -451,8 +451,8 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
           // interface. Without it, the only way out is the spam button, and a
           // spam complaint costs a new sender far more than an unsubscribe.
           headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
-          text: `You are on the list for occasional writing from ${site}. No more than once a month.\n\nIf this was not you, unsubscribe here and you will not be emailed again: ${unsub}`,
-          html: `<p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;color:#111827;">You are on the list for occasional writing from ${site}, on building systems that survive production. No more than once a month.</p>
+          text: `You are on the list for occasional writing from ${site}.\n\nIf this was not you, unsubscribe here and you will not be emailed again: ${unsub}`,
+          html: `<p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;color:#111827;">You are on the list for occasional writing from ${site}, on building systems that survive production.</p>
 <p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;">If this was not you, <a href="${unsub}" style="color:#0f766e;">unsubscribe</a> and you will not be emailed again.</p>`,
         }),
       });

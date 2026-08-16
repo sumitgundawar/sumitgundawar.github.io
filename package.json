@@ -9,7 +9,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "shots": "node scripts/shots.mjs",
-    "routes": "node scripts/route-check.mjs"
+    "routes": "node scripts/route-check.mjs",
+    "deploy:pages": "npm run build && rm -f dist/404.html && wrangler pages deploy dist --project-name sumitgundawar --branch main"
   },
   "dependencies": {
     "@fontsource-variable/mona-sans": "^5.2.8",

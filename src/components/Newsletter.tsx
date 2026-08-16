@@ -10,8 +10,6 @@ import { trackClick } from "@/lib/hooks";
  * A welcome email still goes out. On a new sending domain a typo'd address
  * bounces, and bounces are what get a new sender blocked, so the first send is
  * also the check that the address is real.
- *
- * The promise about frequency is deliberately modest: it is easier to keep.
  */
 
 const API = "https://site-agent-relay.sumitgundawar3.workers.dev";
@@ -63,7 +61,7 @@ export function Newsletter() {
       <div className="max-w-[36em]">
         <p className="text-[15px] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
           Occasional writing on building systems that survive production: what broke, why, and what the
-          fix actually cost. No more than once a month, and nothing else.
+          fix actually cost.
         </p>
 
         {state === "done" ? (

@@ -154,7 +154,7 @@ export const services: ServiceNode[] = [
   },
   {
     id: "pepsico",
-    name: "Enterprise Forecast Pipeline",
+    name: "DPD, Demand Planning Disaggregation",
     slo: "Event-driven distributed pipeline processing 25M+ weekly records for PepsiCo's global supply chain. Cut processing time 38% (13h → 8h); contributed to systems with approximately $60M in annual revenue impact.",
     stack: ["PySpark", "Azure Databricks", "Teradata", "SQL Server"],
     health: "ok",
@@ -168,7 +168,7 @@ export const services: ServiceNode[] = [
   },
   {
     id: "bdvfit",
-    name: "Certified E-Learning Platform",
+    name: "bdvfit.com",
     slo: "CPD-accredited Level 7 platform for doctors and dentists: 25+ screens, 20+ API modules, video lessons, quizzes, Stripe payments, auto-generated certificates, and an 18-page admin panel. Built solo in six months.",
     stack: ["React", "TypeScript", "Vite", "Express", "Prisma", "MongoDB", "Stripe"],
     health: "ok",
@@ -177,7 +177,7 @@ export const services: ServiceNode[] = [
   },
   {
     id: "ecommerce",
-    name: "Magento E-Commerce Rebuild",
+    name: "bydrvali.com",
     slo: "Full Magento platform rebuild supporting 120+ services and high-volume traffic, with Docker environments and CI/CD pipelines for reliable, fast deployments.",
     stack: ["Magento 2", "PHP", "MySQL", "Docker", "CI/CD"],
     health: "ok",

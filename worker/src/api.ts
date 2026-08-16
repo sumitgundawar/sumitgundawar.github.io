@@ -423,6 +423,18 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
     const existing = await sb(env, `subscribers?select=id,status&email=eq.${encodeURIComponent(email)}&limit=1`)
       .then((r) => r.json() as Promise<{ id: string; status: string }[]>);
 
+    /* Someone who opted out stays opted out.
+       The re-subscribe path used to PATCH any existing row back to confirmed
+       regardless of its previous state, so anyone who knew an address that had
+       unsubscribed could silently put it back on the list. That is the one
+       failure here that is unlawful rather than untidy, and single opt-in does
+       not change it: consent that was withdrawn cannot be restored by a
+       stranger. They get the same response as everyone else, and nothing
+       happens. */
+    if (existing[0]?.status === "unsubscribed") {
+      return json({ ok: true }, 200, origin);
+    }
+
     if (existing[0]?.status === "confirmed") {
       // Not an error, and deliberately the same shape as a fresh signup: whether
       // an address is already subscribed is not something a stranger should be
@@ -442,7 +454,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
     if (existing[0]) {
       await sb(env, `subscribers?id=eq.${existing[0].id}`, {
         method: "PATCH",
-        body: JSON.stringify({ token, status: "confirmed", confirmed_at: now, unsubscribed_at: null }),
+        body: JSON.stringify({ token, status: "confirmed", confirmed_at: now }),
       });
     } else {
       const created = await sb(env, "subscribers", {
@@ -485,7 +497,11 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
     if (env.RESEND_API_KEY) {
       const site = env.SITE_ORIGIN ?? "https://sumitgundawar.com";
       const unsub = `${new URL(req.url).origin}/api/unsubscribe?token=${token}`;
-      await fetch("https://api.resend.com/emails", {
+      /* Not awaited. The confirmed branch returns after a single read while
+         this branch did a write plus an awaited send, a difference of hundreds
+         of milliseconds that turned the endpoint into an oracle for whether a
+         given address is already on the list. */
+      ctx.waitUntil(fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -500,7 +516,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
           html: `<p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;color:#111827;">You are on the list for occasional writing from ${site}, on building systems that survive production.</p>
 <p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;">If this was not you, <a href="${unsub}" style="color:#0f766e;">unsubscribe</a> and you will not be emailed again.</p>`,
         }),
-      });
+      }).catch(() => {}));
     }
     return json({ ok: true }, 200, origin);
   }

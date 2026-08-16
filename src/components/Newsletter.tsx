@@ -3,14 +3,15 @@ import { trackClick } from "@/lib/hooks";
 
 /* Newsletter signup.
  *
- * Double opt-in, so nothing is sent until the address is confirmed. That is
- * partly the law here, since UK PECR treats marketing email as requiring
- * consent, and partly that a confirmed address is the only kind worth having:
- * it proves the address exists and that its owner asked for this.
+ * Single opt-in: subscribed on submit, no confirmation click. Valid consent
+ * under UK GDPR provided the ask is explicit, unticked and unbundled, which is
+ * why the consent line below is written out and there is no pre-ticked box.
  *
- * The consent line is written out rather than implied, and there is no
- * pre-ticked box, because a pre-ticked box is not consent under UK GDPR. The
- * promise about frequency is deliberately modest: it is easier to keep.
+ * A welcome email still goes out. On a new sending domain a typo'd address
+ * bounces, and bounces are what get a new sender blocked, so the first send is
+ * also the check that the address is real.
+ *
+ * The promise about frequency is deliberately modest: it is easier to keep.
  */
 
 const API = "https://site-agent-relay.sumitgundawar3.workers.dev";
@@ -67,7 +68,7 @@ export function Newsletter() {
 
         {state === "done" ? (
           <p className="mono text-[13px] mt-4" style={{ color: "var(--accent)" }} role="status">
-            Check your inbox and confirm. Nothing is sent until you do.
+            You are on the list. A welcome note is on its way.
           </p>
         ) : (
           <form onSubmit={submit} className="mt-4 flex flex-col sm:flex-row gap-2 min-w-0">
@@ -104,8 +105,8 @@ export function Newsletter() {
         )}
 
         <p className="mono text-[11px] mt-3 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
-          You will get one email asking you to confirm. Unsubscribe from any email, in one click. Your
-          address is stored to send this and nothing else, and is never passed on.
+          Unsubscribe from any email, in one click. Your address is stored to send this and nothing
+          else, and is never passed on.
         </p>
       </div>
     </section>

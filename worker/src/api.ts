@@ -271,7 +271,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
     return json({ ok: true }, 200, origin);
   }
 
-  /* ---- subscribe: newsletter, double opt-in ---- */
+  /* ---- subscribe: newsletter, single opt-in ---- */
   if (url.pathname === "/api/subscribe" && req.method === "POST") {
     const b = (await req.json().catch(() => null)) as { email?: string; source?: string } | null;
     const email = (b?.email ?? "").trim().toLowerCase();
@@ -297,15 +297,24 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
       return json({ ok: true }, 200, origin);
     }
 
+    /* Single opt-in: subscribed the moment they ask, no confirmation click.
+       That is valid consent under UK GDPR provided the ask is explicit,
+       unticked and unbundled, which it is on the form.
+
+       The welcome email still goes out, and it is not a formality. On a domain
+       this new, a typo'd address bounces and bounces are what get a new sender
+       blocked, so the first send doubles as the check that the address exists.
+       The token survives too: it is what the unsubscribe link is keyed on. */
+    const now = new Date().toISOString();
     if (existing[0]) {
       await sb(env, `subscribers?id=eq.${existing[0].id}`, {
         method: "PATCH",
-        body: JSON.stringify({ token, status: "pending" }),
+        body: JSON.stringify({ token, status: "confirmed", confirmed_at: now, unsubscribed_at: null }),
       });
     } else {
       const created = await sb(env, "subscribers", {
         method: "POST",
-        body: JSON.stringify({ email, token, source: b?.source ?? "site" }),
+        body: JSON.stringify({ email, token, source: b?.source ?? "site", status: "confirmed", confirmed_at: now }),
       });
       if (!created.ok) {
         console.log(JSON.stringify({ at: "subscribe_insert_failed", status: created.status }));
@@ -315,18 +324,21 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
 
     if (env.RESEND_API_KEY) {
       const site = env.SITE_ORIGIN ?? "https://sumitgundawar.com";
-      const confirm = `${new URL(req.url).origin}/api/confirm?token=${token}`;
+      const unsub = `${new URL(req.url).origin}/api/unsubscribe?token=${token}`;
       await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: env.REPORT_FROM ?? "onboarding@resend.dev",
           to: [email],
-          subject: "Confirm your subscription",
-          text: `Someone, probably you, asked for occasional writing from ${site}.\n\nConfirm here: ${confirm}\n\nIf it was not you, ignore this and nothing further happens. You will not be added.`,
-          html: `<p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;color:#111827;">Someone, probably you, asked for occasional writing from ${site}.</p>
-<p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;"><a href="${confirm}" style="color:#0f766e;">Confirm your subscription</a></p>
-<p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;">If it was not you, ignore this. Nothing further happens and you will not be added.</p>`,
+          subject: "You are subscribed",
+          // List-Unsubscribe is what puts the one-click option in Gmail's own
+          // interface. Without it, the only way out is the spam button, and a
+          // spam complaint costs a new sender far more than an unsubscribe.
+          headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+          text: `You are on the list for occasional writing from ${site}. No more than once a month.\n\nIf this was not you, unsubscribe here and you will not be emailed again: ${unsub}`,
+          html: `<p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;color:#111827;">You are on the list for occasional writing from ${site}, on building systems that survive production. No more than once a month.</p>
+<p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;">If this was not you, <a href="${unsub}" style="color:#0f766e;">unsubscribe</a> and you will not be emailed again.</p>`,
         }),
       });
     }

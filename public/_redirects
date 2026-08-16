@@ -5,8 +5,3 @@
 # redirect shim, and that shim shipped broken, turning "/" + "/learn" into
 # "//learn" which the browser read as a hostname. Every shared link died.
 /*    /index.html   200
-
-# 404.html is deliberately deleted from the Pages build. Its presence makes
-# Pages serve it for unmatched paths and the rewrite above never runs, which is
-# how /learn stayed a 404 on the first Pages deploy. It stays in the repo only
-# because GitHub Pages still needs it until DNS moves.

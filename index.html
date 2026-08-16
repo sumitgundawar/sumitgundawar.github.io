@@ -2,7 +2,11 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!-- SPA redirect support for GitHub Pages (enables deep links like /projects/...) -->
+    <!-- Legacy SPA redirect decoder.
+         Cloudflare Pages serves /learn directly with a 200, so this no longer
+         fires for anything the site links to. It stays because links of the
+         form /?/learn were being handed out while the site was on GitHub Pages,
+         and someone may have one saved. Fifteen lines to not break a bookmark. -->
     <script>
       (function (l) {
         if (l.search && l.search[1] === "/") {

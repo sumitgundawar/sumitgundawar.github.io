@@ -53,7 +53,24 @@ function servePages(port, dist = "dist") {
     res.writeHead(200, { "Content-Type": TYPES[extname(file)] || "application/octet-stream" });
     createReadStream(file).pipe(res);
   });
-  return new Promise((resolve) => server.listen(port, () => resolve(server)));
+  /* Fail loudly on a port clash rather than carrying on.
+     A leftover server from an earlier run was holding this port, so listen()
+     errored, the process kept going, and every check ran against a stale build
+     that happened to still be served there. Six checks failed for reasons that
+     had nothing to do with the code under test, which is worse than not running
+     at all: a red result nobody can trust costs more than a missing one. */
+  return new Promise((resolve, reject) => {
+    server.once("error", (err) => {
+      reject(
+        new Error(
+          err.code === "EADDRINUSE"
+            ? `port ${port} is already in use, so this run would test whatever is already there rather than the current build. Free it with: lsof -ti:${port} | xargs kill -9`
+            : String(err),
+        ),
+      );
+    });
+    server.listen(port, () => resolve(server));
+  });
 }
 
 /* BASE_URL points the same checks at the deployed site. With it unset the

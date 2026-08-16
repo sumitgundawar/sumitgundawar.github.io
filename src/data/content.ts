@@ -66,10 +66,10 @@ export const education: EduRow[] = [
   {
     school: "University of East London",
     degree: "MSc, Data Science, Distinction",
-    detail: "GPA 8.5/10. Thesis (Distinction): anomaly detection in stock-market data with deep learning on cloud platforms. Built an LLM response-evaluation framework for hallucination and safety testing. Access and Participation Board member.",
+    detail: "GPA 8.5/10. Dissertation (Distinction): anomaly detection across S&P 50 equities, comparing LSTM and GRU networks and looking for irregular market behaviour rather than forecasting price. Prices pulled from the Yahoo Finance API into S3, retrieval automated on EC2, deviations flagged with ADTK, and the results published to a QuickSight dashboard. The LSTM trained to 2020 found anomalies most reliably. Coursework covered spatial data analysis, advanced decision making, quantitative data analysis, and a module on how governments should regulate AI, which is closer to the day job than it sounds. Access and Participation Board member.",
     dates: "Sep 2023 to Sep 2024",
     place: "London, UK",
-    tags: ["LLM evaluation", "Deep learning", "Cloud"],
+    tags: ["LSTM", "GRU", "AWS", "Anomaly detection", "QuickSight"],
   },
   {
     school: "Vellore Institute of Technology",

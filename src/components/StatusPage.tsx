@@ -232,8 +232,8 @@ function Lead() {
         className="font-medium leading-[1.12] tracking-[-0.015em] max-w-[14em] sm:max-w-none"
         style={{ fontSize: "clamp(26px, 3.6vw, 44px)", color: "var(--c-text)" }}
       >
-        An engineer who builds systems that stay up: AI systems, data pipelines,
-        and full-stack platforms in production.
+        I build the systems that are still standing at 3am: APIs, data pipelines,
+        and the integrations everything else quietly depends on.
       </p>
       <p className="mt-5 text-[19px] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
         {identity.bio}
@@ -262,6 +262,14 @@ function Profile() {
               <div className="text-[19px] font-medium leading-snug" style={{ color: "var(--c-text)" }}>
                 {r.title}
               </div>
+              {/* Employer on its own line. Role and employer are two different
+                  facts, and running them together behind a separator made a
+                  long line that wrapped badly and read as one job title. */}
+              {r.org && (
+                <div className="mono text-[13px] mt-1" style={{ color: "var(--cool)" }}>
+                  {r.org}
+                </div>
+              )}
               <p className="text-[15px] mt-1.5 leading-relaxed max-w-[32em]" style={{ color: "var(--c-text-dim)" }}>
                 {r.line}
               </p>

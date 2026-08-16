@@ -11,7 +11,7 @@ export const identity = {
   email: "sumitgundawar3@gmail.com",
   status: "Open to roles",
   availability: "Open to software engineering and data roles, London or remote.",
-  bio: "Software and data engineer with dual Master's degrees (Distinction). Builds API platforms, integrations, and AI-enabled products in London's health-tech sector. Previously engineered enterprise data pipelines and forecasting systems contributing to approximately $60M in annual revenue impact at PepsiCo.",
+  bio: "Software and data engineer with dual Master's degrees, both Distinction. Sole engineer on a multi-product clinical platform in London, building the APIs, the integrations that keep payments and logistics in step, and the AI features that are allowed nowhere near a patient without a human reading them first. Before that, the pipelines and demand forecasting behind PepsiCo's global supply chain, across 25 million product and customer combinations.",
   careerStart: "2019-06-01T00:00:00Z",
 };
 
@@ -19,6 +19,9 @@ export type Health = "ok" | "warn" | "crit";
 
 export interface TimelineRow {
   key: string;
+  /** Employer, on its own line under the role: the two are different facts
+   *  and running them together with a separator made both harder to scan. */
+  org?: string;
   label: string; // NOW / PREVIOUSLY / EDUCATION
   title: string;
   line: string;
@@ -31,7 +34,8 @@ export const timeline: TimelineRow[] = [
   {
     key: "now",
     label: "Now",
-    title: "Software Engineer & Innovation Integration · By Dr Vali",
+    title: "Software Engineer & Innovation Integration",
+    org: "By Dr Vali",
     line: "Builds public and admin REST APIs (Node.js/Express, OAuth, RBAC, rate limiting to 5,000 req/sec/IP) and webhook-driven integrations across Stripe, Magento, and Intercom with idempotency and retries. Led a full Magento rebuild and shipped 13+ products end to end, from schema design to on-call.",
     dates: "May 2025 to present",
     tags: ["Node.js", "Express", "TypeScript", "React", "Next.js", "MongoDB", "Redis", "Docker", "Stripe", "Magento"],
@@ -40,7 +44,8 @@ export const timeline: TimelineRow[] = [
   {
     key: "prev",
     label: "Previously",
-    title: "Data Analyst · Enterprise Pipelines & ML · LatentView Analytics",
+    title: "Data Analyst, Enterprise Pipelines & ML",
+    org: "LatentView Analytics",
     line: "Architected event-driven distributed pipelines processing 25M+ weekly records with PySpark on Azure Databricks for PepsiCo's global supply chain; cut processing time 38% (13h → 8h). ML segmentation for Hilton delivered +26% retention and $10M annual uplift. Clients: PepsiCo, Hilton, Unilever.",
     dates: "Jun 2021 to Jun 2023",
     tags: ["PySpark", "Azure Databricks", "Teradata", "Presto", "SQL Server", "Power BI"],

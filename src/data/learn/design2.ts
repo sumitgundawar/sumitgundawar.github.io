@@ -80,13 +80,17 @@ export const design2: Card[] = [
         title: "Webhooks and delivery",
         level: "advanced",
         body: [
-          "A webhook inverts the direction. Instead of clients polling you, you call them when something happens, which removes the polling load and cuts the latency.",
-          "You now own a delivery problem. Receivers go down, respond slowly, or fail intermittently, so you need retries with backoff, a dead letter path, and visibility into what is failing.",
-          "Receivers need to verify the payload came from you: an HMAC signature over the body with a shared secret, plus a timestamp so an old delivery cannot be replayed.",
-          "Order is the part people forget. Retries mean a later event can arrive before an earlier one, so the payload should carry a sequence number or a timestamp, and the receiver should be willing to ignore anything older than what it already holds.",
+          "A webhook inverts the direction. Instead of clients polling you, you call them when something happens, which removes the polling load and cuts the latency from an average of half the poll interval to roughly the time of one request.",
+          "The saving is larger than it looks. A thousand integrators polling a quiet endpoint every thirty seconds is 2,880,000 requests a day, and if events arrive for one integrator in a hundred per poll then 99% of that traffic exists to learn that nothing happened. The same information as webhooks is about 29,000 calls, made only when there is something to say.",
+          "What you have bought instead is a delivery problem, and it is yours rather than theirs. Receivers go down, respond in eight seconds, return 200 while failing internally, or vanish for a fortnight. So a webhook sender is really four things: a queue, a retry policy, a dead letter path, and somewhere an integrator can see what failed and why.",
+          "Retries need a budget and a shape. Immediate, then 1 minute, 5, 30, 2 hours, 6 hours, and stop at 24 gives eight attempts across a day and covers both a deploy and a night of downtime; Stripe runs the same idea out to three days. Jitter every interval, because a receiver that fell over under load will otherwise be hit by every sender's retry at the same second and fall over again.",
+          "Receivers have to verify the call came from you. An HMAC-SHA256 over the raw body with a shared secret, sent as a header, and a timestamp in the signed payload so a captured request cannot be replayed a week later. Sign the raw bytes, not the parsed object: a receiver that re-serialises JSON before checking will compute a different digest for the same message and reject you, which is one of the more annoying afternoons in this line of work.",
+          "Order is the part people forget. Retries mean the second event can land before the first, so a payload carries a sequence number or an event timestamp, and the receiver is expected to ignore anything older than what it already holds. Without that, a customer.updated for a stale version arriving after the current one silently reverts a record, and nobody notices until a support ticket says the address changed back on its own.",
         ],
-        why: "Sending a webhook is easy; delivering reliably is the actual product. Without signing, your webhook endpoint is an unauthenticated write API for anyone who learns the URL.",
-        inPractice: "Stripe signs every webhook with an HMAC and a timestamp, and retries with exponential backoff for up to three days.",
+        why:
+          "Sending a webhook is easy and delivering one reliably is the actual product, which is why the interesting design is all on the failure path. Signing matters most of all: without it, your webhook endpoint is an unauthenticated write API for anyone who learns the URL, and the URL leaks the moment it appears in a log.",
+        inPractice:
+          "Stripe signs every webhook with an HMAC and a timestamp, retries with exponential backoff for up to three days, and shows integrators each attempt and response in the dashboard. GitHub signs with SHA-256 and keeps a delivery log you can replay, which is the feature people actually ask for once they have debugged one of these.",
         diagram: {
           "caption": "Delivery is the product: sign it, retry it, and give failures somewhere to go",
           "columns": [

@@ -69,8 +69,21 @@ function check(label, ok) {
   console.log(`${ok ? "pass" : "FAIL"}  ${label}`);
 }
 
+/* "load", not "networkidle". Against production the analytics beacon keeps a
+   connection open, so networkidle never fires and every check times out, and
+   the run against the deployed site is the only one that sees the 404 bounce.
+   But "load" fires before a React.lazy route chunk has resolved, so navigating
+   is not the same as being ready. Wait for the app to have rendered something,
+   which is the condition actually being relied on. */
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+
+async function go(url) {
+  await page.goto(url, { waitUntil: "load", timeout: 60000 });
+  await page
+    .waitForFunction(() => document.body && document.body.innerText.trim().length > 400, { timeout: 20000 })
+    .catch(() => {}); // let the assertion that follows report it, not a throw here
+}
 
 /* A router that throws still renders the shell, so a screenshot looks fine while
    the page is dead. Collect anything that fails.
@@ -95,10 +108,10 @@ page.on("response", (r) => {
   errors.push(`${r.status()} ${r.url()}`);
 });
 
-await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+await go(`${BASE}/`);
 check("/ renders a heading", (await page.locator("h1").count()) > 0);
 
-await page.goto(`${BASE}/learn`, { waitUntil: "networkidle" });
+await go(`${BASE}/learn`);
 check("/learn renders", (await page.content()).length > 5000);
 
 const card = page
@@ -118,14 +131,14 @@ if (await card.count()) {
   check("back returns to the index", page.url().replace(/\?.*/, "").endsWith("/learn"));
 
   // Loading the URL cold is the case that breaks: no history, no prior state.
-  await page.goto(deepLink, { waitUntil: "networkidle" });
+  await go(deepLink);
   check("a card deep-links on a cold load", (await page.content()).length > 5000);
 } else {
   console.log("FAIL  no card control matched — the selector has drifted");
   failures++;
 }
 
-await page.goto(`${BASE}/learn?q=redis`, { waitUntil: "networkidle" });
+await go(`${BASE}/learn?q=redis`);
 check("search survives in the query string", page.url().includes("q=redis"));
 
 /* GitHub Pages has no SPA rewrite: /learn is a 404, and 404.html bounces the
@@ -139,12 +152,12 @@ for (const [encoded, expected] of [
   ["/?/learn&q=redis", "/learn?q=redis"],
   ["/?/build", "/build"],
 ]) {
-  await page.goto(BASE + encoded, { waitUntil: "networkidle" });
+  await go(BASE + encoded);
   await page.waitForTimeout(400);
   check(`404 shim decodes ${encoded} to ${expected}`, page.url() === BASE + expected);
 }
 
-await page.goto(`${BASE}/build`, { waitUntil: "networkidle" });
+await go(`${BASE}/build`);
 check("/build renders", (await page.content()).length > 3000);
 
 /* Walk the whole questionnaire. This is the part of the site with real state —

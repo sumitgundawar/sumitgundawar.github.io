@@ -41,6 +41,15 @@ const KIND_EDGE: Record<NodeKind, string> = {
    screen axis, so they overlapped and the labels became unreadable. Tilting
    back instead maps translateZ onto screen Y, so each layer lands in its own
    horizontal band, like looking down a stack of glass sheets. */
+const KIND_LABEL: Record<NodeKind, string> = {
+  client: "Client",
+  edge: "Edge / CDN",
+  service: "Service",
+  data: "Data store",
+  queue: "Queue / stream",
+  external: "External",
+};
+
 const LAYER_GAP = 150; // px of Z between planes
 
 export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
@@ -52,6 +61,11 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
   const [tilt, setTilt] = useState({ x: 54, y: -8 });
   const [dragging, setDragging] = useState(false);
   const [active, setActive] = useState(0);
+  /* The flat view names the kind of every box on hover. The layered view had no
+     equivalent, so a node here was a coloured rectangle and nothing else. Tap
+     rather than hover, because the whole point of this view is that it is
+     dragged, and on a touch screen there is no hover to begin with. */
+  const [picked, setPicked] = useState<string | null>(null);
 
   /* Walk the pulse through the layers so the direction of flow is legible
      without hovering anything. Paused entirely under reduced motion, where a
@@ -62,10 +76,32 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
     return () => clearInterval(t);
   }, [reduced, dragging, diagram.columns.length]);
 
+  /* Which layer the packet is on, and how far between this one and the next.
+     Highlighting a plane says where the request is; a mark moving between them
+     says it is travelling, which is the thing depth was spent to show. Frozen
+     under reduced motion, where the highlight alone still carries the order. */
+  const [travel, setTravel] = useState(0);
+  useEffect(() => {
+    if (reduced || dragging) return;
+    let raf = 0;
+    const started = performance.now();
+    const step = (now: number) => {
+      setTravel(Math.min(1, ((now - started) % 1400) / 900));
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [reduced, dragging, active]);
+
   /* Pointer drag rotates the scene. Pointer events cover mouse, pen and touch
      with one path, and setPointerCapture keeps the drag alive when the cursor
      leaves the element mid-gesture. */
   const onDown = (e: React.PointerEvent) => {
+    /* Do not capture the pointer when the press started on a node.
+       setPointerCapture redirects every subsequent event to the container, so
+       the button never received its click and tapping a component did nothing
+       at all. Pressing a node is a tap; pressing the background is a drag. */
+    if ((e.target as Element).closest("button")) return;
     (e.target as Element).setPointerCapture?.(e.pointerId);
     setDragging(true);
   };
@@ -156,9 +192,15 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
                     {layerLabel[ci]}
                   </div>
                   {col.map((n) => (
-                    <div
+                    <button
                       key={n.id}
-                      className="mono text-center px-2.5 py-1.5"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPicked((cur) => (cur === n.id ? null : n.id));
+                      }}
+                      aria-pressed={picked === n.id}
+                      className="mono text-center px-2.5 py-1.5 cursor-pointer"
                       style={{
                         minWidth: 132,
                         fontSize: 11,
@@ -173,7 +215,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
                       {n.sub && (
                         <div style={{ fontSize: 9, opacity: 0.72, marginTop: 2 }}>{n.sub}</div>
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -181,13 +223,79 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
           })}
         </div>
 
+        {!reduced && diagram.columns.length > 1 && (
+          <div
+            aria-hidden
+            className="absolute left-1/2 pointer-events-none"
+            style={{
+              /* Positioned in screen space rather than inside the rotated
+                 scene: a mark on a plane tilted 54 degrees is an ellipse a few
+                 pixels tall and reads as nothing. Riding the same axis the
+                 layers separate along keeps it legible at every angle. */
+              /* Clamped to the last plane. active + travel ran past the end on the
+                 final layer, so the packet slid out below the stack and looked
+                 like it had fallen off rather than arrived. */
+              top: `${18 + (Math.min(active + travel, diagram.columns.length - 1) / Math.max(1, diagram.columns.length - 1)) * 64}%`,
+              width: 9,
+              height: 9,
+              marginLeft: -4.5,
+              borderRadius: "50%",
+              background: "var(--accent)",
+              boxShadow: "0 0 12px var(--accent)",
+              transition: "none",
+            }}
+          />
+        )}
+
         <div
           className="absolute left-3 bottom-2 mono pointer-events-none"
           style={{ fontSize: 10, color: "var(--c-text-dim)" }}
         >
-          drag to rotate
+          {picked ? "tap again to dismiss" : "drag to rotate, tap a component"}
         </div>
       </div>
+      {picked && (() => {
+        const node = diagram.columns.flat().find((n) => n.id === picked);
+        if (!node) return null;
+        const edgesOut = diagram.edges.filter((e) => e.from === picked);
+        const edgesIn = diagram.edges.filter((e) => e.to === picked);
+        return (
+          /* A panel under the scene rather than a tooltip on the node. A
+             tooltip anchored to a plane rotated 54 degrees moves whenever the
+             scene does, which is unreadable during the drag this view exists
+             for. */
+          <div
+            role="status"
+            className="mt-2 p-3"
+            style={{ background: "var(--surface)", border: "1px solid var(--hair-strong)" }}
+          >
+            <div className="mono text-[12px]" style={{ color: "var(--c-text)" }}>
+              {node.label}
+              {node.sub ? ` · ${node.sub}` : ""}
+              <span style={{ color: "var(--c-text-dim)" }}> · {KIND_LABEL[node.kind ?? "service"]}</span>
+            </div>
+            {(edgesIn.length > 0 || edgesOut.length > 0) && (
+              <div className="mono text-[11px] mt-1.5" style={{ color: "var(--c-text-dim)" }}>
+                {edgesIn.map((e, i) => (
+                  <div key={`i${i}`}>
+                    ← from {diagram.columns.flat().find((n) => n.id === e.from)?.label}
+                    {e.label ? `: ${e.label}` : ""}
+                    {e.async ? " (asynchronous)" : ""}
+                  </div>
+                ))}
+                {edgesOut.map((e, i) => (
+                  <div key={`o${i}`}>
+                    → to {diagram.columns.flat().find((n) => n.id === e.to)?.label}
+                    {e.label ? `: ${e.label}` : ""}
+                    {e.async ? " (asynchronous)" : ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       <figcaption id={`${id}-layered-cap`} className="mono text-[12px] mt-2" style={{ color: "var(--c-text-dim)" }}>
         {diagram.caption} · front to back is the path a request takes
       </figcaption>

@@ -211,6 +211,47 @@ export const security: Card[] = [
           "One commit, so the event and the state change cannot disagree. The relay may publish twice, which is why consumers still need idempotency.",
         ],
         why: "This is the concrete answer to the dual-write problem. Publishing after commit means a crash in between loses the event; publishing before means it may describe a state that rolled back. The outbox makes both impossible with the transaction you already have.",
+        diagram: {
+          "caption": "The event is written in the same transaction as the data, so it cannot be lost",
+          "columns": [
+            [
+              {
+                "id": "app",
+                "label": "Service",
+                "kind": "service"
+              }
+            ],
+            [
+              {
+                "id": "tx",
+                "label": "One transaction",
+                "sub": "row + outbox row",
+                "kind": "data"
+              }
+            ],
+            [
+              {
+                "id": "bus",
+                "label": "Broker",
+                "sub": "relayed from the outbox",
+                "kind": "queue"
+              }
+            ]
+          ],
+          "edges": [
+            {
+              "from": "app",
+              "to": "tx",
+              "label": "commit both or neither"
+            },
+            {
+              "from": "tx",
+              "to": "bus",
+              "label": "relay publishes, at least once",
+              "async": true
+            }
+          ]
+        },
         check: {
           prompt: "Why does the outbox pattern beat publishing an event right after the transaction commits?",
           options: [

@@ -219,6 +219,46 @@ export const design: Card[] = [
           "What gets sold as exactly-once is at-least-once delivery plus idempotent processing, so a duplicate has no additional effect. That is a real and reachable goal, and it puts the responsibility in the consumer, not the broker, which is why buying a broker does not buy it for you.",
         ],
         why: "Selecting a broker for its exactly-once badge and skipping idempotency is the classic mistake. The guarantee applies within the broker, not across your side effects, a duplicate email has already been sent.",
+        diagram: {
+          "caption": "Exactly-once is at-least-once plus a consumer that can absorb a repeat",
+          "columns": [
+            [
+              {
+                "id": "p",
+                "label": "Producer",
+                "kind": "service"
+              }
+            ],
+            [
+              {
+                "id": "b",
+                "label": "Broker",
+                "sub": "may redeliver",
+                "kind": "queue"
+              }
+            ],
+            [
+              {
+                "id": "c",
+                "label": "Consumer",
+                "sub": "idempotent, guards side effects",
+                "kind": "service"
+              }
+            ]
+          ],
+          "edges": [
+            {
+              "from": "p",
+              "to": "b",
+              "label": "publish"
+            },
+            {
+              "from": "b",
+              "to": "c",
+              "label": "deliver, sometimes twice"
+            }
+          ]
+        },
         check: {
           prompt: "Your broker advertises exactly-once. Do consumers still need to be idempotent?",
           options: [
@@ -240,6 +280,54 @@ export const design: Card[] = [
           "Keying by entity, user id, order id, puts all of that entity's events in one partition and preserves their order relative to each other, which is almost always the ordering you actually needed. Global ordering means one partition, which means one consumer, which means no parallelism. That is the trade.",
         ],
         why: "Wanting strict global ordering usually means the design is wrong. Per-entity ordering is almost always what is actually needed, and it parallelises.",
+        diagram: {
+          "caption": "Key by entity: order within a user, parallelism across users",
+          "columns": [
+            [
+              {
+                "id": "e",
+                "label": "Events",
+                "sub": "many users",
+                "kind": "service"
+              }
+            ],
+            [
+              {
+                "id": "k",
+                "label": "Partition by user id",
+                "kind": "edge"
+              }
+            ],
+            [
+              {
+                "id": "p0",
+                "label": "Partition 0",
+                "sub": "user A, in order",
+                "kind": "queue"
+              },
+              {
+                "id": "p1",
+                "label": "Partition 1",
+                "sub": "user B, in order",
+                "kind": "queue"
+              }
+            ]
+          ],
+          "edges": [
+            {
+              "from": "e",
+              "to": "k"
+            },
+            {
+              "from": "k",
+              "to": "p0"
+            },
+            {
+              "from": "k",
+              "to": "p1"
+            }
+          ]
+        },
         check: {
           prompt: "Events for one user arrive out of order across partitions. Best fix?",
           options: [
@@ -262,6 +350,61 @@ export const design: Card[] = [
           "Retries should back off exponentially with jitter, or every consumer retries in lockstep and hammers the failing dependency together.",
         ],
         why: "An unmonitored dead letter queue is the same as dropping messages, just slower. The queue is only useful if someone is alerted when it fills.",
+        diagram: {
+          "caption": "Bounded retries, then somewhere to put what will never succeed",
+          "columns": [
+            [
+              {
+                "id": "q",
+                "label": "Main queue",
+                "kind": "queue"
+              }
+            ],
+            [
+              {
+                "id": "w",
+                "label": "Worker",
+                "sub": "backoff with jitter",
+                "kind": "service"
+              }
+            ],
+            [
+              {
+                "id": "ok",
+                "label": "Done",
+                "kind": "data"
+              },
+              {
+                "id": "dl",
+                "label": "Dead letter",
+                "sub": "inspect, fix, replay",
+                "kind": "queue"
+              }
+            ]
+          ],
+          "edges": [
+            {
+              "from": "q",
+              "to": "w"
+            },
+            {
+              "from": "w",
+              "to": "ok",
+              "label": "success"
+            },
+            {
+              "from": "w",
+              "to": "q",
+              "label": "retry, backed off",
+              "async": true
+            },
+            {
+              "from": "w",
+              "to": "dl",
+              "label": "attempts exhausted"
+            }
+          ]
+        },
         check: {
           prompt: "Why add jitter to exponential backoff?",
           options: [
@@ -294,6 +437,62 @@ export const design: Card[] = [
           "The fix is not stronger consistency but a narrower rule: after a user writes, pin that user's reads to the primary for a few seconds. It costs almost nothing and it removes the only staleness anybody actually notices.",
         ],
         why: "The standard fix is to route a user's reads to the primary briefly after they write. Making all reads go to the primary defeats the point of having replicas at all.",
+        diagram: {
+          "caption": "Reads scale out; the write path does not, and the gap is what users notice",
+          "columns": [
+            [
+              {
+                "id": "u",
+                "label": "User",
+                "kind": "client"
+              }
+            ],
+            [
+              {
+                "id": "rt",
+                "label": "Router",
+                "sub": "read or write",
+                "kind": "edge"
+              }
+            ],
+            [
+              {
+                "id": "pri",
+                "label": "Primary",
+                "sub": "all writes",
+                "kind": "data"
+              },
+              {
+                "id": "rep",
+                "label": "Replicas",
+                "sub": "milliseconds behind",
+                "kind": "data"
+              }
+            ]
+          ],
+          "edges": [
+            {
+              "from": "u",
+              "to": "rt"
+            },
+            {
+              "from": "rt",
+              "to": "pri",
+              "label": "writes, and reads just after one"
+            },
+            {
+              "from": "rt",
+              "to": "rep",
+              "label": "everything else"
+            },
+            {
+              "from": "pri",
+              "to": "rep",
+              "label": "replication lag",
+              "async": true
+            }
+          ]
+        },
         check: {
           prompt: "A user updates their profile and immediately sees the old version. Cause?",
           options: [
@@ -387,6 +586,56 @@ export const design: Card[] = [
           "A sliding window smooths that by weighting the previous window; a token bucket refills at a steady rate and permits bursts up to the bucket size. Token bucket usually fits an API best, because real traffic is bursty and a strictly even rate feels broken to whoever is using it.",
         ],
         why: "Choose based on whether bursts are acceptable. Token bucket permits them deliberately; sliding window suppresses them. Fixed window is simplest and has a known flaw at the edges.",
+        diagram: {
+          "caption": "A bucket refills at a steady rate and permits a burst up to its size",
+          "columns": [
+            [
+              {
+                "id": "c",
+                "label": "Caller",
+                "kind": "client"
+              }
+            ],
+            [
+              {
+                "id": "lim",
+                "label": "Token bucket",
+                "sub": "refills per second",
+                "kind": "edge"
+              }
+            ],
+            [
+              {
+                "id": "app",
+                "label": "Your API",
+                "kind": "service"
+              },
+              {
+                "id": "no",
+                "label": "429",
+                "sub": "with Retry-After",
+                "kind": "external"
+              }
+            ]
+          ],
+          "edges": [
+            {
+              "from": "c",
+              "to": "lim",
+              "label": "request"
+            },
+            {
+              "from": "lim",
+              "to": "app",
+              "label": "token available"
+            },
+            {
+              "from": "lim",
+              "to": "no",
+              "label": "bucket empty"
+            }
+          ]
+        },
         check: {
           prompt: "With a fixed window of 100 requests per minute, how many can a client send in a two-second span?",
           options: [
@@ -409,6 +658,62 @@ export const design: Card[] = [
           "Every network call needs a timeout. A missing timeout means waiting indefinitely, which is how one slow service takes down everything that calls it.",
         ],
         why: "Retries without a breaker amplify an outage, a struggling service gets more traffic exactly when it is least able to serve it. The breaker is what stops retries becoming an attack on your own system.",
+        diagram: {
+          "caption": "Fail fast so a slow dependency cannot hold your threads",
+          "columns": [
+            [
+              {
+                "id": "req",
+                "label": "Request",
+                "kind": "client"
+              }
+            ],
+            [
+              {
+                "id": "br",
+                "label": "Breaker",
+                "sub": "closed, open, half-open",
+                "kind": "edge"
+              }
+            ],
+            [
+              {
+                "id": "dep",
+                "label": "Dependency",
+                "sub": "slow at 30s",
+                "kind": "external"
+              },
+              {
+                "id": "fb",
+                "label": "Fallback",
+                "sub": "cached or default",
+                "kind": "data"
+              }
+            ]
+          ],
+          "edges": [
+            {
+              "from": "req",
+              "to": "br"
+            },
+            {
+              "from": "br",
+              "to": "dep",
+              "label": "closed: try, with a timeout"
+            },
+            {
+              "from": "br",
+              "to": "fb",
+              "label": "open: return at once"
+            },
+            {
+              "from": "dep",
+              "to": "br",
+              "label": "errors trip it",
+              "async": true
+            }
+          ]
+        },
         check: {
           prompt: "A downstream service slows to 30s per call. Your service becomes unavailable too. What prevents this?",
           options: [

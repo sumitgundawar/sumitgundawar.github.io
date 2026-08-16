@@ -402,6 +402,62 @@ export const foundations: Card[] = [
         ],
         why: "Any endpoint that changes state and can be retried needs this. It is the difference between at-least-once delivery being safe and being a liability.",
         inPractice: "Stripe requires an idempotency key on payment creation for exactly this reason.",
+        diagram: {
+          "caption": "The key is what lets the server tell a retry from a new request",
+          "columns": [
+            [
+              {
+                "id": "cl",
+                "label": "Client",
+                "sub": "sends a key",
+                "kind": "client"
+              }
+            ],
+            [
+              {
+                "id": "api",
+                "label": "API",
+                "sub": "looks the key up",
+                "kind": "service"
+              }
+            ],
+            [
+              {
+                "id": "store",
+                "label": "Key store",
+                "sub": "key to result",
+                "kind": "data"
+              },
+              {
+                "id": "pay",
+                "label": "Payment provider",
+                "kind": "external"
+              }
+            ]
+          ],
+          "edges": [
+            {
+              "from": "cl",
+              "to": "api",
+              "label": "POST + key"
+            },
+            {
+              "from": "api",
+              "to": "store",
+              "label": "seen before?"
+            },
+            {
+              "from": "store",
+              "to": "api",
+              "label": "yes: stored result"
+            },
+            {
+              "from": "api",
+              "to": "pay",
+              "label": "no: charge once"
+            }
+          ]
+        },
         check: {
           prompt: "A payment request times out. The client does not know whether it succeeded. What makes retrying safe?",
           options: [

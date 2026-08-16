@@ -87,6 +87,59 @@ export const design2: Card[] = [
         ],
         why: "Sending a webhook is easy; delivering reliably is the actual product. Without signing, your webhook endpoint is an unauthenticated write API for anyone who learns the URL.",
         inPractice: "Stripe signs every webhook with an HMAC and a timestamp, and retries with exponential backoff for up to three days.",
+        diagram: {
+          "caption": "Delivery is the product: sign it, retry it, and give failures somewhere to go",
+          "columns": [
+            [
+              {
+                "id": "ev",
+                "label": "Event happens",
+                "sub": "order paid",
+                "kind": "service"
+              }
+            ],
+            [
+              {
+                "id": "out",
+                "label": "Delivery queue",
+                "sub": "signed and retried",
+                "kind": "queue"
+              }
+            ],
+            [
+              {
+                "id": "rcv",
+                "label": "Receiver",
+                "sub": "customer endpoint",
+                "kind": "external"
+              },
+              {
+                "id": "dlq",
+                "label": "Dead letter",
+                "sub": "after N attempts",
+                "kind": "queue"
+              }
+            ]
+          ],
+          "edges": [
+            {
+              "from": "ev",
+              "to": "out",
+              "label": "HMAC over body"
+            },
+            {
+              "from": "out",
+              "to": "rcv",
+              "label": "POST, with retries"
+            },
+            {
+              "from": "out",
+              "to": "dlq",
+              "label": "attempts exhausted",
+              "async": true
+            }
+          ]
+        },
         check: {
           prompt: "Why sign webhook payloads with an HMAC rather than relying on a secret URL?",
           options: [
@@ -260,6 +313,47 @@ export const design2: Card[] = [
           "You also need a full reindex path. Mappings change, drift accumulates, and eventually the only honest fix is to rebuild into a fresh index and swap the alias over.",
         ],
         why: "Change data capture beats dual writes because it has one commit point. With dual writes there is always a window where a crash leaves the two permanently inconsistent.",
+        diagram: {
+          "caption": "Derive the index from the log, so the database stays the only source of truth",
+          "columns": [
+            [
+              {
+                "id": "app",
+                "label": "Service",
+                "kind": "service"
+              }
+            ],
+            [
+              {
+                "id": "db",
+                "label": "Database",
+                "sub": "source of truth",
+                "kind": "data"
+              }
+            ],
+            [
+              {
+                "id": "idx",
+                "label": "Search index",
+                "sub": "derived from the change log",
+                "kind": "data"
+              }
+            ]
+          ],
+          "edges": [
+            {
+              "from": "app",
+              "to": "db",
+              "label": "write once"
+            },
+            {
+              "from": "db",
+              "to": "idx",
+              "label": "changes, in commit order",
+              "async": true
+            }
+          ]
+        },
         check: {
           prompt: "Why are dual writes to database and search index fragile?",
           options: [

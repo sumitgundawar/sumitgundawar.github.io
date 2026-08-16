@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# The API is not content. Crawling it spends a metered model credential and
+# fills the analytics tables with traffic that is not readers.
+Disallow: /api/
+
+Sitemap: https://sumitgundawar.com/sitemap.xml

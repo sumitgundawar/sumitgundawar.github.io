@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { NewsletterPrompt } from "./NewsletterPrompt";
 import { Link } from "react-router-dom";
 import { FlowDiagram } from "./FlowDiagram";
 import { track } from "@/lib/track";
@@ -293,6 +294,14 @@ export function BuildPage() {
                 {copied ? "link copied" : "copy link"}
               </button>
             </div>
+
+            {/* Ten questions in, on the screen that answers them. The highest
+                intent moment the site has, and the only one where someone has
+                just watched it produce something specific to them. */}
+            <NewsletterPrompt
+              context="build"
+              line="If this was useful, I write occasionally about the decisions behind architectures like this one: what broke in production, why, and what the fix actually cost."
+            />
 
             <p className="mt-6 text-[15px] leading-relaxed max-w-[35em]" style={{ color: "var(--c-text)" }}>
               {headline(answers)}

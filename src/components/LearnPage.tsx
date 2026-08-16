@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { FlowDiagram } from "./FlowDiagram";
 import { DiagramViews } from "./DiagramViews";
 import { AskBox } from "./AskBox";
+import { NewsletterPrompt } from "./NewsletterPrompt";
 import { trackQuiz } from "@/lib/api";
 import { track } from "@/lib/track";
 import { useProgress, summarise, type Progress } from "@/lib/progress";
@@ -289,6 +290,7 @@ export function LearnPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const { progress, record, reset } = useProgress();
+  const answeredCount = Object.keys(progress).length;
 
   const levelParam = params.get("level");
   const level: Level | "all" =
@@ -344,6 +346,16 @@ export function LearnPage() {
               progress={progress}
               onAnswered={record}
             />
+            {/* After three answered checks, not on arrival. Someone who has
+                worked through three has demonstrated the material is worth
+                their time, which is a different person from someone who just
+                landed. Below the card, so it never interrupts a topic. */}
+            {answeredCount >= 3 && (
+              <NewsletterPrompt
+                context="learn"
+                line={`You have worked through ${answeredCount} checks. I write occasionally about building systems that survive production, the same material as this, with what broke and what the fix cost.`}
+              />
+            )}
           </div>
         ) : (
           <>

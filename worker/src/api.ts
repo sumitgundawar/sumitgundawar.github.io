@@ -20,6 +20,7 @@ export interface ApiEnv {
   SLACK_CHANNEL_ID?: string;
   SITE_ORIGIN?: string;
   RESEND_API_KEY?: string;
+  RESEND_AUDIENCE_ID?: string;
   REPORT_EMAIL?: string;
   REPORT_FROM?: string;
 }
@@ -268,6 +269,103 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
       })(),
     );
     return json({ ok: true }, 200, origin);
+  }
+
+  /* ---- subscribe: newsletter, double opt-in ---- */
+  if (url.pathname === "/api/subscribe" && req.method === "POST") {
+    const b = (await req.json().catch(() => null)) as { email?: string; source?: string } | null;
+    const email = (b?.email ?? "").trim().toLowerCase();
+
+    /* Deliberately permissive. Email validation by regex is a losing game and
+       an over-strict pattern rejects real addresses; the confirmation step is
+       what actually proves the address works. */
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 254) {
+      return json({ error: "That does not look like an email address." }, 400, origin);
+    }
+    if (rateLimited(`sub:${req.headers.get("cf-connecting-ip") ?? "anon"}`, 5, 60_000)) {
+      return json({ error: "Too many attempts. Try again shortly." }, 429, origin);
+    }
+
+    const token = crypto.randomUUID().replace(/-/g, "");
+    const existing = await sb(env, `subscribers?select=id,status&email=eq.${encodeURIComponent(email)}&limit=1`)
+      .then((r) => r.json() as Promise<{ id: string; status: string }[]>);
+
+    if (existing[0]?.status === "confirmed") {
+      // Not an error, and deliberately the same shape as a fresh signup: whether
+      // an address is already subscribed is not something a stranger should be
+      // able to probe for.
+      return json({ ok: true }, 200, origin);
+    }
+
+    if (existing[0]) {
+      await sb(env, `subscribers?id=eq.${existing[0].id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ token, status: "pending" }),
+      });
+    } else {
+      const created = await sb(env, "subscribers", {
+        method: "POST",
+        body: JSON.stringify({ email, token, source: b?.source ?? "site" }),
+      });
+      if (!created.ok) {
+        console.log(JSON.stringify({ at: "subscribe_insert_failed", status: created.status }));
+        return json({ error: "Could not sign you up just now." }, 500, origin);
+      }
+    }
+
+    if (env.RESEND_API_KEY) {
+      const site = env.SITE_ORIGIN ?? "https://sumitgundawar.com";
+      const confirm = `${new URL(req.url).origin}/api/confirm?token=${token}`;
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: env.REPORT_FROM ?? "onboarding@resend.dev",
+          to: [email],
+          subject: "Confirm your subscription",
+          text: `Someone, probably you, asked for occasional writing from ${site}.\n\nConfirm here: ${confirm}\n\nIf it was not you, ignore this and nothing further happens. You will not be added.`,
+          html: `<p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;color:#111827;">Someone, probably you, asked for occasional writing from ${site}.</p>
+<p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;"><a href="${confirm}" style="color:#0f766e;">Confirm your subscription</a></p>
+<p style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;">If it was not you, ignore this. Nothing further happens and you will not be added.</p>`,
+        }),
+      });
+    }
+    return json({ ok: true }, 200, origin);
+  }
+
+  /* ---- confirm and unsubscribe ---- */
+  if (url.pathname === "/api/confirm" && req.method === "GET") {
+    const token = url.searchParams.get("token") ?? "";
+    const page = (msg: string) =>
+      new Response(
+        `<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+         <body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;background:#0e1110;color:#e8eae9;display:grid;place-items:center;height:100vh;margin:0;text-align:center;padding:24px;">
+         <div><p style="font-size:16px;">${msg}</p>
+         <p><a href="${env.SITE_ORIGIN ?? "https://sumitgundawar.com"}" style="color:#3dd68c;font-size:14px;">Back to the site</a></p></div>`,
+        { headers: { "Content-Type": "text/html; charset=utf-8" } },
+      );
+    if (!/^[a-f0-9]{32}$/.test(token)) return page("That confirmation link is not valid.");
+    const res = await sb(env, `subscribers?token=eq.${token}&status=eq.pending`, {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ status: "confirmed", confirmed_at: new Date().toISOString() }),
+    });
+    const rows = (await res.json()) as unknown[];
+    return page(rows.length ? "Confirmed. Thank you." : "That link has already been used, or has expired.");
+  }
+
+  if (url.pathname === "/api/unsubscribe" && req.method === "GET") {
+    const token = url.searchParams.get("token") ?? "";
+    if (/^[a-f0-9]{32}$/.test(token)) {
+      await sb(env, `subscribers?token=eq.${token}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "unsubscribed", unsubscribed_at: new Date().toISOString() }),
+      });
+    }
+    return new Response(
+      `<!doctype html><meta charset=utf-8><body style="font-family:-apple-system,sans-serif;background:#0e1110;color:#e8eae9;display:grid;place-items:center;height:100vh;margin:0;">Unsubscribed. You will not be emailed again.`,
+      { headers: { "Content-Type": "text/html; charset=utf-8" } },
+    );
   }
 
   /* ---- progress: follows a reader between devices ---- */

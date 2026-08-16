@@ -2,6 +2,7 @@ import { useEffect, useState, type ElementType, type ReactNode } from "react";
 import { HealthDot, Eyebrow, Tag } from "./primitives";
 import { useReveal, useNow, trackClick } from "@/lib/hooks";
 import { Link } from "react-router-dom";
+import { Newsletter } from "./Newsletter";
 import {
   identity,
   timeline,
@@ -76,6 +77,7 @@ export function StatusPage() {
             <Podcasts />
             <SpeakingRecognition />
             <Education />
+            <Newsletter />
             <Footer />
           </div>
         </div>

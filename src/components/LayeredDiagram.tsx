@@ -9,7 +9,7 @@ import type { Diagram, NodeKind } from "@/data/learn";
  * pushing them back in space shows the thing the convention stands for: the
  * request enters at the front, passes through the edge, through the services,
  * and reaches storage at the back. Depth is doing real work here, which is the
- * only reason to spend it — a box that merely rotates is decoration, and the
+ * only reason to spend it: a box that merely rotates is decoration, and the
  * flat view stays the default for that reason.
  *
  * Built on CSS 3D rather than WebGL. three.js would be roughly 600kB for what

@@ -16,9 +16,9 @@ export const caseStudies: Card[] = [
         level: "intermediate",
         body: [
           "Netflix is a large share of internet traffic at peak. Buying that from a commercial CDN would be enormously expensive and still not fast enough.",
-          "So they build Open Connect appliances and give them to ISPs free, installed inside the ISP's own network — the video is already past the congested peering links before your request happens. Popular titles are pushed to those boxes overnight, during off-peak hours, predicted per region.",
+          "So they build Open Connect appliances and give them to ISPs free, installed inside the ISP's own network, the video is already past the congested peering links before your request happens. Popular titles are pushed to those boxes overnight, during off-peak hours, predicted per region.",
         ],
-        why: "The insight is that streaming is a predictable, cacheable workload. You know tomorrow's popular titles, so you can pre-position the bytes and turn a bandwidth problem into a storage problem — storage being far cheaper.",
+        why: "The insight is that streaming is a predictable, cacheable workload. You know tomorrow's popular titles, so you can pre-position the bytes and turn a bandwidth problem into a storage problem, storage being far cheaper.",
         diagram: {
           caption: "Playback: control plane on AWS, bytes from a box inside your ISP",
           columns: [
@@ -68,7 +68,7 @@ export const caseStudies: Card[] = [
           prompt: "With 200 services each 99.9% available, what does that imply for a page needing all of them?",
           options: [
             "Still 99.9%, since the services fail independently of one another",
-            "Roughly 82% — independent failures compound across every dependency",
+            "Roughly 82%, independent failures compound across every dependency",
             "About 99.5%, because only the slowest service actually gates the page",
             "Around 80%, but only if the calls are made in sequence rather than parallel",
           ],
@@ -112,9 +112,9 @@ export const caseStudies: Card[] = [
         level: "advanced",
         body: [
           "Finding nearby drivers by comparing latitude and longitude means scanning everything, because neither coordinate on its own narrows the search usefully.",
-          "Uber divides the world into hexagonal cells — their H3 library — so a location becomes a cell id, and finding nearby drivers becomes looking up a handful of ids. Hexagons rather than squares because every neighbour is equidistant, which makes expanding the search ring uniform.",
+          "Uber divides the world into hexagonal cells, their H3 library, so a location becomes a cell id, and finding nearby drivers becomes looking up a handful of ids. Hexagons rather than squares because every neighbour is equidistant, which makes expanding the search ring uniform.",
         ],
-        why: "The move is turning a continuous two-dimensional problem into a discrete key lookup. Once location is a key, ordinary tools — hash maps, caches, shards — all work again.",
+        why: "The move is turning a continuous two-dimensional problem into a discrete key lookup. Once location is a key, ordinary tools, hash maps, caches, shards, all work again.",
         diagram: {
           caption: "A ride request: match on cells, then track over a persistent connection",
           columns: [
@@ -262,7 +262,7 @@ export const caseStudies: Card[] = [
         level: "advanced",
         body: [
           "Reverse chronological is simple and predictable. Ranked feeds score each candidate on predicted engagement, recency, affinity and content type.",
-          "Ranking needs candidates first: retrieve a few hundred plausible posts cheaply, then score those expensively, because scoring everything is not affordable. That two-stage shape — cheap retrieval, expensive ranking — is how very nearly every recommendation system is built.",
+          "Ranking needs candidates first: retrieve a few hundred plausible posts cheaply, then score those expensively, because scoring everything is not affordable. That two-stage shape, cheap retrieval, expensive ranking, is how very nearly every recommendation system is built.",
         ],
         why: "Candidate generation then ranking is the general pattern worth carrying into any recommendation question. It bounds the expensive step regardless of corpus size.",
         check: {
@@ -292,7 +292,7 @@ export const caseStudies: Card[] = [
         level: "intermediate",
         body: [
           "A message is stored server-side until delivered, then usually deleted. The server is a relay with a queue attached, not an archive.",
-          "The three ticks — sent, delivered, read — are acknowledgements flowing back at each stage, each one a separate event. Offline users make this a queue-per-recipient problem, drained when the device finally reconnects.",
+          "The three ticks, sent, delivered, read, are acknowledgements flowing back at each stage, each one a separate event. Offline users make this a queue-per-recipient problem, drained when the device finally reconnects.",
         ],
         why: "Treating chat as a per-recipient queue instead of a shared log is what makes offline delivery and multi-device sync tractable.",
         diagram: {
@@ -359,7 +359,7 @@ export const caseStudies: Card[] = [
   {
     id: "classic-designs",
     title: "Classic interview systems",
-    summary: "URL shortener, rate limiter, ticket booking, file sync — the ones that come up most.",
+    summary: "URL shortener, rate limiter, ticket booking, file sync, the ones that come up most.",
     track: "case-study",
     topics: [
       {
@@ -391,7 +391,7 @@ export const caseStudies: Card[] = [
         level: "advanced",
         body: [
           "The defining constraint is that a seat must not be sold twice, under a load spike concentrated on a few popular events.",
-          "Seats are held with a short-lived reservation — typically a few minutes — created atomically, so a user has exclusive claim while paying.",
+          "Seats are held with a short-lived reservation, typically a few minutes, created atomically, so a user has exclusive claim while paying.",
           "Expired holds must be released reliably, which means a background reaper or a TTL, not just an application timer.",
         ],
         why: "This is where optimistic concurrency stops working. Under contention for the same rows, optimistic retries mostly fail, so an explicit hold with a TTL is the correct model.",

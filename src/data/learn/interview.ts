@@ -12,7 +12,7 @@ export const interview: Card[] = [
         title: "A structure for the 45 minutes",
         level: "beginner",
         body: [
-          "Spend the first five minutes on requirements. What must it do, what scale, what matters most — latency, consistency, cost. Write the numbers down.",
+          "Spend the first five minutes on requirements. What must it do, what scale, what matters most, latency, consistency, cost. Write the numbers down.",
           "Then a rough estimate, a high-level design of five or six boxes, and depth on the two or three parts that are genuinely hard. Leave five minutes for bottlenecks and what you would change at ten times the load.",
         ],
         why: "Candidates who start drawing boxes immediately fail on scope, not knowledge. Establishing constraints first is what makes every later decision defensible instead of arbitrary.",
@@ -54,7 +54,7 @@ export const interview: Card[] = [
           "Peak is commonly two to three times average, and traffic is rarely spread evenly through the day.",
           "Storage: a thousand bytes per record and a million records a day is a gigabyte a day, about a third of a terabyte a year.",
         ],
-        why: "The point is not precision, it is knowing whether you are designing for 10 requests per second or 100,000 — because those are entirely different systems. Being off by 20 percent is fine; being off by a factor of a thousand is the failure.",
+        why: "The point is not precision, it is knowing whether you are designing for 10 requests per second or 100,000, because those are entirely different systems. Being off by 20 percent is fine; being off by a factor of a thousand is the failure.",
         check: {
           prompt: "One million requests a day is roughly what average rate?",
           options: ["1,000 per second", "12 per second", "120 per second", "1 per second"],
@@ -81,7 +81,7 @@ export const interview: Card[] = [
           ],
           correctIndex: 1,
           explain:
-            "All four are true. Only one is a decision. The others state a benefit and stop there, which leaves the interviewer to supply the cost — and they will. Naming it yourself, in terms of what the user sees, is the difference the rubric is measuring.",
+            "All four are true. Only one is a decision. The others state a benefit and stop there, which leaves the interviewer to supply the cost, and they will. Naming it yourself, in terms of what the user sees, is the difference the rubric is measuring.",
         },
       },
     ],
@@ -121,7 +121,7 @@ export const interview: Card[] = [
         level: "intermediate",
         body: [
           "Structure the answer: the situation, what you specifically did, and what happened. Vague collective 'we' answers are the most common weakness.",
-          "Include the trade you made and what you would do differently — certainty about a past decision reads as not having examined it. Have two or three real stories with numbers, including one where the outcome was poor and you took something concrete from it.",
+          "Include the trade you made and what you would do differently, certainty about a past decision reads as not having examined it. Have two or three real stories with numbers, including one where the outcome was poor and you took something concrete from it.",
         ],
         why: "The failure story is the one that separates candidates. Everyone has one; the ones who can describe it precisely, without deflecting, are demonstrating exactly the self-assessment senior work requires.",
         check: {

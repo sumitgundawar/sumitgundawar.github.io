@@ -16,7 +16,7 @@ export const design: Card[] = [
           "Write-through: writes go to cache and database together. The cache is never stale, but every write pays both costs.",
           "Write-behind: writes go to cache and are flushed to the database later. Fastest writes, and a crash between the two loses data.",
         ],
-        why: "Cache-aside wins by default because the failure mode is mild — a miss costs a database read. Write-behind trades durability for speed, which is only acceptable when the data is genuinely disposable.",
+        why: "Cache-aside wins by default because the failure mode is mild, a miss costs a database read. Write-behind trades durability for speed, which is only acceptable when the data is genuinely disposable.",
         check: {
           prompt: "Which strategy risks losing committed writes if the cache node dies?",
           options: ["Cache-aside", "Write-through", "Write-behind", "Read-through"],
@@ -34,7 +34,7 @@ export const design: Card[] = [
           "Versioned keys sidestep deletion entirely. Include a version or timestamp in the key, and bump it on write. Old entries are never read again and expire on their own.",
         ],
         why: "Versioned keys are usually the best of the three because they make invalidation a write to one value instead of a fan-out of deletes. Deleting keys correctly requires knowing every key derived from a piece of data, and that knowledge rots.",
-        inPractice: "Netflix leans on short TTLs plus versioned keys instead of trying to invalidate precisely across regions — with EVCache replicating within a region, a coordinated global delete is slower and less reliable than simply letting stale entries age out.",
+        inPractice: "Netflix leans on short TTLs plus versioned keys instead of trying to invalidate precisely across regions, with EVCache replicating within a region, a coordinated global delete is slower and less reliable than simply letting stale entries age out.",
         check: {
           prompt: "A product appears with an old price on some pages after an update. Which approach avoids this class of bug most reliably?",
           options: [
@@ -78,7 +78,7 @@ export const design: Card[] = [
           options: [
             "A stampede on one hot key, whose misses all reach the database at once",
             "Connection pool exhaustion at the top of the hour, when cron jobs start",
-            "A cache avalanche — identical TTLs mean the whole set expires together",
+            "A cache avalanche, identical TTLs mean the whole set expires together",
             "The eviction policy reclaiming memory in one pass rather than gradually",
           ],
           correctIndex: 2,
@@ -91,7 +91,7 @@ export const design: Card[] = [
         level: "advanced",
         body: [
           "Caching adds a second source of truth and a new class of bug. It earns that when reads dominate, the data tolerates staleness, and recomputation is genuinely expensive.",
-          "Data that changes on nearly every read gains nothing — you pay the write cost and still miss — and per-user data with no reuse usually lands there too. Anything where stale means wrong, such as permissions or balances, should be read from the source, or cached with very tight bounds and explicit invalidation.",
+          "Data that changes on nearly every read gains nothing, you pay the write cost and still miss, and per-user data with no reuse usually lands there too. Anything where stale means wrong, such as permissions or balances, should be read from the source, or cached with very tight bounds and explicit invalidation.",
         ],
         why: "The honest question is not what to cache but what staleness is acceptable for. If the answer is none, caching is the wrong tool and the fix is a faster query or a better index.",
         check: {
@@ -104,7 +104,7 @@ export const design: Card[] = [
           ],
           correctIndex: 3,
           explain:
-            "Stale permissions are a security bug, not a performance tradeoff: the failure grants access instead of costing latency. Session validity is the close call — it is cached constantly in practice, but with seconds-long TTLs and a revocation list precisely because it carries the same risk in weaker form.",
+            "Stale permissions are a security bug, not a performance tradeoff: the failure grants access instead of costing latency. Session validity is the close call, it is cached constantly in practice, but with seconds-long TTLs and a revocation list precisely because it carries the same risk in weaker form.",
         },
       },
     ],
@@ -124,9 +124,9 @@ export const design: Card[] = [
           "Round robin sends each request to the next server. Fine when requests cost roughly the same, poor when they do not.",
           "Least connections routes to whichever server is handling fewest requests, which copes far better with uneven work.",
           "Consistent hashing sends the same key to the same server, which matters when servers hold local state or a cache.",
-          "The choice follows from what your requests look like. Uniform and stateless, and round robin is enough. Wildly variable durations, and it is least connections. Anything cached or held per server, and it is hashing — accepting that you have just made your traffic distribution depend on your key distribution.",
+          "The choice follows from what your requests look like. Uniform and stateless, and round robin is enough. Wildly variable durations, and it is least connections. Anything cached or held per server, and it is hashing, accepting that you have just made your traffic distribution depend on your key distribution.",
         ],
-        why: "Round robin is the default and is wrong whenever request cost varies wildly — one slow endpoint drags a server down while the balancer keeps feeding it work.",
+        why: "Round robin is the default and is wrong whenever request cost varies wildly, one slow endpoint drags a server down while the balancer keeps feeding it work.",
         check: {
           prompt: "Requests range from 5ms to 30s. Which algorithm distributes load best?",
           options: ["Round robin", "Least connections", "Random", "IP hash"],
@@ -140,7 +140,7 @@ export const design: Card[] = [
         level: "advanced",
         body: [
           "Hashing a key modulo the number of servers works until that number changes. Add one server and almost every key maps somewhere new, which invalidates every cache at once.",
-          "Consistent hashing places servers and keys on a ring, so adding or removing a node only moves the keys between it and its neighbour — roughly one over n of the total. Virtual nodes spread each physical server across many ring positions, which evens out a distribution that would otherwise be lumpy.",
+          "Consistent hashing places servers and keys on a ring, so adding or removing a node only moves the keys between it and its neighbour, roughly one over n of the total. Virtual nodes spread each physical server across many ring positions, which evens out a distribution that would otherwise be lumpy.",
         ],
         why: "This is the technique that makes distributed caches and sharded stores survivable. Without it, scaling the cluster is an outage.",
         inPractice: "Used by Cassandra, DynamoDB and every serious distributed cache for exactly this reason.",
@@ -165,7 +165,7 @@ export const design: Card[] = [
           "A shallow health check confirms the process is alive. A deep one confirms it can reach its dependencies.",
           "Deep checks catch more, and can take an entire fleet out when a shared dependency wobbles. The failure is correlated by construction: every node checks the same database, so every node fails the check in the same second.",
           "The usual compromise is a deep check that degrades instead of failing. Report unhealthy only after several consecutive failures, and never let a dependency the request path does not need mark you down.",
-          "Connection draining then lets a server finish its in-flight requests before it leaves the pool, so a deploy does not drop live traffic. Keep readiness and liveness separate while you are there — not ready yet and needs restarting call for very different responses.",
+          "Connection draining then lets a server finish its in-flight requests before it leaves the pool, so a deploy does not drop live traffic. Keep readiness and liveness separate while you are there, not ready yet and needs restarting call for very different responses.",
         ],
         why: "Making the health check depend on the database means a brief database blip marks every server unhealthy simultaneously, turning a degraded system into a total outage.",
         check: {
@@ -203,7 +203,7 @@ export const design: Card[] = [
           options: [
             "Throughput, since the broker adds a network hop to every unit of work",
             "The ability to scale that work independently of the request path",
-            "Certainty the work is done — the response now means accepted, not completed",
+            "Certainty the work is done, the response now means accepted, not completed",
             "Ordering, which the broker cannot preserve once there are several workers",
           ],
           correctIndex: 2,
@@ -216,14 +216,14 @@ export const design: Card[] = [
         level: "intermediate",
         body: [
           "At-most-once may drop messages. At-least-once may deliver twice. Exactly-once is what everyone wants, and end to end in a distributed system it is not achievable.",
-          "What gets sold as exactly-once is at-least-once delivery plus idempotent processing, so a duplicate has no additional effect. That is a real and reachable goal, and it puts the responsibility in the consumer, not the broker — which is why buying a broker does not buy it for you.",
+          "What gets sold as exactly-once is at-least-once delivery plus idempotent processing, so a duplicate has no additional effect. That is a real and reachable goal, and it puts the responsibility in the consumer, not the broker, which is why buying a broker does not buy it for you.",
         ],
-        why: "Selecting a broker for its exactly-once badge and skipping idempotency is the classic mistake. The guarantee applies within the broker, not across your side effects — a duplicate email has already been sent.",
+        why: "Selecting a broker for its exactly-once badge and skipping idempotency is the classic mistake. The guarantee applies within the broker, not across your side effects, a duplicate email has already been sent.",
         check: {
           prompt: "Your broker advertises exactly-once. Do consumers still need to be idempotent?",
           options: [
-            "No — the broker deduplicates by message ID, so a handler is entered at most once",
-            "Yes — the guarantee covers broker state, not the email or charge your handler performs",
+            "No, the broker deduplicates by message ID, so a handler is entered at most once",
+            "Yes, the guarantee covers broker state, not the email or charge your handler performs",
             "Only above the throughput where the broker degrades to at-least-once delivery",
             "Only when consumers are spread across groups, since each group gets its own copy",
           ],
@@ -237,7 +237,7 @@ export const design: Card[] = [
         level: "advanced",
         body: [
           "Ordering guarantees are usually per partition, not global. Kafka orders within a partition; across partitions there is no order at all.",
-          "Keying by entity — user id, order id — puts all of that entity's events in one partition and preserves their order relative to each other, which is almost always the ordering you actually needed. Global ordering means one partition, which means one consumer, which means no parallelism. That is the trade.",
+          "Keying by entity, user id, order id, puts all of that entity's events in one partition and preserves their order relative to each other, which is almost always the ordering you actually needed. Global ordering means one partition, which means one consumer, which means no parallelism. That is the trade.",
         ],
         why: "Wanting strict global ordering usually means the design is wrong. Per-entity ordering is almost always what is actually needed, and it parallelises.",
         check: {
@@ -271,7 +271,7 @@ export const design: Card[] = [
             "So the broker can tell a retry from a fresh publish of the same message",
           ],
           correctIndex: 1,
-          explain: "Pure exponential backoff keeps clients synchronised — they all wait the same intervals and retry together. Jitter breaks that alignment.",
+          explain: "Pure exponential backoff keeps clients synchronised, they all wait the same intervals and retry together. Jitter breaks that alignment.",
         },
       },
     ],
@@ -289,7 +289,7 @@ export const design: Card[] = [
         level: "intermediate",
         body: [
           "A read replica copies the primary and serves reads, which scales read capacity. Writes still go to one place.",
-          "Replication is asynchronous by default, so a replica is always slightly behind — usually milliseconds, occasionally a great deal more under load.",
+          "Replication is asynchronous by default, so a replica is always slightly behind, usually milliseconds, occasionally a great deal more under load.",
           "That gap causes read-your-own-writes bugs. A user saves something, the next read lands on a replica, and they see the old value and conclude it did not save.",
           "The fix is not stronger consistency but a narrower rule: after a user writes, pin that user's reads to the primary for a few seconds. It costs almost nothing and it removes the only staleness anybody actually notices.",
         ],
@@ -314,7 +314,7 @@ export const design: Card[] = [
           "Sharding splits data across databases so writes scale. The shard key decides which shard holds a row, and it is the hardest decision to reverse.",
           "A poor key creates hotspots. Sharding by country puts most traffic on one shard; sharding by timestamp puts every current write on the newest one.",
           "Queries that span shards get slow and complicated, so the key has to match how the data is read, not how it is naturally grouped.",
-          "Resharding later means moving live data while still serving traffic from it. That is why the honest order is replicas, caching, better indexes and a bigger machine first — all of which are reversible, and none of which this is.",
+          "Resharding later means moving live data while still serving traffic from it. That is why the honest order is replicas, caching, better indexes and a bigger machine first, all of which are reversible, and none of which this is.",
         ],
         why: "Shard last. Read replicas, caching, better indexes and a bigger instance all come first, because they are reversible. Sharding changes your data model permanently.",
         check: {
@@ -331,7 +331,7 @@ export const design: Card[] = [
         body: [
           "When a network partition splits your system, you either refuse requests to stay consistent, or answer them and risk divergence. That is the whole choice.",
           "Partitions are not optional, so the real question is what to do during one, not whether to sacrifice partition tolerance.",
-          "It is rarely uniform within one company. A core ledger chooses consistency and refuses; the ATM in the lobby chooses availability, dispenses anyway, and reconciles later with an overdraft fee — which is Brewer's own illustration of the trade.",
+          "It is rarely uniform within one company. A core ledger chooses consistency and refuses; the ATM in the lobby chooses availability, dispenses anyway, and reconciles later with an overdraft fee, which is Brewer's own illustration of the trade.",
         ],
         why: "'We chose AP' is meaningless without saying what happens to conflicting writes afterwards. The interesting engineering is the reconciliation, not the letter.",
         check: {
@@ -344,7 +344,7 @@ export const design: Card[] = [
           ],
           correctIndex: 3,
           explain:
-            "Choosing availability means accepting divergence, so you owe a resolution rule. Last-write-wins by timestamp is one such rule, not an alternative to having one — and it is the lossiest, since it silently discards the losing write and depends on clocks you do not control. A quorum is the other branch entirely: it is what you choose when you would rather refuse the write than reconcile it.",
+            "Choosing availability means accepting divergence, so you owe a resolution rule. Last-write-wins by timestamp is one such rule, not an alternative to having one, and it is the lossiest, since it silently discards the losing write and depends on clocks you do not control. A quorum is the other branch entirely: it is what you choose when you would rather refuse the write than reconcile it.",
         },
       },
       {
@@ -366,7 +366,7 @@ export const design: Card[] = [
           ],
           correctIndex: 1,
           explain:
-            "Users notice their own actions going missing, and almost never notice someone else's arriving late. Routing every read to the primary does fix it, by throwing away the reason you added replicas — the question asked for the cheapest fix, and honest pending state costs nothing.",
+            "Users notice their own actions going missing, and almost never notice someone else's arriving late. Routing every read to the primary does fix it, by throwing away the reason you added replicas, the question asked for the cheapest fix, and honest pending state costs nothing.",
         },
       },
     ],
@@ -408,7 +408,7 @@ export const design: Card[] = [
           "A circuit breaker trips after repeated failures and fails fast for a while, then lets a trial request through to test recovery.",
           "Every network call needs a timeout. A missing timeout means waiting indefinitely, which is how one slow service takes down everything that calls it.",
         ],
-        why: "Retries without a breaker amplify an outage — a struggling service gets more traffic exactly when it is least able to serve it. The breaker is what stops retries becoming an attack on your own system.",
+        why: "Retries without a breaker amplify an outage, a struggling service gets more traffic exactly when it is least able to serve it. The breaker is what stops retries becoming an attack on your own system.",
         check: {
           prompt: "A downstream service slows to 30s per call. Your service becomes unavailable too. What prevents this?",
           options: [
@@ -428,7 +428,7 @@ export const design: Card[] = [
         level: "advanced",
         body: [
           "Not every dependency is essential. If recommendations are down, the product page should still render without them.",
-          "That requires deciding in advance which features are optional and what each fallback is — cached data, a default, or simply hiding the section. The alternative is that any dependency failure becomes a total failure, which is a design decision made by omission.",
+          "That requires deciding in advance which features are optional and what each fallback is, cached data, a default, or simply hiding the section. The alternative is that any dependency failure becomes a total failure, which is a design decision made by omission.",
         ],
         why: "This is the difference between an outage and a degraded experience most users never notice. It costs almost nothing at design time and is expensive to retrofit.",
         inPractice: "Netflix's home page renders with cached or default rows when the personalisation service is unavailable, instead of failing the page.",
@@ -483,7 +483,7 @@ export const design: Card[] = [
           prompt: "Average latency is 100ms and users complain of slowness. Most likely explanation?",
           options: [
             "The mean includes fast health check requests, which drag the number down",
-            "A long tail — p99 may be seconds while the mean stays comfortably low",
+            "A long tail, p99 may be seconds while the mean stays comfortably low",
             "Latency is measured server-side, so it excludes network and render time",
             "The average covers too long a window to show the recent spikes",
           ],

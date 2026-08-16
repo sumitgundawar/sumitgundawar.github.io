@@ -279,7 +279,7 @@ export function recommend(a: Answers): Recommendation[] {
       name: "Read replica",
       pick: "Postgres read replica",
       why:
-        "Read-heavy traffic at this scale can outgrow a single primary. Replicas add read capacity, at the cost of replication lag — so a user's own reads should still go to the primary briefly after they write.",
+        "Read-heavy traffic at this scale can outgrow a single primary. Replicas add read capacity, at the cost of replication lag, so a user's own reads should still go to the primary briefly after they write.",
       where: "Same managed service. Roughly the cost of another instance.",
       alternatives: [
         { name: "More caching first", when: "Reads are repetitive; cache before you replicate." },
@@ -378,7 +378,7 @@ export function recommend(a: Answers): Recommendation[] {
       name: "Payments",
       pick: a.payments === "subs" ? "Stripe Billing" : "Stripe",
       why:
-        "Never hold card details. Using a hosted checkout keeps you out of the strictest parts of PCI compliance entirely, and subscription billing has far more edge cases than it appears — proration, dunning, tax, failed renewals.",
+        "Never hold card details. Using a hosted checkout keeps you out of the strictest parts of PCI compliance entirely, and subscription billing has far more edge cases than it appears, proration, dunning, tax, failed renewals.",
       where: "Per transaction. Roughly 1.5 to 3 percent plus a fixed fee.",
       alternatives: [
         { name: "Paddle or Lemon Squeezy", when: "You want the merchant of record to handle sales tax for you." },
@@ -422,13 +422,13 @@ export function recommend(a: Answers): Recommendation[] {
   return out;
 }
 
-/** Rough monthly cost band, deliberately vague — the point is the order of
+/** Rough monthly cost band, deliberately vague, the point is the order of
  *  magnitude, not a quote. */
 export function costBand(a: Answers): string {
   const scale = scaleRank[a.scale ?? "small"] ?? 1;
-  if (a.budget === "free" && scale <= 1) return "Close to nothing — most of this fits inside free tiers";
-  if (scale <= 1) return "Roughly £0–25 a month";
-  if (scale === 2) return "Roughly £50–250 a month";
+  if (a.budget === "free" && scale <= 1) return "Close to nothing, most of this fits inside free tiers";
+  if (scale <= 1) return "Roughly £0, 25 a month";
+  if (scale === 2) return "Roughly £50, 250 a month";
   return "Several hundred a month and up, depending heavily on media and egress";
 }
 

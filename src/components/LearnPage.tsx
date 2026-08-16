@@ -34,7 +34,7 @@ function LevelDot({ level }: { level: Level }) {
 /** Stable per-topic shuffle.
  *
  *  107 of 109 checks were authored with the answer at index 1, and 103 had it
- *  as the longest option — so clicking the second button every time scored 98%
+ *  as the longest option, so clicking the second button every time scored 98%
  *  without reading anything. Hand-balancing 122 quizzes is fragile and would
  *  drift the moment new ones are written, so the order is randomised here
  *  instead. Seeded by topic id so it is stable across re-renders and does not
@@ -291,8 +291,8 @@ export function LearnPage() {
 
   useEffect(() => {
     const title = current
-      ? `${current.title} — Learn engineering`
-      : "Learn engineering — software engineering and system design";
+      ? `${current.title}, Learn engineering`
+      : "Learn engineering, software engineering and system design";
     document.title = title;
     const desc = current
       ? current.summary
@@ -333,11 +333,11 @@ export function LearnPage() {
             <p className="mt-3.5 text-[15px] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
               Software engineering and system design, from first principles to the decisions senior and
               staff interviews actually probe. Every topic explains why a choice was made, not just what
-              it was. Answer the check at the end of each — there are no accounts, and your score resets
+              it was. Answer the check at the end of each, there are no accounts, and your score resets
               when you refresh.
             </p>
 
-            {/* The counts used to appear twice — once as a stats row and again
+            {/* The counts used to appear twice, once as a stats row and again
                 inside the filter pills immediately below. Same four numbers,
                 four lines of phone screen, no extra information. */}
             {(() => {

@@ -7,7 +7,7 @@ export const design2: Card[] = [
   {
     id: "api-design",
     title: "API design",
-    summary: "REST, GraphQL, gRPC and webhooks — and which problem each one actually solves.",
+    summary: "REST, GraphQL, gRPC and webhooks, and which problem each one actually solves.",
     track: "design",
     topics: [
       {
@@ -16,7 +16,7 @@ export const design2: Card[] = [
         level: "beginner",
         body: [
           "REST models the system as resources addressed by URL, with HTTP verbs describing the action and status codes describing the outcome.",
-          "The value is that everything already understands it — caches, proxies, browsers and load balancers all act correctly on a GET without being told anything about your application. Most APIs called RESTful are really HTTP-with-JSON, which is fine; the parts worth keeping are correct verbs, correct status codes, and cacheable GETs.",
+          "The value is that everything already understands it, caches, proxies, browsers and load balancers all act correctly on a GET without being told anything about your application. Most APIs called RESTful are really HTTP-with-JSON, which is fine; the parts worth keeping are correct verbs, correct status codes, and cacheable GETs.",
         ],
         why: "Sticking to standard verbs and codes is not pedantry: it is what lets a CDN cache your GET, a proxy retry safely, and a client library behave sensibly without custom logic.",
         check: {
@@ -29,7 +29,7 @@ export const design2: Card[] = [
           ],
           correctIndex: 2,
           explain:
-            "Verbs carry meaning to infrastructure that never reads your code. A GET can be cached at the edge and retried by anything in the path; a POST is assumed to change state and gets neither. The preflight and the lost retry are real costs too — they are all the same cause, which is that you told the network this was a write.",
+            "Verbs carry meaning to infrastructure that never reads your code. A GET can be cached at the edge and retried by anything in the path; a POST is assumed to change state and gets neither. The preflight and the lost retry are real costs too, they are all the same cause, which is that you told the network this was a write.",
         },
       },
       {
@@ -38,9 +38,9 @@ export const design2: Card[] = [
         level: "intermediate",
         body: [
           "GraphQL lets the client ask for exactly the fields it needs in one request, which solves over-fetching and the round trips of a chatty REST API.",
-          "It moves the complexity to the server. Arbitrary client queries can be arbitrarily expensive, so you need depth limits, cost analysis and dataloader batching to avoid N+1 database calls — and HTTP caching largely stops working, because every query is a POST to a single endpoint.",
+          "It moves the complexity to the server. Arbitrary client queries can be arbitrarily expensive, so you need depth limits, cost analysis and dataloader batching to avoid N+1 database calls, and HTTP caching largely stops working, because every query is a POST to a single endpoint.",
         ],
-        why: "GraphQL earns its keep with many clients that need different shapes of the same data — a mobile app and a web app, say. For a single first-party client it is usually complexity without payoff.",
+        why: "GraphQL earns its keep with many clients that need different shapes of the same data, a mobile app and a web app, say. For a single first-party client it is usually complexity without payoff.",
         check: {
           prompt: "What is the main operational cost of adopting GraphQL?",
           options: [
@@ -51,7 +51,7 @@ export const design2: Card[] = [
           ],
           correctIndex: 1,
           explain:
-            "Query flexibility is the feature and the bill: you take on depth limits, cost analysis and your own caching. N+1 is real but it is a solved problem — dataloader batching is standard equipment. Arbitrary query cost is the part that never fully goes away, because the client decides it.",
+            "Query flexibility is the feature and the bill: you take on depth limits, cost analysis and your own caching. N+1 is real but it is a solved problem, dataloader batching is standard equipment. Arbitrary query cost is the part that never fully goes away, because the client decides it.",
         },
       },
       {
@@ -97,7 +97,7 @@ export const design2: Card[] = [
           ],
           correctIndex: 2,
           explain:
-            "A secret URL is a bearer token in the one place that leaks by default — access logs, referrers, proxies. A signature authenticates each individual body instead. TLS is not the answer: it authenticates the server being called, and tells the receiver nothing about who called it.",
+            "A secret URL is a bearer token in the one place that leaks by default, access logs, referrers, proxies. A signature authenticates each individual body instead. TLS is not the answer: it authenticates the server being called, and tells the receiver nothing about who called it.",
         },
       },
       {
@@ -129,7 +129,7 @@ export const design2: Card[] = [
   {
     id: "realtime",
     title: "Real-time and push",
-    summary: "WebSockets, SSE, polling and pub/sub — and how to scale a connection you keep open.",
+    summary: "WebSockets, SSE, polling and pub/sub, and how to scale a connection you keep open.",
     track: "design",
     topics: [
       {
@@ -142,7 +142,7 @@ export const design2: Card[] = [
           "Server-sent events are a one-way stream from server to client over plain HTTP, with automatic reconnection built into the browser.",
           "WebSockets give a persistent two-way channel, which is what you need when the client also sends frequently. Read the four as a cost ladder: each step buys lower latency and charges you in held connections and server-side state.",
         ],
-        why: "SSE is underrated: if data only flows server to client — notifications, live prices, progress — it is far simpler than WebSockets and works through ordinary HTTP infrastructure.",
+        why: "SSE is underrated: if data only flows server to client, notifications, live prices, progress, it is far simpler than WebSockets and works through ordinary HTTP infrastructure.",
         check: {
           prompt: "A dashboard receives live updates but never sends anything back. Simplest fit?",
           options: ["WebSockets", "Server-sent events", "Long polling", "gRPC streaming"],
@@ -239,14 +239,14 @@ export const design2: Card[] = [
         check: {
           prompt: "Search returns correct matches but users complain. Most likely cause?",
           options: [
-            "Recall — the best documents are not being matched by the query at all",
+            "Recall, the best documents are not being matched by the query at all",
             "The index is stale, so recently updated documents show their old content",
-            "Ranking — the right documents are present but not near the top",
+            "Ranking, the right documents are present but not near the top",
             "Query parsing, which is dropping terms the user considered important",
           ],
           correctIndex: 2,
           explain:
-            "The question says the matches are correct, which rules recall out — the documents are being found. What is left is ordering, and since users rarely look past the first few results, ranking is the product rather than a refinement of it.",
+            "The question says the matches are correct, which rules recall out, the documents are being found. What is left is ordering, and since users rarely look past the first few results, ranking is the product rather than a refinement of it.",
         },
       },
       {
@@ -255,7 +255,7 @@ export const design2: Card[] = [
         level: "advanced",
         body: [
           "The search index is a second copy of the data, so it can drift.",
-          "Dual writes — writing to the database and the index in the same request — fail the moment one succeeds and the other does not, and nothing about that failure is visible until somebody searches for the missing thing.",
+          "Dual writes, writing to the database and the index in the same request, fail the moment one succeeds and the other does not, and nothing about that failure is visible until somebody searches for the missing thing.",
           "The reliable pattern is to write to the database and derive the index from its change log, so the database stays the single source of truth and the index is always a function of it.",
           "You also need a full reindex path. Mappings change, drift accumulates, and eventually the only honest fix is to rebuild into a fresh index and swap the alias over.",
         ],
@@ -287,7 +287,7 @@ export const design2: Card[] = [
         level: "beginner",
         body: [
           "Object storage such as S3 holds immutable blobs addressed by key, with effectively unlimited capacity and a very low cost per gigabyte.",
-          "Putting files in a database instead inflates backups, slows replication, and spends expensive storage on data nothing will ever query. The standard shape is the file in object storage and its metadata — key, size, owner, content type — in the database.",
+          "Putting files in a database instead inflates backups, slows replication, and spends expensive storage on data nothing will ever query. The standard shape is the file in object storage and its metadata, key, size, owner, content type, in the database.",
         ],
         why: "The rule is to store what you query in the database and what you serve in object storage. Blobs in Postgres make every operational task on that database slower forever.",
         check: {
@@ -332,7 +332,7 @@ export const design2: Card[] = [
           "The player measures throughput and switches renditions per segment, so a failing connection degrades quality instead of stalling. This is HLS or DASH, and it is why streaming survives a train tunnel when a single MP4 does not.",
         ],
         why: "Adaptive bitrate exists because bandwidth is variable and unpredictable. Serving one file forces a choice between buffering for slow connections and wasting quality on fast ones.",
-        inPractice: "Netflix encodes each title into many renditions and tunes them per title — an animated film and a dark action film need different bitrates for the same perceived quality.",
+        inPractice: "Netflix encodes each title into many renditions and tunes them per title, an animated film and a dark action film need different bitrates for the same perceived quality.",
         check: {
           prompt: "Why segment video and offer multiple renditions?",
           options: [
@@ -364,12 +364,12 @@ export const design2: Card[] = [
           "The reason is structural. Authentication happens once, in one place, so it is hard to forget. Authorisation happens on every request against every resource, so it is easy to miss exactly one.",
           "Which is why the durable fix is to check ownership where the data is fetched rather than in each handler. A query that cannot return another tenant's row is safer than a hundred handlers that each have to remember to ask.",
         ],
-        why: "Insecure direct object reference — changing an id in a URL and seeing someone else's data — is consistently among the most common real vulnerabilities, and it is purely a missing authorisation check.",
+        why: "Insecure direct object reference, changing an id in a URL and seeing someone else's data, is consistently among the most common real vulnerabilities, and it is purely a missing authorisation check.",
         check: {
           prompt: "A logged-in user changes an id in the URL and sees another customer's invoice. What failed?",
           options: [
             "Session management, since the session was never bound to the resource",
-            "Authorisation — identity was established, but ownership was never checked",
+            "Authorisation, identity was established, but ownership was never checked",
             "Authentication, because the identity was not re-verified on this request",
             "Input validation, which should have rejected an id outside their range",
           ],
@@ -383,9 +383,9 @@ export const design2: Card[] = [
         level: "intermediate",
         body: [
           "A session id is a reference. The server holds the state, can revoke it instantly, and pays a lookup on every request.",
-          "A JWT carries its claims and a signature, so it validates without a lookup — and that is exactly why it cannot be revoked before it expires.",
+          "A JWT carries its claims and a signature, so it validates without a lookup, and that is exactly why it cannot be revoked before it expires.",
           "The usual compromise is short-lived access tokens alongside longer-lived refresh tokens that can be revoked.",
-          "Worth saying plainly: for one application talking to a database it already has open, a session is simpler and better. JWTs earn their keep when the validating service cannot reach your session store — across services, across companies, or at an edge with no database at all.",
+          "Worth saying plainly: for one application talking to a database it already has open, a session is simpler and better. JWTs earn their keep when the validating service cannot reach your session store, across services, across companies, or at an edge with no database at all.",
         ],
         why: "JWTs are frequently chosen for statelessness and then paired with a revocation list, which reintroduces the lookup and leaves you with the drawbacks of both.",
         check: {
@@ -398,7 +398,7 @@ export const design2: Card[] = [
           ],
           correctIndex: 2,
           explain:
-            "Validation is local by design, and revocation needs shared state — precisely what the token was chosen to avoid. Rotating the signing key does revoke it, but it revokes everyone's at once, which is a blast radius rather than a mechanism.",
+            "Validation is local by design, and revocation needs shared state, precisely what the token was chosen to avoid. Rotating the signing key does revoke it, but it revokes everyone's at once, which is a blast radius rather than a mechanism.",
         },
       },
       {
@@ -417,7 +417,7 @@ export const design2: Card[] = [
             "Refresh tokens, so a client can stay signed in without re-prompting",
             "Signed and time-limited tokens, which plain OAuth does not require",
             "Proof that the access token was issued to this client, by way of PKCE",
-            "An identity layer — an ID token that states who the user actually is",
+            "An identity layer, an ID token that states who the user actually is",
           ],
           correctIndex: 3,
           explain: "OAuth grants access to resources. OIDC adds authenticated identity, which is what login actually requires.",
@@ -429,7 +429,7 @@ export const design2: Card[] = [
         level: "intermediate",
         body: [
           "Secrets belong in a manager with rotation and an audit trail, not in environment variables committed to a repository or baked into an image.",
-          "Passwords are a separate problem. They are hashed with a slow algorithm built for the job — bcrypt, scrypt or Argon2 — never a fast general-purpose hash like SHA-256, which is brute-forced trivially.",
+          "Passwords are a separate problem. They are hashed with a slow algorithm built for the job, bcrypt, scrypt or Argon2, never a fast general-purpose hash like SHA-256, which is brute-forced trivially.",
           "Encryption in transit is table stakes, and essentially free.",
           "Encryption at rest is worth less than people assume. It defends against a stolen disk and it satisfies an auditor. It does nothing against an attacker holding application credentials, which is how the data usually leaves.",
         ],
@@ -444,7 +444,7 @@ export const design2: Card[] = [
           ],
           correctIndex: 0,
           explain:
-            "SHA-256 is a good hash and the wrong tool here — speed is its virtue and the whole problem. bcrypt and Argon2 are deliberately expensive, with a cost factor you raise as hardware improves. Salting is a separate fix for a separate bug: it stops one rainbow table covering every user, but a salted fast hash is still brute-forced per user.",
+            "SHA-256 is a good hash and the wrong tool here, speed is its virtue and the whole problem. bcrypt and Argon2 are deliberately expensive, with a cost factor you raise as hardware improves. Salting is a separate fix for a separate bug: it stops one rainbow table covering every user, but a salted fast hash is still brute-forced per user.",
         },
       },
     ],
@@ -461,17 +461,17 @@ export const design2: Card[] = [
         title: "Leader election",
         level: "advanced",
         body: [
-          "Many systems need exactly one node doing something — running a scheduled job, accepting writes, coordinating a cluster. Leader election picks that node and replaces it when it dies.",
+          "Many systems need exactly one node doing something, running a scheduled job, accepting writes, coordinating a cluster. Leader election picks that node and replaces it when it dies.",
           "Doing it correctly is subtle, and two nodes both believing they lead is a split brain that corrupts data quietly. Almost nobody should implement this themselves: use etcd, ZooKeeper, or a database lease with fencing tokens.",
         ],
-        why: "The naive version — a lock row with a timeout — fails when the leader pauses for garbage collection, wakes up believing it still holds the lock, and writes over the new leader. Fencing tokens exist to reject those late writes.",
+        why: "The naive version, a lock row with a timeout, fails when the leader pauses for garbage collection, wakes up believing it still holds the lock, and writes over the new leader. Fencing tokens exist to reject those late writes.",
         check: {
           prompt: "A leader stalls for 30s, its lease expires, a new leader is elected, then the old one resumes and writes. What prevents corruption?",
           options: [
             "A lease longer than the worst-case pause, so expiry cannot happen mid-write",
             "The old leader notices the new one on resume and stands down before writing",
             "Quorum writes, since the old leader can no longer reach a majority of replicas",
-            "Fencing tokens — storage rejects any write carrying a superseded term number",
+            "Fencing tokens, storage rejects any write carrying a superseded term number",
           ],
           correctIndex: 3,
           explain:
@@ -497,7 +497,7 @@ export const design2: Card[] = [
             "An odd size lets the leader break a tie with its own vote when votes are even",
           ],
           correctIndex: 2,
-          explain: "3 and 4 both tolerate one failure, so the fourth node adds cost and no resilience; 5 is the next step that tolerates two. Note the common explanation — that odd sizes avoid ties — is wrong: a majority of 4 is 3, so a majority quorum cannot tie.",
+          explain: "3 and 4 both tolerate one failure, so the fourth node adds cost and no resilience; 5 is the next step that tolerates two. Note the common explanation, that odd sizes avoid ties, is wrong: a majority of 4 is 3, so a majority quorum cannot tie.",
         },
       },
       {
@@ -520,7 +520,7 @@ export const design2: Card[] = [
           ],
           correctIndex: 1,
           explain:
-            "Each step commits locally, so partial state is observable and compensation is a new action rather than a rollback — and not always a complete one, since you cannot unsend an email. Spanning services is the reason a saga exists, not what makes it different; the difference is what it gives up once it does.",
+            "Each step commits locally, so partial state is observable and compensation is a new action rather than a rollback, and not always a complete one, since you cannot unsend an email. Spanning services is the reason a saga exists, not what makes it different; the difference is what it gives up once it does.",
         },
       },
       {
@@ -573,7 +573,7 @@ export const design2: Card[] = [
           ],
           correctIndex: 0,
           explain:
-            "Row storage forces you to read whole rows to reach three fields; columnar reads only what the query names, which on a wide table is a large multiple less IO. Compression is the honourable second answer and it is real — like values sit together and compress hard — but it multiplies a win that column pruning already delivered.",
+            "Row storage forces you to read whole rows to reach three fields; columnar reads only what the query names, which on a wide table is a large multiple less IO. Compression is the honourable second answer and it is real, like values sit together and compress hard, but it multiplies a win that column pruning already delivered.",
         },
       },
       {
@@ -585,7 +585,7 @@ export const design2: Card[] = [
           "Streaming processes events as they arrive, giving low latency at the cost of handling late and out-of-order data, and windowing.",
           "Most organisations need batch and think they need streaming. The question is whether a decision is actually made on fresher data.",
         ],
-        why: "Streaming is meaningfully harder to operate and debug. It is worth it when freshness changes an outcome — fraud, pricing, alerting — and rarely worth it for dashboards read each morning.",
+        why: "Streaming is meaningfully harder to operate and debug. It is worth it when freshness changes an outcome, fraud, pricing, alerting, and rarely worth it for dashboards read each morning.",
         check: {
           prompt: "What is the strongest justification for streaming over nightly batch?",
           options: [
@@ -618,7 +618,7 @@ export const design2: Card[] = [
           ],
           correctIndex: 1,
           explain:
-            "Polling an updated_at column misses deletes and every intermediate state, and adds query load to the primary. The log has all of it, already in commit order. It does not read uncommitted data — the log is written at commit — and it does not deliver exactly once, so consumers still need to be idempotent.",
+            "Polling an updated_at column misses deletes and every intermediate state, and adds query load to the primary. The log has all of it, already in commit order. It does not read uncommitted data, the log is written at commit, and it does not deliver exactly once, so consumers still need to be idempotent.",
         },
       },
     ],

@@ -1,5 +1,5 @@
 /* Tailwind v4. The v3 directives below this used to be @tailwind base/
-   components/utilities, which v4 does not recognise — so Preflight was never
+   components/utilities, which v4 does not recognise, so Preflight was never
    emitted and every element kept its user-agent margins. That is why headings
    and figures needed manual resets scattered through the file.
 
@@ -17,12 +17,11 @@
   :root {
     /* Boundaries.
        These were all between 1.04:1 and 1.33:1, which is why nothing on the
-       site had a visible edge — 31 learn cards, the timeline, every divider and
+       site had a visible edge, 31 learn cards, the timeline, every divider and
        every quiet panel dissolved into one sheet of near-black.
 
        Two tiers rather than one number. Fills separate softly, because a card
-       background does not need to shout. Borders that are actual UI components
-       — cards you click, quiz options you answer — use --hair-strong and clear
+       background does not need to shout. Borders that are actual UI components, cards you click, quiz options you answer, use --hair-strong and clear
        WCAG 1.4.11's 3:1 against the surface behind them. Measured, not guessed. */
     --ink: #0e1110;
     --surface: #262a28;      /* 1.31:1 on ink */
@@ -50,7 +49,7 @@
 
     /* Learning surfaces.
        These were six unmodified Tailwind defaults sitting beside the
-       hand-mixed status colours above, at visibly different saturation — so the
+       hand-mixed status colours above, at visibly different saturation, so the
        diagrams read as pasted in from another design system, because they were.
        Re-mixed at the saturation of --signal and --warn, and the duplicates
        collapsed: accent IS signal, accent-2 IS cool, beginner IS signal.
@@ -92,7 +91,7 @@
   }
 
   /* Anything that animates continuously must stop when the reader has asked
-     for less motion — the diagram packets loop forever otherwise. */
+     for less motion, the diagram packets loop forever otherwise. */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

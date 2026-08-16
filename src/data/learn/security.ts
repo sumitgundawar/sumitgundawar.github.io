@@ -9,7 +9,7 @@ export const security: Card[] = [
   {
     id: "appsec",
     title: "Application security",
-    summary: "Injection, XSS, CSRF, SSRF — the failures that turn a bug into a breach.",
+    summary: "Injection, XSS, CSRF, SSRF, the failures that turn a bug into a breach.",
     track: "practice",
     topics: [
       {
@@ -17,7 +17,7 @@ export const security: Card[] = [
         title: "Injection and parameterised queries",
         level: "beginner",
         body: [
-          "Injection happens when input is concatenated into a command — SQL, a shell line, an LDAP filter — so the input can end the data and start being instruction.",
+          "Injection happens when input is concatenated into a command, SQL, a shell line, an LDAP filter, so the input can end the data and start being instruction.",
           "Escaping is the wrong fix, because it requires getting every context right forever. Parameterised queries send the statement and the values on separate channels, so the value can never be parsed as syntax.",
           "An ORM is not automatic protection. Most expose a raw query escape hatch, and that is where injection reappears.",
         ],
@@ -25,7 +25,7 @@ export const security: Card[] = [
         check: {
           prompt: "Your ORM is used everywhere and one report endpoint builds SQL by string concatenation for a dynamic ORDER BY. What is the exposure?",
           options: [
-            "None — the ORM parameterises the values, and only values can be injected",
+            "None, the ORM parameterises the values, and only values can be injected",
             "Injection via ORDER BY, which takes an identifier and so needs an allowlist",
             "Injection, but only if the column name is taken from the URL query string",
             "None, provided the value is escaped for quotes before concatenation",
@@ -39,7 +39,7 @@ export const security: Card[] = [
         title: "Cross-site scripting",
         level: "intermediate",
         body: [
-          "XSS is injection into a page rather than a query: attacker-controlled text is rendered as markup, so their script runs with your origin's privileges — including the user's session.",
+          "XSS is injection into a page rather than a query: attacker-controlled text is rendered as markup, so their script runs with your origin's privileges, including the user's session.",
           "React escapes interpolated values by default, which removes most of it. The holes are dangerouslySetInnerHTML, injecting into a href or src, and anything written into a script or style context.",
           "A Content Security Policy limits the damage when something does slip through, by refusing to execute inline or third-party script.",
         ],
@@ -72,7 +72,7 @@ export const security: Card[] = [
             "Yes, since any state-changing endpoint needs a synchroniser token",
             "Only if the token is also mirrored into a cookie for convenience",
             "Only when the API and the SPA are served from different origins",
-            "Not for classic CSRF — the browser does not attach that header cross-site",
+            "Not for classic CSRF, the browser does not attach that header cross-site",
           ],
           correctIndex: 3,
           explain: "CSRF depends on credentials being sent automatically. A header your own script sets is not, so the cross-site form post arrives unauthenticated. Move the token to a cookie and the exposure returns.",
@@ -83,7 +83,7 @@ export const security: Card[] = [
         title: "SSRF and the metadata endpoint",
         level: "advanced",
         body: [
-          "SSRF is making your server fetch a URL an attacker chose. Any feature that takes a URL — webhook registration, image import, link preview — is a candidate.",
+          "SSRF is making your server fetch a URL an attacker chose. Any feature that takes a URL, webhook registration, image import, link preview, is a candidate.",
           "The damage is that your server sits inside the network. It can reach internal services, admin panels and, on a cloud instance, the metadata endpoint that hands out credentials.",
           "Blocklisting hostnames fails. DNS can resolve to an internal address, and a redirect moves the target after you have validated it.",
           "What works is checking the resolved address rather than the string, re-checking it on every redirect hop, or egressing through a proxy that only permits known hosts. The proxy is the only one of the three that stays correct when somebody adds a new URL-fetching feature and never hears about the rule.",
@@ -110,7 +110,7 @@ export const security: Card[] = [
         level: "advanced",
         body: [
           "Most of what ships is code you did not write. A postinstall script in any transitive dependency runs with your build's privileges, which is a direct path to your CI secrets.",
-          "Lockfiles pin versions, which is necessary and not sufficient — a compromised version can be published under a number you have already pinned to, and typosquatted names sit one keystroke from real ones.",
+          "Lockfiles pin versions, which is necessary and not sufficient, a compromised version can be published under a number you have already pinned to, and typosquatted names sit one keystroke from real ones.",
           "The cheap wins are a lockfile, automated updates so you are never far behind, minimal CI token scope, and treating the dependency count itself as a cost.",
         ],
         why: "The threat model is that adding a dependency grants its author execution on your build machine. That reframes 'is this library any good' into 'do I trust this author with my deploy credentials', which is the question that actually matters.",
@@ -148,10 +148,10 @@ export const security: Card[] = [
         check: {
           prompt: "Under read committed, you run the same SELECT twice in one transaction and get different results. Is this a bug?",
           options: [
-            "Yes — a transaction must observe one consistent snapshot for its lifetime",
+            "Yes, a transaction must observe one consistent snapshot for its lifetime",
             "Only if rows were deleted; committed updates stay hidden until you commit",
-            "No — non-repeatable reads are permitted there; use repeatable read for stability",
-            "No — but only because the second read saw data committed before you began",
+            "No, non-repeatable reads are permitted there; use repeatable read for stability",
+            "No, but only because the second read saw data committed before you began",
           ],
           correctIndex: 2,
           explain: "Read committed only guarantees you never see uncommitted data. Other transactions committing between your two reads is expected behaviour at that level.",
@@ -163,10 +163,10 @@ export const security: Card[] = [
         level: "advanced",
         body: [
           "Multi-version concurrency control keeps several versions of each row, so a reader sees a consistent snapshot from when its transaction began while writers carry on. Readers do not block writers and writers do not block readers.",
-          "The cost is that old versions accumulate and must be cleaned up — Postgres calls this vacuum, and a long-running transaction holds back the cleanup for everyone.",
+          "The cost is that old versions accumulate and must be cleaned up, Postgres calls this vacuum, and a long-running transaction holds back the cleanup for everyone.",
           "Snapshot isolation is what this buys, and it is not serializable: it permits write skew.",
         ],
-        why: "The failure this creates in production is rarely a correctness bug — it is an idle transaction left open by a connection pool, blocking vacuum until the table bloats and queries slow down.",
+        why: "The failure this creates in production is rarely a correctness bug, it is an idle transaction left open by a connection pool, blocking vacuum until the table bloats and queries slow down.",
         check: {
           prompt: "Table bloat is growing and queries are slowing, but write volume is normal. Most likely cause under MVCC?",
           options: [
@@ -195,7 +195,7 @@ export const security: Card[] = [
             "A lost update, since the second commit overwrote the first one's decision",
             "A phantom read, because a row matching the predicate appeared mid-transaction",
             "A deadlock the database resolved by committing both instead of aborting one",
-            "Write skew — the constraint spans rows, and neither wrote what the other read",
+            "Write skew, the constraint spans rows, and neither wrote what the other read",
           ],
           correctIndex: 3,
           explain: "They wrote disjoint rows, so nothing conflicted. Snapshot isolation allows this; serializable, or forcing both through one shared row, does not.",
@@ -206,7 +206,7 @@ export const security: Card[] = [
         title: "The write-ahead log and the outbox",
         level: "advanced",
         body: [
-          "Databases write changes to a log before applying them, which is what makes durability and crash recovery possible — and what replication and change data capture read from.",
+          "Databases write changes to a log before applying them, which is what makes durability and crash recovery possible, and what replication and change data capture read from.",
           "The outbox pattern uses this. Instead of writing to the database and publishing an event separately, you insert the event into an outbox table inside the same transaction, and a relay reads that table and publishes.",
           "One commit, so the event and the state change cannot disagree. The relay may publish twice, which is why consumers still need idempotency.",
         ],
@@ -220,7 +220,7 @@ export const security: Card[] = [
             "It removes the broker, since consumers can poll the outbox table directly",
           ],
           correctIndex: 0,
-          explain: "The gap between commit and publish is where events are lost. Writing the event in the same transaction closes it — delivery is still at-least-once, so consumers stay idempotent.",
+          explain: "The gap between commit and publish is where events are lost. Writing the event in the same transaction closes it, delivery is still at-least-once, so consumers stay idempotent.",
         },
       },
     ],
@@ -261,7 +261,7 @@ export const security: Card[] = [
         body: [
           "CAP describes behaviour during a partition. PACELC adds the case that actually dominates: else, when the network is fine, you still trade latency against consistency.",
           "Reading from the nearest replica is fast and possibly stale. Reading through a quorum is consistent and pays the round trips. No partition is required for that choice to exist.",
-          "So a system is described as PA/EL or PC/EC — what it does when partitioned, and what it does the rest of the time.",
+          "So a system is described as PA/EL or PC/EC, what it does when partitioned, and what it does the rest of the time.",
         ],
         why: "Partitions are rare and the else branch is every single request. Discussing only CAP means discussing the exceptional case and ignoring the one that determines how the system feels in normal operation.",
         check: {
@@ -269,8 +269,8 @@ export const security: Card[] = [
           options: [
             "Consistency against availability, which is the CAP tradeoff",
             "Durability against throughput, since the replica acknowledges sooner",
-            "Latency against consistency — the E and the L of PACELC",
-            "None — without a partition there is nothing left to trade away",
+            "Latency against consistency, the E and the L of PACELC",
+            "None, without a partition there is nothing left to trade away",
           ],
           correctIndex: 2,
           explain: "This is exactly the else branch. The choice exists on every request, which is why it matters more day to day than the partition case CAP describes.",
@@ -283,7 +283,7 @@ export const security: Card[] = [
         body: [
           "A cell is a complete, independent copy of the stack serving a subset of users. Nothing is shared between cells, so a failure inside one cannot reach the others.",
           "This bounds the blast radius by construction: a bad deploy or a poison request takes out one cell's users rather than everyone. Deploys go cell by cell for the same reason.",
-          "The cost is real — more infrastructure, and any operation genuinely spanning all users becomes awkward.",
+          "The cost is real, more infrastructure, and any operation genuinely spanning all users becomes awkward.",
         ],
         why: "It converts availability from a probability into an arithmetic fact. Rather than arguing about how likely total failure is, you decide in advance that the worst single failure affects one over n of your users.",
         inPractice: "AWS builds services from cells within an availability zone specifically so a fault has a bounded, known set of affected customers.",
@@ -292,7 +292,7 @@ export const security: Card[] = [
           options: [
             "Lower latency, since each cell is placed near the users that it serves",
             "Cheaper infrastructure, since cells can be sized to their actual load",
-            "A bounded blast radius — one failure hits one cell's users, not all of them",
+            "A bounded blast radius, one failure hits one cell's users, not all of them",
             "Simpler operations, since every cell is identical and deployed on its own",
           ],
           correctIndex: 2,
@@ -318,7 +318,7 @@ export const security: Card[] = [
             "Roughly unchanged, since an event at p99 is by definition uncommon",
           ],
           correctIndex: 1,
-          explain: "With 100 calls, the chance that all land inside p99 is 0.99^100, about 37 percent. So roughly two thirds of requests hit at least one slow call — the tail becomes the norm.",
+          explain: "With 100 calls, the chance that all land inside p99 is 0.99^100, about 37 percent. So roughly two thirds of requests hit at least one slow call, the tail becomes the norm.",
         },
       },
     ],

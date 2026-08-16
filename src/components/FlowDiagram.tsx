@@ -68,8 +68,7 @@ interface Placed extends DiagramNode {
 export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
   const [hovered, setHovered] = useState<string | null>(null);
   const narrow = useNarrow();
-  // The packets are SMIL, and CSS animation properties do not touch SMIL —
-  // the reduced-motion block in index.css never stopped them. Not rendering
+  // The packets are SMIL, and CSS animation properties do not touch SMIL, // the reduced-motion block in index.css never stopped them. Not rendering
   // them is the only thing that actually does.
   const reducedMotion = usePrefersReducedMotion();
 
@@ -121,7 +120,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
     };
   }, [diagram, narrow]);
 
-  /** Cubic bezier midpoint — where a label sits. Computing it means labels are
+  /** Cubic bezier midpoint, where a label sits. Computing it means labels are
    *  ordinary horizontal text rather than textPath, which rotates every glyph
    *  to the tangent and is unreadable on anything but a shallow curve. */
   const bezierMid = (
@@ -139,7 +138,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
    *
    * Four cases, and the previous version only really handled one. Forward
    * adjacent edges go right face to left face. Forward edges that skip a column
-   * arc above the row so they do not pass under the boxes in between — that is
+   * arc above the row so they do not pass under the boxes in between, that is
    * what hid the Netflix diagram's "video segments" label behind a node.
    * Backward edges bow underneath. Same-column edges bow out to the right.
    */

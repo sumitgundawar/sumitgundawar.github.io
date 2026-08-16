@@ -12,7 +12,7 @@
  * Regenerate with `npx wrangler types` after changing bindings in
  * wrangler.jsonc — do not extend this by hand.
  */
-import { handleApi, handleReportPreview, postWeekly, type ApiEnv } from "./api";
+import { handleApi, handleReportPreview, postAlerts, postWeekly, type ApiEnv } from "./api";
 
 interface Env extends ApiEnv {
   // secrets, set with `wrangler secret put`

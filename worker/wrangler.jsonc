@@ -26,5 +26,5 @@
   // the next request and the limit did close to nothing.
   "kv_namespaces": [{ "binding": "RATE", "id": "ecd045716a8141de8ce9a5c6038cecbd" }],
 
-  "triggers": { "crons": ["0 9 * * 1"] }
+  "triggers": { "crons": ["0 9 * * 1", "0 8 * * *"] }
 }

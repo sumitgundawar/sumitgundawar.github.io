@@ -655,6 +655,77 @@ export async function postWeekly(env: ApiEnv): Promise<void> {
   });
 }
 
+/* Alerts, as distinct from the weekly report.
+ *
+ * A weekly summary tells you what happened. It does not tell you that the model
+ * chain has been exhausting itself since Tuesday, or that traffic stopped four
+ * days ago because a deploy broke the tracking call. Those need to arrive when
+ * they happen, and the test for including one is whether it would change what
+ * you did that day. Anything that would not is left to the weekly.
+ *
+ * Deliberately not alerted on: individual model failures, since the chain
+ * exists precisely so those are survivable and paging on a designed-for
+ * fallback is how people learn to ignore alerts. */
+export async function runAlerts(env: ApiEnv): Promise<string[]> {
+  const fired: string[] = [];
+  const say = (s: string) => fired.push(s);
+
+  const rows = async (path: string) => sb(env, path).then((r) => r.json() as Promise<Record<string, unknown>[]>);
+  const since = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
+
+  /* 1. The chain answered from its weakest tier, or not at all. One model
+        failing is normal; reaching tier 3 means most of the account is down. */
+  const lastAnswers = await rows(
+    `ai_messages?select=model&role=eq.assistant&created_at=gte.${since(24)}&limit=200`,
+  );
+  const weak = lastAnswers.filter((m) => typeof m.model === "string" && /mini-4b|8b-instruct|minitron/.test(m.model as string));
+  if (lastAnswers.length >= 5 && weak.length / lastAnswers.length > 0.5) {
+    say(`The assistant answered ${weak.length} of the last ${lastAnswers.length} questions from the smallest models. Most of the model chain is unavailable.`);
+  }
+
+  /* 2. Traffic stopped. The likeliest cause is not that everyone left, it is
+        that a deploy broke the tracking call, which is invisible on the site. */
+  const [recent, prior] = await Promise.all([
+    rows(`page_views?select=id&created_at=gte.${since(48)}&limit=1`),
+    rows(`page_views?select=id&created_at=gte.${since(24 * 14)}&created_at=lt.${since(48)}&limit=1`),
+  ]);
+  if (prior.length > 0 && recent.length === 0) {
+    say("No page views recorded in 48 hours, after a fortnight with traffic. Check the tracking call before concluding anything about visitors.");
+  }
+
+  /* 3. A question almost everybody gets wrong. Past a point that is not a hard
+        idea, it is an explanation that is not working. */
+  const struggling = (await sb(env, "rpc/struggling_topics", {
+    method: "POST",
+    body: JSON.stringify({ days: 7, min_answers: 12 }),
+  }).then((r) => r.json())) as { topic_id: string; wrong_pct: number; answers: number }[];
+  for (const t of struggling.filter((x) => x.wrong_pct >= 80)) {
+    say(`"${t.topic_id}" is being answered wrong by ${t.wrong_pct}% of ${t.answers} people. That is usually the explanation, not the question.`);
+  }
+
+  /* 4. Newsletter signups that never synced to the broadcast list, which is
+        silent by design and would otherwise only surface at send time. */
+  const unsynced = await rows(`subscribers?select=email&status=eq.confirmed&synced_to_resend=is.false&limit=25`);
+  if (unsynced.length >= 5) {
+    say(`${unsynced.length} confirmed subscribers have not reached the Resend audience. They will miss the next broadcast.`);
+  }
+
+  return fired;
+}
+
+export async function postAlerts(env: ApiEnv): Promise<void> {
+  const fired = await runAlerts(env);
+  if (!fired.length) return; // silence is the correct output most days
+  const text = ["*Site alerts*", "", ...fired.map((f) => `• ${f}`)].join("\n");
+  if (env.SLACK_BOT_TOKEN && env.SLACK_CHANNEL_ID) {
+    await fetch("https://slack.com/api/chat.postMessage", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.SLACK_BOT_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ channel: env.SLACK_CHANNEL_ID, text }),
+    }).catch(() => {});
+  }
+}
+
 /** Manual trigger, so the report can be checked without waiting for Monday. */
 export async function handleReportPreview(req: Request, env: ApiEnv): Promise<Response | null> {
   const url = new URL(req.url);

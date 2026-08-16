@@ -214,14 +214,14 @@ function CornerNav() {
     >
       <Link
         to="/learn"
-        className="panel mono text-[length:var(--fs-label)] sm:text-[length:var(--fs-label)] uppercase tracking-[0.06em] px-3.5 link-underline inline-flex items-center min-h-[44px]"
+        className="panel mono text-[length:var(--fs-label)] uppercase tracking-[0.06em] px-2.5 sm:px-3.5 whitespace-nowrap link-underline inline-flex items-center min-h-[44px]"
         style={{ color: "var(--c-text)" }}
       >
-        How I build things →
+        How I build →
       </Link>
       <Link
         to="/build"
-        className="panel mono text-[length:var(--fs-label)] sm:text-[length:var(--fs-label)] uppercase tracking-[0.06em] px-3.5 link-underline inline-flex items-center min-h-[44px]"
+        className="panel mono text-[length:var(--fs-label)] uppercase tracking-[0.06em] px-2.5 sm:px-3.5 whitespace-nowrap link-underline inline-flex items-center min-h-[44px]"
         style={{ color: "var(--c-text)" }}
       >
         Build a system →

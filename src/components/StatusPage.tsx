@@ -58,10 +58,17 @@ export function StatusPage() {
   return (
     <div className="min-h-[100dvh]">
       <CornerNav />
-      <div className="mx-auto w-full max-w-[1280px] px-5 sm:px-8 lg:px-10 py-8 lg:py-12">
+      {/* The nav is fixed, so it is out of flow and lands on top of whatever is
+          beneath it. It occupies y=12..56 on phones and y=20..64 from sm up,
+          while content began at 32px — so the CTAs sat over the status line on
+          mobile and over the lead paragraph on desktop. Clear it explicitly.
+          Below lg the nav spans most of the width and the whole page must start
+          under it; at lg it is only top-right, so the left column is unaffected
+          and just the content column needs the offset. */}
+      <div className="mx-auto w-full max-w-[1280px] px-5 sm:px-8 lg:px-10 pt-16 sm:pt-20 lg:pt-12 pb-8 lg:pb-12">
         <div className="grid lg:grid-cols-[360px_minmax(0,1fr)] gap-10 lg:gap-16 items-start">
           <Sidebar />
-          <div className="min-w-0">
+          <div className="min-w-0 lg:pt-6">
             <Lead />
             <Profile />
             <Work />
@@ -106,7 +113,12 @@ function Sidebar() {
         />
       </figure>
 
-      <div className="order-1 md:order-none">
+      {/* min-w-0 on every child, not just the aside. A grid item defaults to
+          min-width:auto, so its min-content sets the track floor: the contact
+          block's 394px min-content was forcing a 394px track inside a 350px
+          column, and every sibling stretched to match and was clipped off the
+          side of the phone. */}
+      <div className="order-1 md:order-none min-w-0">
         <div className="flex items-center gap-2.5 mb-4">
           <HealthDot health="ok" pulse size={9} />
           <span className="mono text-[12px]" style={{ color: "var(--c-text)" }}>
@@ -130,7 +142,7 @@ function Sidebar() {
       </div>
 
       {/* KPIs */}
-      <div className="order-3 md:order-none md:col-start-2 md:row-start-1 md:self-start lg:col-start-auto lg:row-start-auto">
+      <div className="order-3 md:order-none min-w-0 md:col-start-2 md:row-start-1 md:self-start lg:col-start-auto lg:row-start-auto">
         <Eyebrow className="mb-3" >impact</Eyebrow>
         <div className="grid grid-cols-2 gap-px" style={{ background: "var(--hair)", border: "1px solid var(--hair)" }}>
           {kpis.map((k) => (
@@ -153,7 +165,7 @@ function Sidebar() {
       </div>
 
       {/* contact */}
-      <div className="order-4 md:order-none md:col-span-2 lg:col-span-1">
+      <div className="order-4 md:order-none min-w-0 md:col-span-2 lg:col-span-1">
         <Eyebrow className="mb-2">contact</Eyebrow>
         <div className="flex flex-col md:grid md:grid-cols-2 md:gap-x-6 lg:grid-cols-1">
           {channels.map((c) => (

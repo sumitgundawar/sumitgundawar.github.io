@@ -30,9 +30,17 @@ function routes() {
   }
 }
 
+/* 360 and 768 are here because they are where things actually broke. The old
+   list jumped 390 -> 820 and never saw the narrowest common Android width, nor
+   iPad portrait, which is the width at which the two-column aside first has to
+   fit. Testing only the comfortable sizes is how a layout passes while being
+   unusable on the device most people are holding. */
 const VIEWPORTS = [
-  { name: "phone", width: 390, height: 844 },    // iPhone 14
-  { name: "tablet", width: 820, height: 1180 },  // iPad Air
+  { name: "phone-sm", width: 360, height: 800 },  // common Android floor
+  { name: "phone", width: 390, height: 844 },     // iPhone 14
+  { name: "ipad-portrait", width: 768, height: 1024 },
+  { name: "tablet", width: 820, height: 1180 },   // iPad Air
+  { name: "ipad-landscape", width: 1024, height: 768 },
   { name: "desktop", width: 1440, height: 900 },
 ];
 
@@ -101,11 +109,31 @@ for (const vp of VIEWPORTS) {
         });
       }
     }
+    /* The fixed nav is out of flow, so it lands on top of whatever is beneath
+       it and no overflow measurement can see that. It has to be compared
+       against the content directly. */
+    const nav = document.querySelector("nav[aria-label=Primary]");
+    const collisions = [];
+    if (nav) {
+      const n = nav.getBoundingClientRect();
+      for (const el of document.querySelectorAll("h1, h2, p, a, button, span")) {
+        if (nav.contains(el)) continue;
+        const s = getComputedStyle(el);
+        if (s.visibility === "hidden" || s.display === "none") continue;
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) continue;
+        const ox = Math.min(n.right, r.right) - Math.max(n.left, r.left);
+        const oy = Math.min(n.bottom, r.bottom) - Math.max(n.top, r.top);
+        if (ox > 2 && oy > 2) collisions.push(`${el.tagName.toLowerCase()} "${(el.textContent || "").trim().slice(0, 30)}"`);
+      }
+    }
+
     return {
       scrolls: document.documentElement.scrollWidth > docWidth + 1,
       docWidth,
       scrollWidth: document.documentElement.scrollWidth,
       worst: guilty.sort((a, b) => b.overshoot - a.overshoot).slice(0, 8),
+      collisions: [...new Set(collisions)].slice(0, 6),
     };
   });
 
@@ -120,10 +148,27 @@ for (const vp of VIEWPORTS) {
 await browser.close();
 server.close();
 
+/* The verdict is the count of elements past the edge, NOT scrollWidth.
+ *
+ * This line used to read `r.scrolls ? ... : "no horizontal overflow"`, and
+ * html/body carry overflow-x: clip — needed because overflow-x: hidden silently
+ * disables position:sticky. Clip severs the overflow instead of scrolling it,
+ * so scrollWidth never exceeds clientWidth and the verdict was permanently
+ * "no horizontal overflow" no matter how much content was being cut off.
+ *
+ * The offending elements were listed directly underneath the whole time. The
+ * summary said clean, so nobody read the list, and a phone layout with the
+ * name, the subtitle and half the metrics sliced off the right edge shipped
+ * behind a green tick. Report the measurement, not the proxy. */
+let broken = 0;
 for (const r of written) {
-  const flag = r.scrolls ? `OVERFLOWS by ${r.scrollWidth - r.docWidth}px` : "no horizontal overflow";
-  console.log(`${r.path}  ${r.name} (${r.width}px): ${r.file} — ${flag}`);
-  for (const g of r.worst) {
-    console.log(`    +${g.overshoot}px  <${g.tag} class="${g.cls}">`);
-  }
+  const bits = [];
+  if (r.worst.length) bits.push(`CLIPS ${r.worst.length} element(s), worst +${r.worst[0].overshoot}px`);
+  if (r.collisions.length) bits.push(`${r.collisions.length} UNDER FIXED NAV`);
+  if (r.scrolls) bits.push(`page scrolls sideways by ${r.scrollWidth - r.docWidth}px`);
+  if (bits.length) broken++;
+  console.log(`${r.path}  ${r.name} (${r.width}px): ${r.file} — ${bits.length ? bits.join("; ") : "clean"}`);
+  for (const g of r.worst) console.log(`    +${g.overshoot}px  <${g.tag} class="${g.cls}">`);
+  for (const c of r.collisions) console.log(`    under nav: ${c}`);
 }
+console.log(broken ? `\n${broken} of ${written.length} screens have layout faults` : `\nall ${written.length} screens clean`);

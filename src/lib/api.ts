@@ -97,3 +97,77 @@ export async function ask(question: string, topicId?: string): Promise<string> {
   if (!j.answer) throw new Error("The assistant is unavailable right now.");
   return j.answer;
 }
+
+/* The same question, answered as it is written.
+ *
+ * An uncached answer took twelve to sixteen seconds to arrive as one blob, and
+ * the reader spent all of it looking at the word "Thinking". The total is not
+ * much better when streamed; what changes is that words start appearing in about
+ * a second, which is the difference between a page that is working and a page
+ * that appears to have hung.
+ *
+ * onToken is called with each piece as it arrives. The full text is returned at
+ * the end so the caller does not have to accumulate it as well. A cached answer
+ * comes back as a single token, so there is one code path rather than two.
+ */
+export async function askStream(
+  question: string,
+  topicId: string | undefined,
+  onToken: (chunk: string) => void,
+  signal?: AbortSignal,
+): Promise<string> {
+  const session = sessionKey();
+  if (!session) throw new Error("offline");
+
+  const res = await fetch(`${API}/api/ask?stream=1`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session, question, topicId }),
+    signal,
+  }).catch(() => null);
+
+  if (!res) throw new Error("offline");
+  if (res.status === 429) throw new Error("Too many questions at once. Give it a moment.");
+  if (!res.ok || !res.body) throw new Error("The assistant is unavailable right now.");
+
+  /* The server falls back to a plain JSON answer if no model would stream, so
+     the client has to cope with being handed either shape. */
+  if (!(res.headers.get("content-type") ?? "").includes("text/event-stream")) {
+    const j = (await res.json()) as { answer?: string };
+    if (!j.answer) throw new Error("The assistant is unavailable right now.");
+    onToken(j.answer);
+    return j.answer;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let whole = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx: number;
+    // Events are separated by a blank line and a chunk boundary lands inside
+    // one often enough that this has to be exact.
+    while ((idx = buffer.indexOf("\n\n")) !== -1) {
+      const line = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      if (!line.startsWith("data:")) continue;
+      try {
+        const j = JSON.parse(line.slice(5).trim()) as { t?: string; done?: boolean };
+        if (j.t) {
+          whole += j.t;
+          onToken(j.t);
+        }
+      } catch {
+        /* A partial payload means the event was not complete after all; the
+           bytes are still in the buffer, so dropping this parse is correct. */
+      }
+    }
+  }
+
+  if (!whole) throw new Error("The assistant is unavailable right now.");
+  return whole;
+}

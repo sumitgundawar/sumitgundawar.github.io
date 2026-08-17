@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ask } from "@/lib/api";
+import { askStream } from "@/lib/api";
 import { trackClick } from "@/lib/hooks";
 
 /* Ask a follow-up about the topic you are reading.
@@ -24,6 +24,12 @@ export function AskBox({ topicId }: { topicId: string }) {
   const [q, setQ] = useState("");
   const [thread, setThread] = useState<{ q: string; a: string }[]>([]);
   const [busy, setBusy] = useState(false);
+  /* The answer being written right now, kept separate from the finished thread
+     so a re-render per token touches one string rather than the whole list. */
+  const [live, setLive] = useState("");
+  /* The question currently being answered, so the streaming block reads like
+     the finished ones above it rather than appearing under an ellipsis. */
+  const [pending, setPending] = useState("");
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -34,10 +40,19 @@ export function AskBox({ topicId }: { topicId: string }) {
     setError(null);
     setQ("");
     trackClick("ask_question", { topic: topicId });
+    setLive("");
+    setPending(text);
     try {
-      const a = await ask(text, topicId);
+      /* Rendered as it arrives. The total wait is much the same; what changes is
+         that words appear in about a second instead of the reader watching
+         "Thinking" for twelve to sixteen seconds. */
+      const a = await askStream(text, topicId, (chunk) => setLive((prev) => prev + chunk));
       setThread((t) => [...t, { q: text, a }]);
+      setLive("");
+      setPending("");
     } catch (err) {
+      setLive("");
+      setPending("");
       // The chain has already tried every model that answers. If it got here
       // the honest thing is to say so, not to retry in a loop the reader can see.
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -63,7 +78,19 @@ export function AskBox({ topicId }: { topicId: string }) {
         </div>
       ))}
 
-      {thread.length === 0 && (
+      {busy && live && (
+        <div className="mb-4" aria-live="polite">
+          <div className="mono text-[length:var(--fs-label)] mb-1.5" style={{ color: "var(--c-text-dim)" }}>
+            {pending}
+          </div>
+          <div className="text-[length:var(--fs-body)] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--c-text)" }}>
+            {live}
+            <span className="inline-block w-[7px] h-[1em] align-[-0.15em] ml-0.5" style={{ background: "var(--cool)" }} />
+          </div>
+        </div>
+      )}
+
+      {thread.length === 0 && !live && (
         <div className="flex flex-wrap gap-1.5 mb-3">
           {SUGGESTIONS.map((s) => (
             <button
@@ -96,7 +123,7 @@ export function AskBox({ topicId }: { topicId: string }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           disabled={busy}
-          placeholder={busy ? "Thinking…" : "Ask a follow-up"}
+          placeholder={busy ? (live ? "Writing the answer" : "Thinking") : "Ask a follow-up"}
           className="mono text-[length:var(--fs-input)] flex-1 min-w-0 px-3 min-h-[44px]"
           style={{ background: "var(--surface)", border: "1px solid var(--hair-strong)", color: "var(--c-text)" }}
         />

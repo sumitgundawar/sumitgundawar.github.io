@@ -1,4 +1,4 @@
-import { runChain, type ChatMessage } from "./models";
+import { runChain, runChainStream, type ChatMessage } from "./models";
 import { renderAlertsEmail, renderAlertsText, renderReportEmail, renderReportText, type ReportData } from "./email";
 import { TOPICS } from "./topics.generated";
 
@@ -71,6 +71,49 @@ const json = (body: unknown, status = 200, origin = "*") =>
       Vary: "Origin", // the response differs per origin, so caches must not share it
     },
   });
+
+/* Server-sent events, in the one shape the client parses.
+ *
+ * Each token is its own event so a reader sees words appear; the final event
+ * names the model that answered, which is the only place the fallback chain is
+ * visible from outside and is worth having when the point of the site is that
+ * the chain exists. Text is JSON-encoded rather than written raw because a
+ * newline inside an answer would otherwise terminate the event. */
+function sse(source: ReadableStream<string>, model: string, origin: string): Response {
+  const encoder = new TextEncoder();
+  const body = source.pipeThrough(
+    new TransformStream<string, Uint8Array>({
+      transform(chunk, controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: chunk })}\n\n`));
+      },
+      flush(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, model })}\n\n`));
+      },
+    }),
+  );
+  return new Response(body, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      // A proxy that buffers defeats the entire point of streaming.
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      Vary: "Origin",
+    },
+  });
+}
+
+/** A cached answer in the streaming shape, so the client has one code path. */
+function cachedStream(text: string): ReadableStream<string> {
+  return new ReadableStream<string>({
+    start(controller) {
+      controller.enqueue(text);
+      controller.close();
+    },
+  });
+}
 
 async function sb(env: ApiEnv, path: string, init: RequestInit = {}) {
   return fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, {
@@ -298,6 +341,11 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
 
     let result: { text: string; model: string; attempts: { model: string; reason: string }[] } | undefined;
 
+    /* Whether the reader wants tokens as they arrive. Opt-in, so curl and any
+       existing caller keep getting one JSON object, and only a client that has
+       said it can render a stream gets one. */
+    const wantsStream = url.searchParams.get("stream") === "1";
+
     if (cacheable && env.RATE) {
       const hit = await env.RATE.get(cacheKey).catch(() => null);
       if (hit) {
@@ -309,8 +357,99 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
             { conversation_id: convId, role: "assistant", content: hit, model: "cache" },
           ]),
         });
-        return json({ answer: hit }, 200, origin);
+        /* A cache hit is already sub-second, so there is nothing to stream. It
+           is still delivered in the stream's shape when one was asked for, so
+           the client has a single code path rather than two. */
+        return wantsStream ? sse(cachedStream(hit), "cache", origin) : json({ answer: hit }, 200, origin);
       }
+    }
+
+    if (wantsStream) {
+      let streamed;
+      try {
+        streamed = await runChainStream(env.NVIDIA_API_KEY, messages);
+      } catch {
+        /* No model streamed usefully. Rather than fail, answer the old way and
+           deliver it as a single event: the reader waits, which is exactly what
+           they did before any of this, and they still get a complete answer.
+           Streaming is an improvement to this endpoint, not a dependency of it,
+           and it should degrade to the thing it improved on. */
+        try {
+          const whole = await runChain(env.NVIDIA_API_KEY, messages);
+          const text = normaliseDashes(whole.text);
+          ctx.waitUntil(
+            (async () => {
+              if (cacheable && env.RATE) await env.RATE.put(cacheKey, text, { expirationTtl: 86_400 }).catch(() => {});
+              await sb(env, "ai_messages", {
+                method: "POST",
+                body: JSON.stringify([
+                  { conversation_id: convId, role: "user", content: question, model: null },
+                  { conversation_id: convId, role: "assistant", content: text, model: whole.model },
+                ]),
+              }).catch(() => {});
+            })(),
+          );
+          console.log(JSON.stringify({ at: "ask_stream_fellback", model: whole.model }));
+          return sse(cachedStream(text), whole.model, origin);
+        } catch {
+          return json({ error: "unavailable" }, 503, origin);
+        }
+      }
+
+      /* The text is assembled as it passes through, because the cache write and
+         the history row both need the whole answer and neither can be done from
+         a chunk. Tee-ing would need two readers; accumulating costs one string.
+       *
+       * The persistence is registered with waitUntil HERE, before the response
+       * is returned, and merely resolved from flush. Calling ctx.waitUntil from
+       * inside flush is the obvious way to write this and it is wrong: flush
+       * runs after the handler has already returned, waitUntil throws at that
+       * point, the exception errors the stream, and the terminating event is
+       * never sent. In production that looked like an answer that stopped after
+       * one chunk with no completion; the local test passed throughout, because
+       * a stub ctx.waitUntil does not throw. */
+      let whole = "";
+      let finished!: () => void;
+      const persisted = new Promise<void>((resolve) => (finished = resolve));
+      // Both registered here, in the handler, where waitUntil is still valid.
+      // pump keeps the upstream subrequest alive; persisted keeps the worker
+      // alive long enough to write the cache entry and the history rows.
+      ctx.waitUntil(streamed.pump);
+      ctx.waitUntil(persisted);
+
+      const seen = streamed.stream.pipeThrough(
+        new TransformStream<string, string>({
+          transform(chunk, controller) {
+            // Per chunk is safe: every banned character is a single code point
+            // and the decoder is in streaming mode, so none is split in half.
+            const clean = normaliseDashes(chunk);
+            whole += clean;
+            controller.enqueue(clean);
+          },
+          flush() {
+            const text = whole;
+            const model = streamed.model;
+            if (!text) {
+              finished();
+              return;
+            }
+            void (async () => {
+              if (cacheable && env.RATE) {
+                await env.RATE.put(cacheKey, text, { expirationTtl: 86_400 }).catch(() => {});
+              }
+              await sb(env, "ai_messages", {
+                method: "POST",
+                body: JSON.stringify([
+                  { conversation_id: convId, role: "user", content: question, model: null },
+                  { conversation_id: convId, role: "assistant", content: text, model },
+                ]),
+              }).catch(() => {});
+            })().finally(finished);
+          },
+        }),
+      );
+      console.log(JSON.stringify({ at: "ask_stream", model: streamed.model, fellThrough: streamed.attempts.length }));
+      return sse(seen, streamed.model, origin);
     }
 
     try {

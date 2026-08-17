@@ -11,6 +11,7 @@ import {
 import { TOPICS } from "./topics.generated";
 import { docsPage, openApiSpec } from "./openapi";
 import { enqueueBroadcast, type NewsletterEnv } from "./newsletter";
+import { audienceSplit, pagePopularity, trafficSources, visitShape } from "./analytics";
 
 /* The site's backend: ask, track, progress, and a weekly digest.
  *
@@ -1146,17 +1147,39 @@ async function clicksFromD1(env: ApiEnv, days: number): Promise<ReportData["clic
   }
 }
 
+/** A bound SELECT for analytics.ts, so it needs no knowledge of how this
+ *  project talks to Supabase. Returns [] on any failure, matching callList, so
+ *  one unreachable query costs one section of the report rather than all of it. */
+function pgSelect(env: ApiEnv) {
+  return async (path: string): Promise<unknown> => {
+    try {
+      const res = await sb(env, path);
+      if (!res.ok) {
+        console.log(JSON.stringify({ at: "analytics_select_failed", status: res.status, path: path.slice(0, 80) }));
+        return [];
+      }
+      return await res.json();
+    } catch (error) {
+      console.log(JSON.stringify({ at: "analytics_select_threw", error: error instanceof Error ? error.message : String(error) }));
+      return [];
+    }
+  };
+}
+
 export async function reportData(env: ApiEnv, days = 7): Promise<ReportData> {
   const [digest, engagement, struggling, dropoff, shape, clicks, pages, sources, audience] = await Promise.all([
     callList<ReportData["digest"][number]>(env, "weekly_digest", { days }),
     callList<ReportData["engagement"][number]>(env, "topic_engagement", { days }),
     callList<ReportData["struggling"][number]>(env, "struggling_topics", { days, min_answers: 5 }),
     callList<ReportData["dropoff"][number]>(env, "drop_off_topics", { days }),
-    callList<ReportData["shape"][number]>(env, "visit_shape", { days }),
+    /* Computed in the Worker from rows PostgREST can already select, rather
+       than by Postgres functions that would need DDL this tooling cannot run.
+       See analytics.ts. */
+    visitShape(pgSelect(env), days),
     clicksFromD1(env, days),
-    callList<ReportData["pages"][number]>(env, "page_popularity", { days }),
-    callList<ReportData["sources"][number]>(env, "traffic_sources", { days }),
-    callList<ReportData["audience"][number]>(env, "audience_split", { days }),
+    pagePopularity(pgSelect(env), days),
+    trafficSources(pgSelect(env), days),
+    audienceSplit(pgSelect(env), days),
   ]);
   /* Scrub every field that originated in a request before it reaches a
      renderer, so neither the email nor the Slack message can carry markup a

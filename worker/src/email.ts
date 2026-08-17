@@ -417,10 +417,10 @@ export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }):
     block(heading("You are on the list.")),
     block(
       para(
-        "Thank you for subscribing. You will get an occasional note from me about building systems that survive production: what broke, why, and what the fix actually cost. Roughly once a month, and nothing else, ever.",
+        "Thank you for subscribing. When I write something about building systems that survive production, what broke and what the fix cost, you will get a note about it. There is no schedule, and I will not use your address for anything else.",
       ) +
         para(
-          "Every piece starts with something that actually happened, usually an incident, rather than with a framework or a list of best practices.",
+          "Most of it comes out of something that actually happened rather than out of a framework or a list of best practices.",
         ),
       14,
     ),
@@ -450,7 +450,7 @@ export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }):
   ].join("");
 
   return shell({
-    preheader: "What broke, why, and what the fix cost. Three pieces to start with.",
+    preheader: "Notes on what broke and what the fix cost. Three pieces to start with.",
     title: "You are on the list",
     eyebrow: "Newsletter",
     body,
@@ -473,12 +473,12 @@ export function renderWelcomeText(opts: { site: string; unsubscribe: string }): 
   return [
     "You are on the list.",
     "",
-    "Thank you for subscribing. You will get an occasional note from me about",
-    "building systems that survive production: what broke, why, and what the fix",
-    "actually cost. Roughly once a month, and nothing else, ever.",
+    "Thank you for subscribing. When I write something about building systems that",
+    "survive production, what broke and what the fix cost, you will get a note about",
+    "it. There is no schedule, and I will not use your address for anything else.",
     "",
-    "Every piece starts with something that actually happened, usually an incident,",
-    "rather than with a framework or a list of best practices.",
+    "Most of it comes out of something that actually happened rather than out of a",
+    "framework or a list of best practices.",
     "",
     "THREE TO START WITH",
     ...FEATURED.flatMap((a) => ["", `  ${a.title}`, `  ${a.publication} | ${a.url}`, `  ${a.hook}`]),

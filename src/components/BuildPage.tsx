@@ -308,7 +308,7 @@ export function BuildPage() {
                 just watched it produce something specific to them. */}
             <NewsletterPrompt
               context="build"
-              line="If this was useful, I write occasionally about the decisions behind architectures like this one: what broke in production, why, and what the fix actually cost."
+              line="If this was useful, I write about the decisions behind architectures like this one: what broke in production and what the fix cost. Sent when there is something worth sending."
             />
 
             <p className="mt-6 text-[length:var(--fs-body)] leading-relaxed max-w-[35em]" style={{ color: "var(--c-text)" }}>

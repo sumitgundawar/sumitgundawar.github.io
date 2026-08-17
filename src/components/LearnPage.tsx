@@ -442,7 +442,7 @@ export function LearnPage() {
             {answeredCount >= 3 && (
               <NewsletterPrompt
                 context="learn"
-                line={`You have worked through ${answeredCount} checks. I write occasionally about building systems that survive production, the same material as this, with what broke and what the fix cost.`}
+                line={`You have worked through ${answeredCount} checks. I write about building systems that survive production, the same material as this, with what broke and what the fix cost. Sent when there is something worth sending.`}
               />
             )}
           </div>

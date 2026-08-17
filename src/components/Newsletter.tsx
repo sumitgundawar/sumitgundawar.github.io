@@ -71,8 +71,8 @@ export function Newsletter() {
 
       <div className="max-w-[36em]">
         <p className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
-          Occasional writing on building systems that survive production: what broke, why, and what the
-          fix actually cost.
+          Notes on building systems that survive production: what broke, and what the fix cost.
+          Sent when there is something worth sending, and never for anything else.
         </p>
 
         {state === "done" ? (

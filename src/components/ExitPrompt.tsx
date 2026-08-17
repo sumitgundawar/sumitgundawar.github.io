@@ -100,7 +100,7 @@ export function ExitPrompt() {
       >
         <NewsletterPrompt
           context="exit"
-          line="Before you go: I write occasionally about building systems that survive production, what broke, why, and what the fix actually cost. It is the same material as the rest of this site."
+          line="Before you go: I write about building systems that survive production, what broke and what the fix cost. Same material as the rest of this site, sent when there is something worth sending."
         />
       </div>
     </div>

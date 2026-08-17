@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run gen:feed && tsc && npm run check:worker && npm run check:prose && npm run check:contrast && vite build",
+    "build": "npm run gen:feed && npm run gen:jsonld && tsc && npm run check:worker && npm run check:prose && npm run check:contrast && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "shots": "node scripts/shots.mjs",
@@ -15,7 +15,9 @@
     "gen:feed": "npx tsx scripts/gen-feed.mjs",
     "check:worker": "cd worker && npx tsc --noEmit && cd .. && node scripts/worker-check.mjs",
     "check:prose": "node scripts/prose-check.mjs",
-    "check:contrast": "node scripts/contrast-check.mjs"
+    "check:contrast": "node scripts/contrast-check.mjs",
+    "check:prod": "node scripts/prod-check.mjs",
+    "gen:jsonld": "npx tsx scripts/gen-jsonld.mjs"
   },
   "dependencies": {
     "@fontsource-variable/mona-sans": "^5.2.8",

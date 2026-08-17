@@ -67,25 +67,216 @@
     <link rel="alternate" type="application/rss+xml" title="Sumit Gundawar" href="https://sumitgundawar.com/feed.xml" />
     <link rel="canonical" href="https://sumitgundawar.com/" />
 
-    <!-- Person markup, so a search result can show the role and the talk rather
-         than guessing from body text. sameAs is what links the identity to the
-         profiles that already rank. -->
-    <script type="application/ld+json">
+    <!-- BEGIN generated structured data: scripts/gen-jsonld.mjs -->
+        <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "Person",
+      "@id": "https://sumitgundawar.com/#person",
       "name": "Sumit Gundawar",
       "url": "https://sumitgundawar.com",
+      "image": "https://sumitgundawar.com/sumit-gundawar.webp",
       "jobTitle": "Software Engineer & Innovation Integration",
-      "address": { "@type": "PostalAddress", "addressLocality": "London", "addressCountry": "GB" },
+      "description": "Sole engineer on a multi-product clinical platform in London: the APIs, the integrations that keep payments and logistics in step, and AI features that reach no patient without a human reading them first. Before that, the pipelines behind PepsiCo's global supply chain, across 25 million product and customer combinations.",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "London",
+        "addressCountry": "GB"
+      },
+      "email": "mailto:sumitgundawar3@gmail.com",
       "sameAs": [
         "https://linkedin.com/in/sumit-gundawar-759470129",
         "https://github.com/sumitgundawar",
         "https://dataconomy.com/author/sumit-gundawar/"
       ],
-      "knowsAbout": ["API design", "Distributed systems", "Data engineering", "System design"]
+      "knowsAbout": [
+        "API design",
+        "Distributed systems",
+        "Data engineering",
+        "System design",
+        "Integration resilience",
+        "Idempotency",
+        "Caching"
+      ],
+      "worksFor": [
+        {
+          "@type": "Organization",
+          "name": "By Dr Vali"
+        }
+      ],
+      "alumniOf": [
+        {
+          "@type": "EducationalOrganization",
+          "name": "University of East London",
+          "description": "MSc, Data Science, Distinction"
+        },
+        {
+          "@type": "EducationalOrganization",
+          "name": "Vellore Institute of Technology",
+          "description": "MCA, Computer Applications, IEEE Published"
+        },
+        {
+          "@type": "EducationalOrganization",
+          "name": "Savitribai Phule Pune University",
+          "description": "BSc, Computer Science, First Class with Distinction"
+        }
+      ]
     }
     </script>
+        <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": "https://sumitgundawar.com/#website",
+      "url": "https://sumitgundawar.com",
+      "name": "Sumit Gundawar",
+      "author": {
+        "@id": "https://sumitgundawar.com/#person"
+      }
+    }
+    </script>
+        <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "The Unanswerable Test Suite: How to Test AI Systems That Sound Right When They Are Wrong",
+      "url": "https://softwaretestingnews.co.uk/the-unanswerable-test-suite/",
+      "datePublished": "2026-07-17",
+      "description": "Argues that testing an AI system needs a suite built from questions it should refuse, not just ones it should answer, opening with a consulting firm's AI-generated report caught citing sources that never existed. Proposes tracking refusal rates directly and anchoring factual claims to source documents with deterministic checks, not another model's judgement.",
+      "author": {
+        "@id": "https://sumitgundawar.com/#person"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Software Testing News"
+      }
+    }
+    </script>
+        <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "The Quiet Failure Mode of AI Features: When Your Cached Outputs Go Stale",
+      "url": "https://aitechtrend.com/ai-cached-outputs/",
+      "datePublished": "2026-07-13",
+      "description": "Traces a semantic-search bug to a bulk update that bypassed the save hook, leaving cached embeddings stale with no visible error. Lays out a three-layer defence: mark on change, recompute in the background, and run a reconciliation sweep that catches whatever the first two miss.",
+      "author": {
+        "@id": "https://sumitgundawar.com/#person"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "AITechTrend"
+      }
+    }
+    </script>
+        <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "You Might Not Need a Hosted Embedding API",
+      "url": "https://aitechtrend.com/embedding-api/",
+      "datePublished": "2026-07-01",
+      "description": "Opens with the 2025 Shai-Hulud npm worm harvesting credentials straight out of build environments, to question why small corpora default to a hosted embedding API. For a few thousand documents, argues for a local model behind an abstracted scoring layer: no per-query cost, a smaller attack surface, and room to graduate to a hosted service if scale ever demands it.",
+      "author": {
+        "@id": "https://sumitgundawar.com/#person"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "AITechTrend"
+      }
+    }
+    </script>
+        <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "The JVS Audit: Why Your Cross-Platform Dashboards Are Quietly Lying to You",
+      "url": "https://aitechtrend.com/the-jvs-audit-why-your-cross-platform-dashboards-are-quietly-lying-to-you/",
+      "datePublished": "2026-06-04",
+      "description": "A tool-agnostic audit for cross-platform dashboards, opening with the 2020 case where nearly 16,000 COVID results were lost to a spreadsheet row limit. JVS is Join, Validate, Standardise: catch silent row multiplication, measure key match rates, and hold one authoritative definition per metric.",
+      "author": {
+        "@id": "https://sumitgundawar.com/#person"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "AITechTrend"
+      }
+    }
+    </script>
+        <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "Design your AI agents around how they fail, not what they can do",
+      "url": "https://dataconomy.com/2026/06/01/design-your-ai-agents-around-how-they-fail-not-what-they-can-do/",
+      "datePublished": "2026-06-01",
+      "description": "Argues agentic systems should be designed from their failure modes, opening with the Moffatt v. Air Canada chatbot case. Introduces FRAME: failure classification, recovery logic, awareness boundaries, monitoring hooks, and an escalation protocol.",
+      "author": {
+        "@id": "https://sumitgundawar.com/#person"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Dataconomy"
+      }
+    }
+    </script>
+        <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "Treat every data migration like it will go wrong",
+      "url": "https://dataconomy.com/2026/05/25/treat-every-data-migration-like-it-will-go-wrong/",
+      "datePublished": "2026-05-25",
+      "description": "Makes the case for applying the same rigour to data scripts as to application code, opening with the 2017 GitLab data-loss incident. Advocates dry-run-by-default, idempotent markers, paired verification scripts, and a migration log.",
+      "author": {
+        "@id": "https://sumitgundawar.com/#person"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Dataconomy"
+      }
+    }
+    </script>
+        <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "Time is a feature: One decision that removes a whole class of bugs",
+      "url": "https://dataconomy.com/2026/05/18/time-is-a-feature-one-decision-that-removes-a-whole-class-of-bugs/",
+      "datePublished": "2026-05-18",
+      "description": "Treats time as a design decision, opening with the 2012 leap-second outage. Store timestamps in UTC, choose one human-facing timezone, declare schedules against a fixed zone, compare against start-of-day, and freeze the clock in tests.",
+      "author": {
+        "@id": "https://sumitgundawar.com/#person"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Dataconomy"
+      }
+    }
+    </script>
+        <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Event",
+      "name": "Designing APIs and Integrations That Don't Fall Apart at Scale",
+      "url": "https://jaxlondon.com/speaker/sumit-gundawar/",
+      "startDate": "2026",
+      "eventStatus": "https://schema.org/EventScheduled",
+      "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+      "location": {
+        "@type": "Place",
+        "name": "JAX London 2026"
+      },
+      "performer": {
+        "@id": "https://sumitgundawar.com/#person"
+      },
+      "organizer": {
+        "@type": "Organization",
+        "name": "JAX London 2026"
+      }
+    }
+    </script>
+        <!-- END generated structured data -->
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Sumit Gundawar, Software Engineer & Innovation Integration" />

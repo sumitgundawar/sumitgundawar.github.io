@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trackClick } from "@/lib/hooks";
+import { API } from "@/lib/api";
 
 /* Newsletter signup.
  *
@@ -12,7 +13,6 @@ import { trackClick } from "@/lib/hooks";
  * also the check that the address is real.
  */
 
-const API = "https://site-agent-relay.sumitgundawar3.workers.dev";
 
 export function Newsletter() {
   const [email, setEmail] = useState("");

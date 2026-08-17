@@ -89,6 +89,21 @@ async function sb(env: ApiEnv, path: string, init: RequestInit = {}) {
    identify anybody, which is why no IP address or user agent is stored. */
 const SESSION_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 
+/* Device class from the user agent, and nothing more than the class.
+ *
+ * Three buckets is the whole useful range here, because the only decision it
+ * informs is about layout. Storing the full user-agent string would be a
+ * fingerprinting surface with no matching benefit, so the string is read and
+ * thrown away. Order matters: every tablet UA also says mobile or is an iPad
+ * claiming to be a Mac, so tablets have to be tested first. */
+function deviceClass(ua: string | null): string {
+  if (!ua) return "unknown";
+  const s = ua.toLowerCase();
+  if (/ipad|tablet|playbook|silk|(android(?!.*mobile))/.test(s)) return "tablet";
+  if (/mobi|iphone|ipod|android|blackberry|iemobile|opera mini/.test(s)) return "mobile";
+  return "desktop";
+}
+
 /** Cloudflare sets this and a client cannot forge it, unlike anything in the
  *  request body. Falls back to a constant so a missing header fails closed into
  *  one shared bucket rather than opening the gate. */
@@ -345,13 +360,18 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
   /* ---- track: first-party analytics ---- */
   if (url.pathname === "/api/track" && req.method === "POST") {
     const b = (await req.json().catch(() => null)) as
-      | { session?: string; path?: string; topicId?: string; dwellMs?: number; referrer?: string; event?: string; chosen?: number; correct?: boolean }
+      | {
+          session?: string; path?: string; topicId?: string; dwellMs?: number; referrer?: string;
+          event?: string; chosen?: number; correct?: boolean;
+          clickEvent?: string; target?: string;
+        }
       | null;
     const session = b?.session ?? "";
     if (!SESSION_RE.test(session)) return json({ error: "bad session" }, 400, origin);
     if (await rateLimited(env, `track:${clientIp(req)}`, 200, 60)) return json({ ok: true }, 200, origin);
 
     const country = req.headers.get("cf-ipcountry") ?? null;
+    const device = deviceClass(req.headers.get("user-agent"));
 
     ctx.waitUntil(
       (async () => {
@@ -363,12 +383,27 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
             last_seen: new Date().toISOString(),
             referrer: b?.referrer?.slice(0, 300) ?? null,
             country,
+            device,
           }),
         });
         if (b?.event === "quiz" && typeof b.chosen === "number") {
           await sb(env, "quiz_events", {
             method: "POST",
             body: JSON.stringify({ topic_id: (b.topicId ?? "unknown").slice(0, 80), chosen: b.chosen, correct: !!b.correct }),
+          });
+        } else if (b?.event === "click" && b.clickEvent) {
+          /* Clicks were previously not stored at all: this branch did not exist,
+             and because the chain is if / else-if on `path`, anything that was
+             neither a quiz nor a page view fell through and was silently
+             discarded. */
+          await sb(env, "click_events", {
+            method: "POST",
+            body: JSON.stringify({
+              session_key: session,
+              event: b.clickEvent.slice(0, 60),
+              target: b.target?.slice(0, 160) ?? null,
+              path: b.path?.slice(0, 200) ?? null,
+            }),
           });
         } else if (b?.path) {
           await sb(env, "page_views", {
@@ -632,62 +667,51 @@ function arrow(pct: number | null): string {
   return `${s}${pct}%`;
 }
 
-export async function reportData(env: ApiEnv, days = 7): Promise<ReportData> {
-  const call = async (fn: string, args: Record<string, unknown>) =>
-    sb(env, `rpc/${fn}`, { method: "POST", body: JSON.stringify(args) }).then((r) => r.json());
-  const [digest, engagement, struggling, dropoff] = await Promise.all([
-    call("weekly_digest", { days }),
-    call("topic_engagement", { days }),
-    call("struggling_topics", { days, min_answers: 5 }),
-    call("drop_off_topics", { days }),
-  ]);
-  return { digest, engagement, struggling, dropoff, days } as ReportData;
+/* Every aggregate the report reads, fetched as a list that is empty rather than
+   absent when something goes wrong.
+ *
+ * PostgREST answers a call to a function that does not exist with a 404 and an
+ * error object, not an array. Handing that straight to the renderer means one
+ * un-run migration takes down the entire report instead of one section of it, so
+ * anything that is not an array becomes [] and says so in the log. The sections
+ * are all omitted when empty, so a partially migrated database produces a
+ * shorter report and not a broken one. */
+async function callList<T>(env: ApiEnv, fn: string, args: Record<string, unknown>): Promise<T[]> {
+  try {
+    const res = await sb(env, `rpc/${fn}`, { method: "POST", body: JSON.stringify(args) });
+    const body = (await res.json()) as unknown;
+    if (Array.isArray(body)) return body as T[];
+    console.log(JSON.stringify({ at: "report_rpc_unavailable", fn, status: res.status, body: JSON.stringify(body).slice(0, 200) }));
+    return [];
+  } catch (error) {
+    console.log(JSON.stringify({ at: "report_rpc_threw", fn, error: error instanceof Error ? error.message : String(error) }));
+    return [];
+  }
 }
 
+export async function reportData(env: ApiEnv, days = 7): Promise<ReportData> {
+  const [digest, engagement, struggling, dropoff, shape, clicks, pages, sources, audience] = await Promise.all([
+    callList<ReportData["digest"][number]>(env, "weekly_digest", { days }),
+    callList<ReportData["engagement"][number]>(env, "topic_engagement", { days }),
+    callList<ReportData["struggling"][number]>(env, "struggling_topics", { days, min_answers: 5 }),
+    callList<ReportData["dropoff"][number]>(env, "drop_off_topics", { days }),
+    callList<ReportData["shape"][number]>(env, "visit_shape", { days }),
+    callList<ReportData["clicks"][number]>(env, "click_breakdown", { days }),
+    callList<ReportData["pages"][number]>(env, "page_popularity", { days }),
+    callList<ReportData["sources"][number]>(env, "traffic_sources", { days }),
+    callList<ReportData["audience"][number]>(env, "audience_split", { days }),
+  ]);
+  return { digest, engagement, struggling, dropoff, shape, clicks, pages, sources, audience, days };
+}
+
+/* The text form of the same report the email sends.
+ *
+ * Built from reportData rather than from its own copy of the queries. It used to
+ * run four calls of its own, which meant every new section had to be added in
+ * two places and the two could silently disagree about what a week contained.
+ * One source, one set of numbers. */
 export async function weeklyReport(env: ApiEnv): Promise<string> {
-  const call = async (fn: string, args: Record<string, unknown>) =>
-    sb(env, `rpc/${fn}`, { method: "POST", body: JSON.stringify(args) }).then((r) => r.json());
-
-  const digest = (await call("weekly_digest", { days: 7 })) as {
-    metric: string; current_period: number; previous_period: number; pct_change: number | null;
-  }[];
-  const engagement = (await call("topic_engagement", { days: 7 })) as {
-    topic_id: string; views: number; readers: number; median_dwell_s: number | null; pct_change: number | null;
-  }[];
-  const struggling = (await call("struggling_topics", { days: 7, min_answers: 5 })) as {
-    topic_id: string; answers: number; wrong: number; wrong_pct: number;
-  }[];
-  const dropoff = (await call("drop_off_topics", { days: 7 })) as { topic_id: string; times_last: number }[];
-
-  const lines: string[] = ["*Last 7 days, against the 7 before*", ""];
-  for (const d of digest) {
-    lines.push(`• ${d.metric}: *${d.current_period}* (was ${d.previous_period}, ${arrow(d.pct_change)})`);
-  }
-
-  if (engagement.length) {
-    lines.push("", "*Most read*");
-    for (const t of engagement.slice(0, 8)) {
-      const dwell = t.median_dwell_s ? `, ${t.median_dwell_s}s median` : "";
-      lines.push(`• ${slackSafe(t.topic_id)}: ${t.views} views from ${t.readers} readers${dwell} (${arrow(t.pct_change)})`);
-    }
-  }
-
-  if (struggling.length) {
-    lines.push("", "*Most often got wrong* (a question most people fail is usually a bad explanation)");
-    for (const s of struggling.slice(0, 6)) {
-      lines.push(`• ${slackSafe(s.topic_id)}: ${s.wrong_pct}% wrong of ${s.answers}`);
-    }
-  }
-
-  if (dropoff.length) {
-    lines.push("", "*Where people stopped reading*");
-    for (const d of dropoff.slice(0, 5)) lines.push(`• ${slackSafe(d.topic_id)}: last topic for ${d.times_last} sessions`);
-  }
-
-  if (digest.every((d) => d.current_period === 0)) {
-    lines.push("", "_No traffic recorded this period. If that is unexpected, the tracking call is the thing to check._");
-  }
-  return lines.join("\n");
+  return renderReportText(await reportData(env, 7));
 }
 
 /* Two channels, independently. Slack is where the site agent already talks, so

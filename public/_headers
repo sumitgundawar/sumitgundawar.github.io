@@ -1,8 +1,20 @@
-# Hashed asset filenames change whenever their contents change, so they can be
-# cached permanently. This is the single biggest win available on a static site
-# and GitHub Pages does not let you set it.
-/assets/*
-  Cache-Control: public, max-age=31536000, immutable
+# NOTE: there is deliberately no /assets/* rule here any more. See below.
+#
+# It used to say max-age=31536000, immutable, which is right for a hashed file
+# and catastrophic for a miss. _headers matches on the REQUEST PATH, so when
+# Pages answers a request for an asset it does not have by serving the SPA
+# fallback, that HTML inherited the same one-year immutable header. One request
+# in the seconds after a deploy, before the edge had the new bundle, cached
+# index.html under the new bundle's URL for a year. The browser then refuses
+# text/html as a module script and the entire site renders blank for everyone on
+# that colo, with no way out but a purge.
+#
+# Measured, not assumed: a request for /assets/definitely-missing-xyz.js at the
+# Pages origin returned 200, content-type text/html, and
+# cache-control: public, max-age=31536000, immutable.
+#
+# Pages already sets immutable caching on real hashed assets by itself, keyed on
+# the asset rather than on the path, which is the distinction that matters.
 
 # Media in public/ keeps the filename it was written with, so it cannot be
 # immutable: a replaced photo under the same name has to be able to reach

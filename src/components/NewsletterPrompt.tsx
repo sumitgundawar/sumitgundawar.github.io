@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trackClick } from "@/lib/hooks";
+import { API } from "@/lib/api";
 
 /* The signup, shown where someone has just got something out of the site.
  *
@@ -17,7 +18,6 @@ import { trackClick } from "@/lib/hooks";
  * who said no is not a lead to re-approach in three topics' time.
  */
 
-const API = "https://site-agent-relay.sumitgundawar3.workers.dev";
 const KEY = "sg-newsletter-v1";
 
 type Seen = { dismissed?: boolean; joined?: boolean };

@@ -7,7 +7,7 @@
  * would be worse than an error.
  */
 
-const API = "https://site-agent-relay.sumitgundawar3.workers.dev";
+export const API = "https://site-agent-relay.sumitgundawar3.workers.dev";
 const SESSION_KEY = "sg-session-v1";
 
 /* A random id, minted once and kept. Enough to count returning readers and
@@ -53,6 +53,20 @@ export function trackView(path: string, topicId?: string, dwellMs?: number): voi
 
 export function trackQuiz(topicId: string, chosen: number, correct: boolean): void {
   void post("/api/track", { event: "quiz", topicId, chosen, correct });
+}
+
+/* Clicks, to this API rather than only to Google Analytics.
+ *
+ * Every click on the site used to go to gtag alone, and trackClick returned
+ * early when gtag was absent. So the question the owner actually asked of this
+ * data, which cards and sections people care about, could not be answered from
+ * his own database at all, and for the share of a technical audience that blocks
+ * analytics it was not recorded anywhere.
+ *
+ * keepalive, because the most interesting clicks are the ones that navigate away
+ * from the page. */
+export function trackClickEvent(event: string, target?: string, path?: string): void {
+  void post("/api/track", { event: "click", clickEvent: event, target, path }, true);
 }
 
 export function saveProgress(topicId: string, correct: boolean): void {

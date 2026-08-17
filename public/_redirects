@@ -4,4 +4,23 @@
 # same request is a genuine 404 that has to be bounced through 404.html and a
 # redirect shim, and that shim shipped broken, turning "/" + "/learn" into
 # "//learn" which the browser read as a hostname. Every shared link died.
+# A missing asset returns this file with a 200 and a text/html content type,
+# which the browser refuses as a module script, so the failure mode of a missing
+# bundle is a blank page rather than an error. That is also what a request lands
+# on during the seconds after a deploy, when the edge still has the previous
+# deployment and the HTML already names the new hashed filename.
+#
+# Two ways to make that miss honest were tried and both were measured on preview
+# deployments rather than reasoned about:
+#
+#   /assets/* /404.html 404   with no such file: no effect at all, the rule is
+#                             inert when its destination does not exist.
+#   the same, plus a real public/404.html: the file's mere presence takes over
+#                             routing, and /learn, /build, /writing and every
+#                             /learn/<card> deep link returned 404. Confirmed on
+#                             redirect-test2.sumitgundawar.pages.dev.
+#
+# So this catch-all stays exactly as it is. A 404.html cannot exist in this
+# output while these routes are client-side, and that is the whole reason the
+# migration off GitHub Pages happened.
 /*    /index.html   200

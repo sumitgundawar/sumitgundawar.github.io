@@ -1,4 +1,4 @@
-import { trackView } from "./api";
+import { trackClickEvent, trackView } from "./api";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -57,8 +57,30 @@ export function useAnalyticsPageview(): void {
   }, [location.pathname, location.search]);
 }
 
-/* Fires a GA4 click event. Silent no-op if gtag has not loaded. */
+/* Records a click, to this site's own API first and to GA4 if it happens to be
+ * there.
+ *
+ * The order matters and the early return is the bug that was here: this function
+ * used to begin with `if (typeof window.gtag !== "function") return`, so every
+ * click on the site was contingent on Google Analytics having loaded. Anyone
+ * running a blocker, which is a large share of the audience this site is aimed
+ * at, generated no record anywhere, and none of it ever reached the database the
+ * weekly report is built from. The first-party call therefore happens first and
+ * unconditionally, and gtag is the optional half.
+ *
+ * The most useful single field is which thing was clicked, not just that some
+ * article was. The keys below are every key any call site actually passes, in
+ * order of how specific they are: a title names the exact article or episode, a
+ * channel names which contact link, and action distinguishes play from pause.
+ * Guessing at names instead of reading the call sites is how the first version
+ * of this recorded twelve events with an empty target.
+ */
+const TARGET_KEYS = ["title", "channel", "topic", "view", "context", "action", "target", "label", "show"];
+
 export function trackClick(event: string, params: Record<string, string> = {}): void {
+  const key = TARGET_KEYS.find((k) => params[k]);
+  const target = key ? params[key] : undefined;
+  trackClickEvent(event, target, typeof window !== "undefined" ? window.location.pathname : undefined);
   if (typeof window.gtag !== "function") return;
   window.gtag("event", event, params);
 }

@@ -58,11 +58,62 @@ export interface ReportData {
   engagement: { topic_id: string; views: number; readers: number; median_dwell_s: number | null; pct_change: number | null }[];
   struggling: { topic_id: string; answers: number; wrong: number; wrong_pct: number }[];
   dropoff: { topic_id: string; times_last: number }[];
+  /* Everything below arrives empty until 0001_analytics_depth.sql has been run,
+     and every section that reads it is omitted when empty, so the report stays
+     correct rather than half-rendered in the meantime. */
+  shape: { visits: number; visitors: number; median_seconds: number | null; median_pages: number | null; single_page_pct: number | null; returning_pct: number | null }[];
+  clicks: { event: string; target: string; clicks: number; visitors: number; pct_change: number | null }[];
+  pages: { path: string; views: number; visitors: number; median_dwell_s: number | null; pct_change: number | null }[];
+  sources: { source: string; visitors: number }[];
+  audience: { dimension: string; value: string; visitors: number }[];
   days: number;
 }
 
+/** A number of seconds as something readable at a glance. */
+function dur(s: number | null): string {
+  if (s === null || !Number.isFinite(s)) return "n/a";
+  if (s < 60) return `${Math.round(s)}s`;
+  const m = Math.floor(s / 60);
+  const rest = Math.round(s % 60);
+  return rest ? `${m}m ${rest}s` : `${m}m`;
+}
+
+/** A stat block: four figures across, the same shape as the digest row. */
+function statRow(cells: { label: string; value: string; note?: string }[]): string {
+  return `<tr>${cells
+    .map(
+      (c) => `
+      <td width="${Math.floor(100 / cells.length)}%" style="padding:0 8px 0 0;vertical-align:top;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:${DIM};padding-bottom:4px;">${esc(c.label)}</div>
+        <div style="font-size:20px;font-weight:600;color:${INK};line-height:1.15;">${esc(c.value)}</div>
+        ${c.note ? `<div style="font-size:12px;color:${DIM};padding-top:2px;">${esc(c.note)}</div>` : ""}
+      </td>`,
+    )
+    .join("")}</tr>`;
+}
+
+/** A plain two-column table: label on the left, count on the right. */
+function listTable(rows: { left: string; right: string; sub?: string }[]): string {
+  return rows
+    .map(
+      (r) => `
+    <tr>
+      <td style="padding:5px 0;border-bottom:1px solid ${LINE};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;color:${INK};">
+        ${esc(r.left)}${r.sub ? `<span style="color:${DIM};"> ${esc(r.sub)}</span>` : ""}
+      </td>
+      <td align="right" style="padding:5px 0;border-bottom:1px solid ${LINE};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;color:${INK};white-space:nowrap;">
+        ${esc(r.right)}
+      </td>
+    </tr>`,
+    )
+    .join("");
+}
+
+/* "Sessions" was the wrong word for it. The session key lives in localStorage,
+   so one key is one browser across every visit it ever makes, which is a visitor
+   and not a session. Visits are counted separately, in the shape section. */
 const LABEL: Record<string, string> = {
-  sessions: "Sessions",
+  sessions: "Visitors",
   page_views: "Page views",
   quiz_answers: "Quiz answers",
   ai_questions: "Questions asked",
@@ -121,6 +172,67 @@ export function renderReportEmail(d: ReportData): string {
 
   const empty = d.digest.every((m) => m.current_period === 0);
 
+  /* How long a visit lasts and how far it goes. One row of five figures rather
+     than a chart, because these are the numbers that get compared against
+     themselves week to week and a bar of one value says nothing. */
+  const s = d.shape[0];
+  const shapeRows = s
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+         ${statRow([
+           { label: "Visits", value: String(s.visits), note: `${s.visitors} visitors` },
+           { label: "Typical length", value: dur(s.median_seconds), note: "median" },
+           { label: "Pages a visit", value: s.median_pages === null ? "n/a" : String(s.median_pages), note: "median" },
+           { label: "One page only", value: s.single_page_pct === null ? "n/a" : `${s.single_page_pct}%`, note: `${s.returning_pct ?? 0}% returning` },
+         ])}
+       </table>`
+    : "";
+
+  const clickRows = listTable(
+    d.clicks.slice(0, 10).map((c) => ({
+      left: c.event.replace(/_/g, " "),
+      sub: c.target ? `· ${c.target.slice(0, 52)}` : "",
+      right: `${c.clicks}${c.pct_change === null ? "" : ` (${c.pct_change > 0 ? "+" : ""}${c.pct_change}%)`}`,
+    })),
+  );
+
+  /* Both ends of the list, because a page nobody opens is the actionable half
+     and is invisible in a table sorted by popularity.
+   *
+   * The tail is only worth printing when it is actually a different set of pages
+   * from the head. Reversing the list and taking six gave back the same six rows
+   * whenever fewer than about fifteen pages had been visited, which is a section
+   * that looks like analysis and repeats what is directly above it. So: exclude
+   * anything already shown, and drop the section entirely if too little is left
+   * to be a tail.
+   *
+   * Note this can only rank pages that were visited at least once. A page with
+   * no views at all does not appear in page_views and so cannot appear here; that
+   * needs the route inventory in the Worker and is not yet done. */
+  const TOP_N = 8;
+  const topPages = listTable(
+    d.pages.slice(0, TOP_N).map((p) => ({
+      left: p.path,
+      sub: p.median_dwell_s ? `· ${dur(p.median_dwell_s)} median` : "",
+      right: `${p.views} views, ${p.visitors} people`,
+    })),
+  );
+  const shown = new Set(d.pages.slice(0, TOP_N).map((p) => p.path));
+  const tail = d.pages.filter((p) => !shown.has(p.path)).slice(-6).reverse();
+  const quietPages = tail.length >= 3 ? listTable(tail.map((p) => ({ left: p.path, right: `${p.views} views` }))) : "";
+
+  const sourceRows = listTable(
+    d.sources.slice(0, 8).map((x) => ({ left: x.source, right: String(x.visitors) })),
+  );
+
+  const pick = (dim: string) => d.audience.filter((a) => a.dimension === dim).slice(0, 6);
+  const audienceRows = listTable(
+    [...pick("country"), ...pick("device")].map((a) => ({
+      left: a.value,
+      sub: `· ${a.dimension}`,
+      right: String(a.visitors),
+    })),
+  );
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -159,7 +271,13 @@ export function renderReportEmail(d: ReportData): string {
         : ""
     }
 
-    ${section("Most read", "What drew people in, and how long it held them", readRows)}
+    ${section("How long people stay", "A visit is a run of page views with no gap longer than 30 minutes", shapeRows)}
+    ${section("Most clicked", "What people actually reached for, by section and by name", clickRows)}
+    ${section("Most visited pages", "Views, distinct people, and how long the page held them", topPages)}
+    ${section("Least visited pages", "Not a failure of the page so much as of its title or its placement", quietPages)}
+    ${section("Where people came from", "Referring host, or direct where there was none", sourceRows)}
+    ${section("Who they are", "Country and device, counted by visitor", audienceRows)}
+    ${section("Most read topics", "What drew people in, and how long it held them", readRows)}
     ${section("Most often wrong", "A question most people fail is usually a bad explanation, not a hard idea", wrongRows)}
     ${section("Where people stopped", "The last topic of a session is where the material lost them", dropRows)}
 
@@ -256,8 +374,42 @@ export function renderReportText(d: ReportData): string {
     const pct = m.pct_change === null ? "new" : `${m.pct_change > 0 ? "+" : ""}${m.pct_change}%`;
     lines.push(`${LABEL[m.metric] ?? m.metric}: ${m.current_period} (was ${m.previous_period}, ${pct})`);
   }
+  const s = d.shape[0];
+  if (s) {
+    lines.push(
+      "",
+      "How long people stay",
+      `  ${s.visits} visits from ${s.visitors} visitors`,
+      `  ${dur(s.median_seconds)} median length, ${s.median_pages ?? "n/a"} pages a visit`,
+      `  ${s.single_page_pct ?? 0}% saw one page only, ${s.returning_pct ?? 0}% were returning`,
+    );
+  }
+  if (d.clicks.length) {
+    lines.push("", "Most clicked");
+    for (const c of d.clicks.slice(0, 10)) {
+      lines.push(`  ${c.event.replace(/_/g, " ")}${c.target ? ` (${c.target.slice(0, 52)})` : ""}: ${c.clicks}`);
+    }
+  }
+  if (d.pages.length) {
+    lines.push("", "Most visited pages");
+    for (const p of d.pages.slice(0, 8)) lines.push(`  ${p.path}: ${p.views} views, ${p.visitors} people`);
+    const shownPaths = new Set(d.pages.slice(0, 8).map((p) => p.path));
+    const tail = d.pages.filter((p) => !shownPaths.has(p.path)).slice(-6).reverse();
+    if (tail.length >= 3) {
+      lines.push("", "Least visited pages");
+      for (const p of tail) lines.push(`  ${p.path}: ${p.views} views`);
+    }
+  }
+  if (d.sources.length) {
+    lines.push("", "Where people came from");
+    for (const x of d.sources.slice(0, 8)) lines.push(`  ${x.source}: ${x.visitors}`);
+  }
+  if (d.audience.length) {
+    lines.push("", "Who they are");
+    for (const a of d.audience.slice(0, 12)) lines.push(`  ${a.value} (${a.dimension}): ${a.visitors}`);
+  }
   if (d.engagement.length) {
-    lines.push("", "Most read");
+    lines.push("", "Most read topics");
     for (const e of d.engagement.slice(0, 8)) lines.push(`  ${e.topic_id}: ${e.views} views, ${e.readers} readers`);
   }
   if (d.struggling.length) {

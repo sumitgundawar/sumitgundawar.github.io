@@ -316,7 +316,17 @@ function Work() {
       />
       <div className="grid sm:grid-cols-2 gap-px" style={{ background: "var(--hair)", border: "1px solid var(--hair)" }}>
         {services.map((s, i) => (
-          <div key={s.id} className="p-5 flex flex-col" style={{ background: "var(--surface)" }}>
+          /* An odd number of cards leaves the last cell empty, and because the
+             gridlines are this wrapper's background showing through the gap, that
+             empty cell reads as a broken tile rather than as nothing. Let the last
+             card take the whole row instead. */
+          <div
+            key={s.id}
+            className={`p-5 flex flex-col ${
+              i === services.length - 1 && services.length % 2 === 1 ? "sm:col-span-2" : ""
+            }`}
+            style={{ background: "var(--surface)" }}
+          >
             <div className="flex items-baseline gap-2.5 mb-2">
               {/* No health dot here. Every project carries health "ok", so six
                   identical green dots said nothing while breaking the one rule
@@ -332,7 +342,9 @@ function Work() {
                 <h3 className="text-[length:var(--fs-item)] font-medium tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>{s.name}</h3>
               )}
             </div>
-            <p className="text-[length:var(--fs-body)] leading-relaxed flex-1" style={{ color: "var(--c-text-dim)" }}>
+            {/* Capped so the full-width last card does not run a single line the
+                whole way across; no effect at all on the two-column cards. */}
+            <p className="text-[length:var(--fs-body)] leading-relaxed flex-1 max-w-[52em]" style={{ color: "var(--c-text-dim)" }}>
               {s.slo}
             </p>
             <div className="flex flex-wrap items-center gap-1.5 mt-4">

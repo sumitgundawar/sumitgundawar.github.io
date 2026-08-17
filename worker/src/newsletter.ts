@@ -106,7 +106,8 @@ export async function handleNewsletterBatch(batch: MessageBatch<SendJob>, env: N
         method: "POST",
         headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          from: env.REPORT_FROM ?? "onboarding@resend.dev",
+          from: env.MAIL_FROM ?? env.REPORT_FROM ?? "onboarding@resend.dev",
+          ...(env.MAIL_REPLY_TO ? { reply_to: env.MAIL_REPLY_TO } : {}),
           to: [job.email],
           subject: job.subject,
           headers: {

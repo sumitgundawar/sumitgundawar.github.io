@@ -36,7 +36,13 @@ export interface ApiEnv {
   RATE?: KVNamespace;
   PURGE_TOKEN?: string;
   REPORT_EMAIL?: string;
+  /* Reports and alerts go to the owner, so a role address is right for them.
+     Subscriber-facing mail uses MAIL_FROM instead: a bare reports@ address reads
+     as a system, and a named human sender is one of the larger levers on whether
+     Gmail files a welcome under Primary or Promotions. */
   REPORT_FROM?: string;
+  MAIL_FROM?: string;
+  MAIL_REPLY_TO?: string;
   TURNSTILE_SECRET?: string;
   ANALYTICS?: D1Database;
 }
@@ -936,7 +942,10 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
         method: "POST",
         headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          from: env.REPORT_FROM ?? "onboarding@resend.dev",
+          from: env.MAIL_FROM ?? env.REPORT_FROM ?? "onboarding@resend.dev",
+          // Mail nobody can reply to is not correspondence, and Gmail treats it
+          // accordingly. This is a real inbox.
+          ...(env.MAIL_REPLY_TO ? { reply_to: env.MAIL_REPLY_TO } : {}),
           to: [email],
           subject: "You are on the list",
           // List-Unsubscribe is what puts the one-click option in Gmail's own

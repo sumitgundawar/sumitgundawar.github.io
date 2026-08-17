@@ -1,28 +1,101 @@
-/* The weekly report as HTML mail.
+/* Email rendering, built on docs/EMAIL-DESIGN.md.
  *
- * Email is not the web and most of what works on the site is unavailable here.
- * Gmail strips <style> blocks on some clients, so every rule is inline. Outlook
- * on Windows renders through Word, which has no flexbox, no grid, no
- * border-radius worth relying on and no background-image, so the layout is
- * tables and the charts are table cells with a width and a background colour.
- * SVG is blocked or stripped almost everywhere, and remote images are hidden by
- * default in Apple Mail and Outlook, which is why no chart here is an image:
- * a bar drawn as a coloured cell is visible before anyone clicks "load images".
+ * Read that document before adding an email. It carries the palette, the type
+ * scale, the structure every message follows, and the reasoning for the
+ * constraints, which are not the web's: Gmail strips <style>, Outlook renders
+ * through Word so there is no flexbox, remote images are hidden by default and
+ * pre-fetched by Apple, and anything over 102KB is clipped along with its
+ * unsubscribe link.
  *
- * Dark mode is deliberately not fought. Clients invert unpredictably, so the
- * palette is light with genuinely dark text, which survives inversion legibly
- * instead of producing grey on grey.
+ * Compose from the components below rather than writing table markup by hand.
+ * That is the whole point of having them: the emails looked like three
+ * different products because each one was hand-built.
  */
 
-const INK = "#111827";
-const DIM = "#6b7280";
-const LINE = "#e5e7eb";
-const ACCENT = "#0f766e";
+/* ---------- tokens: docs/EMAIL-DESIGN.md#palette ---------- */
+
+const PAPER = "#f4f4f2";
+const CARD = "#ffffff";
+const INK = "#14171a"; //     17.99:1 on card
+const DIM = "#5f6660"; //      5.91:1 on card
+const LINE = "#e3e3df"; //     a boundary, not text
+const ACCENT = "#0b6b46"; //   6.55:1 on card
 const WARN = "#b45309";
-const BG = "#f6f7f8";
+
+/* The site's signal green is deliberately absent as text or link: #3dd68c
+   measures 1.88:1 on white. It appears only as a block nothing is written on. */
+
+const SANS = `-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif`;
+const MONO = `ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace`;
+
+const PAD = 28;
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/* ---------- components: docs/EMAIL-DESIGN.md#components ---------- */
+
+/** Preheader, page, card, wordmark, footer. Every email is this shape. */
+function shell(opts: { preheader: string; title: string; body: string; footer: string }): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>${esc(opts.title)}</title>
+</head>
+<body style="margin:0;padding:0;background:${PAPER};">
+<!-- The line Gmail shows beside the subject. Without it the client invents one
+     from the first words of the body, which is always worse. -->
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(opts.preheader)}</div>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${PAPER};border-collapse:collapse;">
+<tr><td align="center" style="padding:28px 12px;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:${CARD};border:1px solid ${LINE};border-collapse:collapse;">
+
+    <tr><td style="padding:${PAD}px ${PAD}px 0 ${PAD}px;font-family:${SANS};">
+      <div style="font-size:18px;font-weight:600;color:${INK};letter-spacing:-0.01em;">sumitgundawar.com</div>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:10px;">
+        <tr><td width="40" style="background:${ACCENT};height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>
+      </table>
+    </td></tr>
+
+    ${opts.body}
+
+    <tr><td style="padding:26px ${PAD}px ${PAD}px ${PAD}px;font-family:${SANS};">
+      <div style="border-top:1px solid ${LINE};padding-top:14px;font-size:12px;line-height:1.6;color:${DIM};">
+        ${opts.footer}
+      </div>
+    </td></tr>
+
+  </table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+/** A row of the card, at the standard padding. */
+const block = (inner: string, topPad = 22) =>
+  `<tr><td style="padding:${topPad}px ${PAD}px 0 ${PAD}px;font-family:${SANS};">${inner}</td></tr>`;
+
+const heading = (t: string) =>
+  `<div style="font-size:20px;font-weight:600;color:${INK};line-height:1.3;">${esc(t)}</div>`;
+
+const lede = (t: string) =>
+  `<div style="font-size:15px;line-height:1.6;color:${DIM};padding-top:10px;">${esc(t)}</div>`;
+
+const para = (t: string) =>
+  `<div style="font-size:15px;line-height:1.65;color:${INK};padding-top:14px;">${esc(t)}</div>`;
+
+/** The mono uppercase eyebrow. This is what makes the mail read as the site's
+ *  rather than as a template; the site uses exactly this for every section. */
+const label = (t: string) =>
+  `<div style="font-family:${MONO};font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:${DIM};">${esc(t)}</div>`;
+
+const link = (href: string, text: string) =>
+  `<a href="${esc(href)}" style="color:${ACCENT};">${esc(text)}</a>`;
 
 /** A horizontal bar as a table row. Two cells: filled and empty. Nothing here
  *  needs a client to support anything invented after about 2003. */
@@ -30,7 +103,7 @@ function bar(label: string, value: number, max: number, sub: string, colour = AC
   const pct = max > 0 ? Math.max(2, Math.round((value / max) * 100)) : 2;
   return `
   <tr>
-    <td style="padding:0 0 10px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+    <td style="padding:0 0 10px 0;font-family:${SANS};">
       <div style="font-size:13px;color:${INK};padding-bottom:4px;">
         <strong style="font-weight:600;">${esc(label)}</strong>
         <span style="color:${DIM};"> ${esc(sub)}</span>
@@ -83,7 +156,7 @@ function statRow(cells: { label: string; value: string; note?: string }[]): stri
   return `<tr>${cells
     .map(
       (c) => `
-      <td width="${Math.floor(100 / cells.length)}%" style="padding:0 8px 0 0;vertical-align:top;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+      <td width="${Math.floor(100 / cells.length)}%" style="padding:0 8px 0 0;vertical-align:top;font-family:${SANS};">
         <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:${DIM};padding-bottom:4px;">${esc(c.label)}</div>
         <div style="font-size:20px;font-weight:600;color:${INK};line-height:1.15;">${esc(c.value)}</div>
         ${c.note ? `<div style="font-size:12px;color:${DIM};padding-top:2px;">${esc(c.note)}</div>` : ""}
@@ -98,10 +171,10 @@ function listTable(rows: { left: string; right: string; sub?: string }[]): strin
     .map(
       (r) => `
     <tr>
-      <td style="padding:5px 0;border-bottom:1px solid ${LINE};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;color:${INK};">
+      <td style="padding:5px 0;border-bottom:1px solid ${LINE};font-family:${SANS};font-size:13px;color:${INK};">
         ${esc(r.left)}${r.sub ? `<span style="color:${DIM};"> ${esc(r.sub)}</span>` : ""}
       </td>
-      <td align="right" style="padding:5px 0;border-bottom:1px solid ${LINE};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;color:${INK};white-space:nowrap;">
+      <td align="right" style="padding:5px 0;border-bottom:1px solid ${LINE};font-family:${SANS};font-size:13px;color:${INK};white-space:nowrap;">
         ${esc(r.right)}
       </td>
     </tr>`,
@@ -126,7 +199,7 @@ export function renderReportEmail(d: ReportData): string {
     .map((m) => {
       const pct = m.pct_change;
       return `
-      <td width="25%" style="padding:0 8px 0 0;vertical-align:top;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+      <td width="25%" style="padding:0 8px 0 0;vertical-align:top;font-family:${SANS};">
         <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:${DIM};padding-bottom:4px;">${esc(LABEL[m.metric] ?? m.metric)}</div>
         <div style="font-size:26px;font-weight:600;color:${INK};line-height:1.1;">${m.current_period}</div>
         <div style="font-size:12px;color:${DIM};padding-top:2px;">was ${m.previous_period} &nbsp;${delta(pct)}</div>
@@ -155,7 +228,7 @@ export function renderReportEmail(d: ReportData): string {
   const dropRows = d.dropoff
     .slice(0, 5)
     .map(
-      (x) => `<tr><td style="padding:3px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;color:${INK};">
+      (x) => `<tr><td style="padding:3px 0;font-family:${SANS};font-size:13px;color:${INK};">
         ${esc(x.topic_id)} <span style="color:${DIM};">last topic for ${x.times_last} sessions</span></td></tr>`,
     )
     .join("");
@@ -163,7 +236,7 @@ export function renderReportEmail(d: ReportData): string {
   const section = (title: string, note: string, inner: string) =>
     inner
       ? `
-    <tr><td style="padding:26px 24px 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+    <tr><td style="padding:26px 24px 0 24px;font-family:${SANS};">
       <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:${INK};font-weight:600;">${esc(title)}</div>
       <div style="font-size:12px;color:${DIM};padding:3px 0 12px 0;">${esc(note)}</div>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">${inner}</table>
@@ -241,18 +314,18 @@ export function renderReportEmail(d: ReportData): string {
 <meta name="color-scheme" content="light">
 <title>Site report</title>
 </head>
-<body style="margin:0;padding:0;background:${BG};">
+<body style="margin:0;padding:0;background:${PAPER};">
 <!-- Preheader: the line mail clients show beside the subject. Hidden in the body. -->
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Last ${d.days} days against the ${d.days} before.</div>
 
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${BG};border-collapse:collapse;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${PAPER};border-collapse:collapse;">
 <tr><td align="center" style="padding:24px 12px;">
 
   <!-- 600px is the width that survives every client, and it degrades to full
        width on a phone because the table is width:100% with a max-width. -->
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:#ffffff;border:1px solid ${LINE};border-collapse:collapse;">
 
-    <tr><td style="padding:24px 24px 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+    <tr><td style="padding:24px 24px 0 24px;font-family:${SANS};">
       <div style="font-size:17px;font-weight:600;color:${INK};">sumitgundawar.com</div>
       <div style="font-size:13px;color:${DIM};padding-top:2px;">Week to ${to}, compared with the ${d.days} days before</div>
     </td></tr>
@@ -265,7 +338,7 @@ export function renderReportEmail(d: ReportData): string {
 
     ${
       empty
-        ? `<tr><td style="padding:20px 24px 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;color:${WARN};">
+        ? `<tr><td style="padding:20px 24px 0 24px;font-family:${SANS};font-size:13px;color:${WARN};">
              No traffic recorded this period. If that is unexpected, the tracking call is the thing to check before the numbers.
            </td></tr>`
         : ""
@@ -281,7 +354,7 @@ export function renderReportEmail(d: ReportData): string {
     ${section("Most often wrong", "A question most people fail is usually a bad explanation, not a hard idea", wrongRows)}
     ${section("Where people stopped", "The last topic of a session is where the material lost them", dropRows)}
 
-    <tr><td style="padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+    <tr><td style="padding:24px;font-family:${SANS};">
       <div style="border-top:1px solid ${LINE};padding-top:14px;font-size:12px;color:${DIM};">
         Measured by the site itself. No personal data stored, and no third party involved in these numbers.
       </div>
@@ -315,74 +388,40 @@ export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }):
   const { site, unsubscribe } = opts;
   const host = site.replace(/^https?:\/\//, "");
 
-  const bullet = (title: string, body: string) => `
-    <tr>
-      <td style="padding:0 0 14px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-        <div style="font-size:14px;font-weight:600;color:${INK};padding-bottom:3px;">${esc(title)}</div>
-        <div style="font-size:14px;line-height:1.55;color:${DIM};">${esc(body)}</div>
-      </td>
-    </tr>`;
+  /* Written as a letter, not as a landing page.
+   *
+   * The previous version had three bulleted sections and a large dark call to
+   * action button, which is precisely the shape Gmail classifies as promotional,
+   * and it is also just worse: a first email from a person should read like one.
+   * One idea, one link, a signature. See docs/EMAIL-DESIGN.md, the section on
+   * landing in the inbox. */
+  const body = [
+    block(heading("You are on the list.")),
+    block(
+      para(
+        "Thank you for subscribing. You will get an occasional note from me about building systems that survive production: what broke, why, and what the fix actually cost. Roughly once a month, and nothing else, ever.",
+      ) +
+        para(
+          "Everything I write starts with something that actually happened, usually an incident, rather than with a framework or a list of best practices. If that is not what you were after, the link at the bottom removes you in one click and I will not email you again.",
+        ) +
+        para(`In the meantime, the writing and the learning material are both at ${host}.`),
+      14,
+    ),
+    block(
+      `<div style="font-size:15px;line-height:1.65;color:${INK};">Sumit</div>` +
+        `<div style="font-family:${MONO};font-size:12px;color:${DIM};padding-top:4px;">Software Engineer, London</div>`,
+      24,
+    ),
+  ].join("");
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light">
-<title>You are on the list</title>
-</head>
-<body style="margin:0;padding:0;background:${BG};">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Occasional writing on building systems that survive production. No more than once a month.</div>
-
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${BG};border-collapse:collapse;">
-<tr><td align="center" style="padding:24px 12px;">
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:#ffffff;border:1px solid ${LINE};border-collapse:collapse;">
-
-    <tr><td style="padding:28px 28px 0 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-      <div style="font-size:18px;font-weight:600;color:${INK};letter-spacing:-0.01em;">${esc(host)}</div>
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:10px;">
-        <tr><td width="40" style="background:${ACCENT};height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>
-      </table>
-    </td></tr>
-
-    <tr><td style="padding:22px 28px 0 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-      <div style="font-size:20px;font-weight:600;color:${INK};line-height:1.3;">You are on the list.</div>
-      <div style="font-size:15px;line-height:1.6;color:${DIM};padding-top:10px;">
-        Occasional writing on building systems that survive production: what broke, why, and what the fix actually cost. No more than once a month, and nothing else.
-      </div>
-    </td></tr>
-
-    <tr><td style="padding:24px 28px 0 28px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
-        ${bullet("What it is", "Incidents from real systems, and the design decisions that came out of them. Every piece opens with something that actually happened.")}
-        ${bullet("What it is not", "A newsletter about newsletters, a roundup of links, or anything with the word thoughts in the subject line.")}
-        ${bullet("While you wait", "Everything published so far is collected on the site, alongside a section that teaches the same material as a set of questions you answer.")}
-      </table>
-    </td></tr>
-
-    <!-- A bordered cell, not a styled anchor: Outlook drops padding and
-         background on an <a>, which turns a button into blue underlined text. -->
-    <tr><td style="padding:6px 28px 0 28px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
-        <tr><td style="background:${INK};padding:12px 22px;">
-          <a href="${esc(site)}/learn" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Start with the material</a>
-        </td></tr>
-      </table>
-    </td></tr>
-
-    <tr><td style="padding:26px 28px 28px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-      <div style="border-top:1px solid ${LINE};padding-top:14px;font-size:12px;line-height:1.6;color:${DIM};">
-        You are receiving this because you signed up at ${esc(host)}. Your address is stored to send this and nothing else, and is never passed on.
-        <br>
-        <a href="${esc(unsubscribe)}" style="color:${ACCENT};">Unsubscribe in one click</a>, from this or any later email.
-      </div>
-    </td></tr>
-
-  </table>
-</td></tr>
-</table>
-</body>
-</html>`;
+  return shell({
+    preheader: "Occasional writing on building systems that survive production. Roughly once a month.",
+    title: "You are on the list",
+    body,
+    footer:
+      `You are receiving this because you subscribed at ${esc(host)}. Your address is stored to send this and nothing else, and is never passed on. ` +
+      `${link(unsubscribe, "Unsubscribe in one click")}.`,
+  });
 }
 
 export function renderWelcomeText(opts: { site: string; unsubscribe: string }): string {
@@ -390,14 +429,20 @@ export function renderWelcomeText(opts: { site: string; unsubscribe: string }): 
   return [
     "You are on the list.",
     "",
-    "Occasional writing on building systems that survive production: what broke,",
-    "why, and what the fix actually cost. No more than once a month, and nothing else.",
+    "Thank you for subscribing. You will get an occasional note from me about",
+    "building systems that survive production: what broke, why, and what the fix",
+    "actually cost. Roughly once a month, and nothing else, ever.",
     "",
-    `Start with the material: ${opts.site}/learn`,
+    "Everything I write starts with something that actually happened, usually an",
+    "incident, rather than with a framework or a list of best practices. If that is",
+    "not what you were after, the link below removes you in one click.",
     "",
-    `You are receiving this because you signed up at ${host}. Your address is stored`,
-    "to send this and nothing else, and is never passed on.",
-    `Unsubscribe in one click: ${opts.unsubscribe}`,
+    `In the meantime, the writing and the learning material are both at ${host}.`,
+    "",
+    "Sumit",
+    "Software Engineer, London",
+    "",
+    `Unsubscribe: ${opts.unsubscribe}`,
   ].join("\n");
 }
 
@@ -419,8 +464,8 @@ export function renderAlertsEmail(fired: string[]): string {
       <td style="padding:0 0 10px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
           <tr>
-            <td width="3" style="background:${WARN};font-size:0;line-height:0;">&nbsp;</td>
-            <td style="padding:8px 0 8px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:${INK};background:#fdf8f1;">
+            <td width="3" style="background:${WARN};font-size:0;line-height:3px;">&nbsp;</td>
+            <td style="padding:10px 0 10px 14px;font-family:${SANS};font-size:14px;line-height:1.55;color:${INK};background:#fdf8f1;">
               ${esc(f)}
             </td>
           </tr>
@@ -432,41 +477,21 @@ export function renderAlertsEmail(fired: string[]): string {
 
   const count = `${fired.length} thing${fired.length === 1 ? "" : "s"} to look at`;
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light">
-<title>Site alerts</title>
-</head>
-<body style="margin:0;padding:0;background:${BG};">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(count)}.</div>
+  const body = [
+    block(heading("Site alerts") + lede(count)),
+    block(
+      `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">${rows}</table>`,
+      18,
+    ),
+  ].join("");
 
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${BG};border-collapse:collapse;">
-<tr><td align="center" style="padding:24px 12px;">
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:#ffffff;border:1px solid ${LINE};border-collapse:collapse;">
-
-    <tr><td style="padding:24px 24px 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-      <div style="font-size:17px;font-weight:600;color:${INK};">Site alerts</div>
-      <div style="font-size:13px;color:${DIM};padding-top:2px;">sumitgundawar.com &middot; ${esc(count)}</div>
-    </td></tr>
-
-    <tr><td style="padding:18px 24px 0 24px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">${rows}</table>
-    </td></tr>
-
-    <tr><td style="padding:14px 24px 24px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-      <div style="border-top:1px solid ${LINE};padding-top:14px;font-size:12px;color:${DIM};">
-        Sent only when something fired. No mail on a normal day, so silence here means nothing tripped rather than nothing ran.
-      </div>
-    </td></tr>
-
-  </table>
-</td></tr>
-</table>
-</body>
-</html>`;
+  return shell({
+    preheader: count,
+    title: "Site alerts",
+    body,
+    footer:
+      "Sent only when something fired. There is no mail on a normal day, so silence here means nothing tripped rather than nothing ran.",
+  });
 }
 
 export function renderAlertsText(fired: string[]): string {

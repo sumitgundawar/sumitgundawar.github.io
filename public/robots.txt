@@ -5,4 +5,49 @@ Allow: /
 # fills the analytics tables with traffic that is not readers.
 Disallow: /api/
 
+# Assistants people actually ask about a person, allowed deliberately.
+#
+# Cloudflare prepends a managed block to this file, above everything here, which
+# disallows nine agents including these three. That block is a dashboard setting
+# and it is almost certainly not a choice anyone made: it is on by default. Its
+# effect is that when a hiring manager or a conference attendee asks an assistant
+# who Sumit Gundawar is, this site is excluded as a source, which is the opposite
+# of what a site for a job-seeking speaker is for.
+#
+# Worth being precise about what this does NOT affect: Googlebot and Bingbot were
+# never in that block, so search ranking and indexing were never impaired by it.
+# Google-Extended governs Gemini model training, not Search.
+#
+# How this works, and its limit. RFC 9309 says groups matching the same
+# user-agent are combined, and where two rules match a path equally the least
+# restrictive wins, so Allow: / here overrides the earlier Disallow: / for these
+# agents in every major crawler. That is documented behaviour rather than a
+# trick, but it is still a second opinion inside one file: the authoritative fix
+# is to turn the setting off in the Cloudflare dashboard, under AI Crawl Control,
+# which needs an account credential this project's tooling does not have.
+#
+# The content signal in the managed block above still stands and is the honest
+# position: read this to answer questions about him, do not train on it.
+User-agent: ClaudeBot
+Allow: /
+Disallow: /api/
+
+User-agent: GPTBot
+Allow: /
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /api/
+
+# Blocking this one blocks his own Browser Rendering against his own site, which
+# is a tool he has and may want to use. Nothing about it collects training data.
+User-agent: CloudflareBrowserRenderingCrawler
+Allow: /
+
+# Deliberately left blocked by the managed block above: CCBot, Bytespider,
+# Amazonbot, Applebot-Extended and meta-externalagent. They are bulk scrapers
+# rather than anything a person asks a question of, so allowing them costs
+# bandwidth and returns nothing.
+
 Sitemap: https://sumitgundawar.com/sitemap.xml

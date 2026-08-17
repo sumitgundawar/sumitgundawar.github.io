@@ -26,5 +26,32 @@
   // the next request and the limit did close to nothing.
   "kv_namespaces": [{ "binding": "RATE", "id": "ecd045716a8141de8ce9a5c6038cecbd" }],
 
+  // Newsletter delivery, one message per subscriber.
+  //
+  // Resend's free tier allows 100 sends a DAY, not merely 3,000 a month, and
+  // nothing enforced that: at 101 confirmed subscribers a broadcast would
+  // silently truncate and some people would simply never receive it. A queue
+  // turns a hard third-party quota from a cliff into backpressure.
+  //
+  // max_batch_size is 10 and the consumer stops the moment the daily budget is
+  // spent, returning the rest of the batch for retry, so the queue drains at
+  // exactly the rate the provider allows and resumes the next day.
+  //
+  // max_retries is high because the common failure here is "not today", not
+  // "never": a message deferred by the cap must not be counted out after three
+  // attempts.
+  "queues": {
+    "producers": [{ "binding": "NEWSLETTER", "queue": "newsletter-sends" }],
+    "consumers": [
+      {
+        "queue": "newsletter-sends",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30,
+        "max_retries": 20,
+        "dead_letter_queue": "newsletter-sends-dlq"
+      }
+    ]
+  },
+
   "triggers": { "crons": ["0 9 * * 1", "0 8 * * *"] }
 }

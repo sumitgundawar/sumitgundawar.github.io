@@ -12,9 +12,10 @@
  * Regenerate with `npx wrangler types` after changing bindings in
  * wrangler.jsonc. Do not extend this by hand.
  */
-import { handleApi, handleCronRun, handleReportPreview, runCron, type ApiEnv } from "./api";
+import { handleApi, handleBroadcast, handleCronRun, handleReportPreview, runCron, type ApiEnv } from "./api";
+import { handleNewsletterBatch, type NewsletterEnv, type SendJob } from "./newsletter";
 
-interface Env extends ApiEnv {
+interface Env extends ApiEnv, NewsletterEnv {
   // secrets, set with `wrangler secret put`
   SLACK_SIGNING_SECRET: string;
   GITHUB_TOKEN: string;
@@ -126,6 +127,8 @@ export default {
       if (preview) return preview;
       const cron = await handleCronRun(request, env);
       if (cron) return cron;
+      const broadcast = await handleBroadcast(request, env);
+      if (broadcast) return broadcast;
       const api = await handleApi(request, env, ctx);
       if (api) return api;
 
@@ -214,4 +217,11 @@ export default {
     const result = await runCron(controller.cron, env);
     if (!result.ok) throw new Error(`cron ${controller.cron} failed: ${result.error}`);
   },
-} satisfies ExportedHandler<Env>;
+
+  /* Newsletter delivery. Resend allows 100 sends a day on this plan, so the
+     consumer spends only what is left of today's budget and returns the rest to
+     the queue instead of truncating a broadcast the way an unpaced loop would. */
+  async queue(batch: MessageBatch<SendJob>, env: Env): Promise<void> {
+    await handleNewsletterBatch(batch, env);
+  },
+} satisfies ExportedHandler<Env, SendJob>;

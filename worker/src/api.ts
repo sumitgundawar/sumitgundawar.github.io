@@ -10,6 +10,7 @@ import {
 } from "./email";
 import { TOPICS } from "./topics.generated";
 import { docsPage, openApiSpec } from "./openapi";
+import { enqueueBroadcast, type NewsletterEnv } from "./newsletter";
 
 /* The site's backend: ask, track, progress, and a weekly digest.
  *
@@ -1269,6 +1270,55 @@ export async function handleCronRun(req: Request, env: ApiEnv): Promise<Response
   }
   const result = await runCron(cron, env);
   return json(result, result.ok ? 200 : 500, env.SITE_ORIGIN ?? "*");
+}
+
+/* Send a broadcast, by queueing it rather than by looping.
+ *
+ * The loop is what this replaces. Resend allows 100 sends a day on this plan,
+ * so a straightforward for-loop over subscribers silently truncates the moment
+ * the list passes it, and the people at the end of the list simply never
+ * receive anything. Queueing hands the pacing to the consumer, which spends
+ * only what today's budget allows and returns the rest.
+ *
+ * Reports how many were QUEUED, which is not how many were sent, because those
+ * are different numbers and reporting one as the other is the original bug.
+ */
+export async function handleBroadcast(req: Request, env: NewsletterEnv): Promise<Response | null> {
+  const url = new URL(req.url);
+  if (url.pathname !== "/api/broadcast" || req.method !== "POST") return null;
+
+  const token = req.headers.get("X-Admin-Token") ?? "";
+  if (!env.PURGE_TOKEN || !(await tokenMatches(token, env.PURGE_TOKEN))) {
+    return json({ error: "not found" }, 404, env.SITE_ORIGIN ?? "*");
+  }
+
+  const body = (await req.json().catch(() => null)) as
+    | { subject?: string; html?: string; text?: string; to?: string[] }
+    | null;
+  if (!body?.subject || !body.html) {
+    return json({ error: "subject and html required" }, 400, env.SITE_ORIGIN ?? "*");
+  }
+
+  /* `to` exists so the delivery path can be exercised without mailing the real
+     list. Without it the recipients are every confirmed subscriber. */
+  let recipients: { email: string; token: string }[];
+  if (Array.isArray(body.to) && body.to.length) {
+    recipients = body.to.slice(0, 50).map((email) => ({ email, token: "test" }));
+  } else {
+    recipients = (await sb(env, "subscribers?select=email,token&status=eq.confirmed&limit=5000").then(
+      (r) => r.json() as Promise<{ email: string; token: string }[]>,
+    )) ?? [];
+  }
+
+  if (!recipients.length) return json({ ok: true, queued: 0, note: "no confirmed subscribers" }, 200, env.SITE_ORIGIN ?? "*");
+
+  const queued = await enqueueBroadcast(
+    env,
+    recipients,
+    { subject: body.subject, html: body.html, text: body.text ?? "" },
+    new URL(req.url).origin,
+  );
+  return json({ ok: true, queued, note: "queued, not sent: delivery is paced to the provider's daily cap" }, 200, env.SITE_ORIGIN ?? "*");
 }
 
 /** Manual trigger, so the report can be checked without waiting for Monday. */

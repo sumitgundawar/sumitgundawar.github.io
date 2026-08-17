@@ -27,8 +27,13 @@ const wranglerRaw = read("worker/wrangler.jsonc");
 const indexSrc = read("worker/src/index.ts");
 const apiSrc = read("worker/src/api.ts");
 
-/* JSONC: strip comments before parsing. Only line comments are used here, and
-   stripping block comments naively would corrupt any URL containing a slash. */
+/* JSONC: strip comments before parsing.
+ *
+ * Only line comments, and wrangler.jsonc is kept to line comments deliberately.
+ * Stripping block comments with a regex either corrupts any URL containing a
+ * slash or needs a real tokeniser, and a config parser is a poor place to spend
+ * either the risk or the code. Adding a block comment there broke this check,
+ * which is the sort of thing a check should not be fragile about. */
 const wrangler = JSON.parse(wranglerRaw.replace(/^\s*\/\/.*$/gm, ""));
 
 const declared = wrangler.triggers?.crons ?? [];

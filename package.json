@@ -18,7 +18,8 @@
     "check:contrast": "node scripts/contrast-check.mjs",
     "check:prod": "node scripts/prod-check.mjs",
     "gen:jsonld": "npx tsx scripts/gen-jsonld.mjs",
-    "check:security": "node scripts/security-check.mjs"
+    "check:security": "node scripts/security-check.mjs",
+    "check:newsletter": "npx esbuild worker/src/newsletter.ts --bundle --format=esm --platform=neutral --outfile=/tmp/nl.mjs && node scripts/newsletter-test.mjs /tmp/nl.mjs"
   },
   "dependencies": {
     "@fontsource-variable/mona-sans": "^5.2.8",

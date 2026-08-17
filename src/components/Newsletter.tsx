@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { trackClick } from "@/lib/hooks";
+import { getTurnstileToken, loadTurnstile } from "@/lib/turnstile";
 import { API } from "@/lib/api";
 
 /* Newsletter signup.
@@ -23,6 +24,10 @@ export function Newsletter() {
      signups cost real delivery to people who actually asked. */
   const [company, setCompany] = useState("");
   const [renderedAt] = useState(() => Date.now());
+  /* The invisible Turnstile widget renders into this. It is only mounted
+     once someone touches the form, so the third-party script is never
+     fetched for the many visitors who never sign up. */
+  const capture = useRef<HTMLDivElement>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,10 +35,11 @@ export function Newsletter() {
     setState("busy");
     trackClick("newsletter_signup", {});
     try {
+      const turnstileToken = capture.current ? await getTurnstileToken(capture.current) : null;
       const res = await fetch(`${API}/api/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, source: "home", company, renderedAt }),
+        body: JSON.stringify({ email, source: "home", company, renderedAt, turnstileToken }),
       });
       const j = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !j.ok) {
@@ -74,6 +80,7 @@ export function Newsletter() {
             You are on the list. A welcome note is on its way.
           </p>
         ) : (
+          <>
           <form onSubmit={submit} className="mt-4 flex flex-col sm:flex-row gap-2 min-w-0">
             {/* Honeypot: out of the layout and out of the reading order, so
                 only a script that fills every input will touch it. */}
@@ -97,6 +104,7 @@ export function Newsletter() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onFocus={() => void loadTurnstile()}
               disabled={state === "busy"}
               placeholder="you@example.com"
               autoComplete="email"
@@ -112,6 +120,10 @@ export function Newsletter() {
               {state === "busy" ? "…" : "subscribe"}
             </button>
           </form>
+          {/* Turnstile renders here, invisibly. Outside the form so a re-render
+              of the fields cannot tear down a widget mid-verification. */}
+          <div ref={capture} aria-hidden="true" />
+          </>
         )}
 
         {state === "error" && (

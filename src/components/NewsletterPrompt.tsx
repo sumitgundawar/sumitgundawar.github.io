@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { trackClick } from "@/lib/hooks";
+import { getTurnstileToken, loadTurnstile } from "@/lib/turnstile";
 import { API } from "@/lib/api";
 
 /* The signup, shown where someone has just got something out of the site.
@@ -47,6 +48,10 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
      tier is 100 sends a day, so scripted signups cost real delivery. */
   const [company, setCompany] = useState("");
   const [renderedAt] = useState(() => Date.now());
+  /* The invisible Turnstile widget renders into this. It is only mounted
+     once someone touches the form, so the third-party script is never
+     fetched for the many visitors who never sign up. */
+  const capture = useRef<HTMLDivElement>(null);
   const [hidden, setHidden] = useState(() => {
     const s = read();
     return Boolean(s.dismissed || s.joined);
@@ -61,10 +66,11 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
     setState("busy");
     trackClick("newsletter_signup", { context });
     try {
+      const turnstileToken = capture.current ? await getTurnstileToken(capture.current) : null;
       const res = await fetch(`${API}/api/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, source: context, company, renderedAt }),
+        body: JSON.stringify({ email, source: context, company, renderedAt, turnstileToken }),
       });
       const j = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !j.ok) {
@@ -136,6 +142,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onFocus={() => void loadTurnstile()}
               disabled={state === "busy"}
               placeholder="you@example.com"
               autoComplete="email"
@@ -151,6 +158,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
               {state === "busy" ? "…" : "subscribe"}
             </button>
           </form>
+          <div ref={capture} aria-hidden="true" />
 
           {state === "error" && (
             <p className="mono text-[length:var(--fs-label)] mt-2" style={{ color: "var(--warn)" }} role="alert">

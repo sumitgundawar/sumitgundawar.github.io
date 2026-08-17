@@ -35,6 +35,7 @@ export interface ApiEnv {
   PURGE_TOKEN?: string;
   REPORT_EMAIL?: string;
   REPORT_FROM?: string;
+  TURNSTILE_SECRET?: string;
 }
 
 /* An allowlist, echoed back per request, rather than one pinned value.
@@ -671,7 +672,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
   /* ---- subscribe: newsletter, single opt-in ---- */
   if (url.pathname === "/api/subscribe" && req.method === "POST") {
     const b = (await req.json().catch(() => null)) as
-      | { email?: string; source?: string; company?: string; renderedAt?: number }
+      | { email?: string; source?: string; company?: string; renderedAt?: number; turnstileToken?: string }
       | null;
     const email = (b?.email ?? "").trim().toLowerCase();
 
@@ -700,6 +701,40 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
     if (typeof b?.renderedAt === "number" && Date.now() - b.renderedAt < 2000) {
       console.log(JSON.stringify({ at: "subscribe_too_fast", ms: Date.now() - b.renderedAt }));
       return json({ ok: true }, 200, origin);
+    }
+
+    /* Turnstile, verified server-side. The token is single use and is checked
+       against Cloudflare with the widget's secret, so a token replayed from a
+       previous submission is rejected by Cloudflare rather than by us.
+     *
+     * The honeypot and the timing check above are kept rather than replaced.
+     * They cost nothing, they catch the crudest traffic before a network call is
+     * made, and they still work if the widget script fails to load.
+     *
+     * Fails OPEN when the token is missing, and only when the token is missing:
+     * a blocked or slow script must not stop a real person subscribing, and the
+     * widget is a third-party asset on a page that is otherwise self-contained.
+     * A token that is PRESENT and invalid is a positive signal of a bot and is
+     * refused, silently, like the other two checks. */
+    if (env.TURNSTILE_SECRET && typeof b?.turnstileToken === "string" && b.turnstileToken) {
+      const form = new FormData();
+      form.append("secret", env.TURNSTILE_SECRET);
+      form.append("response", b.turnstileToken);
+      form.append("remoteip", clientIp(req));
+      const verdict = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+        method: "POST",
+        body: form,
+      })
+        .then((r) => r.json() as Promise<{ success?: boolean; "error-codes"?: string[] }>)
+        .catch(() => null);
+
+      if (verdict && verdict.success === false) {
+        console.log(JSON.stringify({ at: "subscribe_turnstile_failed", codes: verdict["error-codes"] ?? [] }));
+        return json({ ok: true }, 200, origin);
+      }
+      /* A null verdict means Cloudflare itself was unreachable. Failing the
+         signup on that would make the newsletter depend on a service it does
+         not need to depend on, so it passes and the other two checks stand. */
     }
 
     /* Deliberately permissive. Email validation by regex is a losing game and

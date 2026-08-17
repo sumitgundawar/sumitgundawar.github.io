@@ -176,6 +176,78 @@ export function renderReportEmail(d: ReportData): string {
 </html>`;
 }
 
+/* Alerts, which are a different kind of mail from the weekly report.
+ *
+ * The report is read at leisure and is mostly numbers. An alert is read once,
+ * probably on a phone, and its whole job is to say what happened in the subject
+ * line and the first two lines of the body. So: no charts, no comparison
+ * columns, one warn-coloured rule down the side of each item, and nothing that
+ * needs images enabled to make sense.
+ *
+ * Same table-and-inline-styles constraints as the report, for the same reasons.
+ */
+export function renderAlertsEmail(fired: string[]): string {
+  const rows = fired
+    .map(
+      (f) => `
+    <tr>
+      <td style="padding:0 0 10px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+          <tr>
+            <td width="3" style="background:${WARN};font-size:0;line-height:0;">&nbsp;</td>
+            <td style="padding:8px 0 8px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:${INK};background:#fdf8f1;">
+              ${esc(f)}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`,
+    )
+    .join("");
+
+  const count = `${fired.length} thing${fired.length === 1 ? "" : "s"} to look at`;
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Site alerts</title>
+</head>
+<body style="margin:0;padding:0;background:${BG};">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(count)}.</div>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${BG};border-collapse:collapse;">
+<tr><td align="center" style="padding:24px 12px;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:#ffffff;border:1px solid ${LINE};border-collapse:collapse;">
+
+    <tr><td style="padding:24px 24px 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+      <div style="font-size:17px;font-weight:600;color:${INK};">Site alerts</div>
+      <div style="font-size:13px;color:${DIM};padding-top:2px;">sumitgundawar.com &middot; ${esc(count)}</div>
+    </td></tr>
+
+    <tr><td style="padding:18px 24px 0 24px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">${rows}</table>
+    </td></tr>
+
+    <tr><td style="padding:14px 24px 24px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+      <div style="border-top:1px solid ${LINE};padding-top:14px;font-size:12px;color:${DIM};">
+        Sent only when something fired. No mail on a normal day, so silence here means nothing tripped rather than nothing ran.
+      </div>
+    </td></tr>
+
+  </table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+export function renderAlertsText(fired: string[]): string {
+  return [`Site alerts, ${new Date().toISOString().slice(0, 10)}`, "", ...fired.map((f) => `- ${f}`)].join("\n");
+}
+
 /** Plain text alternative. Some clients prefer it, and every client falls back
  *  to it when HTML is blocked, so it has to carry the same numbers. */
 export function renderReportText(d: ReportData): string {

@@ -12,7 +12,7 @@
  * Regenerate with `npx wrangler types` after changing bindings in
  * wrangler.jsonc — do not extend this by hand.
  */
-import { handleApi, handleReportPreview, postAlerts, postWeekly, type ApiEnv } from "./api";
+import { handleApi, handleCronRun, handleReportPreview, runCron, type ApiEnv } from "./api";
 
 interface Env extends ApiEnv {
   // secrets, set with `wrangler secret put`
@@ -124,6 +124,8 @@ export default {
          because that path assumes every POST is a Slack event. */
       const preview = await handleReportPreview(request, env);
       if (preview) return preview;
+      const cron = await handleCronRun(request, env);
+      if (cron) return cron;
       const api = await handleApi(request, env, ctx);
       if (api) return api;
 
@@ -198,5 +200,18 @@ export default {
       );
       return new Response("internal error", { status: 500 });
     }
+  },
+
+  /* The cron entry point that was missing.
+   *
+   * The work is awaited rather than passed to ctx.waitUntil. A rejection inside
+   * waitUntil disappears, and an invisible failure is the exact shape of the bug
+   * this handler fixes; the returned promise already keeps the invocation alive.
+   * A failure rethrows so the dashboard's cron history records it as failed
+   * instead of as a clean run that quietly sent nothing.
+   */
+  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+    const result = await runCron(controller.cron, env);
+    if (!result.ok) throw new Error(`cron ${controller.cron} failed: ${result.error}`);
   },
 } satisfies ExportedHandler<Env>;

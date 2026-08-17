@@ -1,5 +1,5 @@
 import { runChain, type ChatMessage } from "./models";
-import { renderReportEmail, renderReportText, type ReportData } from "./email";
+import { renderAlertsEmail, renderAlertsText, renderReportEmail, renderReportText, type ReportData } from "./email";
 import { TOPICS } from "./topics.generated";
 
 /* The site's backend: ask, track, progress, and a weekly digest.
@@ -793,17 +793,130 @@ export async function runAlerts(env: ApiEnv): Promise<string[]> {
   return fired;
 }
 
+/* Two channels, like the weekly report, and for a reason this deployment
+   demonstrated: SLACK_BOT_TOKEN is not set here, so while Slack was the only
+   channel these alerts could fire perfectly and reach nobody. That is worse than
+   having no alerts, because the silence is indistinguishable from "nothing is
+   wrong". If no channel is configured at all, say so in the log rather than
+   returning as though the work was done. */
 export async function postAlerts(env: ApiEnv): Promise<void> {
   const fired = await runAlerts(env);
   if (!fired.length) return; // silence is the correct output most days
-  const text = ["*Site alerts*", "", ...fired.map((f) => `• ${f}`)].join("\n");
+
+  const jobs: Promise<unknown>[] = [];
+
   if (env.SLACK_BOT_TOKEN && env.SLACK_CHANNEL_ID) {
-    await fetch("https://slack.com/api/chat.postMessage", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${env.SLACK_BOT_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ channel: env.SLACK_CHANNEL_ID, text }),
-    }).catch(() => {});
+    const text = ["*Site alerts*", "", ...fired.map((f) => `• ${f}`)].join("\n");
+    jobs.push(
+      fetch("https://slack.com/api/chat.postMessage", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${env.SLACK_BOT_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ channel: env.SLACK_CHANNEL_ID, text }),
+      }),
+    );
   }
+
+  if (env.RESEND_API_KEY && env.REPORT_EMAIL) {
+    jobs.push(
+      fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: env.REPORT_FROM ?? "onboarding@resend.dev",
+          to: [env.REPORT_EMAIL],
+          subject: `Site alerts: ${fired.length} thing${fired.length === 1 ? "" : "s"} to look at`,
+          html: renderAlertsEmail(fired),
+          text: renderAlertsText(fired),
+        }),
+      }),
+    );
+  }
+
+  if (!jobs.length) {
+    console.error(JSON.stringify({ at: "alerts_undeliverable", count: fired.length, fired }));
+    return;
+  }
+
+  // Settled, not sequenced: one channel failing must not suppress the other.
+  const results = await Promise.allSettled(jobs);
+  results.forEach((r, i) => {
+    if (r.status === "rejected") console.log(JSON.stringify({ at: "alerts_channel_failed", channel: i, reason: String(r.reason).slice(0, 200) }));
+  });
+}
+
+/* The cron routing table.
+ *
+ * These strings must match `triggers.crons` in wrangler.jsonc exactly. They were
+ * declared there for the entire life of the reporting feature while the Worker
+ * exported only `fetch`, so every trigger fired into a Worker with nothing
+ * listening and the weekly report was never once delivered. The unused imports
+ * in index.ts were the only trace, and `no-unused-vars` is off for this package,
+ * so nothing said a word.
+ *
+ * Keyed by expression rather than dispatched by position, because position is
+ * exactly the coupling that breaks silently when someone reorders the array in
+ * wrangler.jsonc. An expression with no entry here is logged as an error, since
+ * a cron with nowhere to go is the bug this table exists to prevent.
+ */
+export const CRON_JOBS: Record<string, { name: string; run: (env: ApiEnv) => Promise<void> }> = {
+  "0 9 * * 1": { name: "weekly", run: postWeekly },
+  "0 8 * * *": { name: "alerts", run: postAlerts },
+};
+
+export interface CronResult {
+  ok: boolean;
+  job: string;
+  ms: number;
+  error?: string;
+}
+
+/** Shared by the scheduled handler and the admin trigger, so what gets tested
+ *  by hand is the same path Monday takes. */
+export async function runCron(cron: string, env: ApiEnv): Promise<CronResult> {
+  const started = Date.now();
+  const job = CRON_JOBS[cron];
+  if (!job) {
+    console.error(JSON.stringify({ at: "cron_unrouted", cron, known: Object.keys(CRON_JOBS) }));
+    return { ok: false, job: "unrouted", ms: 0, error: `no job registered for cron "${cron}"` };
+  }
+  try {
+    await job.run(env);
+    const ms = Date.now() - started;
+    console.log(JSON.stringify({ at: "cron_done", job: job.name, cron, ms }));
+    return { ok: true, job: job.name, ms };
+  } catch (error) {
+    const ms = Date.now() - started;
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(JSON.stringify({ at: "cron_failed", job: job.name, cron, ms, error: message }));
+    return { ok: false, job: job.name, ms, error: message };
+  }
+}
+
+/* Admin trigger for the cron path.
+ *
+ * A scheduled job that can only be observed once a week is a job whose breakage
+ * is discovered late, which is precisely what happened here. This runs the real
+ * routing table against the real environment on demand, so "does the weekly
+ * report work" is a question with an answer rather than a wait.
+ *
+ * Behind the same admin token as the report preview, because it sends live mail
+ * and reads the whole analytics picture.
+ */
+export async function handleCronRun(req: Request, env: ApiEnv): Promise<Response | null> {
+  const url = new URL(req.url);
+  if (url.pathname !== "/api/cron-run") return null;
+
+  const token = req.headers.get("X-Admin-Token") ?? "";
+  if (!env.PURGE_TOKEN || !(await tokenMatches(token, env.PURGE_TOKEN))) {
+    return json({ error: "not found" }, 404, env.SITE_ORIGIN ?? "*");
+  }
+
+  const cron = url.searchParams.get("cron") ?? "";
+  if (!cron) {
+    return json({ error: "cron required", known: Object.keys(CRON_JOBS) }, 400, env.SITE_ORIGIN ?? "*");
+  }
+  const result = await runCron(cron, env);
+  return json(result, result.ok ? 200 : 500, env.SITE_ORIGIN ?? "*");
 }
 
 /** Manual trigger, so the report can be checked without waiting for Monday. */

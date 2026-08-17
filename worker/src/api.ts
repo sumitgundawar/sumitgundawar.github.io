@@ -214,11 +214,20 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
     const topicText = TOPICS[topicId];
     if (topicId && !topicText) return json({ error: "unknown topic" }, 400, origin);
 
-    // Find or open the thread for this reader and topic.
+    /* Find or open the thread for this reader and topic.
+     *
+     * The lookup and the insert have to agree about what an absent topic is.
+     * The insert writes `topicId || null`, and PostgREST's `eq.` never matches
+     * NULL, so a lookup written as eq.<empty> could never find the row the
+     * insert had just made: every question would open a fresh conversation and
+     * history would never accumulate, silently, with each answer still looking
+     * correct. Not reachable today because AskBox always sends a real topic id,
+     * which is exactly why it would have gone unnoticed until someone added a
+     * general ask box. `is.null` is the filter that matches what was written. */
+    const topicFilter = topicId ? `topic_id=eq.${encodeURIComponent(topicId)}` : "topic_id=is.null";
     const found = await sb(
       env,
-      `ai_conversations?select=id&session_key=eq.${encodeURIComponent(session)}` +
-        `&topic_id=eq.${encodeURIComponent(topicId)}&limit=1`,
+      `ai_conversations?select=id&session_key=eq.${encodeURIComponent(session)}&${topicFilter}&limit=1`,
     ).then((r) => r.json() as Promise<{ id: string }[]>);
 
     let convId = found[0]?.id;
@@ -310,6 +319,14 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
       return json({ error: "unavailable" }, 503, origin);
     }
 
+    /* The system prompt asks for no dashes. A prompt is a request, and a live
+       answer came back containing U+2011 twice, so the rule the rest of the site
+       enforces at build time was the one thing on the page not actually
+       enforced. Normalise here, before the answer is cached or stored, so the
+       cache cannot hold a version that breaks the rule and the fix does not
+       depend on which model in the chain happened to answer. */
+    result = { ...result, text: normaliseDashes(result.text) };
+
     if (cacheable && env.RATE) {
       ctx.waitUntil(
         env.RATE.put(cacheKey, result.text, { expirationTtl: 86_400 }).catch(() => {}),
@@ -389,7 +406,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
         if (b?.event === "quiz" && typeof b.chosen === "number") {
           await sb(env, "quiz_events", {
             method: "POST",
-            body: JSON.stringify({ topic_id: (b.topicId ?? "unknown").slice(0, 80), chosen: b.chosen, correct: !!b.correct }),
+            body: JSON.stringify({ topic_id: safeId(b.topicId ?? "unknown"), chosen: b.chosen, correct: !!b.correct }),
           });
         } else if (b?.event === "click" && b.clickEvent) {
           /* Clicks were previously not stored at all: this branch did not exist,
@@ -400,9 +417,11 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
             method: "POST",
             body: JSON.stringify({
               session_key: session,
-              event: b.clickEvent.slice(0, 60),
-              target: b.target?.slice(0, 160) ?? null,
-              path: b.path?.slice(0, 200) ?? null,
+              event: safeId(b.clickEvent),
+              // A target is a human-readable title, so it keeps more characters
+              // than an id does, but still nothing that renders as markup.
+              target: b.target ? b.target.replace(/[<>&`*_~|]/g, "").slice(0, 160) : null,
+              path: b.path ? safeId(b.path) : null,
             }),
           });
         } else if (b?.path) {
@@ -655,16 +674,44 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
 
 /* ---- the weekly report ---- */
 
-/* topic_id reaches the digest from /api/track, and Slack renders mrkdwn, so an
-   unescaped value could put a clickable attacker-controlled link into his own
-   analytics message. The HTML email path already escapes; this closes Slack. */
-const slackSafe = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").slice(0, 80);
+/* Identifiers that came from a request and end up in a report.
+ *
+ * topic_id and a click's event and target all arrive from /api/track, so every
+ * one of them is attacker-controlled, and they are rendered into an HTML email
+ * and into a Slack message that interprets mrkdwn. The HTML path escapes, so the
+ * exposure was Slack: a crafted topic id could put a clickable link into his own
+ * analytics.
+ *
+ * This allowlists rather than escapes. These values are ids and event names with
+ * a known shape, so anything outside that shape is not worth preserving, and an
+ * allowlist cannot be defeated by an encoding trick the way an escape list can.
+ *
+ * Applied on the way out as well as validated on the way in, because rows
+ * written before that validation existed are already in the table. */
+const safeId = (s: string) => (s ?? "").replace(/[^a-zA-Z0-9 ._/-]/g, "").slice(0, 80) || "unknown";
 
-function arrow(pct: number | null): string {
-  if (pct === null) return "new";
-  const s = pct > 0 ? "+" : "";
-  return `${s}${pct}%`;
+/* The site's typography rule, applied to text the site did not write.
+ *
+ * scripts/prose-check.mjs holds this line for everything in the repo, but a
+ * model's answer is composed at request time and no build step can see it. An em
+ * dash becomes a comma, which is what the surrounding prose uses; the hyphen
+ * variants become a plain hyphen, since U+2011 exists only to prevent a line
+ * break and nothing here needs that. */
+export function normaliseDashes(s: string): string {
+  return (
+    s
+      /* Written as escapes, not as the characters themselves. The build's
+         typography check reads this file like any other, and a literal em dash
+         here would fail the very rule this function exists to apply. */
+      // A dash between two numbers is a range, and turning "pages 10-20" into
+      // "pages 10, 20" changes what the sentence says. Ranges keep a hyphen.
+      .replace(/(\d)\s*[\u2014\u2013]\s*(\d)/g, "$1-$2")
+      // Everywhere else it is punctuation, and a comma is what the rest of the
+      // site's prose uses in its place.
+      .replace(/\s*[\u2014\u2013]\s*/g, ", ")
+      // U+2011 non-breaking hyphen, U+2012 figure dash, U+2015 horizontal bar.
+      .replace(/[\u2011\u2012\u2015]/g, "-")
+  );
 }
 
 /* Every aggregate the report reads, fetched as a list that is empty rather than
@@ -701,7 +748,21 @@ export async function reportData(env: ApiEnv, days = 7): Promise<ReportData> {
     callList<ReportData["sources"][number]>(env, "traffic_sources", { days }),
     callList<ReportData["audience"][number]>(env, "audience_split", { days }),
   ]);
-  return { digest, engagement, struggling, dropoff, shape, clicks, pages, sources, audience, days };
+  /* Scrub every field that originated in a request before it reaches a
+     renderer, so neither the email nor the Slack message can carry markup a
+     visitor chose. */
+  return {
+    digest,
+    engagement: engagement.map((e) => ({ ...e, topic_id: safeId(e.topic_id) })),
+    struggling: struggling.map((s) => ({ ...s, topic_id: safeId(s.topic_id) })),
+    dropoff: dropoff.map((d) => ({ ...d, topic_id: safeId(d.topic_id) })),
+    shape,
+    clicks: clicks.map((c) => ({ ...c, event: safeId(c.event), target: safeId(c.target) })),
+    pages: pages.map((p) => ({ ...p, path: safeId(p.path) })),
+    sources: sources.map((s) => ({ ...s, source: safeId(s.source) })),
+    audience: audience.map((a) => ({ ...a, dimension: safeId(a.dimension), value: safeId(a.value) })),
+    days,
+  };
 }
 
 /* The text form of the same report the email sends.

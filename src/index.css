@@ -27,14 +27,22 @@
     --surface: #262a28;      /* 1.31:1 on ink */
     --surface-2: #333735;    /* 1.20:1 on surface */
     --line: #424845;         /* 2.03:1 on ink, 1.55:1 on surface */
-    --hair-strong: #6d7370;  /* 3.92:1 on ink, 3.00:1 on surface */
+    --hair-strong: #7c8380;  /* 3.75:1 on surface, 3.11:1 on surface-2 */
     --c-text: #edebe3;       /* 12.18:1 on surface */
     --c-text-dim: #aab1a6;   /* 6.61:1 on surface */
 
     --signal: #3dd68c;
     --warn: #e8b23a;
-    --crit: #e5634d;
-    --cool: #5b8ba0;
+    /* 5.49:1 on surface, 4.56:1 on surface-2. Was #e5634d at 4.31:1, which is
+       under AA and is used as text on the learn page, not only as a dot. */
+    --crit: #ea8271;
+    /* 5.43:1 on surface, 4.51:1 on surface-2. Was #5b8ba0, which measured
+       3.91:1 and 3.25:1 and so failed WCAG AA for small text on both, while
+       being used at 12px in six places including a link. Same hue, raised
+       lightness, so nothing about the palette changes except that it is now
+       readable. It has to clear 4.5:1 on surface-2 as well as surface, because
+       the tokens are used on both and surface-2 is the lighter of the two. */
+    --cool: #7da4b5;
 
     /* semantic */
     --bg: var(--ink);

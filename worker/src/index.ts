@@ -10,7 +10,7 @@
 
 /**
  * Regenerate with `npx wrangler types` after changing bindings in
- * wrangler.jsonc — do not extend this by hand.
+ * wrangler.jsonc. Do not extend this by hand.
  */
 import { handleApi, handleCronRun, handleReportPreview, runCron, type ApiEnv } from "./api";
 
@@ -18,7 +18,7 @@ interface Env extends ApiEnv {
   // secrets, set with `wrangler secret put`
   SLACK_SIGNING_SECRET: string;
   GITHUB_TOKEN: string;
-  // vars — set in wrangler.jsonc
+  // vars, set in wrangler.jsonc
   GITHUB_REPO: string;
   SLACK_CHANNEL_ID: string;
   SLACK_ALLOWED_USER_ID: string;
@@ -164,7 +164,7 @@ export default {
       const event = payload.event;
       const fromYou = event?.user === env.SLACK_ALLOWED_USER_ID;
 
-      // Any message you send in the channel is a task — there is no prefix.
+      // Any message you send in the channel is a task, with no prefix.
       const isTask =
         event?.type === "message" &&
         !event.subtype && // ignore edits, joins, deletions
@@ -184,7 +184,7 @@ export default {
         DECISION_REACTIONS.has(event.reaction);
 
       if (isTask || isDecision) {
-        // Slack demands a response inside 3s and retries on anything else —
+        // Slack demands a response inside 3s and retries on anything else, and
         // a retry here would mean a duplicate dispatch, so ack first and let
         // the GitHub call finish after the response.
         ctx.waitUntil(wakeTheAgent(env));

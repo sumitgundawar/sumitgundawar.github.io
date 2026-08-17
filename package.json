@@ -5,14 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run gen:feed && tsc && vite build",
+    "build": "npm run gen:feed && tsc && npm run check:worker && npm run check:prose && npm run check:contrast && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "shots": "node scripts/shots.mjs",
     "routes": "node scripts/route-check.mjs",
     "deploy:pages": "npm run build && npx wrangler pages deploy dist --project-name sumitgundawar --branch main",
     "gen:topics": "npx tsx scripts/gen-worker-topics.mjs",
-    "gen:feed": "npx tsx scripts/gen-feed.mjs"
+    "gen:feed": "npx tsx scripts/gen-feed.mjs",
+    "check:worker": "cd worker && npx tsc --noEmit && cd .. && node scripts/worker-check.mjs",
+    "check:prose": "node scripts/prose-check.mjs",
+    "check:contrast": "node scripts/contrast-check.mjs"
   },
   "dependencies": {
     "@fontsource-variable/mona-sans": "^5.2.8",

@@ -3,6 +3,8 @@ import { HealthDot, Eyebrow, Tag } from "./primitives";
 import { useReveal, useNow, trackClick } from "@/lib/hooks";
 import { Link } from "react-router-dom";
 import { Newsletter } from "./Newsletter";
+import { LoopVideo } from "./LoopVideo";
+import type { EduRow } from "@/data/content";
 import {
   identity,
   timeline,
@@ -663,6 +665,7 @@ function Education() {
                   ))}
                 </div>
               )}
+              {e.media && <EduMedia media={e.media} />}
             </div>
             <div className="mono text-[length:var(--fs-label)] sm:text-right tnum shrink-0" style={{ color: "var(--c-text-dim)" }}>
               {e.dates}
@@ -672,6 +675,47 @@ function Education() {
         ))}
       </div>
     </Reveal>
+  );
+}
+
+/* The still and the loop, side by side: the build and the build running.
+ *
+ * Both assets are cut to 4:5 so the pair sits as one block at any width instead
+ * of one tile dragging the other's height around. Two columns even on a phone —
+ * at 4:5 a single stacked tile is taller than the viewport, which turns a small
+ * piece of evidence into a scroll obstacle. */
+function EduMedia({ media }: { media: NonNullable<EduRow["media"]> }) {
+  return (
+    <figure className="mt-6 max-w-[420px] min-w-0">
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="border border-hair overflow-hidden" style={{ background: "var(--surface-2)", aspectRatio: "4 / 5" }}>
+          <img
+            src={media.photo.src}
+            alt={media.photo.alt}
+            width={640}
+            height={800}
+            loading="lazy"
+            decoding="async"
+            className="block w-full h-full object-cover"
+          />
+        </div>
+        {media.video && (
+          <LoopVideo
+            src={media.video.src}
+            poster={media.video.poster}
+            label={media.video.label}
+            event={media.video.event}
+            className="[aspect-ratio:4/5]"
+          />
+        )}
+      </div>
+      <figcaption
+        className="text-[length:var(--fs-label)] mt-3 leading-relaxed"
+        style={{ color: "var(--c-text-dim)" }}
+      >
+        {media.caption}
+      </figcaption>
+    </figure>
   );
 }
 

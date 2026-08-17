@@ -4,6 +4,18 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
+# Media in public/ keeps the filename it was written with, so it cannot be
+# immutable: a replaced photo under the same name has to be able to reach
+# people. A day fresh, then served stale while it revalidates behind the
+# request, which costs a returning visitor nothing and still propagates a swap
+# within the week. Rename the file when a change has to land immediately.
+/robot/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/podcast/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/*.webp
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
 # HTML must not be cached hard, or a deploy takes a day to reach anyone.
 # stale-while-revalidate serves the old copy instantly and refreshes behind it.
 /*.html

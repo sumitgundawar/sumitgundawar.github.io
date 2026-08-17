@@ -60,6 +60,15 @@ export interface EduRow {
   dates: string;
   place: string;
   tags?: string[];
+  /** Evidence, where any exists. Education is the one part of a CV that is
+   *  usually taken on trust, and a photograph of the thing running is worth
+   *  more than another sentence claiming it did. */
+  media?: {
+    photo: { src: string; alt: string };
+    /** Silent loop. Poster is the clip's own first frame, see LoopVideo. */
+    video?: { src: string; poster: string; label: string; event?: string };
+    caption: string;
+  };
 }
 
 export const education: EduRow[] = [
@@ -86,6 +95,20 @@ export const education: EduRow[] = [
     dates: "Jun 2016 to Apr 2019",
     place: "Maharashtra, India",
     tags: ["8051", "C / C++", "Java", "Robotics"],
+    media: {
+      photo: {
+        src: "/robot/line-follower.webp",
+        alt: "Sumit Gundawar at a workbench with the line-following robot: a red chassis on two wheels, with a pair of infrared sensor arms reaching out in front of it.",
+      },
+      video: {
+        src: "/robot/line-follower.mp4",
+        poster: "/robot/line-follower-poster.webp",
+        label: "The robot tracking a curve of black tape across a tiled floor, correcting its steering as the line bends away.",
+        event: "robot_loop",
+      },
+      caption:
+        "The robot, and the robot working. Two infrared sensors read the floor either side of the line; when one of them loses the black, that wheel slows until it finds it again. Everything interesting is in how hard you correct, which is why it had to be tuned by watching it rather than worked out on paper.",
+    },
   },
 ];
 

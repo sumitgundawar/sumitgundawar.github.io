@@ -40,3 +40,13 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Permissions-Policy: geolocation=(), microphone=(), camera=(), interest-cohort=()
+  # http already 301s to https, but a redirect is one round trip that an
+  # attacker on the network gets to see and can intercept. HSTS removes that
+  # first request entirely for anyone who has visited before.
+  #
+  # Six months, and deliberately without includeSubDomains or preload. Both are
+  # effectively irreversible: includeSubDomains would break any subdomain that
+  # is not already https, and the DNS records cannot be enumerated from here to
+  # prove none exists. preload is harder still to undo, and belongs to a
+  # decision made once rather than to a header added in passing.
+  Strict-Transport-Security: max-age=15552000

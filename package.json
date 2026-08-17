@@ -17,7 +17,8 @@
     "check:prose": "node scripts/prose-check.mjs",
     "check:contrast": "node scripts/contrast-check.mjs",
     "check:prod": "node scripts/prod-check.mjs",
-    "gen:jsonld": "npx tsx scripts/gen-jsonld.mjs"
+    "gen:jsonld": "npx tsx scripts/gen-jsonld.mjs",
+    "check:security": "node scripts/security-check.mjs"
   },
   "dependencies": {
     "@fontsource-variable/mona-sans": "^5.2.8",

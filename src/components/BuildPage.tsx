@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/lib/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { NewsletterPrompt } from "./NewsletterPrompt";
@@ -119,6 +120,10 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
 }
 
 export function BuildPage() {
+  usePageMeta(
+    "Build a system",
+    "Ten questions about scale, budget and constraints, and a costed architecture with the reasoning attached at the end of them.",
+  );
   /* Answers live in the URL as well as in state.
      The result is the most shareable thing on the site, a costed architecture
      with the reasoning attached, and until now the only way to show someone was

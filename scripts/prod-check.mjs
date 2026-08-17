@@ -85,6 +85,24 @@ if (asset) {
   check("sitemap has entries", (body.match(/<url>/g) || []).length > 10, `${(body.match(/<url>/g) || []).length} urls`);
 }
 
+/* ---- crawlable content ----
+   The whole point of prerendering: / used to serve 6,475 bytes with zero
+   characters of visible text, so anything that does not run JavaScript learned
+   nothing about this person. */
+{
+  const strip = (h) => h.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const seen = new Map();
+  for (const p of ["/", "/learn", "/writing", "/learn/caching"]) {
+    const body = await (await get(`${ORIGIN}${p}?cb=${Date.now()}`)).text();
+    const chars = strip(body).length;
+    check(`${p} ships readable text without JavaScript`, chars > 500, `${chars} chars`);
+    const title = (body.match(/<title>([^<]*)<\/title>/) || [])[1] ?? "";
+    seen.set(p, title);
+  }
+  // Four pages sharing one title tells a search result nothing about which page it found.
+  check("titles are distinct per route", new Set(seen.values()).size === seen.size, [...seen.values()].join(" | ").slice(0, 90));
+}
+
 /* ---- security headers ---- */
 {
   const r = await get(ORIGIN + "/");

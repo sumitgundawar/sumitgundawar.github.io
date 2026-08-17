@@ -122,3 +122,49 @@ export function usePageDwell(path: string, topicId?: string): void {
     };
   }, [path, topicId]);
 }
+
+/* Per-page title and description.
+ *
+ * Every route shipped the same <title>, which is the one string a search result
+ * shows as its headline and the one a shared link uses as its name. Identical
+ * across four pages and thirty-four cards, it told a reader nothing about which
+ * page they had found.
+ *
+ * Set from a component rather than in the router, because the title of a learn
+ * card is not known until the card is. The prerenderer captures whatever the DOM
+ * holds when it snapshots, so this reaches crawlers as a static title rather
+ * than only after the bundle runs.
+ */
+export function usePageMeta(title: string, description?: string): void {
+  useEffect(() => {
+    const full = title ? `${title} \u00b7 ${SITE_NAME}` : SITE_NAME;
+    document.title = full;
+    if (description) setMeta("name", "description", description);
+    setSocialMeta(full, description);
+  }, [title, description]);
+}
+
+/** Split out because /learn already builds its own title and description, in a
+ *  form tuned for search, and two hooks writing different titles to the same
+ *  page is worse than either. It calls this so its social tags agree with its
+ *  own <title> rather than with a second opinion. */
+export function setSocialMeta(title: string, description?: string): void {
+  setMeta("property", "og:title", title);
+  setMeta("name", "twitter:title", title);
+  if (description) {
+    setMeta("property", "og:description", description);
+    setMeta("name", "twitter:description", description);
+  }
+}
+
+const SITE_NAME = "Sumit Gundawar";
+
+function setMeta(attr: "name" | "property", key: string, value: string) {
+  let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", value);
+}

@@ -7,7 +7,7 @@ import { NewsletterPrompt } from "./NewsletterPrompt";
 import { trackQuiz } from "@/lib/api";
 import { track } from "@/lib/track";
 import { useProgress, summarise, type Progress } from "@/lib/progress";
-import { usePageDwell } from "@/lib/hooks";
+import { usePageDwell, setSocialMeta } from "@/lib/hooks";
 import {
   cards,
   cardsForLevel,
@@ -305,6 +305,7 @@ export function LearnPage() {
 
   usePageDwell(cardId ? `/learn/${cardId}` : "/learn", cardId);
 
+
   const openCard = cardId ?? null;
   const setOpenCard = (id: string | null) =>
     navigate(id ? `/learn/${id}${window.location.search}` : `/learn${window.location.search}`);
@@ -329,6 +330,10 @@ export function LearnPage() {
       document.head.appendChild(tag);
     }
     tag.setAttribute("content", desc);
+    /* The same title and description on the social tags. They were left at the
+       site-wide defaults, so a shared link to a specific card was indexed and
+       previewed under a name that described the whole site instead. */
+    setSocialMeta(title, desc);
   }, [current]);
 
   return (

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { articles, identity } from "@/data/content";
-import { usePageDwell, trackClick } from "@/lib/hooks";
+import { usePageDwell, usePageMeta, trackClick } from "@/lib/hooks";
 
 /* A page for the writing, rather than a section three screens down the profile.
  *
@@ -14,6 +14,10 @@ import { usePageDwell, trackClick } from "@/lib/hooks";
 
 export function WritingPage() {
   usePageDwell("/writing");
+  usePageMeta(
+    "Writing",
+    "Published pieces on building systems that survive production, each opening with an incident that actually happened.",
+  );
 
   const sorted = [...articles].sort((a, b) => (a.iso < b.iso ? 1 : -1));
   const byPublication = sorted.reduce<Record<string, number>>((acc, a) => {

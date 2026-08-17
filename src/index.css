@@ -283,3 +283,46 @@ main p {
      had and none of them claim the new space. */
   max-width: 780px;
 }
+
+/* Answering a check should feel like something.
+ *
+ * A quiz that changes a border colour and prints a paragraph is correct and
+ * inert. These are deliberately short and small: the explanation underneath is
+ * the part that teaches, so nothing here delays it or moves it, and the
+ * animation plays on the option itself rather than over the page.
+ *
+ * The right answer lifts and settles. A wrong one shakes, briefly, in the way a
+ * refused password field does, because that gesture already means "not that"
+ * to everyone who has used a computer.
+ *
+ * Both are suppressed under prefers-reduced-motion by the global rule further
+ * up this file, which drops every animation to a millisecond. The colour and
+ * the text still change, so nothing is conveyed by motion alone, which is the
+ * requirement that actually matters.
+ */
+@keyframes check-correct {
+  0%   { transform: scale(1); }
+  38%  { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+
+@keyframes check-wrong {
+  0%, 100% { transform: translateX(0); }
+  15%      { transform: translateX(-5px); }
+  32%      { transform: translateX(4px); }
+  50%      { transform: translateX(-3px); }
+  68%      { transform: translateX(2px); }
+  85%      { transform: translateX(-1px); }
+}
+
+.check-correct { animation: check-correct 420ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+.check-wrong   { animation: check-wrong 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+
+/* The tick that arrives with the right answer. Scales in from nothing so it
+   reads as a response to the click rather than as something that was always
+   there and only just became visible. */
+@keyframes check-mark {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.check-mark { animation: check-mark 300ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }

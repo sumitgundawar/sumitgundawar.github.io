@@ -29,6 +29,32 @@ export const foundations: Card[] = [
           correctIndex: 2,
           explain: "Same server, same load, different distance. Each handshake costs a round trip, and distance multiplies every one of them. Moving content closer via a CDN removes most of it.",
         },
+        checks: [
+          {
+            prompt: "Your API's p50 is 40ms and its p99 is 2.1s. Which explanation fits that shape best?",
+            options: [
+              "The server is undersized, so every single request runs slower than it should",
+              "A few requests take a slower path: a cache miss, or a cold pool connection",
+              "The network between the client and the server is dropping and resending packets",
+              "The client is measuring it wrong and the real distribution is much flatter",
+            ],
+            correctIndex: 1,
+            explain:
+              "An undersized server moves the whole distribution, including p50. A long tail with a fast median means most requests take one path and a few take a slower one: a cache miss, a cold pool connection, a garbage collection pause, a retry. Averages hide this entirely, which is why p99 is the number worth alerting on.",
+          },
+          {
+            prompt: "Why does adding a second sequential request to a page hurt distant users far more than nearby ones?",
+            options: [
+              "Bandwidth is lower over long distances, so every response takes longer to transfer",
+              "Distant connections drop more often, and each dropped request has to be retried",
+              "Every request in sequence pays the round trip again, and distance prices round trips",
+              "TLS has to be renegotiated on each request once the connection is far enough away",
+            ],
+            correctIndex: 2,
+            explain:
+              "Distance costs latency per round trip, not per byte. Bandwidth to Australia is fine; the 250ms it takes for a packet to get there and back is not, and every request you make in sequence pays it again. This is why batching and parallelism matter more the further away your reader is.",
+          },
+        ],
       },
       {
         id: "tcp-vs-udp",

@@ -61,7 +61,21 @@ export interface Topic {
   why?: string;
   /** How a company at scale really does it, named. */
   inPractice?: string;
+  /** The question shown by default.
+   *
+   *  Kept as a single field rather than folded into `checks` so that every
+   *  existing topic stays valid: 122 of them were written against this shape
+   *  and rewriting all of them to add one question would be a migration with no
+   *  benefit. */
   check: Check;
+  /** Further questions on the same topic, drawn from alongside `check`.
+   *
+   *  One fixed question means a second visit is a memory test rather than a
+   *  check of understanding, and the answer is already known. Where a topic has
+   *  these, one of the set is chosen per visit. They are written, not generated:
+   *  a wrong answer here teaches the wrong thing, and the explanation has to be
+   *  correct rather than merely plausible. */
+  checks?: Check[];
 }
 
 export type Track =

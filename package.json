@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run gen:feed && npm run gen:jsonld && npm run gen:articles && tsc && npm run check:worker && npm run check:prose && npm run check:contrast && vite build && npm run prerender",
+    "build": "npm run gen:feed && npm run gen:jsonld && npm run gen:articles && tsc && npm run check:worker && npm run check:prose && npm run check:content && npm run check:contrast && vite build && npm run prerender",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "shots": "node scripts/shots.mjs",
@@ -23,7 +23,8 @@
     "prerender": "node scripts/prerender.mjs",
     "check:robots": "node scripts/robots-check.mjs",
     "gen:articles": "npx tsx scripts/gen-worker-articles.mjs",
-    "check:email": "npx esbuild worker/src/email.ts --bundle --format=esm --platform=neutral --outfile=/tmp/em.mjs && node scripts/email-compat.mjs /tmp/em.mjs"
+    "check:email": "npx esbuild worker/src/email.ts --bundle --format=esm --platform=neutral --outfile=/tmp/em.mjs && node scripts/email-compat.mjs /tmp/em.mjs",
+    "check:content": "npx tsx scripts/content-check.mjs"
   },
   "dependencies": {
     "@fontsource-variable/mona-sans": "^5.2.8",

@@ -18,6 +18,7 @@ import {
   type Card,
   type Level,
   type Topic,
+  type Check,
 } from "@/data/learn";
 
 const LEVEL_COLOR: Record<Level, string> = {
@@ -44,22 +45,38 @@ function LevelDot({ level }: { level: Level }) {
  *  drift the moment new ones are written, so the order is randomised here
  *  instead. Seeded by topic id so it is stable across re-renders and does not
  *  move under the reader between clicking and reading the explanation. */
-function shuffleOptions(topic: Topic) {
+function shuffleOptions(topic: Topic, check: Check) {
   let seed = 0;
-  for (let i = 0; i < topic.id.length; i++) seed = (seed * 31 + topic.id.charCodeAt(i)) >>> 0;
+  const key = topic.id + check.prompt;
+  for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
   const rand = () => {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-  const order = topic.check.options.map((_, i) => i);
+  const order = check.options.map((_, i) => i);
   for (let i = order.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     [order[i], order[j]] = [order[j], order[i]];
   }
   return {
-    options: order.map((i) => topic.check.options[i]),
-    correctIndex: order.indexOf(topic.check.correctIndex),
+    options: order.map((i) => check.options[i]),
+    correctIndex: order.indexOf(check.correctIndex),
   };
+}
+
+/* Which question to ask this time.
+ *
+ * One fixed question makes a second visit a memory test rather than a check of
+ * understanding. Where a topic carries a bank, one is chosen per visit, and the
+ * choice is per mount rather than per render so the question does not change
+ * under someone midway through reading it.
+ *
+ * Random rather than sequential, because sequential needs stored state per
+ * topic and the point is variety, not coverage. */
+function useCheck(topic: Topic): Check {
+  const bank = useMemo(() => [topic.check, ...(topic.checks ?? [])], [topic]);
+  const [index] = useState(() => Math.floor(Math.random() * bank.length));
+  return bank[Math.min(index, bank.length - 1)];
 }
 
 function TopicView({
@@ -73,18 +90,31 @@ function TopicView({
   wasCorrect?: boolean;
   onAnswered: (topicId: string, correct: boolean) => void;
 }) {
-  const shuffled = useMemo(() => shuffleOptions(topic), [topic]);
+  const check = useCheck(topic);
+  const shuffled = useMemo(() => shuffleOptions(topic, check), [topic, check]);
   // Seed from stored progress: this component unmounts when the topic is
   // collapsed, so without this the answer disappears on every close.
   const [picked, setPicked] = useState<number | null>(() =>
     wasCorrect === undefined ? null : wasCorrect ? shuffled.correctIndex : -1,
   );
+  /* Which option was clicked in this interaction, as opposed to which one is
+     stored as the answer. Cleared once the animation has run so that a later
+     re-render, of which there are several while the explanation appears, does
+     not replay it. */
+  const [justAnswered, setJustAnswered] = useState<number | null>(null);
+  useEffect(() => {
+    if (justAnswered === null) return;
+    const id = window.setTimeout(() => setJustAnswered(null), 500);
+    return () => window.clearTimeout(id);
+  }, [justAnswered]);
+
   const answered = picked !== null;
   const correct = wasCorrect ?? picked === shuffled.correctIndex;
 
   const answer = (i: number) => {
     if (answered) return;
     setPicked(i);
+    setJustAnswered(i);
     onAnswered(topic.id, i === shuffled.correctIndex);
     track("quiz_answer", {
       card: cardId,
@@ -160,7 +190,7 @@ function TopicView({
           check yourself
         </div>
         <p className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text)" }}>
-          {topic.check.prompt}
+          {check.prompt}
         </p>
         <div className="flex flex-col gap-2 mt-4">
           {shuffled.options.map((opt, i) => {
@@ -175,7 +205,12 @@ function TopicView({
                    get back to the options to hear which one was right. The click
                    is guarded in answer() already. */
                 aria-disabled={answered}
-                className="text-left text-[length:var(--fs-body)] leading-snug px-3.5 py-3 rounded-md border transition-colors flex gap-3 items-start min-h-[48px]"
+                className={`text-left text-[length:var(--fs-body)] leading-snug px-3.5 py-3 rounded-md border transition-colors flex gap-3 items-start min-h-[48px]${
+                  /* Only the option just clicked animates. Animating every
+                     revealed option makes the whole list twitch and hides which
+                     one the reader actually chose. */
+                  justAnswered === i ? (isCorrect ? " check-correct" : " check-wrong") : ""
+                }`}
                 style={{
                   borderColor: show ? (isCorrect ? "var(--lv-beginner)" : "var(--crit)") : "var(--hair-strong)",
                   background: show && isCorrect ? "rgba(61,214,140,0.10)" : "var(--surface)",
@@ -184,8 +219,12 @@ function TopicView({
                   cursor: answered ? "default" : "pointer",
                 }}
               >
-                <span className="mono text-[length:var(--fs-label)] pt-0.5 shrink-0" style={{ color: "var(--c-text-dim)" }}>
-                  {String.fromCharCode(65 + i)}
+                <span className="mono text-[length:var(--fs-label)] pt-0.5 shrink-0 w-3" style={{ color: show && isCorrect ? "var(--lv-beginner)" : "var(--c-text-dim)" }}>
+                  {show && isCorrect ? (
+                    <span className="check-mark inline-block">✓</span>
+                  ) : (
+                    String.fromCharCode(65 + i)
+                  )}
                 </span>
                 <span className="min-w-0">{opt}</span>
               </button>
@@ -199,7 +238,7 @@ function TopicView({
             <span style={{ color: correct ? "var(--lv-beginner)" : "var(--crit)" }}>
               {correct ? "Correct. " : "Not quite. "}
             </span>
-            {topic.check.explain}
+            {check.explain}
           </p>
         )}
       </div>

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "email-design": {
+      "source": "CosmoBlk/email-design",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "83b4288c40ef2088430a6375e1d856374f6c784f011d7f11025cd6d3194729b1"
+    }
+  }
+}

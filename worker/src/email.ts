@@ -16,8 +16,8 @@ import { FEATURED } from "./articles.generated";
 
 /* ---------- tokens: docs/EMAIL-DESIGN.md#palette ---------- */
 
-const PAPER = "#f4f4f2";
-const CARD = "#ffffff";
+const PAPER = "#f1f4f2"; //  tinted toward the brand green, never a flat grey
+const CARD = "#fdfefd"; //   not pure white: a flat #fff surface is the tell of a template
 const INK = "#14171a"; //     17.99:1 on card
 const DIM = "#5f6660"; //      5.91:1 on card
 const LINE = "#e3e3df"; //     a boundary, not text
@@ -30,7 +30,7 @@ const TINT = "#f1f7f4";
    the site's signal green 9.59:1, so the brand colour finally gets to be the
    brand colour: it is unusable on white and perfectly legible here. */
 const BAND = "#14171a";
-const BAND_TEXT = "#ffffff";
+const BAND_TEXT = "#f6f9f7"; // not pure white either, for the same reason
 const BAND_ACCENT = "#3dd68c";
 
 /* The site's signal green is deliberately absent as text or link: #3dd68c
@@ -62,8 +62,8 @@ function shell(opts: { preheader: string; title: string; eyebrow: string; body: 
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(opts.preheader)}</div>
 
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${PAPER};border-collapse:collapse;">
-<tr><td align="center" style="padding:28px 12px;">
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:${CARD};border:1px solid ${LINE};border-collapse:collapse;">
+<tr><td align="center" bgcolor="${PAPER}" style="padding:28px 12px;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="520" style="width:100%;max-width:520px;background:${CARD};border:1px solid ${LINE};border-collapse:collapse;">
 
     <!-- A masthead, not a line of text.
          It said "sumitgundawar.com" as plain text, and every mail client
@@ -72,10 +72,10 @@ function shell(opts: { preheader: string; title: string; eyebrow: string; body: 
          pasted. A name is not a URL, so nothing detects it, and the dark band is
          the site's own ink, which is where the site's green is finally legible:
          9.59:1 here against 1.88:1 on white. -->
-    <tr><td style="padding:26px ${PAD}px 24px ${PAD}px;background:${BAND};font-family:${SANS};">
+    <tr><td bgcolor="${BAND}" style="padding:26px ${PAD}px 24px ${PAD}px;background:${BAND};font-family:${SANS};">
       <div style="font-size:19px;font-weight:600;color:${BAND_TEXT};letter-spacing:-0.01em;line-height:1.2;">Sumit Gundawar</div>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:11px;">
-        <tr><td width="44" style="background:${BAND_ACCENT};height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>
+        <tr><td width="44" bgcolor="${BAND_ACCENT}" style="background:${BAND_ACCENT};height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>
       </table>
       <div style="font-family:${MONO};font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:${BAND_ACCENT};padding-top:12px;">${esc(opts.eyebrow)}</div>
     </td></tr>
@@ -129,8 +129,8 @@ function bar(label: string, value: number, max: number, sub: string, colour = AC
       </div>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
         <tr>
-          <td width="${pct}%" style="background:${colour};height:8px;line-height:8px;font-size:0;">&nbsp;</td>
-          <td width="${100 - pct}%" style="background:${LINE};height:8px;line-height:8px;font-size:0;">&nbsp;</td>
+          <td width="${pct}%" bgcolor="${colour}" style="background:${colour};height:8px;line-height:8px;font-size:0;">&nbsp;</td>
+          <td width="${100 - pct}%" bgcolor="${LINE}" style="background:${LINE};height:8px;line-height:8px;font-size:0;">&nbsp;</td>
         </tr>
       </table>
     </td>
@@ -176,8 +176,7 @@ function statRow(cells: { label: string; value: string; note?: string }[]): stri
     .map(
       (c) => `
       <td width="${Math.floor(100 / cells.length)}%" style="padding:0 8px 0 0;vertical-align:top;font-family:${SANS};">
-        ${label(c.label)}
-        <div style="height:4px;line-height:4px;font-size:0;">&nbsp;</div>
+        <div style="padding-bottom:5px;">${label(c.label)}</div>
         <div style="font-size:20px;font-weight:600;color:${INK};line-height:1.15;">${esc(c.value)}</div>
         ${c.note ? `<div style="font-size:12px;color:${DIM};padding-top:2px;">${esc(c.note)}</div>` : ""}
       </td>`,
@@ -220,8 +219,7 @@ export function renderReportEmail(d: ReportData): string {
       const pct = m.pct_change;
       return `
       <td width="25%" style="padding:0 8px 0 0;vertical-align:top;font-family:${SANS};">
-        ${label(LABEL[m.metric] ?? m.metric)}
-        <div style="height:4px;line-height:4px;font-size:0;">&nbsp;</div>
+        <div style="padding-bottom:5px;">${label(LABEL[m.metric] ?? m.metric)}</div>
         <div style="font-size:26px;font-weight:600;color:${INK};line-height:1.1;">${m.current_period}</div>
         <div style="font-size:12px;color:${DIM};padding-top:2px;">was ${m.previous_period} &nbsp;${delta(pct)}</div>
       </td>`;
@@ -431,9 +429,8 @@ export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }):
        them is asking for trust it has not earned. */
     `<tr><td style="padding:26px ${PAD}px 0 ${PAD}px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background:${TINT};">
-        <tr><td style="padding:20px ${PAD}px 6px ${PAD}px;font-family:${SANS};">
-          ${label("Three to start with")}
-          <div style="height:14px;line-height:14px;font-size:0;">&nbsp;</div>
+        <tr><td bgcolor="${TINT}" style="padding:20px ${PAD}px 6px ${PAD}px;font-family:${SANS};">
+          <div style="padding-bottom:14px;">${label("Three to start with")}</div>
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">${picks}</table>
         </td></tr>
       </table>
@@ -453,14 +450,20 @@ export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }):
   ].join("");
 
   return shell({
-    preheader: "Occasional writing on building systems that survive production. Three pieces to start with.",
+    preheader: "What broke, why, and what the fix cost. Three pieces to start with.",
     title: "You are on the list",
     eyebrow: "Newsletter",
     body,
     footer:
       /* Never a bare domain in plain text: clients detect it and repaint it as a
          blue underlined link, which is what made the old masthead look wrong. */
-      `You are receiving this because you subscribed at ${link(site, host)}. Your address is stored to send this and nothing else, and is never passed on. ` +
+      /* Sender identity, a location and a visible unsubscribe. CAN-SPAM wants a
+         postal address and Gmail's bulk sender rules want one-click out; a
+         footer with neither is the commonest reason a legitimate list gets
+         filed as spam. */
+      `Sumit Gundawar, London, United Kingdom<br>` +
+      `${link("https://linkedin.com/in/sumit-gundawar-759470129", "LinkedIn")} &nbsp;&middot;&nbsp; ${link("https://github.com/sumitgundawar", "GitHub")} &nbsp;&middot;&nbsp; ${link(site, host)}<br><br>` +
+      `You subscribed at ${link(site, host)}. Your address is stored to send this and nothing else, and is never passed on. ` +
       `${link(unsubscribe, "Unsubscribe in one click")}.`,
   });
 }
@@ -509,8 +512,8 @@ export function renderAlertsEmail(fired: string[]): string {
       <td style="padding:0 0 10px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
           <tr>
-            <td width="3" style="background:${WARN};font-size:0;line-height:3px;">&nbsp;</td>
-            <td style="padding:10px 0 10px 14px;font-family:${SANS};font-size:14px;line-height:1.55;color:${INK};background:#fdf8f1;">
+            <td width="3" bgcolor="${WARN}" style="background:${WARN};font-size:0;line-height:3px;">&nbsp;</td>
+            <td bgcolor="#fdf8f1" style="padding:10px 0 10px 14px;font-family:${SANS};font-size:14px;line-height:1.55;color:${INK};background:#fdf8f1;">
               ${esc(f)}
             </td>
           </tr>

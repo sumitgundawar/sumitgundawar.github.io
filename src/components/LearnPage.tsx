@@ -216,6 +216,20 @@ function TopicView({
   );
 }
 
+/* A card, read as one guide rather than clicked through as an accordion.
+ *
+ * It used to open one topic at a time behind a plus and a minus, which meant a
+ * page carried about a hundred and twenty words of visible teaching and then a
+ * row of collapsed headings. Three things were wrong with that. A reader could
+ * not see the shape of what they were about to learn. The quiz, being the only
+ * thing in the open topic with a border around it, outweighed the explanation it
+ * was testing. And a crawler, or anyone arriving from search, got one topic of
+ * text where the page claims to teach a subject.
+ *
+ * Everything is open now, in order, with a contents rail that tracks where you
+ * are. The rail is the part that makes length affordable: a long page is only
+ * daunting when you cannot see its end or jump within it.
+ */
 function CardDetail({
   card,
   onBack,
@@ -227,7 +241,30 @@ function CardDetail({
   progress: Progress;
   onAnswered: (topicId: string, correct: boolean) => void;
 }) {
-  const [openId, setOpenId] = useState<string | null>(card.topics[0]?.id ?? null);
+  const [active, setActive] = useState<string | null>(card.topics[0]?.id ?? null);
+
+  /* Which section the reader is actually in, so the rail is a position rather
+     than a list of links. rootMargin pins the trigger line near the top of the
+     viewport; without it every section is "active" while it is anywhere on
+     screen and the highlight jitters between two at once. */
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (visible) setActive(visible.target.id.replace(/^topic-/, ""));
+      },
+      { rootMargin: "-96px 0px -70% 0px", threshold: 0 },
+    );
+    card.topics.forEach((t) => {
+      const el = document.getElementById(`topic-${t.id}`);
+      if (el) io.observe(el);
+    });
+    return () => io.disconnect();
+  }, [card.id, card.topics]);
+
+  const done = card.topics.filter((t) => t.id in progress).length;
 
   return (
     <div>
@@ -242,60 +279,88 @@ function CardDetail({
       {/* h1, not h2. Every deep-linked topic URL, which is what the
           sitemap advertises, previously started its heading order at h2 with
           no h1 anywhere on the page. */}
-      <h1 className="text-[length:var(--fs-item)] sm:text-[length:var(--fs-section)] font-semibold tracking-[-0.015em]" style={{ color: "var(--c-text)" }}>
+      <h1 className="text-[length:var(--fs-section)] sm:text-[length:var(--fs-page)] font-semibold tracking-[-0.02em]" style={{ color: "var(--c-text)" }}>
         {card.title}
       </h1>
-      <p className="mt-2 text-[length:var(--fs-body)] leading-relaxed max-w-[33em]" style={{ color: "var(--c-text-dim)" }}>
+      <p className="mt-3 text-[length:var(--fs-body)] leading-relaxed max-w-[36em]" style={{ color: "var(--c-text-dim)" }}>
         {card.summary}
       </p>
 
-      <div className="mt-7">
-        {card.topics.map((t) => {
-          const open = openId === t.id;
-          return (
-            <div key={t.id} className="border-t" style={{ borderColor: "var(--hair)" }}>
-              <button
-                onClick={() => {
-                  const next = open ? null : t.id;
-                  setOpenId(next);
-                  if (next) track("topic_open", { card: card.id, topic: t.id, level: t.level });
-                }}
-                className="w-full flex items-center gap-3 py-4 text-left"
-              >
-                <LevelDot level={t.level} />
-                <span
-                  className="text-[length:var(--fs-item)] font-medium flex-1 min-w-0"
-                  style={{ color: open ? "var(--c-text)" : "var(--c-text-dim)" }}
-                >
-                  {t.title}
-                </span>
-                {t.id in progress && (
-                  <span
-                    className="mono text-[length:var(--fs-label)] shrink-0"
-                    style={{ color: progress[t.id] ? "var(--signal)" : "var(--crit)" }}
-                    title={progress[t.id] ? "answered correctly" : "answered incorrectly"}
+      <div className="mt-9 grid lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)] gap-x-10 xl:gap-x-14 items-start">
+        {/* The rail. Sticky from lg up, and simply the first thing on the page
+            below that, where a fixed column would eat half a phone screen. */}
+        <nav
+          aria-label="Contents"
+          className="lg:sticky lg:top-8 min-w-0 mb-8 lg:mb-0 pb-5 lg:pb-0 border-b lg:border-b-0"
+          style={{ borderColor: "var(--hair)" }}
+        >
+          <div className="mono text-[length:var(--fs-micro)] uppercase tracking-[0.12em] mb-3" style={{ color: "var(--c-text-dim)" }}>
+            contents
+          </div>
+          <ol className="flex flex-col gap-0.5">
+            {card.topics.map((t, i) => {
+              const here = active === t.id;
+              return (
+                <li key={t.id}>
+                  <a
+                    href={`#topic-${t.id}`}
+                    onClick={() => track("topic_open", { card: card.id, topic: t.id, level: t.level })}
+                    className="flex items-start gap-2.5 py-2 text-[length:var(--fs-label)] leading-snug"
+                    style={{
+                      color: here ? "var(--c-text)" : "var(--c-text-dim)",
+                      borderLeft: `2px solid ${here ? "var(--accent)" : "transparent"}`,
+                      paddingLeft: 10,
+                      marginLeft: -12,
+                    }}
                   >
-                    {progress[t.id] ? "✓" : "×"}
-                  </span>
-                )}
-                <span className="mono text-[length:var(--fs-label)] uppercase tracking-wide shrink-0" style={{ color: LEVEL_COLOR[t.level] }}>
+                    <span className="mono tnum shrink-0 pt-px" style={{ color: here ? "var(--accent)" : "var(--c-text-dim)", opacity: here ? 1 : 0.6 }}>
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="min-w-0">{t.title}</span>
+                    {t.id in progress && (
+                      <span className="mono shrink-0 ml-auto" style={{ color: progress[t.id] ? "var(--signal)" : "var(--crit)" }}>
+                        {progress[t.id] ? "✓" : "×"}
+                      </span>
+                    )}
+                  </a>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="mono text-[length:var(--fs-micro)] mt-4 pt-3 border-t" style={{ color: "var(--c-text-dim)", borderColor: "var(--hair)" }}>
+            {card.topics.length} topics{done ? ` · ${done} answered` : ""}
+          </div>
+        </nav>
+
+        <div className="min-w-0">
+          {card.topics.map((t, i) => (
+            <section
+              key={t.id}
+              id={`topic-${t.id}`}
+              /* Clears the fixed nav when jumped to from the rail. */
+              style={{ scrollMarginTop: 88 }}
+              className={i === 0 ? "" : "mt-14 pt-12 border-t"}
+            >
+              <div className="flex items-baseline gap-3 flex-wrap">
+                <span className="mono tnum text-[length:var(--fs-label)]" style={{ color: "var(--accent)" }}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <h2 className="text-[length:var(--fs-item)] sm:text-[length:var(--fs-section)] font-medium tracking-[-0.015em] min-w-0" style={{ color: "var(--c-text)" }}>
+                  {t.title}
+                </h2>
+                <span className="mono text-[length:var(--fs-label)] uppercase tracking-wide ml-auto shrink-0" style={{ color: LEVEL_COLOR[t.level] }}>
                   {t.level}
                 </span>
-                <span className="mono text-[length:var(--fs-label)] shrink-0 w-4 text-right" style={{ color: "var(--c-text-dim)" }}>
-                  {open ? "−" : "+"}
-                </span>
-              </button>
-              {open && (
-                <TopicView
-                  topic={t}
-                  cardId={card.id}
-                  wasCorrect={progress[t.id]}
-                  onAnswered={onAnswered}
-                />
-              )}
-            </div>
-          );
-        })}
+              </div>
+              <TopicView
+                topic={t}
+                cardId={card.id}
+                wasCorrect={progress[t.id]}
+                onAnswered={onAnswered}
+              />
+            </section>
+          ))}
+        </div>
       </div>
     </div>
   );

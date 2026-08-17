@@ -45,6 +45,16 @@ const server = http.createServer((req, res) => {
   res.end(body);
 });
 
+/* Remove any directory form left by an earlier build. A stale
+   dist/writing/index.html sitting beside a fresh dist/writing.html makes the
+   directory win, and the URL 308s to a trailing slash again. */
+for (const entry of ["learn", "build", "writing"]) {
+  const dir = path.join(dist, entry);
+  if (fs.existsSync(dir) && fs.statSync(dir).isDirectory() && fs.existsSync(path.join(dir, "index.html"))) {
+    fs.rmSync(path.join(dir, "index.html"));
+  }
+}
+
 const sitemap = fs.readFileSync(path.join(dist, "sitemap.xml"), "utf8");
 const routes = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)]
   .map((m) => new URL(m[1]).pathname)
@@ -82,7 +92,14 @@ for (const route of routes) {
     }
     smallest = Math.min(smallest, text);
 
-    const out = route === "/" ? path.join(dist, "index.html") : path.join(dist, route, "index.html");
+    /* Written as <route>.html, not <route>/index.html.
+     *
+     * Pages serves an extension-less request from a matching .html file
+     * directly, whereas a directory gets a 308 to a trailing slash. Writing
+     * directories made every URL in the sitemap redirect once before it
+     * resolved, which wastes crawl budget and leaves two addresses for one
+     * page. This keeps the clean URL the sitemap and every link already use. */
+    const out = route === "/" ? path.join(dist, "index.html") : path.join(dist, `${route.replace(/^\//, "")}.html`);
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, html);
     written++;

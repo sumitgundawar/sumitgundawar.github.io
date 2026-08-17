@@ -398,42 +398,114 @@ function Writing() {
 /* ---------- podcast ---------- */
 
 function Podcasts() {
+  /* Which episode is playing, if any. Click to load, rather than an iframe on
+     every page view: a YouTube embed pulls several hundred kilobytes and sets
+     its own cookies before anyone has decided to watch, which is a cost paid by
+     the many for the few. The thumbnail is local, so the page makes no request
+     to YouTube at all until this is set. */
+  const [playing, setPlaying] = useState<string | null>(null);
+
   return (
     <Reveal className="mt-16">
       <div id="podcast" style={{ scrollMarginTop: 24 }}>
         <SectionHead label="podcast" />
-        {/* Same card treatment as speaking and recognition: a hairline grid with
-            each entry on its own panel. Podcasts were a plain stacked list, which
-            read as less substantial than the talks despite being the same kind of
-            thing. */}
         <div
           className="grid sm:grid-cols-2 gap-px"
           style={{ background: "var(--hair)", border: "1px solid var(--hair)" }}
         >
           {podcasts.map((p) => (
-            <a
-              key={p.id}
-              href={p.url}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => trackClick("podcast_click", { title: p.title, show: p.show })}
-              className="p-6 block group min-w-0"
-              style={{ background: "var(--surface)" }}
-            >
-              <div className="flex items-baseline justify-between gap-3 mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
-                <span className="uppercase tracking-[0.07em] min-w-0 truncate">{p.show}</span>
-                <span className="tnum shrink-0" style={{ color: "var(--cool)" }}>{p.when}</span>
+            <div key={p.id} className="min-w-0 flex flex-col" style={{ background: "var(--surface)" }}>
+              {p.youtubeId && (
+                <div className="relative w-full" style={{ aspectRatio: "16 / 9", background: "var(--surface-2)" }}>
+                  {playing === p.youtubeId ? (
+                    <iframe
+                      // nocookie, and only ever mounted after a click.
+                      src={`https://www.youtube-nocookie.com/embed/${p.youtubeId}?autoplay=1&rel=0`}
+                      title={p.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
+                      allowFullScreen
+                      className="absolute inset-0 w-full h-full"
+                      style={{ border: 0 }}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPlaying(p.youtubeId!);
+                        trackClick("podcast_play", { title: p.title, show: p.show });
+                      }}
+                      className="absolute inset-0 w-full h-full group"
+                      aria-label={`Play: ${p.title}`}
+                    >
+                      <img
+                        src={`/podcast/${p.youtubeId}.webp`}
+                        alt=""
+                        width={960}
+                        height={540}
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                      <span
+                        aria-hidden
+                        className="absolute inset-0 flex items-center justify-center"
+                        style={{ background: "rgba(0,0,0,0.28)" }}
+                      >
+                        <span
+                          className="inline-flex items-center justify-center"
+                          style={{
+                            width: 56,
+                            height: 56,
+                            borderRadius: "50%",
+                            background: "rgba(14,17,16,0.82)",
+                            border: "1px solid var(--hair-strong)",
+                            color: "var(--c-text)",
+                            fontSize: 18,
+                            paddingLeft: 4,
+                          }}
+                        >
+                          ▶
+                        </span>
+                      </span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="p-6 flex-1">
+                <div
+                  className="flex items-baseline justify-between gap-3 mono text-[length:var(--fs-label)]"
+                  style={{ color: "var(--c-text-dim)" }}
+                >
+                  <span className="uppercase tracking-[0.07em] min-w-0 truncate">
+                    {p.show}
+                    {p.episode ? ` · ${p.episode}` : ""}
+                  </span>
+                  <span className="tnum shrink-0" style={{ color: "var(--cool)" }}>
+                    {p.when}
+                  </span>
+                </div>
+                <h3
+                  className="mt-3 leading-snug font-medium tracking-[-0.01em]"
+                  style={{ fontSize: "var(--fs-item)", color: "var(--c-text)" }}
+                >
+                  <a
+                    href={p.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => trackClick("podcast_click", { title: p.title, show: p.show })}
+                    className="link-underline"
+                  >
+                    {p.title} ↗
+                  </a>
+                </h3>
+                <p
+                  className="text-[length:var(--fs-body)] mt-2.5 leading-relaxed"
+                  style={{ color: "var(--c-text-dim)" }}
+                >
+                  {p.summary}
+                </p>
               </div>
-              <h3
-                className="mt-3 leading-snug link-underline inline font-medium tracking-[-0.01em]"
-                style={{ fontSize: "var(--fs-item)", color: "var(--c-text)" }}
-              >
-                {p.title} ↗
-              </h3>
-              <p className="text-[length:var(--fs-body)] mt-2.5 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
-                {p.summary}
-              </p>
-            </a>
+            </div>
           ))}
         </div>
       </div>

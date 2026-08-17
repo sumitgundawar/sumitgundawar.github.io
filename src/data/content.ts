@@ -191,6 +191,15 @@ export const services: ServiceNode[] = [
     urlLabel: "bydrvali.com",
   },
   {
+    id: "groundcheck",
+    name: "GroundCheck",
+    slo: "A live clinical retrieval demo: ask a question, get an answer with the passage it came from, or a refusal when the corpus does not support one. Built entirely on a synthetic corpus of invented conditions, drugs and doses, so nothing here implies real clinical guidance. Runs on a free-tier model with a deterministic extractive fallback, so it answers even when the model is unavailable.",
+    stack: ["Python", "RAG", "Docker", "Hugging Face"],
+    health: "ok",
+    url: "https://sumitgundawar-groundcheck.hf.space",
+    urlLabel: "try it",
+  },
+  {
     id: "llm-eval",
     name: "LLM Response Evaluation Framework",
     slo: "Automated harness testing hallucination, factual accuracy, consistency, and safety across multiple LLM providers, with a model-drift monitoring dashboard. MSc research, awarded Distinction.",
@@ -313,6 +322,11 @@ export const articles: Article[] = [
 export const authorPage = "https://dataconomy.com/author/sumit-gundawar/";
 
 export interface Podcast {
+  /** YouTube id. The thumbnail is served from public/podcast/<id>.webp rather
+   *  than hotlinked, so a page view makes no request to YouTube at all. */
+  youtubeId?: string;
+  /** Episode number, where the show uses them. */
+  episode?: string;
   id: string;
   show: string;
   title: string;
@@ -327,7 +341,9 @@ export const podcasts: Podcast[] = [
     show: "Talk Python To Me",
     title: "Trustworthy AI in Healthcare and Longevity",
     when: "2026",
-    url: "https://www.youtube.com/live/pp2v9paEoq4?is=-7SHomqBQn-lqj0F",
+    url: "https://www.youtube.com/live/pp2v9paEoq4",
+    youtubeId: "pp2v9paEoq4",
+    episode: "Ep. 554",
     summary:
       "A guest conversation on what it actually takes to earn trust for AI in healthcare and longevity research. Covers where a confident-sounding model still needs a deterministic check behind it, and how that changes what you test before shipping.",
   },
@@ -336,7 +352,8 @@ export const podcasts: Podcast[] = [
     show: "Test Associates Podcast",
     title: "Building Safe, Testable AI in Healthcare & Longevity",
     when: "2026",
-    url: "https://youtu.be/bfHSMCYQNp4?is=l7aSCyJS-hzjlSmy",
+    url: "https://youtu.be/bfHSMCYQNp4",
+    youtubeId: "bfHSMCYQNp4",
     summary:
       "A follow-on conversation for a testing-focused audience, covering the same healthcare AI territory from the QA side: what 'safe' has to mean before a testable claim about a system can be made at all.",
   },

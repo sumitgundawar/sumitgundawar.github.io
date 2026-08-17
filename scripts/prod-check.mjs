@@ -114,6 +114,33 @@ if (asset) {
   check("track rejects a malformed session", bad.status === 400, `${bad.status}`);
 }
 
+/* ---- the API describes itself ---- */
+{
+  const r = await get(`${API}/api/openapi.json`);
+  const spec = await r.json().catch(() => null);
+  check("openapi.json serves", r.status === 200 && Boolean(spec), `${r.status}`);
+  if (spec) {
+    check("spec is OpenAPI 3.1", spec.openapi === "3.1.0", spec.openapi ?? "");
+    check("spec documents every live endpoint", Object.keys(spec.paths ?? {}).length >= 8, `${Object.keys(spec.paths ?? {}).length} paths`);
+    // The spec must not describe a route that does not answer.
+    for (const p of ["/api/ask", "/api/track", "/api/subscribe", "/api/openapi.json"]) {
+      check(`spec path ${p} exists in code`, Boolean(spec.paths?.[p]));
+    }
+  }
+  const d = await get(`${API}/api/docs`);
+  check("docs page serves HTML", d.status === 200 && (d.headers.get("content-type") ?? "").includes("text/html"), `${d.status}`);
+
+  // Documented rate limit headers must actually be emitted.
+  const a = await get(`${API}/api/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: ORIGIN },
+    body: JSON.stringify({ session: "prodcheckABCDEF1", question: "Why is cache invalidation hard?", topicId: "invalidation" }),
+  });
+  for (const h of ["ratelimit-limit", "ratelimit-remaining", "ratelimit-reset"]) {
+    check(`ask emits ${h}`, a.headers.get(h) !== null, a.headers.get(h) ?? "(missing)");
+  }
+}
+
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length} passed, ${failed.length} failed`);
 process.exit(failed.length ? 1 : 0);

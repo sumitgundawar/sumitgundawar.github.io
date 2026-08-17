@@ -9,6 +9,7 @@ import {
   type ReportData,
 } from "./email";
 import { TOPICS } from "./topics.generated";
+import { docsPage, openApiSpec } from "./openapi";
 
 /* The site's backend: ask, track, progress, and a weekly digest.
  *
@@ -207,21 +208,68 @@ export const CONTENT_VERSION = "2026-08-16";
  * fail because the limiter is unavailable; failing open is the right call when
  * the thing being protected is a budget rather than a door.
  */
-async function rateLimited(env: ApiEnv, key: string, limit: number, windowSec: number): Promise<boolean> {
-  if (!env.RATE) return false;
+/* The limiter's state, so it can be reported as well as enforced.
+ *
+ * A limit a caller cannot see is a limit they can only discover by tripping it,
+ * which is the thing the JAX talk complains about. These are the field names
+ * from draft-ietf-httpapi-ratelimit-headers, so a client that already
+ * understands them needs no special case for this API. */
+interface RateState {
+  limited: boolean;
+  limit: number;
+  remaining: number;
+  reset: number;
+}
+
+async function rateCheck(env: ApiEnv, key: string, limit: number, windowSec: number): Promise<RateState> {
+  const reset = Math.max(60, windowSec);
+  if (!env.RATE) return { limited: false, limit, remaining: limit, reset };
   try {
     const raw = await env.RATE.get(key);
     const n = raw ? Number(raw) : 0;
-    if (n >= limit) return true;
-    await env.RATE.put(key, String(n + 1), { expirationTtl: Math.max(60, windowSec) });
-    return false;
+    if (n >= limit) return { limited: true, limit, remaining: 0, reset };
+    await env.RATE.put(key, String(n + 1), { expirationTtl: reset });
+    return { limited: false, limit, remaining: Math.max(0, limit - (n + 1)), reset };
   } catch {
-    return false;
+    return { limited: false, limit, remaining: limit, reset };
   }
+}
+
+async function rateLimited(env: ApiEnv, key: string, limit: number, windowSec: number): Promise<boolean> {
+  return (await rateCheck(env, key, limit, windowSec)).limited;
+}
+
+/** Adds the standard rate limit fields to a response that has already been
+ *  built, rather than threading them through every json() call site. */
+function withRateHeaders(res: Response, state: RateState): Response {
+  const out = new Response(res.body, res);
+  out.headers.set("RateLimit-Limit", String(state.limit));
+  out.headers.set("RateLimit-Remaining", String(state.remaining));
+  out.headers.set("RateLimit-Reset", String(state.reset));
+  if (state.limited) out.headers.set("Retry-After", String(state.reset));
+  return out;
 }
 
 export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext): Promise<Response | null> {
   const url = new URL(req.url);
+
+  /* The description of this API, served by the API itself.
+     Public and cacheable: it names no secret and changes only on deploy. */
+  if (url.pathname === "/api/openapi.json" && (req.method === "GET" || req.method === "HEAD")) {
+    return new Response(JSON.stringify(openApiSpec(env.SITE_ORIGIN ?? "https://sumitgundawar.com"), null, 2), {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600",
+      },
+    });
+  }
+  if (url.pathname === "/api/docs" && (req.method === "GET" || req.method === "HEAD")) {
+    return new Response(docsPage(env.SITE_ORIGIN ?? "https://sumitgundawar.com"), {
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=3600" },
+    });
+  }
+
   const origin = corsOrigin(req, env);
 
   if (!url.pathname.startsWith("/api/")) return null;
@@ -252,7 +300,13 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
     const question = (body?.question ?? "").trim();
     if (!SESSION_RE.test(session)) return json({ error: "bad session" }, 400, origin);
     if (!question || question.length > 2000) return json({ error: "bad question" }, 400, origin);
-    if (await rateLimited(env, `ask:${clientIp(req)}`, 20, 60)) return json({ error: "slow down" }, 429, origin);
+    /* Reported as well as enforced, on the endpoint where it actually matters:
+       /api/ask spends a metered model credential, so a caller needs to know the
+       budget before they hit the wall rather than after. */
+    const rate = await rateCheck(env, `ask:${clientIp(req)}`, 20, 60);
+    if (rate.limited) {
+      return withRateHeaders(json({ error: "slow down" }, 429, origin), rate);
+    }
 
     /* The topic text is looked up here, never accepted from the caller.
        It used to arrive in the request body and go straight into the system
@@ -368,7 +422,10 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
         /* A cache hit is already sub-second, so there is nothing to stream. It
            is still delivered in the stream's shape when one was asked for, so
            the client has a single code path rather than two. */
-        return wantsStream ? sse(cachedStream(hit), "cache", origin) : json({ answer: hit }, 200, origin);
+        return withRateHeaders(
+          wantsStream ? sse(cachedStream(hit), "cache", origin) : json({ answer: hit }, 200, origin),
+          rate,
+        );
       }
     }
 
@@ -398,7 +455,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
             })(),
           );
           console.log(JSON.stringify({ at: "ask_stream_fellback", model: whole.model }));
-          return sse(cachedStream(text), whole.model, origin);
+          return withRateHeaders(sse(cachedStream(text), whole.model, origin), rate);
         } catch {
           return json({ error: "unavailable" }, 503, origin);
         }
@@ -457,7 +514,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
         }),
       );
       console.log(JSON.stringify({ at: "ask_stream", model: streamed.model, fellThrough: streamed.attempts.length }));
-      return sse(seen, streamed.model, origin);
+      return withRateHeaders(sse(seen, streamed.model, origin), rate);
     }
 
     try {
@@ -518,7 +575,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
       console.log(JSON.stringify({ at: "chain_fallback", answered: result.model, skipped: result.attempts }));
     }
     // The reader is told nothing about which model answered or what failed.
-    return json({ answer: result.text }, 200, origin);
+    return withRateHeaders(json({ answer: result.text }, 200, origin), rate);
   }
 
   /* ---- track: first-party analytics ---- */

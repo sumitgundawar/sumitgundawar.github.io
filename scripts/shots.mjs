@@ -42,6 +42,12 @@ const VIEWPORTS = [
   { name: "tablet", width: 820, height: 1180 },   // iPad Air
   { name: "ipad-landscape", width: 1024, height: 768 },
   { name: "desktop", width: 1440, height: 900 },
+  /* Above 1440 was never checked, which is precisely where the shell's max-width
+     starts leaving dead margin, so every run reported "clean" while the layout
+     wasted half the screen on the monitors most people at a desk actually use.
+     A check whose range stops short of the problem cannot see the problem. */
+  { name: "desktop-lg", width: 1920, height: 1080 },
+  { name: "desktop-xl", width: 2560, height: 1440 },
 ];
 
 const TYPES = {

@@ -260,3 +260,26 @@
   }
   .reveal { opacity: 1; transform: none; }
 }
+
+/* Reading measure, held where it already is.
+ *
+ * The page shell used to stop at 1280px, which left 320px of dead margin on a
+ * 1920 screen and 640px on a 2560 one: a third to a half of the window unused.
+ * The shell widens past that now, and the risk of widening a shell is that the
+ * prose widens with it. The widest paragraph was already 776px, which at 15px is
+ * about 97 characters, and past roughly 80 the eye starts losing its place
+ * finding the beginning of the next line.
+ *
+ * 52em is 780px at the body size, so this changes nothing at any width the site
+ * already looked right at, and stops paragraphs claiming the space that the
+ * grids, cards and media should take instead. Anything with a tighter cap of its
+ * own still wins, because it is smaller.
+ */
+main p {
+  /* A pixel cap, not an em one. em is relative to the element's own size, so
+     52em held 15px copy at 780px and let 19px copy grow to 988px, which is the
+     same 104 characters a line and the same problem. 780px is what the widest
+     paragraph already measured at 1280px, so every size keeps the measure it
+     had and none of them claim the new space. */
+  max-width: 780px;
+}

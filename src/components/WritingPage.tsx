@@ -23,7 +23,7 @@ export function WritingPage() {
 
   return (
     <main id="content" className="min-h-[100dvh]">
-      <div className="mx-auto w-full max-w-[1280px] px-5 sm:px-8 lg:px-10 pt-16 sm:pt-20 lg:pt-12 pb-8 lg:pb-12">
+      <div className="mx-auto w-full max-w-[1280px] 2xl:max-w-[1600px] [@media(min-width:2100px)]:max-w-[1840px] px-5 sm:px-8 lg:px-10 2xl:px-14 pt-16 sm:pt-20 lg:pt-12 pb-8 lg:pb-12">
         <Link
           to="/"
           className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"

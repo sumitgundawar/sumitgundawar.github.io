@@ -68,8 +68,8 @@ export function StatusPage() {
           Below lg the nav spans most of the width and the whole page must start
           under it; at lg it is only top-right, so the left column is unaffected
           and just the content column needs the offset. */}
-      <div className="mx-auto w-full max-w-[1280px] px-5 sm:px-8 lg:px-10 pt-16 sm:pt-20 lg:pt-12 pb-8 lg:pb-12">
-        <div className="grid lg:grid-cols-[360px_minmax(0,1fr)] gap-10 lg:gap-16 items-start">
+      <div className="mx-auto w-full max-w-[1280px] 2xl:max-w-[1600px] [@media(min-width:2100px)]:max-w-[1840px] px-5 sm:px-8 lg:px-10 2xl:px-14 pt-16 sm:pt-20 lg:pt-12 pb-8 lg:pb-12">
+        <div className="grid lg:grid-cols-[360px_minmax(0,1fr)] 2xl:grid-cols-[420px_minmax(0,1fr)] gap-10 lg:gap-16 2xl:gap-20 items-start">
           <Sidebar />
           <main id="content" className="min-w-0 lg:pt-6">
             <Lead />

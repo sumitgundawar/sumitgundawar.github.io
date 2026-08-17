@@ -12,6 +12,8 @@
  * different products because each one was hand-built.
  */
 
+import { FEATURED } from "./articles.generated";
+
 /* ---------- tokens: docs/EMAIL-DESIGN.md#palette ---------- */
 
 const PAPER = "#f4f4f2";
@@ -21,6 +23,9 @@ const DIM = "#5f6660"; //      5.91:1 on card
 const LINE = "#e3e3df"; //     a boundary, not text
 const ACCENT = "#0b6b46"; //   6.55:1 on card
 const WARN = "#b45309";
+/* A tint of the accent, for a panel that needs to sit apart from the page
+   without a border. Text still passes on it: ink 16.58:1, dim 5.44:1. */
+const TINT = "#f1f7f4";
 
 /* The site's signal green is deliberately absent as text or link: #3dd68c
    measures 1.88:1 on white. It appears only as a block nothing is written on. */
@@ -157,7 +162,8 @@ function statRow(cells: { label: string; value: string; note?: string }[]): stri
     .map(
       (c) => `
       <td width="${Math.floor(100 / cells.length)}%" style="padding:0 8px 0 0;vertical-align:top;font-family:${SANS};">
-        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:${DIM};padding-bottom:4px;">${esc(c.label)}</div>
+        ${label(c.label)}
+        <div style="height:4px;line-height:4px;font-size:0;">&nbsp;</div>
         <div style="font-size:20px;font-weight:600;color:${INK};line-height:1.15;">${esc(c.value)}</div>
         ${c.note ? `<div style="font-size:12px;color:${DIM};padding-top:2px;">${esc(c.note)}</div>` : ""}
       </td>`,
@@ -200,7 +206,8 @@ export function renderReportEmail(d: ReportData): string {
       const pct = m.pct_change;
       return `
       <td width="25%" style="padding:0 8px 0 0;vertical-align:top;font-family:${SANS};">
-        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:${DIM};padding-bottom:4px;">${esc(LABEL[m.metric] ?? m.metric)}</div>
+        ${label(LABEL[m.metric] ?? m.metric)}
+        <div style="height:4px;line-height:4px;font-size:0;">&nbsp;</div>
         <div style="font-size:26px;font-weight:600;color:${INK};line-height:1.1;">${m.current_period}</div>
         <div style="font-size:12px;color:${DIM};padding-top:2px;">was ${m.previous_period} &nbsp;${delta(pct)}</div>
       </td>`;
@@ -233,12 +240,14 @@ export function renderReportEmail(d: ReportData): string {
     )
     .join("");
 
+  /* One eyebrow component, shared with every other email, rather than a fourth
+     hand-written variant of the same thing. docs/EMAIL-DESIGN.md#components. */
   const section = (title: string, note: string, inner: string) =>
     inner
       ? `
-    <tr><td style="padding:26px 24px 0 24px;font-family:${SANS};">
-      <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:${INK};font-weight:600;">${esc(title)}</div>
-      <div style="font-size:12px;color:${DIM};padding:3px 0 12px 0;">${esc(note)}</div>
+    <tr><td style="padding:26px ${PAD}px 0 ${PAD}px;font-family:${SANS};">
+      ${label(title)}
+      <div style="font-size:12px;color:${DIM};padding:5px 0 12px 0;">${esc(note)}</div>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">${inner}</table>
     </td></tr>`
       : "";
@@ -388,13 +397,33 @@ export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }):
   const { site, unsubscribe } = opts;
   const host = site.replace(/^https?:\/\//, "");
 
-  /* Written as a letter, not as a landing page.
+  /* A letter with something in it.
    *
-   * The previous version had three bulleted sections and a large dark call to
-   * action button, which is precisely the shape Gmail classifies as promotional,
-   * and it is also just worse: a first email from a person should read like one.
-   * One idea, one link, a signature. See docs/EMAIL-DESIGN.md, the section on
-   * landing in the inbox. */
+   * The first version of this was a marketing card with a big button, which is
+   * the shape Gmail files under Promotions. The correction went too far the
+   * other way: a plain note that named nothing and gave the reader no reason to
+   * stay. Both were wrong for the same reason, which is that neither had any
+   * actual content in it.
+   *
+   * So: three real pieces, with their real titles and the incident each one
+   * opens with, generated from content.ts so they cannot drift. That is what
+   * makes it worth reading, and it is also what makes it look like
+   * correspondence rather than a campaign, because it is specific rather than
+   * promotional. Structure is what Gmail classifies on, not colour.
+   */
+  const picks = FEATURED.map(
+    (a) => `
+      <tr>
+        <td style="padding:0 0 16px 0;font-family:${SANS};">
+          <div style="font-size:15px;line-height:1.45;">
+            <a href="${esc(a.url)}" style="color:${ACCENT};font-weight:600;text-decoration:none;">${esc(a.title)}</a>
+          </div>
+          <div style="font-family:${MONO};font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:${DIM};padding:5px 0 5px 0;">${esc(a.publication)}</div>
+          <div style="font-size:14px;line-height:1.55;color:${DIM};">${esc(a.hook)}</div>
+        </td>
+      </tr>`,
+  ).join("");
+
   const body = [
     block(heading("You are on the list.")),
     block(
@@ -402,20 +431,38 @@ export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }):
         "Thank you for subscribing. You will get an occasional note from me about building systems that survive production: what broke, why, and what the fix actually cost. Roughly once a month, and nothing else, ever.",
       ) +
         para(
-          "Everything I write starts with something that actually happened, usually an incident, rather than with a framework or a list of best practices. If that is not what you were after, the link at the bottom removes you in one click and I will not email you again.",
-        ) +
-        para(`In the meantime, the writing and the learning material are both at ${host}.`),
+          "Every piece starts with something that actually happened, usually an incident, rather than with a framework or a list of best practices.",
+        ),
       14,
     ),
+
+    /* The substance. A first email that says "I write things" and names none of
+       them is asking for trust it has not earned. */
+    `<tr><td style="padding:26px ${PAD}px 0 ${PAD}px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background:${TINT};">
+        <tr><td style="padding:20px ${PAD}px 6px ${PAD}px;font-family:${SANS};">
+          ${label("Three to start with")}
+          <div style="height:14px;line-height:14px;font-size:0;">&nbsp;</div>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">${picks}</table>
+        </td></tr>
+      </table>
+    </td></tr>`,
+
+    block(
+      `<div style="font-size:15px;line-height:1.65;color:${INK};">There is more at ${link(site + "/writing", host + "/writing")}, and a section that teaches the same material as questions you answer rather than pages you skim, at ${link(site + "/learn", host + "/learn")}.</div>`,
+      24,
+    ),
+
     block(
       `<div style="font-size:15px;line-height:1.65;color:${INK};">Sumit</div>` +
-        `<div style="font-family:${MONO};font-size:12px;color:${DIM};padding-top:4px;">Software Engineer, London</div>`,
-      24,
+        `<div style="font-family:${MONO};font-size:12px;color:${DIM};padding-top:4px;">Software Engineer, London</div>` +
+        `<div style="font-size:13px;line-height:1.6;color:${DIM};padding-top:10px;">Reply to this if you want to argue with any of it. It reaches me.</div>`,
+      26,
     ),
   ].join("");
 
   return shell({
-    preheader: "Occasional writing on building systems that survive production. Roughly once a month.",
+    preheader: "Occasional writing on building systems that survive production. Three pieces to start with.",
     title: "You are on the list",
     body,
     footer:
@@ -433,14 +480,18 @@ export function renderWelcomeText(opts: { site: string; unsubscribe: string }): 
     "building systems that survive production: what broke, why, and what the fix",
     "actually cost. Roughly once a month, and nothing else, ever.",
     "",
-    "Everything I write starts with something that actually happened, usually an",
-    "incident, rather than with a framework or a list of best practices. If that is",
-    "not what you were after, the link below removes you in one click.",
+    "Every piece starts with something that actually happened, usually an incident,",
+    "rather than with a framework or a list of best practices.",
     "",
-    `In the meantime, the writing and the learning material are both at ${host}.`,
+    "THREE TO START WITH",
+    ...FEATURED.flatMap((a) => ["", `  ${a.title}`, `  ${a.publication} | ${a.url}`, `  ${a.hook}`]),
+    "",
+    `There is more at ${host}/writing, and a section that teaches the same material`,
+    `as questions you answer rather than pages you skim, at ${host}/learn.`,
     "",
     "Sumit",
     "Software Engineer, London",
+    "Reply to this if you want to argue with any of it. It reaches me.",
     "",
     `Unsubscribe: ${opts.unsubscribe}`,
   ].join("\n");

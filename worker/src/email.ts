@@ -26,6 +26,12 @@ const WARN = "#b45309";
 /* A tint of the accent, for a panel that needs to sit apart from the page
    without a border. Text still passes on it: ink 16.58:1, dim 5.44:1. */
 const TINT = "#f1f7f4";
+/* The header band, which is the site's own ink. White reads 17.99:1 on it and
+   the site's signal green 9.59:1, so the brand colour finally gets to be the
+   brand colour: it is unusable on white and perfectly legible here. */
+const BAND = "#14171a";
+const BAND_TEXT = "#ffffff";
+const BAND_ACCENT = "#3dd68c";
 
 /* The site's signal green is deliberately absent as text or link: #3dd68c
    measures 1.88:1 on white. It appears only as a block nothing is written on. */
@@ -41,7 +47,7 @@ const esc = (s: string) =>
 /* ---------- components: docs/EMAIL-DESIGN.md#components ---------- */
 
 /** Preheader, page, card, wordmark, footer. Every email is this shape. */
-function shell(opts: { preheader: string; title: string; body: string; footer: string }): string {
+function shell(opts: { preheader: string; title: string; eyebrow: string; body: string; footer: string }): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -59,11 +65,19 @@ function shell(opts: { preheader: string; title: string; body: string; footer: s
 <tr><td align="center" style="padding:28px 12px;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:${CARD};border:1px solid ${LINE};border-collapse:collapse;">
 
-    <tr><td style="padding:${PAD}px ${PAD}px 0 ${PAD}px;font-family:${SANS};">
-      <div style="font-size:18px;font-weight:600;color:${INK};letter-spacing:-0.01em;">sumitgundawar.com</div>
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:10px;">
-        <tr><td width="40" style="background:${ACCENT};height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>
+    <!-- A masthead, not a line of text.
+         It said "sumitgundawar.com" as plain text, and every mail client
+         detects a bare domain and rewrites it as a blue underlined link, so the
+         first thing in the message looked like a stray hyperlink someone had
+         pasted. A name is not a URL, so nothing detects it, and the dark band is
+         the site's own ink, which is where the site's green is finally legible:
+         9.59:1 here against 1.88:1 on white. -->
+    <tr><td style="padding:26px ${PAD}px 24px ${PAD}px;background:${BAND};font-family:${SANS};">
+      <div style="font-size:19px;font-weight:600;color:${BAND_TEXT};letter-spacing:-0.01em;line-height:1.2;">Sumit Gundawar</div>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:11px;">
+        <tr><td width="44" style="background:${BAND_ACCENT};height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>
       </table>
+      <div style="font-family:${MONO};font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:${BAND_ACCENT};padding-top:12px;">${esc(opts.eyebrow)}</div>
     </td></tr>
 
     ${opts.body}
@@ -315,65 +329,42 @@ export function renderReportEmail(d: ReportData): string {
     })),
   );
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light">
-<title>Site report</title>
-</head>
-<body style="margin:0;padding:0;background:${PAPER};">
-<!-- Preheader: the line mail clients show beside the subject. Hidden in the body. -->
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Last ${d.days} days against the ${d.days} before.</div>
+  const body = [
+    `<tr><td style="padding:22px ${PAD}px 0 ${PAD}px;font-family:${SANS};">
+      <div style="font-size:13px;color:${DIM};">Week to ${esc(to)}, compared with the ${d.days} days before</div>
+    </td></tr>`,
 
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${PAPER};border-collapse:collapse;">
-<tr><td align="center" style="padding:24px 12px;">
-
-  <!-- 600px is the width that survives every client, and it degrades to full
-       width on a phone because the table is width:100% with a max-width. -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:#ffffff;border:1px solid ${LINE};border-collapse:collapse;">
-
-    <tr><td style="padding:24px 24px 0 24px;font-family:${SANS};">
-      <div style="font-size:17px;font-weight:600;color:${INK};">sumitgundawar.com</div>
-      <div style="font-size:13px;color:${DIM};padding-top:2px;">Week to ${to}, compared with the ${d.days} days before</div>
-    </td></tr>
-
-    <tr><td style="padding:20px 24px 0 24px;">
+    `<tr><td style="padding:18px ${PAD}px 0 ${PAD}px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
         <tr>${headline}</tr>
       </table>
-    </td></tr>
+    </td></tr>`,
 
-    ${
-      empty
-        ? `<tr><td style="padding:20px 24px 0 24px;font-family:${SANS};font-size:13px;color:${WARN};">
-             No traffic recorded this period. If that is unexpected, the tracking call is the thing to check before the numbers.
-           </td></tr>`
-        : ""
-    }
+    empty
+      ? `<tr><td style="padding:20px ${PAD}px 0 ${PAD}px;font-family:${SANS};font-size:13px;color:${WARN};">
+           No traffic recorded this period. If that is unexpected, the tracking call is the thing to check before the numbers.
+         </td></tr>`
+      : "",
 
-    ${section("How long people stay", "A visit is a run of page views with no gap longer than 30 minutes", shapeRows)}
-    ${section("Most clicked", "What people actually reached for, by section and by name", clickRows)}
-    ${section("Most visited pages", "Views, distinct people, and how long the page held them", topPages)}
-    ${section("Least visited pages", "Not a failure of the page so much as of its title or its placement", quietPages)}
-    ${section("Where people came from", "Referring host, or direct where there was none", sourceRows)}
-    ${section("Who they are", "Country and device, counted by visitor", audienceRows)}
-    ${section("Most read topics", "What drew people in, and how long it held them", readRows)}
-    ${section("Most often wrong", "A question most people fail is usually a bad explanation, not a hard idea", wrongRows)}
-    ${section("Where people stopped", "The last topic of a session is where the material lost them", dropRows)}
+    section("How long people stay", "A visit is a run of page views with no gap longer than 30 minutes", shapeRows),
+    section("Most clicked", "What people actually reached for, by section and by name", clickRows),
+    section("Most visited pages", "Views, distinct people, and how long the page held them", topPages),
+    section("Least visited pages", "Not a failure of the page so much as of its title or its placement", quietPages),
+    section("Where people came from", "Referring host, or direct where there was none", sourceRows),
+    section("Who they are", "Country and device, counted by visitor", audienceRows),
+    section("Most read topics", "What drew people in, and how long it held them", readRows),
+    section("Most often wrong", "A question most people fail is usually a bad explanation, not a hard idea", wrongRows),
+    section("Where people stopped", "The last topic of a session is where the material lost them", dropRows),
+  ].join("");
 
-    <tr><td style="padding:24px;font-family:${SANS};">
-      <div style="border-top:1px solid ${LINE};padding-top:14px;font-size:12px;color:${DIM};">
-        Measured by the site itself. No personal data stored, and no third party involved in these numbers.
-      </div>
-    </td></tr>
-
-  </table>
-</td></tr>
-</table>
-</body>
-</html>`;
+  return shell({
+    preheader: `Last ${d.days} days against the ${d.days} before.`,
+    title: "Site report",
+    eyebrow: "Weekly report",
+    body,
+    footer:
+      "Measured by the site itself. No personal data stored, and no third party involved in these numbers.",
+  });
 }
 
 /* The welcome, which is the only email most subscribers will ever judge.
@@ -464,9 +455,12 @@ export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }):
   return shell({
     preheader: "Occasional writing on building systems that survive production. Three pieces to start with.",
     title: "You are on the list",
+    eyebrow: "Newsletter",
     body,
     footer:
-      `You are receiving this because you subscribed at ${esc(host)}. Your address is stored to send this and nothing else, and is never passed on. ` +
+      /* Never a bare domain in plain text: clients detect it and repaint it as a
+         blue underlined link, which is what made the old masthead look wrong. */
+      `You are receiving this because you subscribed at ${link(site, host)}. Your address is stored to send this and nothing else, and is never passed on. ` +
       `${link(unsubscribe, "Unsubscribe in one click")}.`,
   });
 }
@@ -539,6 +533,7 @@ export function renderAlertsEmail(fired: string[]): string {
   return shell({
     preheader: count,
     title: "Site alerts",
+    eyebrow: "Alerts",
     body,
     footer:
       "Sent only when something fired. There is no mail on a normal day, so silence here means nothing tripped rather than nothing ran.",

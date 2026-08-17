@@ -294,6 +294,113 @@ export function renderReportEmail(d: ReportData): string {
 </html>`;
 }
 
+/* The welcome, which is the only email most subscribers will ever judge.
+ *
+ * It used to be two bare paragraphs written inline in the subscribe handler. It
+ * arrived, and it read like a system notification, which is the wrong first
+ * impression for a list whose entire pitch is that the writing is worth reading.
+ *
+ * Same constraints as everything else here, for the same reasons: no style
+ * block, tables rather than flexbox, no remote images, 600px with a max-width so
+ * it collapses cleanly on a phone. The one deliberate flourish is a rule under
+ * the wordmark, drawn as a coloured table cell, because that is the only kind of
+ * graphic every client renders without being asked.
+ *
+ * It sets the frequency expectation in the first line. The commonest reason a
+ * new subscriber marks mail as spam is not disliking it, it is being surprised
+ * by it, and a spam complaint costs a new sending domain far more than an
+ * unsubscribe does.
+ */
+export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }): string {
+  const { site, unsubscribe } = opts;
+  const host = site.replace(/^https?:\/\//, "");
+
+  const bullet = (title: string, body: string) => `
+    <tr>
+      <td style="padding:0 0 14px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+        <div style="font-size:14px;font-weight:600;color:${INK};padding-bottom:3px;">${esc(title)}</div>
+        <div style="font-size:14px;line-height:1.55;color:${DIM};">${esc(body)}</div>
+      </td>
+    </tr>`;
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>You are on the list</title>
+</head>
+<body style="margin:0;padding:0;background:${BG};">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Occasional writing on building systems that survive production. No more than once a month.</div>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${BG};border-collapse:collapse;">
+<tr><td align="center" style="padding:24px 12px;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:#ffffff;border:1px solid ${LINE};border-collapse:collapse;">
+
+    <tr><td style="padding:28px 28px 0 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+      <div style="font-size:18px;font-weight:600;color:${INK};letter-spacing:-0.01em;">${esc(host)}</div>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-top:10px;">
+        <tr><td width="40" style="background:${ACCENT};height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>
+      </table>
+    </td></tr>
+
+    <tr><td style="padding:22px 28px 0 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+      <div style="font-size:20px;font-weight:600;color:${INK};line-height:1.3;">You are on the list.</div>
+      <div style="font-size:15px;line-height:1.6;color:${DIM};padding-top:10px;">
+        Occasional writing on building systems that survive production: what broke, why, and what the fix actually cost. No more than once a month, and nothing else.
+      </div>
+    </td></tr>
+
+    <tr><td style="padding:24px 28px 0 28px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+        ${bullet("What it is", "Incidents from real systems, and the design decisions that came out of them. Every piece opens with something that actually happened.")}
+        ${bullet("What it is not", "A newsletter about newsletters, a roundup of links, or anything with the word thoughts in the subject line.")}
+        ${bullet("While you wait", "Everything published so far is collected on the site, alongside a section that teaches the same material as a set of questions you answer.")}
+      </table>
+    </td></tr>
+
+    <!-- A bordered cell, not a styled anchor: Outlook drops padding and
+         background on an <a>, which turns a button into blue underlined text. -->
+    <tr><td style="padding:6px 28px 0 28px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+        <tr><td style="background:${INK};padding:12px 22px;">
+          <a href="${esc(site)}/learn" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">Start with the material</a>
+        </td></tr>
+      </table>
+    </td></tr>
+
+    <tr><td style="padding:26px 28px 28px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+      <div style="border-top:1px solid ${LINE};padding-top:14px;font-size:12px;line-height:1.6;color:${DIM};">
+        You are receiving this because you signed up at ${esc(host)}. Your address is stored to send this and nothing else, and is never passed on.
+        <br>
+        <a href="${esc(unsubscribe)}" style="color:${ACCENT};">Unsubscribe in one click</a>, from this or any later email.
+      </div>
+    </td></tr>
+
+  </table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+export function renderWelcomeText(opts: { site: string; unsubscribe: string }): string {
+  const host = opts.site.replace(/^https?:\/\//, "");
+  return [
+    "You are on the list.",
+    "",
+    "Occasional writing on building systems that survive production: what broke,",
+    "why, and what the fix actually cost. No more than once a month, and nothing else.",
+    "",
+    `Start with the material: ${opts.site}/learn`,
+    "",
+    `You are receiving this because you signed up at ${host}. Your address is stored`,
+    "to send this and nothing else, and is never passed on.",
+    `Unsubscribe in one click: ${opts.unsubscribe}`,
+  ].join("\n");
+}
+
 /* Alerts, which are a different kind of mail from the weekly report.
  *
  * The report is read at leisure and is mostly numbers. An alert is read once,

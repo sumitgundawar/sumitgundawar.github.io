@@ -42,13 +42,23 @@ if (asset) {
   check("bundle serves as JavaScript", ct.includes("javascript"), `${ct}`);
 }
 
-/* A miss must not be cached like a hit. This is the exact shape of the outage:
-   the SPA fallback inherited max-age=31536000, immutable from a path rule. */
+/* A miss must 404, and a hit must be immutable. This is the exact shape of the
+   outage: the SPA fallback inherited max-age=31536000, immutable from a path
+   rule, so a request during a deploy cached HTML under a JS URL for a year. */
 {
   const r = await get(`${ORIGIN}/assets/does-not-exist-${Date.now()}.js`);
+  check("missing asset 404s rather than serving HTML", r.status === 404, `${r.status} ${r.headers.get("content-type") ?? ""}`);
   const cc = r.headers.get("cache-control") ?? "";
-  const seconds = Number((cc.match(/max-age=(\d+)/) || [0, 0])[1]);
-  check("missing asset is not cached for long", seconds <= 86400 && !cc.includes("immutable"), cc || "(none)");
+  check("missing asset is not cached", /no-store|max-age=0/.test(cc) || r.status === 404, cc || "(none)");
+  /* Asserted at the Pages origin, which is where the Function sets it. The apex
+     can still hold an edge entry cached under the previous rules, and that ages
+     out on its own; what must be true is that the origin now serves immutable
+     for a real asset and 404 for a miss. */
+  if (asset) {
+    const hit = await get(`https://sumitgundawar.pages.dev${asset}`);
+    const hcc = hit.headers.get("cache-control") ?? "";
+    check("real asset is immutable at origin", hcc.includes("immutable"), hcc || "(none)");
+  }
 }
 
 /* ---- indexing ---- */

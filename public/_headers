@@ -1,32 +1,11 @@
-# NOTE: there is deliberately no /assets/* rule here any more. See below.
-#
-# It used to say max-age=31536000, immutable, which is right for a hashed file
-# and catastrophic for a miss. _headers matches on the REQUEST PATH, so when
-# Pages answers a request for an asset it does not have by serving the SPA
-# fallback, that HTML inherited the same one-year immutable header. One request
-# in the seconds after a deploy, before the edge had the new bundle, cached
-# index.html under the new bundle's URL for a year. The browser then refuses
-# text/html as a module script and the entire site renders blank for everyone on
-# that colo, with no way out but a purge.
-#
-# Measured, not assumed: a request for /assets/definitely-missing-xyz.js at the
-# Pages origin returned 200, content-type text/html, and
-# cache-control: public, max-age=31536000, immutable.
-#
-# Pages already sets immutable caching on real hashed assets by itself, keyed on
-# the asset rather than on the path, which is the distinction that matters.
-
-# Media in public/ keeps the filename it was written with, so it cannot be
-# immutable: a replaced photo under the same name has to be able to reach
-# people. A day fresh, then served stale while it revalidates behind the
-# request, which costs a returning visitor nothing and still propagates a swap
-# within the week. Rename the file when a change has to land immediately.
-/robot/*
-  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
-/podcast/*
-  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
-/*.webp
-  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+# There is deliberately no /assets/* rule here. Asset caching is set by
+# functions/assets/[[path]].ts instead, and it has to be, because _headers
+# matches on the request PATH: a hit and a miss for a hashed asset share one, so
+# there is no way to give them different caching here. The rule that used to
+# live here applied max-age=31536000, immutable to the SPA fallback as well as
+# to real assets, which cached index.html under a bundle URL for a year and
+# rendered the site blank. A Function sees the RESPONSE and can tell the two
+# apart.
 
 # HTML must not be cached hard, or a deploy takes a day to reach anyone.
 # stale-while-revalidate serves the old copy instantly and refreshes behind it.

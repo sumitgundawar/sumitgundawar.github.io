@@ -26,6 +26,15 @@
   // the next request and the limit did close to nothing.
   "kv_namespaces": [{ "binding": "RATE", "id": "ecd045716a8141de8ce9a5c6038cecbd" }],
 
+  // Click analytics. In D1 because creating a table in Supabase needs DDL, and
+  // that needs a credential this tooling does not have; D1 is provisioned by the
+  // same wrangler login that already deploys this Worker. Nothing is split by
+  // it: click_events never existed anywhere, because clicks only ever went to
+  // Google Analytics.
+  "d1_databases": [
+    { "binding": "ANALYTICS", "database_name": "site-analytics", "database_id": "2f53b68d-82d0-43b5-a1da-5d2914191cd9" }
+  ],
+
   // Newsletter delivery, one message per subscriber.
   //
   // Resend's free tier allows 100 sends a DAY, not merely 3,000 a month, and

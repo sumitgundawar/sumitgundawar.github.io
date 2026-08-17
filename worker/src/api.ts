@@ -37,6 +37,7 @@ export interface ApiEnv {
   REPORT_EMAIL?: string;
   REPORT_FROM?: string;
   TURNSTILE_SECRET?: string;
+  ANALYTICS?: D1Database;
 }
 
 /* An allowlist, echoed back per request, rather than one pinned value.
@@ -709,18 +710,27 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
           /* Clicks were previously not stored at all: this branch did not exist,
              and because the chain is if / else-if on `path`, anything that was
              neither a quiz nor a page view fell through and was silently
-             discarded. */
-          await sb(env, "click_events", {
-            method: "POST",
-            body: JSON.stringify({
-              session_key: session,
-              event: safeId(b.clickEvent),
-              // A target is a human-readable title, so it keeps more characters
-              // than an id does, but still nothing that renders as markup.
-              target: b.target ? b.target.replace(/[<>&`*_~|]/g, "").slice(0, 160) : null,
-              path: b.path ? safeId(b.path) : null,
-            }),
-          });
+             discarded.
+           *
+             D1 rather than Supabase, because creating a table there needs a
+             credential this project's tooling does not have, and this dataset
+             had no home anywhere. A prepared statement, so the values are bound
+             rather than interpolated. */
+          if (env.ANALYTICS) {
+            await env.ANALYTICS.prepare(
+              "insert into click_events (session_key, event, target, path, created_at) values (?, ?, ?, ?, ?)",
+            )
+              .bind(
+                session,
+                safeId(b.clickEvent),
+                // A target is a human-readable title, so it keeps more characters
+                // than an id does, but still nothing that renders as markup.
+                b.target ? b.target.replace(/[<>&`*_~|]/g, "").slice(0, 160) : null,
+                b.path ? safeId(b.path) : null,
+                Math.floor(Date.now() / 1000),
+              )
+              .run();
+          }
         } else if (b?.path) {
           await sb(env, "page_views", {
             method: "POST",
@@ -1095,6 +1105,47 @@ async function callList<T>(env: ApiEnv, fn: string, args: Record<string, unknown
   }
 }
 
+/* Clicks for the report, read from D1.
+ *
+ * Returns [] on any failure, exactly like callList does for the Supabase RPCs,
+ * so a database that is unreachable costs one section of the report rather than
+ * the whole thing. */
+async function clicksFromD1(env: ApiEnv, days: number): Promise<ReportData["clicks"]> {
+  if (!env.ANALYTICS) return [];
+  const since = Math.floor(Date.now() / 1000) - days * 86_400;
+  const prevSince = since - days * 86_400;
+  try {
+    const cur = await env.ANALYTICS.prepare(
+      `select event, coalesce(target,'') as target, count(*) as clicks,
+              count(distinct session_key) as visitors
+         from click_events where created_at >= ?
+        group by 1,2 order by clicks desc limit 40`,
+    )
+      .bind(since)
+      .all<{ event: string; target: string; clicks: number; visitors: number }>();
+
+    const prev = await env.ANALYTICS.prepare(
+      `select event, coalesce(target,'') as target, count(*) as clicks
+         from click_events where created_at >= ? and created_at < ?
+        group by 1,2`,
+    )
+      .bind(prevSince, since)
+      .all<{ event: string; target: string; clicks: number }>();
+
+    const before = new Map(prev.results.map((r) => [`${r.event}\u0000${r.target}`, r.clicks]));
+    return cur.results.map((r) => {
+      const was = before.get(`${r.event}\u0000${r.target}`);
+      return {
+        ...r,
+        pct_change: was ? Math.round(((r.clicks - was) / was) * 100) : null,
+      };
+    });
+  } catch (error) {
+    console.log(JSON.stringify({ at: "clicks_d1_failed", error: error instanceof Error ? error.message : String(error) }));
+    return [];
+  }
+}
+
 export async function reportData(env: ApiEnv, days = 7): Promise<ReportData> {
   const [digest, engagement, struggling, dropoff, shape, clicks, pages, sources, audience] = await Promise.all([
     callList<ReportData["digest"][number]>(env, "weekly_digest", { days }),
@@ -1102,7 +1153,7 @@ export async function reportData(env: ApiEnv, days = 7): Promise<ReportData> {
     callList<ReportData["struggling"][number]>(env, "struggling_topics", { days, min_answers: 5 }),
     callList<ReportData["dropoff"][number]>(env, "drop_off_topics", { days }),
     callList<ReportData["shape"][number]>(env, "visit_shape", { days }),
-    callList<ReportData["clicks"][number]>(env, "click_breakdown", { days }),
+    clicksFromD1(env, days),
     callList<ReportData["pages"][number]>(env, "page_popularity", { days }),
     callList<ReportData["sources"][number]>(env, "traffic_sources", { days }),
     callList<ReportData["audience"][number]>(env, "audience_split", { days }),

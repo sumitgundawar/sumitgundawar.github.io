@@ -693,8 +693,8 @@ function Education() {
 /* The still and the loop, side by side: the build and the build running.
  *
  * Both assets are cut to 4:5 so the pair sits as one block at any width instead
- * of one tile dragging the other's height around. Two columns even on a phone —
- * at 4:5 a single stacked tile is taller than the viewport, which turns a small
+ * of one tile dragging the other's height around. Two columns even on a phone,
+ * because at 4:5 a single stacked tile is taller than the viewport, which turns a small
  * piece of evidence into a scroll obstacle. */
 function EduMedia({ media }: { media: NonNullable<EduRow["media"]> }) {
   return (

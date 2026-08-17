@@ -83,15 +83,15 @@ export const education: EduRow[] = [
   {
     school: "Vellore Institute of Technology",
     degree: "MCA, Computer Applications, IEEE Published",
-    detail: "GPA 9.26/10. IEEE paper: object detection via transfer learning on CIFAR-10, 96% accuracy. Merit Scholarship recipient.",
+    detail: "GPA 9.26/10, all 82 credits earned. The thesis was the largest single piece of the degree at 16 credits and graded S, the highest VIT awards: object detection by transfer learning on CIFAR-10, reaching 96% accuracy, published as an IEEE paper. Same grade in database technologies, applied statistical methods, distributed operating systems and object-oriented software engineering, which is most of what the pipeline work later stood on. Coursework ran through machine learning, data mining, big data analytics and advanced software testing, which stuck. Merit Scholarship recipient.",
     dates: "Jul 2019 to Jun 2021",
     place: "Tamil Nadu, India",
-    tags: ["Deep learning", "Research"],
+    tags: ["Deep learning", "Distributed systems", "Big data", "Software testing", "Research"],
   },
   {
     school: "Savitribai Phule Pune University",
     degree: "BSc, Computer Science, First Class with Distinction",
-    detail: "1654/1900 overall, at Dr. D. Y. Patil Arts, Commerce & Science College, Pune. Compiler construction, operating systems, computer networks, system programming and computer graphics, alongside 8051 architecture and interfacing, which is the part that made the hardware work. Full marks in the internet programming project and in practical mathematics. Built a line-following robot at a robotics workshop run in collaboration with IIT Delhi: infrared sensors reading the contrast under the chassis, a microcontroller correcting the steering continuously, and a control loop that had to be tuned rather than calculated.",
+    detail: "1654/1900 overall, at Dr. D. Y. Patil Arts, Commerce & Science College, Pune. Compiler construction, operating systems, computer networks, system programming and computer graphics, alongside 8051 architecture and interfacing, which is the part that made the hardware work. Built a line-following robot at a robotics workshop run in collaboration with IIT Delhi: infrared sensors reading the contrast under the chassis, a microcontroller correcting the steering continuously, and a control loop that had to be tuned rather than calculated.",
     dates: "Jun 2016 to Apr 2019",
     place: "Maharashtra, India",
     tags: ["8051", "C / C++", "Java", "Robotics"],

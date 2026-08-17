@@ -13,7 +13,7 @@ import { usePrefersReducedMotion, trackClick } from "@/lib/hooks";
  * a jump at the moment playback starts, which reads as a glitch.
  *
  * A loop runs indefinitely, so WCAG 2.2.2 applies: there has to be a way to
- * stop it. Hence the toggle, which is also the whole control surface — no
+ * stop it. Hence the toggle, which is also the whole control surface: no
  * scrubber, no volume, because there is no audio track to control. Someone who
  * has asked their system for reduced motion gets the still frame and starts
  * paused; the same button opts them in.

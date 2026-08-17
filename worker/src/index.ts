@@ -12,7 +12,7 @@
  * Regenerate with `npx wrangler types` after changing bindings in
  * wrangler.jsonc. Do not extend this by hand.
  */
-import { handleApi, handleBroadcast, handleCronRun, handleReportPreview, runCron, type ApiEnv } from "./api";
+import { handleApi, handleBroadcast, handleCronRun, handleReportPreview, handleStatus, runCron, type ApiEnv } from "./api";
 import { handleNewsletterBatch, type NewsletterEnv, type SendJob } from "./newsletter";
 
 interface Env extends ApiEnv, NewsletterEnv {
@@ -129,6 +129,8 @@ export default {
       if (cron) return cron;
       const broadcast = await handleBroadcast(request, env);
       if (broadcast) return broadcast;
+      const status = await handleStatus(request, env);
+      if (status) return status;
       const api = await handleApi(request, env, ctx);
       if (api) return api;
 

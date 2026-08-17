@@ -219,6 +219,16 @@ export function openApiSpec(origin: string): unknown {
           responses: { 200: { description: "An HTML confirmation page." } },
         },
       },
+      "/api/status": {
+        get: {
+          tags: ["assistant"],
+          summary: "What the model chain actually did this week",
+          description:
+            "Uptime is not the interesting number on a personal site, and a site reporting 99.99% on itself invites the question of what is being monitored. This reports the one thing here that is genuinely a distributed system: fifteen models behind one endpoint, and how often the first choice fails and something further down answers instead.\n\n" +
+            "fallbacksPerQuestion is that figure. 0 would mean the first model always answered. Counts are real traffic, so the response says so plainly when there has been none rather than inventing a number.",
+          responses: { 200: { description: "Aggregates over the last seven days." } },
+        },
+      },
       "/api/openapi.json": {
         get: { tags: ["assistant"], summary: "This document", responses: { 200: { description: "The OpenAPI description of this API." } } },
       },

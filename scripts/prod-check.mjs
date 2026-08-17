@@ -137,6 +137,15 @@ if (asset) {
       check(`spec path ${p} exists in code`, Boolean(spec.paths?.[p]));
     }
   }
+  const st = await get(`${API}/api/status`);
+  const sj = await st.json().catch(() => null);
+  check("status endpoint serves", st.status === 200 && Boolean(sj), `${st.status}`);
+  if (sj) {
+    // It must report absence honestly rather than inventing a number.
+    const honest = sj.questions === 0 ? sj.fallbacksPerQuestion === null && Boolean(sj.note) : typeof sj.fallbacksPerQuestion === "number";
+    check("status reports real traffic or says there is none", honest, `questions=${sj.questions} fallbacks/q=${sj.fallbacksPerQuestion}`);
+  }
+
   const d = await get(`${API}/api/docs`);
   check("docs page serves HTML", d.status === 200 && (d.headers.get("content-type") ?? "").includes("text/html"), `${d.status}`);
 

@@ -252,6 +252,94 @@ function withRateHeaders(res: Response, state: RateState): Response {
   return out;
 }
 
+/* Chain telemetry, kept in KV because it is the store this Worker already has.
+ *
+ * The interesting signal on this site is not uptime. A personal site reporting
+ * 99.99% on itself invites the question of what exactly is being monitored. The
+ * signal worth publishing is the one thing here that is genuinely a distributed
+ * system: fifteen models behind one endpoint, and how often the first choice
+ * fails and something further down the list answers instead.
+ *
+ * Counted under a key containing the date, so it ages out by itself with no job
+ * to clean it up, and one bad day cannot corrupt the record permanently.
+ *
+ * Read, modify, write, which races. Two questions answered in the same second
+ * can both read the same count and one increment is lost. That is acceptable for
+ * the same reason it is acceptable in the rate limiter: this is a proportion
+ * over a day, not a billing ledger, and KV free allows 1,000 writes a day
+ * against traffic currently two orders of magnitude below that.
+ */
+export interface ChainStat {
+  answered: Record<string, number>;
+  fellThrough: number;
+  cacheHits: number;
+  total: number;
+}
+
+const statKey = (d = new Date()) => `stat:${d.toISOString().slice(0, 10)}`;
+
+async function recordAnswer(env: ApiEnv, model: string, fellThrough: number, fromCache: boolean): Promise<void> {
+  if (!env.RATE) return;
+  try {
+    const raw = await env.RATE.get(statKey());
+    const stat: ChainStat = raw ? (JSON.parse(raw) as ChainStat) : { answered: {}, fellThrough: 0, cacheHits: 0, total: 0 };
+    stat.answered[model] = (stat.answered[model] ?? 0) + 1;
+    stat.fellThrough += fellThrough;
+    if (fromCache) stat.cacheHits += 1;
+    stat.total += 1;
+    await env.RATE.put(statKey(), JSON.stringify(stat), { expirationTtl: 60 * 60 * 24 * 10 });
+  } catch {
+    /* Telemetry must never be able to fail an answer. */
+  }
+}
+
+/* What the chain actually did, over the last week. Public: it names no secret
+   and says nothing about any reader. */
+export async function handleStatus(req: Request, env: ApiEnv): Promise<Response | null> {
+  const url = new URL(req.url);
+  if (url.pathname !== "/api/status" || (req.method !== "GET" && req.method !== "HEAD")) return null;
+
+  const days: { date: string; stat: ChainStat }[] = [];
+  if (env.RATE) {
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(Date.now() - i * 86_400_000);
+      const raw = await env.RATE.get(statKey(d)).catch(() => null);
+      if (raw) days.push({ date: d.toISOString().slice(0, 10), stat: JSON.parse(raw) as ChainStat });
+    }
+  }
+
+  const totals = days.reduce<ChainStat>(
+    (acc, d) => {
+      for (const [m, n] of Object.entries(d.stat.answered)) acc.answered[m] = (acc.answered[m] ?? 0) + n;
+      acc.fellThrough += d.stat.fellThrough;
+      acc.cacheHits += d.stat.cacheHits;
+      acc.total += d.stat.total;
+      return acc;
+    },
+    { answered: {}, fellThrough: 0, cacheHits: 0, total: 0 },
+  );
+
+  const ranked = Object.entries(totals.answered).sort((a, b) => b[1] - a[1]);
+  return json(
+    {
+      window: "7 days",
+      questions: totals.total,
+      cacheHitRate: totals.total ? Math.round((totals.cacheHits / totals.total) * 100) : null,
+      /* The number this exists for: how many models were tried and refused
+         before one answered, per question. 0 means the first choice worked. */
+      fallbacksPerQuestion: totals.total ? Number((totals.fellThrough / totals.total).toFixed(2)) : null,
+      answeredBy: ranked.map(([model, count]) => ({ model, count })),
+      note:
+        totals.total === 0
+          ? "No questions recorded in this window. This counts real traffic, so it is empty rather than invented."
+          : undefined,
+      byDay: days.map((d) => ({ date: d.date, questions: d.stat.total, fallbacks: d.stat.fellThrough })),
+    },
+    200,
+    "*",
+  );
+}
+
 export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext): Promise<Response | null> {
   const url = new URL(req.url);
 
@@ -424,6 +512,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
         /* A cache hit is already sub-second, so there is nothing to stream. It
            is still delivered in the stream's shape when one was asked for, so
            the client has a single code path rather than two. */
+        ctx.waitUntil(recordAnswer(env, "cache", 0, true));
         return withRateHeaders(
           wantsStream ? sse(cachedStream(hit), "cache", origin) : json({ answer: hit }, 200, origin),
           rate,
@@ -516,6 +605,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
         }),
       );
       console.log(JSON.stringify({ at: "ask_stream", model: streamed.model, fellThrough: streamed.attempts.length }));
+      ctx.waitUntil(recordAnswer(env, streamed.model, streamed.attempts.length, false));
       return withRateHeaders(sse(seen, streamed.model, origin), rate);
     }
 
@@ -577,6 +667,7 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
       console.log(JSON.stringify({ at: "chain_fallback", answered: result.model, skipped: result.attempts }));
     }
     // The reader is told nothing about which model answered or what failed.
+    ctx.waitUntil(recordAnswer(env, result.model, result.attempts.length, false));
     return withRateHeaders(json({ answer: result.text }, 200, origin), rate);
   }
 

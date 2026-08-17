@@ -217,7 +217,7 @@ function CornerNav() {
         className="panel mono text-[length:var(--fs-label)] uppercase tracking-[0.06em] px-2.5 sm:px-3.5 whitespace-nowrap link-underline inline-flex items-center min-h-[44px]"
         style={{ color: "var(--c-text)" }}
       >
-        How I build →
+        Learn what I do →
       </Link>
       <Link
         to="/build"

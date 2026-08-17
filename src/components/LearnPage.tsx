@@ -99,7 +99,20 @@ function TopicView({
   };
 
   return (
+    /* One column until there is genuinely room for two.
+     *
+     * Everything here was capped at 36em and stacked, inside a container half
+     * again as wide, so a wide card held narrow content with a column of empty
+     * space beside it. Widening the text was not the answer: 36em is already
+     * about 72 characters and past that a line is harder to read, not easier.
+     *
+     * So the width goes to the layout instead. Prose keeps its measure on the
+     * left, the quiz moves up beside it rather than a screen further down, and
+     * the diagram spans both because a diagram is the one thing here that gets
+     * better with more room. */
     <div className="pb-8 pt-1">
+      <div className="grid xl:grid-cols-[minmax(0,36em)_minmax(0,1fr)] gap-x-10 2xl:gap-x-14 items-start">
+      <div className="min-w-0">
       <div className="flex flex-col gap-3 max-w-[36em]">
         {topic.body.map((p, i) => (
           <p key={i} className="text-[length:var(--fs-body)] leading-[1.65]" style={{ color: "var(--c-text-dim)" }}>
@@ -108,7 +121,6 @@ function TopicView({
         ))}
       </div>
 
-      {topic.diagram && <DiagramViews diagram={topic.diagram} id={`${cardId}-${topic.id}`} />}
 
       {topic.why && (
         <div
@@ -138,8 +150,10 @@ function TopicView({
         </div>
       )}
 
+      </div>
+
       <div
-        className="mt-6 rounded-lg border p-4 sm:p-5 max-w-[36em]"
+        className="mt-6 xl:mt-0 rounded-lg border p-4 sm:p-5 max-w-[36em] xl:max-w-none min-w-0"
         style={{ borderColor: "var(--hair)", background: "var(--surface-2)" }}
       >
         <div className="mono text-[length:var(--fs-label)] uppercase tracking-[0.09em] mb-2.5" style={{ color: "var(--c-text-dim)" }}>
@@ -189,6 +203,11 @@ function TopicView({
           </p>
         )}
       </div>
+      </div>
+
+      {/* Spans both columns: a diagram is the one thing on this page that gets
+          better with more room, so it is not confined to the reading column. */}
+      {topic.diagram && <DiagramViews diagram={topic.diagram} id={`${cardId}-${topic.id}`} />}
 
       {/* After the check, not before: the question is worth attempting before
           the assistant is on hand to answer it for you. */}
@@ -338,7 +357,7 @@ export function LearnPage() {
 
   return (
     <main id="content" className="min-h-[100dvh]">
-      <div className="mx-auto w-full max-w-[940px] px-5 sm:px-8 py-8 lg:py-12">
+      <div className="mx-auto w-full max-w-[940px] xl:max-w-[1180px] 2xl:max-w-[1320px] px-5 sm:px-8 xl:px-10 py-8 lg:py-12">
         <Link to="/" className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
           ← back to profile
         </Link>

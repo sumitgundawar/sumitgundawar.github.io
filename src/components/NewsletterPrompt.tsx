@@ -41,6 +41,12 @@ function write(v: Seen) {
 export function NewsletterPrompt({ context, line }: { context: string; line: string }) {
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [email, setEmail] = useState("");
+  /* Bot filters, checked server-side. `company` is a honeypot that stays empty
+     for anyone real, and renderedAt lets the server reject a submission that
+     arrived faster than a person could read the sentence above it. Resend's free
+     tier is 100 sends a day, so scripted signups cost real delivery. */
+  const [company, setCompany] = useState("");
+  const [renderedAt] = useState(() => Date.now());
   const [hidden, setHidden] = useState(() => {
     const s = read();
     return Boolean(s.dismissed || s.joined);
@@ -58,7 +64,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
       const res = await fetch(`${API}/api/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, source: context }),
+        body: JSON.stringify({ email, source: context, company, renderedAt }),
       });
       const j = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !j.ok) {
@@ -106,6 +112,21 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
           </div>
 
           <form onSubmit={submit} className="mt-4 flex flex-col sm:flex-row gap-2 min-w-0">
+            {/* Hidden from people and from assistive technology, so nobody real
+                can fill it in by accident: aria-hidden and tabIndex -1 keep it
+                out of the reading order, and display:none keeps it out of the
+                layout. Only a script that fills every input will touch it. */}
+            <div aria-hidden="true" style={{ display: "none" }}>
+              <label htmlFor={`np-co-${context}`}>Company</label>
+              <input
+                id={`np-co-${context}`}
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+              />
+            </div>
             <label className="sr-only" htmlFor={`np-${context}`}>
               Email address
             </label>

@@ -466,8 +466,37 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
 
   /* ---- subscribe: newsletter, single opt-in ---- */
   if (url.pathname === "/api/subscribe" && req.method === "POST") {
-    const b = (await req.json().catch(() => null)) as { email?: string; source?: string } | null;
+    const b = (await req.json().catch(() => null)) as
+      | { email?: string; source?: string; company?: string; renderedAt?: number }
+      | null;
     const email = (b?.email ?? "").trim().toLowerCase();
+
+    /* Two cheap bot filters, applied before anything is written or sent.
+     *
+     * This list costs real money to pollute: Resend's free tier allows 100 sends
+     * a DAY, not just 3,000 a month, so a hundred scripted signups spend the
+     * whole day's budget and the people who actually asked get nothing. IP rate
+     * limiting alone does not stop that, because a bot with a hundred addresses
+     * and a hundred IPs is ordinary.
+     *
+     * `company` is a honeypot: it is present in the form, hidden from people and
+     * from screen readers, and never filled by anyone real. `renderedAt` catches
+     * the other common shape, a script that posts the instant the page parses
+     * rather than after someone has read and typed.
+     *
+     * Both fail silently with the same 200 a real signup gets. Telling a bot
+     * which check caught it is just debugging help, and any honest visitor who
+     * somehow trips these is better served by a no-op than by an accusation.
+     * Turnstile would be stronger, and it needs keys from the dashboard; this
+     * needs nothing and stops the traffic that actually shows up. */
+    if (typeof b?.company === "string" && b.company.trim() !== "") {
+      console.log(JSON.stringify({ at: "subscribe_honeypot", source: b?.source ?? "" }));
+      return json({ ok: true }, 200, origin);
+    }
+    if (typeof b?.renderedAt === "number" && Date.now() - b.renderedAt < 2000) {
+      console.log(JSON.stringify({ at: "subscribe_too_fast", ms: Date.now() - b.renderedAt }));
+      return json({ ok: true }, 200, origin);
+    }
 
     /* Deliberately permissive. Email validation by regex is a losing game and
        an over-strict pattern rejects real addresses; the confirmation step is

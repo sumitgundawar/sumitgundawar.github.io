@@ -18,6 +18,11 @@ export function Newsletter() {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
+  /* Same two bot filters as the inline prompt, checked server-side. See
+     NewsletterPrompt for why: Resend allows 100 sends a day, so scripted
+     signups cost real delivery to people who actually asked. */
+  const [company, setCompany] = useState("");
+  const [renderedAt] = useState(() => Date.now());
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,7 +33,7 @@ export function Newsletter() {
       const res = await fetch(`${API}/api/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, source: "home" }),
+        body: JSON.stringify({ email, source: "home", company, renderedAt }),
       });
       const j = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !j.ok) {
@@ -70,6 +75,19 @@ export function Newsletter() {
           </p>
         ) : (
           <form onSubmit={submit} className="mt-4 flex flex-col sm:flex-row gap-2 min-w-0">
+            {/* Honeypot: out of the layout and out of the reading order, so
+                only a script that fills every input will touch it. */}
+            <div aria-hidden="true" style={{ display: "none" }}>
+              <label htmlFor="newsletter-company">Company</label>
+              <input
+                id="newsletter-company"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+              />
+            </div>
             <label className="sr-only" htmlFor="newsletter-email">
               Email address
             </label>

@@ -24,6 +24,14 @@ export interface DiagramNode {
   /** The concrete technology, e.g. "Redis" or "Kafka". */
   sub?: string;
   kind?: NodeKind;
+  /** What this component does for the system, in one or two sentences. Shown on
+   *  hover, so a diagram explains itself rather than needing the prose beside
+   *  it. Optional: the learn diagrams carry structure, the build page carries
+   *  reasoning, and both use the same renderer. */
+  why?: string;
+  /** Where it runs and roughly what it costs, which is the other half of the
+   *  question anyone looking at an architecture actually has. */
+  setup?: string;
 }
 
 export interface DiagramEdge {

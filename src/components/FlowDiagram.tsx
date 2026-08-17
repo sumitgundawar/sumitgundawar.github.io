@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { usePrefersReducedMotion } from "@/lib/hooks";
 import type { Diagram, DiagramNode, NodeKind } from "@/data/learn";
 
@@ -72,6 +72,27 @@ interface Placed extends DiagramNode {
 
 export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
   const [hovered, setHovered] = useState<string | null>(null);
+  /* Fullscreen, because an architecture diagram is the one thing on this site
+     that is genuinely too big for the column it sits in: it already scrolls
+     sideways inside its frame, which is a poor way to read a graph. */
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setFull(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const toggleFull = () => {
+    const el = frameRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    /* Not every browser has this on every element, notably iOS Safari, so a
+       rejection falls back to leaving the diagram where it is rather than
+       throwing at someone who just wanted a bigger picture. */
+    else void el.requestFullscreen?.().catch(() => {});
+  };
   const narrow = useNarrow();
   // The packets are SMIL, and CSS animation properties do not touch SMIL, // the reduced-motion block in index.css never stopped them. Not rendering
   // them is the only thing that actually does.
@@ -221,9 +242,72 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
   return (
     <figure className="my-6">
       <div
+        ref={frameRef}
         className="relative overflow-x-auto rounded-lg border"
-        style={{ borderColor: "var(--hair)", background: "var(--diagram-bg)" }}
+        style={{
+          borderColor: "var(--hair)",
+          background: "var(--diagram-bg)",
+          ...(full ? { display: "flex", alignItems: "center", height: "100%" } : null),
+        }}
       >
+        {/* The reasoning, in the frame rather than in the caption.
+            A one-line caption could say the component's name, which the box
+            already said. This says what it does for the system and what running
+            it actually costs, which is what someone looking at an architecture
+            wants and had to scroll to the cards below to find. */}
+        {hoveredNode?.why && (
+          <div
+            className="absolute left-2 bottom-2 z-10 max-w-[min(30em,calc(100%-1rem))] p-3.5"
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--hair-strong)",
+              boxShadow: "0 8px 28px rgba(0,0,0,0.45)",
+            }}
+            role="status"
+          >
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-[length:var(--fs-item)] font-medium" style={{ color: "var(--c-text)" }}>
+                {hoveredNode.label}
+              </span>
+              {hoveredNode.sub && (
+                <span className="mono text-[length:var(--fs-label)]" style={{ color: "var(--cool)" }}>
+                  {hoveredNode.sub}
+                </span>
+              )}
+              <span className="mono text-[length:var(--fs-micro)] uppercase tracking-[0.08em] ml-auto" style={{ color: "var(--c-text-dim)" }}>
+                {KIND_LABEL[hoveredNode.kind ?? "service"]}
+              </span>
+            </div>
+            <p className="text-[length:var(--fs-body)] leading-relaxed mt-2" style={{ color: "var(--c-text-dim)" }}>
+              {hoveredNode.why}
+            </p>
+            {hoveredNode.setup && (
+              <>
+                <div className="mono text-[length:var(--fs-micro)] uppercase tracking-[0.09em] mt-3 mb-1" style={{ color: "var(--accent)" }}>
+                  running it
+                </div>
+                <p className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+                  {hoveredNode.setup}
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={toggleFull}
+          aria-label={full ? "Leave full screen" : "View full screen"}
+          className="absolute top-2 right-2 z-10 mono uppercase tracking-[0.08em] px-2.5 min-h-[44px] inline-flex items-center gap-2"
+          style={{
+            fontSize: "var(--fs-micro)",
+            color: "var(--c-text)",
+            background: "var(--surface)",
+            border: "1px solid var(--hair-strong)",
+          }}
+        >
+          {full ? "exit" : "full screen"}
+        </button>
         <svg
           viewBox={`0 0 ${width} ${height}`}
           width="100%"
@@ -333,6 +417,9 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                 onMouseLeave={() => setHovered(null)}
                 onFocus={() => setHovered(n.id)}
                 onBlur={() => setHovered(null)}
+                /* There is no hover on a touch screen, so a tap selects, and
+                   tapping the same node again clears it. */
+                onClick={() => setHovered((cur) => (cur === n.id ? null : n.id))}
                 tabIndex={0}
                 role="img"
                 aria-label={`${n.label}${n.sub ? `, ${n.sub}` : ""}. ${KIND_LABEL[kind]}.`}
@@ -408,7 +495,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
           <span className="opacity-80">dashed = asynchronous</span>
         </div>
         <span>{diagram.caption}</span>
-        {hoveredNode && (
+        {hoveredNode && !hoveredNode.why && (
           <span className="mono text-[length:var(--fs-label)] ml-3" style={{ color: "var(--accent)" }}>
             {hoveredNode.label}
             {hoveredNode.sub ? ` · ${hoveredNode.sub}` : ""} · {KIND_LABEL[hoveredNode.kind ?? "service"]}

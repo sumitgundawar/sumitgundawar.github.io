@@ -50,10 +50,13 @@ function toDiagram(recs: Recommendation[]): Diagram {
   recs.forEach((r) => columns[order[r.kind] ?? 2].push(r));
 
   return {
-    caption: "Your architecture, hover any component for the reasoning",
+    caption: "Your architecture. Hover or tap any component for what it does and what it costs.",
     columns: columns
       .filter((c) => c.length)
-      .map((col) => col.map((r) => ({ id: r.id, label: r.name, sub: r.pick, kind: r.kind }))),
+      /* why and where are carried into the diagram rather than left on the cards
+         below it. The reasoning already existed; the diagram simply was not
+         passing it on, so hovering a component said its name back to you. */
+      .map((col) => col.map((r) => ({ id: r.id, label: r.name, sub: r.pick, kind: r.kind, why: r.why, setup: r.where }))),
     edges,
   };
 }

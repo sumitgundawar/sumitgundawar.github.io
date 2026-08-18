@@ -505,14 +505,42 @@ export interface Talk {
   when: string;
   url?: string;
   placeholder?: boolean;
+  /* The fields below exist for the Event markup rather than for the page.
+     Search Console reported six non-critical Events issues against this site,
+     all of them the same cause: a talk was described well enough for a human
+     reading the profile and not well enough for a machine deciding whether to
+     show it. Dates, a place with an address, an abstract and a ticket link are
+     what a rich result is made of. Only what is published is recorded here: the
+     conference runs 5 to 9 October 2026 and the session slot has not been
+     announced, so the event carries the conference window rather than a
+     specific hour invented to satisfy a validator. */
+  startDate?: string;
+  endDate?: string;
+  venueName?: string;
+  street?: string;
+  locality?: string;
+  postalCode?: string;
+  country?: string;
+  abstract?: string;
+  ticketsUrl?: string;
 }
 
 export const speaking: Talk[] = [
   {
     venue: "JAX London 2026",
     title: "Designing APIs and Integrations That Don't Fall Apart at Scale",
-    when: "2026",
+    when: "October 2026",
     url: "https://jaxlondon.com/speaker/sumit-gundawar/",
+    startDate: "2026-10-05",
+    endDate: "2026-10-09",
+    venueName: "Park Plaza Victoria London",
+    street: "239 Vauxhall Bridge Road",
+    locality: "London",
+    postalCode: "SW1V 1EQ",
+    country: "GB",
+    abstract:
+      "How APIs and integrations fail once traffic, partners and time are applied to them, and the design decisions that keep them working: idempotency, retries and backoff, rate limiting, versioning and deprecation, webhook delivery, and the failure paths that only appear at scale.",
+    ticketsUrl: "https://jaxlondon.com/tickets/",
   },
 ];
 

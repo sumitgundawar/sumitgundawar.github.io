@@ -79,15 +79,48 @@ const articleNodes = articles.map((a) => ({
   publisher: { "@type": "Organization", name: a.publication },
 }));
 
+/* Search Console reported six non-critical Events issues, all of them fields a
+   rich result is built from: description, image, offers, endDate, and an address
+   inside the location. Each one is emitted only when the talk actually carries
+   it, so an announced conference produces a complete node and a talk with
+   nothing but a title still produces a valid one rather than a node full of
+   plausible filler. startDate falls back to the display string, which is the
+   honest answer when only a year is known. */
 const eventNodes = speaking.map((t) => ({
   "@context": "https://schema.org",
   "@type": "Event",
   name: t.title,
   url: t.url,
-  startDate: t.when,
+  startDate: t.startDate ?? t.when,
+  ...(t.endDate ? { endDate: t.endDate } : {}),
+  ...(t.abstract ? { description: t.abstract } : {}),
+  image: [`${SITE}/og.png`],
   eventStatus: "https://schema.org/EventScheduled",
   eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
-  location: { "@type": "Place", name: t.venue },
+  location: {
+    "@type": "Place",
+    name: t.venueName ?? t.venue,
+    ...(t.street
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: t.street,
+            addressLocality: t.locality,
+            postalCode: t.postalCode,
+            addressCountry: t.country,
+          },
+        }
+      : {}),
+  },
+  ...(t.ticketsUrl
+    ? {
+        offers: {
+          "@type": "Offer",
+          url: t.ticketsUrl,
+          availability: "https://schema.org/InStock",
+        },
+      }
+    : {}),
   performer: { "@id": `${SITE}/#person` },
   organizer: { "@type": "Organization", name: t.venue },
 }));

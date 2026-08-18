@@ -7,7 +7,7 @@ export const design2: Card[] = [
   {
     id: "api-design",
     title: "API design",
-    summary: "REST, GraphQL, gRPC and webhooks, and which problem each one actually solves.",
+    summary: "REST, GraphQL, gRPC, webhooks and versioning, and which problem each one actually solves.",
     track: "design",
     topics: [
       {
@@ -15,12 +15,33 @@ export const design2: Card[] = [
         title: "REST and resource modelling",
         level: "beginner",
         body: [
-          "REST models the system as resources addressed by URL, with HTTP verbs describing the action and status codes describing the outcome.",
-          "The value is that everything already understands it, caches, proxies, browsers and load balancers all act correctly on a GET without being told anything about your application. Most APIs called RESTful are really HTTP-with-JSON, which is fine; the parts worth keeping are correct verbs, correct status codes, and cacheable GETs.",
+          "REST models a system as resources addressed by URL, with HTTP methods describing the action and status codes describing the outcome. The name comes from Roy Fielding's 2000 dissertation, which describes an architectural style with six constraints. Almost nothing called RESTful today satisfies all six, and that is fine: the constraint that pays for itself in practice is the uniform interface, the agreement that GET means read, that 404 means the thing is not there, and that these mean the same on your API as on everyone else's.",
+          "The reason to care is that a large amount of infrastructure acts on those meanings without ever reading your code. RFC 9110, the current HTTP semantics specification, divides methods into safe ones that do not change state (GET, HEAD, OPTIONS, TRACE) and idempotent ones that can be repeated without additional effect (those four plus PUT and DELETE). POST is neither. A CDN will cache a GET response at the edge. A proxy, a load balancer or a client library will retry an idempotent request after a dropped connection. Neither will do anything of the sort for a POST, because you have told the network that repeating it might charge a card twice.",
+          "Status codes are the other half of that contract, and the common failure is returning 200 with an error inside the body. Every layer above you now believes the call succeeded: the load balancer keeps the backend in rotation, the retry policy never fires, the dashboard shows a healthy service, and the only place the failure exists is in a field that nothing except your own client parses. A 5xx is not an admission of guilt, it is how you tell the rest of the system what happened.",
+          "Resource modelling is where people get stuck, usually on actions that are not obviously nouns. Publishing an article, refunding a payment, resending an invite. The trick that works most of the time is to notice that the action produces a thing, and to make that thing the resource: POST /payments/123/refunds creates a refund, which has its own id, its own status and its own history, all of which you wanted anyway the first time someone asked why a refund failed. Where that genuinely does not fit, a verb endpoint is better than a contorted noun. Consistency is worth more than purity.",
+          "Getting the method wrong has a measurable price. A search implemented as POST /search cannot be cached by a CDN or the browser, cannot be bookmarked or shared, will not be retried by anything in the path, and in a browser it triggers a CORS preflight because a JSON content type is not on the short list of simple requests, which adds a full round trip before the real request leaves. The honest reason to use POST for search is a query too large for a URL, where roughly 2,000 characters is the safe practical ceiling across proxies and servers. That is a real constraint, and it deserves a comment in the code saying so.",
+          "Pagination deserves the same care, because it is the endpoint most likely to be hit by a script. Offset pagination, page=47, gets slower the deeper it goes, since the database still has to walk the rows it is about to discard, and it produces duplicates and gaps when rows are inserted mid-scan. Cursor pagination hands back an opaque marker for the last row seen and asks for what follows it, which is stable under writes and stays flat as the offset grows. Almost every large API has migrated in that direction, and the ones that have not are the ones with a slow page 500.",
         ],
-        why: "Sticking to standard verbs and codes is not pedantry: it is what lets a CDN cache your GET, a proxy retry safely, and a client library behave sensibly without custom logic.",
+        why: "Standard verbs and codes are not pedantry, they are leverage: they are how you get caching, retries, health checking and client library behaviour without writing or operating any of it. Every deviation is a piece of infrastructure you now have to replace with your own code, and the bill arrives later than the decision.",
         inPractice:
-          "Stripe's API is the usual reference: correct verbs, correct status codes, and an idempotency key on every mutating call. The parts that make it pleasant are the boring conventions, not anything novel.",
+          "Stripe's API is the usual reference for the boring conventions done properly: correct methods, correct status codes, and an idempotency key accepted on every mutating call so a retry after a timeout cannot charge twice. GitHub's REST API leans on conditional requests, and a request that returns 304 Not Modified does not count against your rate limit, which turns polite polling into something the platform actively rewards.",
+        diagram: {
+          caption: "What the network does for free when the method is correct",
+          columns: [
+            [{ id: "client", label: "Client", sub: "browser or service", kind: "client" }],
+            [{ id: "cdn", label: "CDN", sub: "caches GET only", kind: "edge" }],
+            [{ id: "lb", label: "Load balancer", sub: "retries idempotent", kind: "edge" }],
+            [{ id: "api", label: "API", sub: "your code", kind: "service" }],
+            [{ id: "db", label: "Database", sub: "the expensive part", kind: "data" }],
+          ],
+          edges: [
+            { from: "client", to: "cdn", label: "GET /articles/9" },
+            { from: "cdn", to: "lb", label: "on miss only" },
+            { from: "lb", to: "api", label: "retry on 502" },
+            { from: "api", to: "db", label: "read" },
+            { from: "client", to: "lb", label: "POST bypasses cache" },
+          ],
+        },
         check: {
           prompt: "Why does using POST for a read-only search endpoint cost you something?",
           options: [
@@ -31,20 +52,82 @@ export const design2: Card[] = [
           ],
           correctIndex: 2,
           explain:
-            "Verbs carry meaning to infrastructure that never reads your code. A GET can be cached at the edge and retried by anything in the path; a POST is assumed to change state and gets neither. The preflight and the lost retry are real costs too, they are all the same cause, which is that you told the network this was a write.",
+            "Methods carry meaning to infrastructure that never reads your code. A GET can be cached at the edge and retried by anything in the path; a POST is assumed to change state and gets neither. The preflight and the lost retry are real costs too, and they all have the same cause, which is that you told the network this was a write.",
         },
+        checks: [
+          {
+            prompt: "An API returns 200 with an error object in the body when a call fails. What breaks?",
+            options: [
+              "Clients written against the schema will fail to parse the error object",
+              "Every layer above the service believes the call succeeded and acts on it",
+              "The error object cannot carry a machine readable code for the client",
+              "Responses become uncacheable, so the edge stops serving repeat reads",
+            ],
+            correctIndex: 1,
+            explain:
+              "Load balancers keep the backend in rotation, retry policies never fire, dashboards stay green, and the failure exists only in a field that nothing but your own client reads. The status code is the channel the rest of the system is listening on.",
+          },
+          {
+            prompt: "Why does cursor pagination beat page numbers on a large, actively written table?",
+            options: [
+              "Cursors let a client jump directly to any position in the result set",
+              "Cursors compress better, so the response payload is smaller per page",
+              "Offsets make the database walk and discard every row before the page",
+              "Offsets require a sort, and cursors let the database skip sorting",
+            ],
+            correctIndex: 2,
+            explain:
+              "Deep offsets get slower the further you go, because the rows before the page still have to be produced and thrown away, and concurrent inserts shift the window so readers see duplicates and gaps. A cursor says continue after this row, which is stable and stays flat.",
+          },
+          {
+            prompt: "Which change makes an endpoint safe for a proxy to retry automatically?",
+            options: [
+              "Returning 202 Accepted rather than 201 Created on success",
+              "Moving the request payload from the body into query parameters",
+              "Documenting the retry policy clearly in the API reference",
+              "Making it idempotent, so a repeat has the same effect as one call",
+            ],
+            correctIndex: 3,
+            explain:
+              "Retries are decided by the method's semantics, not by documentation. PUT and DELETE are idempotent by definition; a POST becomes safe to repeat only when you add an idempotency key and honour it server side.",
+          },
+        ],
       },
       {
         id: "graphql",
         title: "GraphQL and its costs",
         level: "intermediate",
         body: [
-          "GraphQL lets the client ask for exactly the fields it needs in one request, which solves over-fetching and the round trips of a chatty REST API.",
-          "It moves the complexity to the server. Arbitrary client queries can be arbitrarily expensive, so you need depth limits, cost analysis and dataloader batching to avoid N+1 database calls, and HTTP caching largely stops working, because every query is a POST to a single endpoint.",
+          "GraphQL began at Facebook in 2012, driven by a specific problem: the mobile news feed needed a different shape of data from the web one, over a slower network, and every screen change meant either a new bespoke endpoint or several round trips. The specification was published in 2015 and moved to the GraphQL Foundation in 2018. The idea is that the client sends a query describing exactly the fields it wants, and gets back a response with that shape and nothing else.",
+          "The wins are real and they are mostly about clients. Over-fetching disappears, because nobody is shipping thirty fields to a screen that renders four. Round trips collapse, because a screen that was five REST calls with dependencies between them becomes one request. The schema is typed and introspectable, so tooling, autocomplete and generated client types come for free, and a breaking change is visible before it ships rather than after a client crashes.",
+          "The first thing you give up is HTTP caching, and it is a bigger loss than it sounds. Every query is a POST to a single endpoint, so the CDN, the browser cache and every proxy in between have nothing to work with, and a system that was serving most reads from an edge cache is suddenly serving all of them from origin. The standard recovery is persisted queries: register the query text once, send a hash of it, and let the request be a GET again so the edge can cache on the hash. It works, and it is one more piece of machinery you now operate.",
+          "The second thing you give up is control over cost, because the client now writes the query. A nested selection can fan out into thousands of database reads without anything in the request looking unusual. The defences are depth limiting, complexity analysis and pricing. GitHub's GraphQL API does the last of these openly: a query is scored before it runs, a call cannot request more than 500,000 nodes, and each token has a budget of 5,000 points an hour rather than a count of requests. That is the right shape of answer, because the honest unit of work is not one request.",
+          "The third is N+1, which is structural rather than accidental. Resolvers run per field, so a list of fifty authors resolves the author field fifty times, each with its own database call. DataLoader style batching collects the calls made within a single tick and issues one query for the fifty keys. It is standard equipment, it works, and it has to be applied deliberately at every level that can fan out. Nobody notices the missing one in development, because the list has three items.",
+          "Finally, errors arrive with a 200 and an errors array beside partial data, which is deliberate: half a screen is better than none. It also means every dashboard, alert and load balancer health check that reads the status code sees a healthy service while a resolver is failing on a third of requests. Your monitoring has to parse the body, and this is the single most common reason a GraphQL outage is discovered by a customer rather than by a graph.",
         ],
-        why: "GraphQL earns its keep with many clients that need different shapes of the same data, a mobile app and a web app, say. For a single first-party client it is usually complexity without payoff.",
+        why: "GraphQL earns its keep when several clients need different shapes of the same data and you would otherwise be shipping a bespoke endpoint per screen. For a single first-party client it is usually complexity without payoff: you have given up edge caching and taken on query costing to solve a problem you did not have.",
         inPractice:
-          "GitHub's GraphQL API charges a computed cost per query against an hourly budget, rather than counting requests. That is the practical answer to arbitrary client queries: price them instead of forbidding them.",
+          "GitHub prices queries rather than counting them: a computed cost per call against a 5,000 point hourly budget, with a hard ceiling of 500,000 nodes per query. Netflix runs a federated graph in front of many backing services, which is the other case where it pays, one graph over teams that each own their slice, rather than one client asking for fewer fields.",
+        diagram: {
+          caption: "One request, and everything you now own behind it",
+          columns: [
+            [{ id: "app", label: "Client", sub: "writes the query", kind: "client" }],
+            [{ id: "gate", label: "Cost analysis", sub: "depth and points", kind: "edge" }],
+            [{ id: "exec", label: "Executor", sub: "resolves per field", kind: "service" }],
+            [{ id: "loader", label: "DataLoader", sub: "batches per tick", kind: "service" }],
+            [
+              { id: "svc1", label: "Users service", sub: "one query for 50 ids", kind: "data" },
+              { id: "svc2", label: "Posts service", sub: "one query for 50 ids", kind: "data" },
+            ],
+          ],
+          edges: [
+            { from: "app", to: "gate", label: "POST /graphql" },
+            { from: "gate", to: "exec", label: "under budget" },
+            { from: "exec", to: "loader", label: "50 field resolves" },
+            { from: "loader", to: "svc1", label: "1 batched call" },
+            { from: "loader", to: "svc2", label: "1 batched call" },
+          ],
+        },
         check: {
           prompt: "What is the main operational cost of adopting GraphQL?",
           options: [
@@ -55,20 +138,82 @@ export const design2: Card[] = [
           ],
           correctIndex: 1,
           explain:
-            "Query flexibility is the feature and the bill: you take on depth limits, cost analysis and your own caching. N+1 is real but it is a solved problem, dataloader batching is standard equipment. Arbitrary query cost is the part that never fully goes away, because the client decides it.",
+            "Query flexibility is the feature and the bill: you take on depth limits, cost analysis and your own caching. N+1 is real but it is a solved problem, and batching is standard equipment. Arbitrary query cost is the part that never fully goes away, because the client decides it.",
         },
+        checks: [
+          {
+            prompt: "Why do persisted queries matter for a public GraphQL API at scale?",
+            options: [
+              "They let the request be a GET on a hash, so the edge can cache it",
+              "They remove the need for depth limiting, since the query is fixed",
+              "They compress the query text, cutting request size on mobile networks",
+              "They let the server reject any query it has not seen before this week",
+            ],
+            correctIndex: 0,
+            explain:
+              "Sending a hash instead of query text turns the call back into a cacheable GET, which recovers the CDN you gave up when everything became a POST to one endpoint. Locking the allowed set is a useful side effect, not the main event.",
+          },
+          {
+            prompt: "GitHub charges GraphQL calls in points rather than counting requests. Why?",
+            options: [
+              "Points can be sold, so heavy users can be billed for what they consume",
+              "Counting requests would penalise clients that batch several screens",
+              "One request can mean one row or half a million, so requests are not the unit",
+              "Point budgets reset hourly, which is simpler to implement than sliding windows",
+            ],
+            correctIndex: 2,
+            explain:
+              "When the client writes the query, request count stops correlating with work done. Scoring the query before it runs prices the actual fan-out, which is the thing the backend has to survive.",
+          },
+          {
+            prompt: "A GraphQL service is failing on a third of calls, and the dashboards are green. Why?",
+            options: [
+              "Partial failures return 200 with an errors array, so status codes look fine",
+              "The failing resolvers are batched, so their errors are collapsed into one",
+              "Persisted queries are served from cache, hiding the failures from origin",
+              "Cost analysis rejects the query before any status code is recorded",
+            ],
+            correctIndex: 0,
+            explain:
+              "GraphQL returns partial data deliberately, so the transport says success while a field is failing. Any monitoring that reads only the status code is blind to it, which is why GraphQL error rates have to be extracted from the response body.",
+          },
+        ],
       },
       {
         id: "grpc",
         title: "gRPC and binary protocols",
         level: "intermediate",
         body: [
-          "gRPC uses Protocol Buffers over HTTP/2: a compact binary encoding with a schema, generated clients, and streaming in both directions.",
-          "It is markedly faster and smaller on the wire than JSON, and the schema makes breaking changes visible at build time. It is also awkward from a browser without a proxy, and much harder to debug by hand, because you cannot read it.",
+          "gRPC is Protocol Buffers over HTTP/2: a compact binary encoding with a schema, generated client and server stubs in a dozen languages, and four call shapes rather than one. Unary is the familiar request and response; the other three stream, from the server, from the client, or in both directions at once over a single connection. It was open sourced by Google in 2015, and it is the public version of an internal system, Stubby, that had already been carrying the traffic between Google's services for over a decade.",
+          "The efficiency comes from several places at once. Protobuf writes a field as a small numeric tag plus a value rather than a repeated field name, and tags 1 to 15 fit in a single byte, which is why the convention is to spend those numbers on the fields that appear most often. HTTP/2 compresses headers with HPACK, so the repeated metadata that dominates small JSON calls largely disappears. Multiplexing lets many calls share one connection without queueing behind each other. And there is no JSON parsing, which on a service doing hundreds of thousands of small calls a second is not a rounding error.",
+          "The schema is the part that changes how teams work, because it makes compatibility a build-time question. The rules are simple and unforgiving: field numbers are the wire identity, so they are never reused, and a removed field's number is marked reserved so nobody can accidentally take it. Unknown fields are preserved through a decode and re-encode, so an old intermediary does not silently strip data written by a newer one. Break those rules and the failure is not a parse error, it is a value quietly landing in the wrong field.",
+          "Deadlines are the underrated feature. A gRPC call carries a deadline as part of the call itself, and it propagates: a service that received a call with 300ms remaining passes what is left to whatever it calls next, so the whole tree agrees on when the work stops being useful. Do that with REST and you are wiring an X-Request-Deadline header through every hop by hand, and getting it wrong somewhere, which is how a client that gave up eight seconds ago ends up paying for a database query that is still running.",
+          "The costs are mostly at the edges. Browsers cannot emit or read HTTP/2 trailers, where gRPC puts its status, so calling gRPC from a browser needs gRPC-Web and a proxy such as Envoy to translate. Debugging by hand is harder, because you cannot read the bytes without the schema, and the tooling (grpcurl and friends) is one more thing to install on a machine where curl was already there.",
+          "There is an operational trap worth knowing before it finds you. gRPC holds long-lived connections, so a layer 4 load balancer that balances connections rather than requests will pin every call from a client to one backend, and adding capacity does nothing at all: the new instances sit idle while one melts. The fixes are a proxy that understands HTTP/2 request-level balancing, or client-side load balancing with a resolver that knows the backend set. The usual arrangement is gRPC between your own services and REST or GraphQL at the public edge, which is Google's own split.",
         ],
-        why: "The usual split is gRPC between your own services, where performance and schemas matter, and REST or GraphQL at the public edge, where reach and debuggability matter more.",
+        why: "gRPC buys performance, typed contracts and propagating deadlines, and charges you in reach and legibility. Both ends being yours is the condition that makes the trade sensible, which is why the boundary between internal and public traffic is usually also the boundary between gRPC and JSON.",
         inPractice:
-          "Google runs gRPC internally at very large scale and exposes REST and JSON at the public edge. The split is the recommendation, and it is theirs.",
+          "Google runs gRPC internally at very large scale and exposes REST and JSON publicly, and the recommendation to split it that way is theirs. Kubernetes components speak protobuf to the API server for the same reasons, while the same API is available as JSON for everyone reading it with kubectl and curl.",
+        diagram: {
+          caption: "Internal binary, public JSON, and the proxy where they meet",
+          columns: [
+            [{ id: "browser", label: "Browser", sub: "no HTTP/2 trailers", kind: "client" }],
+            [{ id: "edge", label: "Edge proxy", sub: "Envoy, gRPC-Web", kind: "edge" }],
+            [{ id: "gw", label: "API gateway", sub: "REST and JSON", kind: "service" }],
+            [
+              { id: "svc-a", label: "Service A", sub: "gRPC, deadline 300ms", kind: "service" },
+              { id: "svc-b", label: "Service B", sub: "gRPC, deadline 180ms", kind: "service" },
+            ],
+            [{ id: "store", label: "Store", sub: "cancelled with the call", kind: "data" }],
+          ],
+          edges: [
+            { from: "browser", to: "edge", label: "gRPC-Web" },
+            { from: "edge", to: "gw", label: "translated" },
+            { from: "gw", to: "svc-a", label: "gRPC unary" },
+            { from: "svc-a", to: "svc-b", label: "deadline propagates" },
+            { from: "svc-b", to: "store", label: "query" },
+          ],
+        },
         check: {
           prompt: "Where does gRPC typically fit best?",
           options: [
@@ -78,8 +223,47 @@ export const design2: Card[] = [
             "Internal service-to-service calls, where performance and typing both pay",
           ],
           correctIndex: 3,
-          explain: "Browsers need a proxy and third parties expect JSON. Internally, where both ends are yours, the performance and typing are worth it.",
+          explain:
+            "Browsers need a proxy and third parties expect JSON. Internally, where both ends are yours and you can regenerate both at once, the performance and the typed contract are worth it.",
         },
+        checks: [
+          {
+            prompt: "A team adds three replicas behind a layer 4 balancer and gRPC latency does not improve. Why?",
+            options: [
+              "HTTP/2 multiplexing serialises calls, so one connection cannot go faster",
+              "Connections are balanced, not requests, so every call sticks to one backend",
+              "Protobuf decoding is single threaded, so replicas cannot share the load",
+              "Deadlines propagate, so the new replicas inherit an already expired budget",
+            ],
+            correctIndex: 1,
+            explain:
+              "gRPC keeps connections open for a long time. A balancer that picks a backend per connection picks once and then sends everything there, so new capacity sits idle. You need request-level balancing at layer 7, or client-side balancing that knows the backend set.",
+          },
+          {
+            prompt: "Why must a removed protobuf field number be marked reserved rather than left free?",
+            options: [
+              "Reserved numbers are excluded from the wire size calculation at encode time",
+              "The compiler needs the number to generate a deprecation warning for clients",
+              "Reusing it makes old and new peers read the same bytes as different fields",
+              "Unreserved numbers are reassigned automatically when the schema is compiled",
+            ],
+            correctIndex: 2,
+            explain:
+              "The number is the field's identity on the wire, not the name. Reuse it and an old writer's value is decoded into the new field, so the data lands somewhere plausible and wrong, with no parse error to notice.",
+          },
+          {
+            prompt: "What does a propagating deadline give you that a per-service timeout does not?",
+            options: [
+              "The whole call tree agrees when the work stops being worth doing",
+              "Each service can extend the budget when it knows the work is nearly done",
+              "Retries become safe, because a deadline makes every call idempotent",
+              "Slow downstream calls are cancelled before their connection is opened",
+            ],
+            correctIndex: 0,
+            explain:
+              "Independent timeouts let a client give up while work continues below it, paying for results nobody will read. A deadline carried through the call passes the remaining budget down, so the whole tree stops together.",
+          },
+        ],
       },
       {
         id: "webhooks",
@@ -98,57 +282,20 @@ export const design2: Card[] = [
         inPractice:
           "Stripe signs every webhook with an HMAC and a timestamp, retries with exponential backoff for up to three days, and shows integrators each attempt and response in the dashboard. GitHub signs with SHA-256 and keeps a delivery log you can replay, which is the feature people actually ask for once they have debugged one of these.",
         diagram: {
-          "caption": "Delivery is the product: sign it, retry it, and give failures somewhere to go",
-          "columns": [
+          caption: "Delivery is the product: sign it, retry it, and give failures somewhere to go",
+          columns: [
+            [{ id: "ev", label: "Event happens", sub: "order paid", kind: "service" }],
+            [{ id: "out", label: "Delivery queue", sub: "signed and retried", kind: "queue" }],
             [
-              {
-                "id": "ev",
-                "label": "Event happens",
-                "sub": "order paid",
-                "kind": "service"
-              }
+              { id: "rcv", label: "Receiver", sub: "customer endpoint", kind: "external" },
+              { id: "dlq", label: "Dead letter", sub: "after N attempts", kind: "queue" },
             ],
-            [
-              {
-                "id": "out",
-                "label": "Delivery queue",
-                "sub": "signed and retried",
-                "kind": "queue"
-              }
-            ],
-            [
-              {
-                "id": "rcv",
-                "label": "Receiver",
-                "sub": "customer endpoint",
-                "kind": "external"
-              },
-              {
-                "id": "dlq",
-                "label": "Dead letter",
-                "sub": "after N attempts",
-                "kind": "queue"
-              }
-            ]
           ],
-          "edges": [
-            {
-              "from": "ev",
-              "to": "out",
-              "label": "HMAC over body"
-            },
-            {
-              "from": "out",
-              "to": "rcv",
-              "label": "POST, with retries"
-            },
-            {
-              "from": "out",
-              "to": "dlq",
-              "label": "attempts exhausted",
-              "async": true
-            }
-          ]
+          edges: [
+            { from: "ev", to: "out", label: "HMAC over body" },
+            { from: "out", to: "rcv", label: "POST, with retries" },
+            { from: "out", to: "dlq", label: "attempts exhausted", async: true },
+          ],
         },
         check: {
           prompt: "Why sign webhook payloads with an HMAC rather than relying on a secret URL?",
@@ -162,20 +309,80 @@ export const design2: Card[] = [
           explain:
             "A secret URL is a bearer token in the one place that leaks by default, access logs, referrers, proxies. A signature authenticates each individual body instead. TLS is not the answer: it authenticates the server being called, and tells the receiver nothing about who called it.",
         },
+        checks: [
+          {
+            prompt: "Why must a receiver verify the signature against the raw request bytes?",
+            options: [
+              "Parsing first exposes the receiver to injection through crafted JSON values",
+              "Re-serialising changes key order and spacing, so the digest no longer matches",
+              "The raw body is the only form that includes the timestamp header in scope",
+              "Frameworks discard the body after parsing, so the check has to run early",
+            ],
+            correctIndex: 1,
+            explain:
+              "An HMAC is over exact bytes. Decode and re-encode and you get a semantically identical document with different whitespace or key order, a different digest, and a rejected delivery that nothing in either system explains.",
+          },
+          {
+            prompt: "Retries mean events can arrive out of order. What does the payload need?",
+            options: [
+              "A sequence number or event timestamp the receiver compares before writing",
+              "A delivery id, so duplicates of the same attempt can be discarded",
+              "A retry counter, so the receiver knows how many attempts came before",
+              "A signature over the previous event, chaining deliveries together",
+            ],
+            correctIndex: 0,
+            explain:
+              "Without an ordering token the receiver cannot tell a stale event from a current one, so a retried update lands after the newer one and silently reverts the record. A delivery id gives you deduplication, which is a different problem.",
+          },
+          {
+            prompt: "Why jitter the retry schedule rather than retry on fixed intervals?",
+            options: [
+              "Fixed intervals let a receiver fingerprint and rate limit your sender",
+              "Jitter spreads the load so a recovering receiver is not hit by every retry at once",
+              "Jitter increases the number of attempts that fit inside the retry budget",
+              "Fixed intervals drift over time as clocks differ between sender and receiver",
+            ],
+            correctIndex: 1,
+            explain:
+              "Every failed delivery in the same minute becomes a retry in the same later minute, so a receiver that fell over under load gets a synchronised wave the moment it comes back. Jitter turns the wave into a slope.",
+          },
+        ],
       },
       {
         id: "versioning",
         title: "Versioning and breaking changes",
         level: "advanced",
         body: [
-          "Additive changes are safe: new optional fields, new endpoints. Removing a field, renaming one, or tightening validation breaks existing clients.",
-          "URL versioning is explicit and easy to route. Header versioning keeps URLs stable. Either works, and consistency matters more than which you pick.",
-          "The hard part is retirement. Old versions live exactly as long as clients use them, so you need usage telemetry per version and a deprecation process with real deadlines.",
-          "Without that telemetry every version is maintained forever, because nobody can prove it is safe to remove. Measuring per-version usage is what turns deprecation into a decision rather than a hope.",
+          "Start from what actually breaks, because it is narrower than people assume. Adding an optional request field, adding a response field, adding an endpoint or a new enum value in a field the client only writes: all safe, provided clients are tolerant readers that ignore what they do not recognise. Removing or renaming a field, tightening validation, making an optional input required, changing a status code, or changing the meaning of an existing value while keeping its name: all breaking, and the last one is the worst, because nothing in any schema catches it.",
+          "Where the version number lives matters less than people argue. In the path (/v2/charges) it is explicit, trivially routable and visible in every log line. In a header or media type it keeps URLs stable so a resource has one identity across versions. Both work. What does not work is mixing them, or versioning at three different granularities in the same API, because then no one can answer what version they are on without reading your source.",
+          "Stripe's model is the most demanding and the most instructive. An account is pinned to the API version that was current when it first integrated, and requests and responses are passed through a chain of transformations between that version and the current internal one. The cost is that every backwards-incompatible change ever made must exist forever as a piece of running code. What it buys is that they have effectively never broken an existing integration, on an API where breaking one means someone stops taking payments.",
+          "Retirement is the part almost everyone skips, and it is the only part that determines whether versioning was worth doing. A version lives exactly as long as clients use it, so the prerequisite is per-version usage telemetry broken down by client: not how many requests hit v1, but which twelve integrators are responsible for them and when each last called. Without that, nobody can prove removal is safe, so nothing is ever removed and every version is maintained forever.",
+          "With the telemetry, deprecation becomes a process rather than a hope. Announce with a date. Advertise it in the responses themselves, using the Sunset header from RFC 8594 and the Deprecation header standardised in RFC 9745, so the machinery can see it and not only the mailing list nobody reads. Contact the identified clients directly, because they are a list rather than a crowd. Then run brownouts, short deliberate outages of the old version at announced times, which is the only reliable way to find the integrations whose owners left the company two years ago. Google's deprecation policy commits to a year of notice for stable APIs; a year with brownouts works, and a year of silence followed by a switch-off does not.",
+          "The last piece of advice is to version the smallest thing that changed. A global version bump forces every client to revalidate everything to receive one new field, so it gets deferred, so the old version never empties. A new field behind a flag, a new endpoint beside the old one, or a per-resource version keeps the blast radius proportionate to the change, and keeps the migration something a client can do in an afternoon.",
         ],
-        why: "Most teams version and then never remove anything, so every version is maintained forever. Measuring usage per version is what makes deprecation possible at all.",
+        why: "Most teams version and then never remove anything, which is the worst of both worlds: all the cost of maintaining parallel behaviour and none of the freedom to change. Per-version usage telemetry is what turns retirement into a decision someone can actually make.",
         inPractice:
-          "Stripe pins each account to the API version current when it first integrated, and runs request and response transforms between versions. It is expensive to maintain and it means they have never broken an existing integration.",
+          "Stripe pins each account to the version it integrated against and transforms between versions on every call, and has kept old integrations working for over a decade. At the other extreme, Twitter's retirement of v1.1 in 2023 shows the other lever: when the old version genuinely must go, the deadline has to be real, and the ecosystem finds out who was still on it the hard way.",
+        diagram: {
+          caption: "A pinned version, and the transforms that keep an old client working",
+          columns: [
+            [
+              { id: "old", label: "Old client", sub: "pinned 2019-08", kind: "client" },
+              { id: "new", label: "New client", sub: "current version", kind: "client" },
+            ],
+            [{ id: "ver", label: "Version router", sub: "reads the pin", kind: "edge" }],
+            [{ id: "xform", label: "Transform chain", sub: "2019-08 to current", kind: "service" }],
+            [{ id: "core", label: "Core API", sub: "one internal shape", kind: "service" }],
+            [{ id: "usage", label: "Usage telemetry", sub: "per version, per client", kind: "data" }],
+          ],
+          edges: [
+            { from: "old", to: "ver", label: "request" },
+            { from: "new", to: "ver", label: "request" },
+            { from: "ver", to: "xform", label: "old versions only" },
+            { from: "xform", to: "core", label: "normalised" },
+            { from: "ver", to: "usage", label: "who is on what", async: true },
+          ],
+        },
         check: {
           prompt: "Which is a backwards-compatible API change?",
           options: [
@@ -187,6 +394,44 @@ export const design2: Card[] = [
           correctIndex: 1,
           explain: "Additions are safe because existing clients ignore unknown fields. Renames, new requirements and changed codes all break someone.",
         },
+        checks: [
+          {
+            prompt: "What has to exist before an old API version can actually be retired?",
+            options: [
+              "A migration guide covering every breaking change in the new version",
+              "Per-version usage telemetry showing which clients still call it, and when",
+              "A contractual notice period agreed with every integrator in advance",
+              "A compatibility layer that rewrites old requests into the new shape",
+            ],
+            correctIndex: 1,
+            explain:
+              "Without knowing who is on the old version, removal can never be proved safe, so it never happens. The named list is also what makes the deprecation tractable: it is usually a dozen integrators, not a crowd.",
+          },
+          {
+            prompt: "Why do teams run deliberate brownouts of a deprecated version before switching it off?",
+            options: [
+              "To measure whether the new version can absorb the additional load",
+              "To satisfy the notice requirements set out in RFC 8594 and RFC 9745",
+              "To surface integrations whose owners never read the deprecation notice",
+              "To let clients test their fallback path against a controlled failure",
+            ],
+            correctIndex: 2,
+            explain:
+              "Announcements reach the people who are still reading. A short, announced outage reaches everyone else, because it produces a support ticket from exactly the integrations that no notice ever reached.",
+          },
+          {
+            prompt: "Which change is breaking even though the schema is unchanged?",
+            options: [
+              "Adding a new value to an enum the client only ever sends",
+              "Returning an existing field in a different order within the object",
+              "Adding an optional query parameter that defaults to the old behaviour",
+              "Redefining what an existing field means while keeping its name and type",
+            ],
+            correctIndex: 3,
+            explain:
+              "A field that changes meaning passes every schema check and every contract test, and quietly changes what the client computes. It is the one breaking change that no tooling catches, which is why it is worth naming explicitly.",
+          },
+        ],
       },
     ],
   },

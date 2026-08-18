@@ -379,10 +379,34 @@ export const foundations: Card[] = [
         title: "Processes, threads and async",
         level: "beginner",
         body: [
-          "Processes have separate memory and are isolated. Threads share memory within a process, which makes communication cheap and data races possible. Async runs many tasks on one thread, switching whenever a task waits.",
-          "Async suits IO-bound work, where tasks spend most of their time waiting on network or disk. It does nothing for CPU-bound work, because there is no waiting to exploit, which is why a CPU-heavy function in Node.js or Python asyncio blocks everything else until it finishes.",
+          "Processes have separate memory and are isolated: one crashing does not take the others with it, and communication between them costs a copy through the kernel. Threads share memory within a process, which makes communication free and data races possible in the same breath. Async runs many tasks on one thread, switching whenever a task waits, which makes concurrency cheap and parallelism impossible.",
+          "The distinction that matters is concurrency versus parallelism. Concurrency is dealing with many things at once, which is a structure. Parallelism is doing many things at once, which needs cores. Async gives you the first and none of the second, and most of the confusion in this area comes from a system that needed the second being given the first.",
+          "Async suits IO-bound work, where tasks spend most of their time waiting on a network or a disk. A web handler that spends 95% of its time waiting on a database can serve hundreds of concurrent requests from one thread, because at any moment nearly all of them are parked. That is not a trick, it is the correct shape for work that is mostly waiting.",
+          "It does nothing for CPU-bound work, because there is no waiting to exploit. A CPU-heavy function in Node or in Python's asyncio blocks the event loop until it returns, and every other request on that loop waits, including the health check. This is why an image resize or a large JSON parse dropped into an async handler produces a service that is fast until someone uploads a large photograph.",
+          "The costs of threads are worth naming, because the usual advice to just use threads has a bill. Each one carries a stack, typically measured in megabytes of reserved address space, so tens of thousands of threads is not a plan. Every context switch costs the kernel a few microseconds and evicts cache lines that were warm. And shared memory means locks, which means contention and the possibility of deadlock. Async avoids all three by making the switching explicit and cooperative, at the cost of one badly behaved task ruining everything.",
+          "In practice the answer is usually all three in layers: processes for isolation and for using every core, a small pool of threads inside each for CPU-bound work, and async for the IO-bound majority. The question is never which model is best, it is what this particular work waits on, and there is usually more than one answer in one service.",
         ],
         why: "Choosing async for CPU-bound work is a common and expensive mistake. The question is what the work waits on, not which model is modern.",
+        inPractice:
+          "Node and Python's asyncio both run application code on one loop, which is why both ship worker threads or process pools for the CPU-bound cases. Nginx made the same argument years earlier against a thread per connection, and won it.",
+        diagram: {
+          caption: "One loop for waiting, a pool for computing",
+          columns: [
+            [{ id: "reqs", label: "Requests", sub: "mostly IO-bound", kind: "client" }],
+            [{ id: "loop", label: "Event loop", sub: "one thread", kind: "service" }],
+            [
+              { id: "io", label: "Awaiting IO", sub: "hundreds parked", kind: "data" },
+              { id: "cpu", label: "CPU-bound work", sub: "blocks the loop", kind: "data", alternative: true },
+            ],
+            [{ id: "pool", label: "Worker pool", sub: "threads or processes", kind: "service" }],
+          ],
+          edges: [
+            { from: "reqs", to: "loop", label: "accepted" },
+            { from: "loop", to: "io", label: "yields while waiting" },
+            { from: "loop", to: "cpu", label: "never yields" },
+            { from: "cpu", to: "pool", label: "move it here", async: true },
+          ],
+        },
         check: {
           prompt: "Your single-threaded async server stalls whenever a report is generated. Why?",
           options: [
@@ -394,17 +418,84 @@ export const foundations: Card[] = [
           correctIndex: 3,
           explain: "Async multiplexes waiting, not computing. CPU-bound work must move to a worker thread, separate process, or background job.",
         },
+        checks: [
+          {
+            prompt: "What is the difference between concurrency and parallelism?",
+            options: [
+              "Concurrency is a structure for interleaving work; parallelism needs cores",
+              "Concurrency applies to threads, and parallelism applies to processes",
+              "Concurrency is cooperative scheduling; parallelism is preemptive scheduling",
+              "Concurrency requires shared memory; parallelism requires message passing",
+            ],
+            correctIndex: 0,
+            explain:
+              "A single core can be concurrent and cannot be parallel. Async gives you interleaving, which is enough when the work is mostly waiting and useless when the work is computing.",
+          },
+          {
+            prompt: "Why is a thread per connection a poor design at tens of thousands of connections?",
+            options: [
+              "Threads cannot wait on sockets without consuming CPU while blocked",
+              "Each thread reserves stack space, and switching between them costs time",
+              "The kernel refuses to schedule more than a few thousand threads at once",
+              "Shared memory between many threads makes cache invalidation impossible",
+            ],
+            correctIndex: 1,
+            explain:
+              "Stacks are reserved per thread and context switches cost the kernel time and cache warmth. That is the pressure that produced event loops, not any inability of threads to wait.",
+          },
+          {
+            prompt: "Where does CPU-bound work belong in an async service?",
+            options: [
+              "In the handler, wrapped so it yields to the loop between iterations",
+              "In a worker thread pool or a separate process, off the event loop",
+              "In a queue consumed by the same process during idle periods",
+              "In the handler, with a longer timeout to absorb the extra latency",
+            ],
+            correctIndex: 1,
+            explain:
+              "Nothing that computes can share a loop with work that waits, because it never yields. Moving it to a thread pool or another process is the only fix that keeps the loop responsive.",
+          },
+        ],
       },
       {
         id: "race-conditions",
         title: "Race conditions and locks",
         level: "intermediate",
         body: [
-          "A race condition is a correctness bug that depends on timing. Read-modify-write is the classic shape: two requests read the same value, both compute from it, and one result is lost.",
-          "Locks prevent it by serialising access, at the cost of contention and the risk of deadlock when locks are taken in different orders.",
-          "Often the better fix is to avoid the read entirely: an atomic increment, or a conditional update that fails if the row changed.",
+          "A race condition is a correctness bug that depends on timing, which is why it passes every test on a laptop and appears in production at a rate proportional to traffic. Read-modify-write is the classic shape: two requests read the same value, both compute from it, and one result is silently lost. Nothing errors, nothing logs, and the total is simply wrong.",
+          "Locks prevent it by serialising access, and they are the first instinct because they are the most obvious. The costs are contention, since everyone waits their turn on the hot row, and deadlock, when two paths take the same two locks in opposite orders and each waits for the other forever. Deadlock is preventable by always acquiring locks in a fixed global order, which is a rule that has to be written down somewhere because it cannot be enforced by the type system.",
+          "The better fix is usually to remove the gap rather than guard it. An atomic increment does the read and the write as one operation the database cannot interleave. A conditional update, set stock to 0 where stock is currently 1, fails cleanly when someone else got there first, and the caller retries or reports a conflict. Both turn a timing bug into a visible outcome.",
+          "That conditional update is optimistic concurrency control, and the general form is a version column: read the row and its version, write with a condition that the version is unchanged, and bump it. Zero locks are held between the read and the write, which is the point, because the user's thinking time is not something to hold a lock across. It is the right default when conflicts are rare, and the wrong one when they are common, because every conflict costs a wasted round trip.",
+          "Pessimistic locking is the other half of that pair: take the lock first, hold it for the duration, and make everyone else wait. SELECT FOR UPDATE is the usual form. It is right when conflicts are frequent enough that retrying is more expensive than queueing, and it needs a timeout, because a lock held by a process that died is a lock held forever unless something reclaims it.",
+          "Distributed locks deserve suspicion. Once the lock lives in another system, a process can be paused by garbage collection, lose its lease, and resume believing it still holds it, while another process holds it for real. Fencing tokens are the standard mitigation: the lock hands out an increasing number, the resource rejects any write carrying a number lower than the highest it has seen, and the zombie's late write is refused. If you can restructure the problem to avoid needing the lock, that is almost always cheaper than getting this right.",
         ],
         why: "Reaching for a lock is the first instinct and rarely the best one. Making the operation atomic removes the race instead of guarding it, with no contention and no deadlock.",
+        inPractice:
+          "Every relational database ships the tools for this: a conditional update, a unique constraint, SELECT FOR UPDATE and a version column. The bugs almost always come from doing the check in application code between two statements, where the database cannot help.",
+        diagram: {
+          caption: "The gap between read and write is the whole bug",
+          columns: [
+            [
+              { id: "r1", label: "Request A", sub: "reads stock = 1", kind: "client" },
+              { id: "r2", label: "Request B", sub: "reads stock = 1", kind: "client" },
+            ],
+            [
+              { id: "gap", label: "Read then write", sub: "two statements", kind: "service", alternative: true },
+              { id: "cond", label: "Conditional update", sub: "one statement", kind: "service" },
+            ],
+            [
+              { id: "bad", label: "Both sell", sub: "stock = 0, two orders", kind: "data", alternative: true },
+              { id: "good", label: "One wins", sub: "the other sees a conflict", kind: "data" },
+            ],
+          ],
+          edges: [
+            { from: "r1", to: "gap", label: "checks, then writes" },
+            { from: "r2", to: "gap", label: "checks, then writes" },
+            { from: "gap", to: "bad", label: "interleaved" },
+            { from: "r1", to: "cond", label: "where stock = 1" },
+            { from: "cond", to: "good", label: "the second matches nothing" },
+          ],
+        },
         check: {
           prompt: "Two requests both read stock = 1 and both sell the item. Cleanest fix?",
           options: [
@@ -417,6 +508,44 @@ export const foundations: Card[] = [
           explain:
             "Removing the read-then-write gap removes the race, and a conditional update does it without serialising unrelated traffic. Re-reading just before the write is the answer that feels careful and is not: it narrows the window without closing it, because the check and the write are still two statements.",
         },
+        checks: [
+          {
+            prompt: "When is optimistic concurrency the wrong choice?",
+            options: [
+              "When the same rows are contended often, so conflicts are the common case",
+              "When the transaction spans several tables rather than a single row",
+              "When the client cannot be trusted to send back the version it read",
+              "When reads vastly outnumber writes on the rows being protected",
+            ],
+            correctIndex: 0,
+            explain:
+              "Optimistic control is cheap when it usually succeeds. Under heavy contention most attempts fail and retry, so you pay for the work twice and add latency, which is exactly when taking the lock up front wins.",
+          },
+          {
+            prompt: "What problem do fencing tokens solve in distributed locking?",
+            options: [
+              "They stop two clients acquiring the same lock at the same instant",
+              "They let a lock be released safely by a process other than the holder",
+              "They let the resource reject a write from a holder whose lease expired",
+              "They order lock acquisition globally, which prevents deadlock entirely",
+            ],
+            correctIndex: 2,
+            explain:
+              "A paused process can resume believing it still holds a lock that has since expired. An increasing token checked by the resource means its late write is refused, which is protection the lock service alone cannot provide.",
+          },
+          {
+            prompt: "Two code paths deadlock when they update the same pair of rows. What is the standard fix?",
+            options: [
+              "Shorten the transactions, so the window in which both are held is smaller",
+              "Acquire the locks in the same order everywhere, by a rule written down",
+              "Set a lock timeout, so one transaction aborts and releases the other",
+              "Move one of the updates outside the transaction so only one lock is held",
+            ],
+            correctIndex: 1,
+            explain:
+              "Deadlock needs a cycle, and a consistent global acquisition order makes a cycle impossible. Timeouts turn a hang into an error, which is better than hanging and is not a fix.",
+          },
+        ],
       },
       {
         id: "idempotency",
@@ -499,16 +628,78 @@ export const foundations: Card[] = [
           explain:
             "A timeout is ambiguous by nature; the key lets the server tell a retry from a new request. PUT being idempotent is a statement about what the method promises, not about what your handler does, naming it PUT and charging the card twice breaks the promise instead of keeping it.",
         },
+        checks: [
+          {
+            prompt: "Why insert the idempotency key with a pending state before doing the work?",
+            options: [
+              "So a concurrent retry collides on the unique constraint rather than passing",
+              "So the client can poll the key to discover how far the work has got",
+              "So the key can be reclaimed automatically once the work has completed",
+              "So the work and the key are written in a single database statement",
+            ],
+            correctIndex: 0,
+            explain:
+              "Writing the key afterwards lets two retries both pass the check and both do the work. Inserting first under a unique constraint means the second one collides, and the pending row is what the first attempt later fills in.",
+          },
+          {
+            prompt: "An idempotency key is generated fresh on every retry attempt. What breaks?",
+            options: [
+              "Nothing, provided the server stores the result against each key it sees",
+              "The server sees each attempt as new work and performs it every time",
+              "The unique constraint rejects the second attempt as a duplicate key",
+              "The stored results accumulate, so the key table grows without bound",
+            ],
+            correctIndex: 1,
+            explain:
+              "The key identifies the logical operation, not the attempt. Regenerating it per attempt makes every retry a distinct request, which is precisely the situation the key exists to prevent.",
+          },
+          {
+            prompt: "Which operation needs no idempotency key of its own?",
+            options: [
+              "Creating a refund against a payment that has already settled",
+              "Appending an entry to an audit log for a user action",
+              "Setting a user's email address to a specific new value",
+              "Incrementing a counter of failed sign-in attempts by one",
+            ],
+            correctIndex: 2,
+            explain:
+              "Setting an absolute value is naturally idempotent: doing it twice leaves the same state. Creating something, appending, and incrementing all change the result when repeated, so each needs a key.",
+          },
+        ],
       },
       {
         id: "backpressure",
         title: "Backpressure",
         level: "advanced",
         body: [
-          "When a system accepts work faster than it can finish it, the backlog grows. Queues fill, memory climbs, latency climbs, and it fails at the worst possible moment.",
-          "Backpressure means refusing or slowing intake when downstream cannot keep up, bounded queues, load shedding, rejecting early. Failing fast under overload is better behaviour than accepting everything and then collapsing.",
+          "When a system accepts work faster than it can finish it, the backlog grows, and there is no version of that story with a happy ending. Queues fill, memory climbs, latency climbs, and the failure arrives at the worst possible moment, which is later and larger than the failure you would have had if you had simply said no at the start.",
+          "Backpressure is the mechanism for saying no: refusing or slowing intake when what is downstream cannot keep up. Bounded queues, load shedding, rejecting early with a 503 and a Retry-After. It feels like worse behaviour and it is better behaviour, because a rejection is a signal the caller can act on while a growing backlog is information nobody has.",
+          "TCP is the reference implementation and it is worth studying because everyone already depends on it. The receiver advertises a window, the amount it is prepared to accept; when the application stops reading, the window shrinks to zero and the sender stops sending. No messages are lost, no buffer grows without bound, and the pressure propagates back to the source through nothing more than an advertised number. Every good backpressure design is a version of that.",
+          "In an application it usually means bounding the things that are unbounded by default. A queue with a maximum depth that rejects rather than growing. A connection pool with a fixed size and a short wait, so a slow database produces immediate errors rather than a thousand threads waiting on a pool. A concurrency limit per dependency. Each of these converts an invisible accumulation into an error with a name.",
+          "The subtle failure is backpressure that stops at a boundary. A service that rejects work correctly, in front of a queue that accepts everything, has moved the unbounded buffer one step upstream and made it someone else's surprise. The property you want holds end to end: if the slowest component in a chain can only manage 100 a second, the intake at the front should be admitting roughly 100 a second, not 10,000 into a buffer.",
+          "Where it cannot propagate, drop deliberately and say so. For a live telemetry stream or a metrics pipeline, the right answer under overload is to shed the excess and record how much was shed, because stale telemetry has no value and a growing buffer of it has negative value. That decision belongs in the design with a number attached, rather than emerging at 3am as an out-of-memory kill.",
         ],
         why: "Unbounded queues look like resilience and are the opposite: they convert a visible, recoverable rejection into a hidden backlog that fails later and harder.",
+        inPractice:
+          "TCP has propagated backpressure through an advertised receive window since the 1980s, which is why a slow reader never causes a sender to exhaust memory. Reactive Streams exists to give application code the same property, and the specification is mostly about who is allowed to send how much.",
+        diagram: {
+          caption: "The limit belongs at the intake, not at the buffer",
+          columns: [
+            [{ id: "in", label: "Arrivals", sub: "10,000 a second", kind: "client" }],
+            [
+              { id: "admit", label: "Admission limit", sub: "503 with Retry-After", kind: "edge" },
+              { id: "unb", label: "Unbounded queue", sub: "accepts everything", kind: "queue", alternative: true },
+            ],
+            [{ id: "work", label: "Workers", sub: "100 a second", kind: "service" }],
+            [{ id: "oom", label: "Out of memory", sub: "later and larger", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "in", to: "admit", label: "admits 100" },
+            { from: "admit", to: "work", label: "matched rate" },
+            { from: "in", to: "unb", label: "accepts 10,000" },
+            { from: "unb", to: "oom", label: "grows without bound", async: true },
+          ],
+        },
         check: {
           prompt: "Under heavy load, a service with an unbounded in-memory queue eventually crashes. Why is a bounded queue better?",
           options: [
@@ -521,6 +712,44 @@ export const foundations: Card[] = [
           explain:
             "The bound turns silent accumulation into a signal callers can act on, while the system stays up. Bounding memory and stabilising latency are both real consequences, but they follow from the rejection; a queue that filled and then quietly dropped work would achieve them too, and would be worse than the crash.",
         },
+        checks: [
+          {
+            prompt: "How does TCP apply backpressure to a sender?",
+            options: [
+              "It drops packets once the receive buffer is full, forcing a retransmit",
+              "The receiver advertises a window, and it shrinks to zero when unread",
+              "It reduces the congestion window whenever an acknowledgement is late",
+              "It sends an explicit pause frame that suspends the connection briefly",
+            ],
+            correctIndex: 1,
+            explain:
+              "The receive window is an advertised number saying how much more the receiver will accept. When the application stops reading it reaches zero and the sender stops, with nothing lost and no buffer growing.",
+          },
+          {
+            prompt: "A service rejects excess work correctly, but sits behind an unbounded queue. What has been achieved?",
+            options: [
+              "The backlog has moved upstream and is now somebody else's surprise",
+              "Nothing changes, since the queue absorbs the rejections transparently",
+              "Latency improves, because the queue smooths the rejection rate",
+              "The system is protected, since the queue is not the constrained resource",
+            ],
+            correctIndex: 0,
+            explain:
+              "Backpressure is only useful if it propagates to the source. A bounded consumer in front of an unbounded buffer has relocated the problem, and the buffer will fail later and less visibly.",
+          },
+          {
+            prompt: "When is dropping data the correct response to overload?",
+            options: [
+              "When the data can be regenerated later from a durable source",
+              "When the data is telemetry whose value expires almost immediately",
+              "When the buffer holding it has exceeded its configured memory limit",
+              "When the consumer has been unavailable for longer than the retention",
+            ],
+            correctIndex: 1,
+            explain:
+              "Stale telemetry has no value and buffering it has negative value. The important part is that the drop is a design decision with a recorded count, rather than an out-of-memory kill discovered afterwards.",
+          },
+        ],
       },
     ],
   },

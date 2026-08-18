@@ -15,6 +15,9 @@ const BuildPage = lazy(() =>
 const ExitPrompt = lazy(() =>
   import("@/components/ExitPrompt").then((m) => ({ default: m.ExitPrompt })),
 );
+const ArchivePage = lazy(() =>
+  import("@/components/ArchivePage").then((m) => ({ default: m.ArchivePage })),
+);
 const WritingPage = lazy(() =>
   import("@/components/WritingPage").then((m) => ({ default: m.WritingPage })),
 );
@@ -78,6 +81,8 @@ export default function App() {
           <Route path="/learn/:cardId" element={<LearnPage />} />
           <Route path="/build" element={<BuildPage />} />
           <Route path="/writing" element={<WritingPage />} />
+          <Route path="/archive" element={<ArchivePage />} />
+          <Route path="/archive/:slug" element={<ArchivePage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

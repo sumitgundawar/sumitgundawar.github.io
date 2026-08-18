@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { trackClick } from "@/lib/hooks";
 import { getTurnstileToken, loadTurnstile } from "@/lib/turnstile";
 import { API } from "@/lib/api";
@@ -72,7 +73,13 @@ export function Newsletter() {
       <div className="max-w-[36em]">
         <p className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
           Notes on building systems that survive production: what broke, and what the fix cost.
-          Sent when there is something worth sending, and never for anything else.
+          Sent when there is something worth sending, and never for anything else.{" "}
+          {/* Asking someone to trust a description of writing they cannot read
+              is a worse pitch than the writing itself. Every issue is public. */}
+          <Link to="/archive" className="link-underline" style={{ color: "var(--accent-2)" }}>
+            Read past issues first
+          </Link>
+          .
         </p>
 
         {state === "done" ? (

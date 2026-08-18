@@ -78,15 +78,20 @@ function corsOrigin(req: Request, env: ApiEnv): string {
   return env.SITE_ORIGIN ?? "https://sumitgundawar.com";
 }
 
-const json = (body: unknown, status = 200, origin = "*") =>
+/* maxAge exists for the archive, which is the only genuinely public, genuinely
+   static thing this API returns: a published issue never changes, so serving it
+   from a cache is free correctness rather than a risk. Everything else defaults
+   to no caching, which is why the parameter is opt-in. */
+const json = (body: unknown, status = 200, origin = "*", maxAge = 0) =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Headers": "Content-Type",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Max-Age": "86400",
+      ...(maxAge ? { "Cache-Control": `public, max-age=${maxAge}` } : {}),
       Vary: "Origin", // the response differs per origin, so caches must not share it
     },
   });
@@ -1643,7 +1648,109 @@ export async function handleBroadcast(req: Request, env: NewsletterEnv): Promise
     { subject: body.subject, html: body.html, text: body.text ?? "" },
     new URL(req.url).origin,
   );
-  return json({ ok: true, queued, note: "queued, not sent: delivery is paced to the provider's daily cap" }, 200, env.SITE_ORIGIN ?? "*");
+
+  /* Keep a copy. An issue that exists only in the inboxes it reached cannot be
+     linked to, cannot be read by someone deciding whether to subscribe, and
+     cannot be found by search, which makes every issue a one-off cost with a
+     one-off return. Archived after the queueing rather than before, because a
+     failure to write the archive must not stop the send, and archived only for
+     a real broadcast: a delivery test addressed to two of my own accounts is
+     not an issue of the newsletter. */
+  let slug: string | null = null;
+  if (!body.to?.length && env.ANALYTICS) {
+    slug = issueSlug(body.subject);
+    try {
+      await env.ANALYTICS.prepare(
+        `insert or ignore into newsletter_issues (slug, subject, html, text, recipients, sent_at)
+         values (?, ?, ?, ?, ?, ?)`,
+      )
+        .bind(slug, body.subject, body.html, body.text ?? "", queued, Math.floor(Date.now() / 1000))
+        .run();
+    } catch (err) {
+      console.log(JSON.stringify({ at: "archive_write_failed", error: String(err).slice(0, 200) }));
+      slug = null;
+    }
+  }
+
+  return json(
+    { ok: true, queued, slug, note: "queued, not sent: delivery is paced to the provider's daily cap" },
+    200,
+    env.SITE_ORIGIN ?? "*",
+  );
+}
+
+/* A slug is a URL, so it is dated and it is stable.
+ *
+ * Dated because two issues can reasonably share a subject a year apart, and a
+ * collision would overwrite history. Stable because the archive URL will be
+ * pasted into places nobody controls, so it cannot be derived from anything
+ * that might be edited later. */
+function issueSlug(subject: string): string {
+  const day = new Date().toISOString().slice(0, 10);
+  const words = subject
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/g, "");
+  return `${day}-${words || "issue"}`;
+}
+
+/** The public archive: the list, and one issue by slug.
+ *
+ *  Deliberately unauthenticated and deliberately read-only. This is the same
+ *  text that went out to a mailing list anyone can join, so there is nothing to
+ *  protect, and the reason it exists is that a link to a past issue is the most
+ *  honest possible answer to what am I signing up for. */
+export async function handleNewsletterArchive(req: Request, env: ApiEnv): Promise<Response | null> {
+  const url = new URL(req.url);
+  if (!url.pathname.startsWith("/api/newsletter")) return null;
+  if (req.method !== "GET" && req.method !== "HEAD") return null;
+
+  const origin = env.SITE_ORIGIN ?? "*";
+  if (!env.ANALYTICS) return json({ issues: [] }, 200, origin);
+
+  const rest = url.pathname.slice("/api/newsletter".length).replace(/^\//, "");
+
+  if (!rest) {
+    const { results } = await env.ANALYTICS.prepare(
+      `select slug, subject, sent_at from newsletter_issues order by sent_at desc limit 100`,
+    ).all<{ slug: string; subject: string; sent_at: number }>();
+    return json({ issues: results ?? [] }, 200, origin, 300);
+  }
+
+  /* The slug is the only user input here and it goes into a bound parameter, so
+     it cannot reach the query as SQL. It is still shape-checked, because an
+     unbounded string as a cache key and a log line is its own small problem. */
+  if (!/^[a-z0-9-]{1,80}$/.test(rest)) return json({ error: "not found" }, 404, origin);
+
+  const row = await env.ANALYTICS.prepare(
+    `select slug, subject, html, text, sent_at from newsletter_issues where slug = ? limit 1`,
+  )
+    .bind(rest)
+    .first<{ slug: string; subject: string; html: string; text: string | null; sent_at: number }>();
+
+  if (!row) return json({ error: "not found" }, 404, origin);
+
+  /* The email exactly as it was mailed, for anyone who wants to see the thing
+     itself rather than a rendering of its words. Served from this Worker rather
+     than injected into the site: it is a complete HTML document written for
+     mail clients, and its own frame is the honest place to show it. The CSP
+     allows the inline styles every email is built from and nothing else, so a
+     stored document cannot fetch or execute anything. */
+  if (url.searchParams.get("format") === "html") {
+    return new Response(row.html, {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "public, max-age=3600",
+        "Content-Security-Policy":
+          "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; font-src https:",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  }
+
+  return json({ issue: row }, 200, origin, 3600);
 }
 
 /** Manual trigger, so the report can be checked without waiting for Monday. */

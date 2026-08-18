@@ -48,7 +48,7 @@ const server = http.createServer((req, res) => {
 /* Remove any directory form left by an earlier build. A stale
    dist/writing/index.html sitting beside a fresh dist/writing.html makes the
    directory win, and the URL 308s to a trailing slash again. */
-for (const entry of ["learn", "build", "writing"]) {
+for (const entry of ["learn", "build", "writing", "archive"]) {
   const dir = path.join(dist, entry);
   if (fs.existsSync(dir) && fs.statSync(dir).isDirectory() && fs.existsSync(path.join(dir, "index.html"))) {
     fs.rmSync(path.join(dir, "index.html"));
@@ -79,10 +79,19 @@ const failures = [];
 for (const route of routes) {
   try {
     await page.goto(`http://localhost:${PORT}${route}`, { waitUntil: "load", timeout: 30000 });
-    // Wait for the app to have put something on the page, not for the network.
-    await page.waitForFunction(() => (document.querySelector("#root")?.textContent ?? "").trim().length > 200, null, {
-      timeout: 20000,
-    });
+    /* Wait for the app to have put something real on the page, not for the
+       network. Real means past 200 characters and past any element that has
+       marked itself as still loading: the learn material now arrives as a
+       chunk of its own, so a page can be mounted, sized and completely empty
+       of content for a frame, and capturing that frame would ship a card whose
+       whole text is the word loading. */
+    await page.waitForFunction(
+      () =>
+        (document.querySelector("#root")?.textContent ?? "").trim().length > 200 &&
+        !document.querySelector("[data-loading]"),
+      null,
+      { timeout: 20000 },
+    );
 
     const html = await page.content();
     const text = await page.evaluate(() => (document.querySelector("#root")?.textContent ?? "").trim().length);

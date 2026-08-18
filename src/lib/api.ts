@@ -221,3 +221,43 @@ export async function nextQuestion(
     return null;
   }
 }
+
+/* The newsletter archive.
+ *
+ * Public and cacheable, unlike everything else here: a published issue is the
+ * same text that went to a mailing list anyone can join, and it never changes
+ * once sent. No session is required, deliberately, because the whole point of
+ * the archive is that someone can read an issue before deciding to subscribe.
+ */
+export interface IssueSummary {
+  slug: string;
+  subject: string;
+  sent_at: number;
+}
+
+export interface Issue extends IssueSummary {
+  html: string;
+  text: string | null;
+}
+
+export async function listIssues(): Promise<IssueSummary[]> {
+  try {
+    const res = await fetch(`${API}/api/newsletter`);
+    if (!res.ok) return [];
+    const j = (await res.json()) as { issues?: IssueSummary[] };
+    return Array.isArray(j.issues) ? j.issues : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function readIssue(slug: string): Promise<Issue | null> {
+  try {
+    const res = await fetch(`${API}/api/newsletter/${encodeURIComponent(slug)}`);
+    if (!res.ok) return null;
+    const j = (await res.json()) as { issue?: Issue };
+    return j.issue ?? null;
+  } catch {
+    return null;
+  }
+}

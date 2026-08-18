@@ -107,3 +107,19 @@ export const TRACKS: { id: Track; label: string; blurb: string }[] = [
   { id: "case-study", label: "Case studies", blurb: "How Netflix, Uber and others actually built it." },
   { id: "interview", label: "Interview preparation", blurb: "Senior and staff level: what is being assessed, and how to show it." },
 ];
+
+/** What the index page needs, and nothing else.
+ *
+ *  The material itself is an order of magnitude larger than its titles, and the
+ *  index renders only titles, summaries and levels. Splitting the two is what
+ *  lets /learn ship a list rather than a library, with each card's contents
+ *  fetched when it is opened. */
+export interface CardMeta {
+  id: string;
+  title: string;
+  summary: string;
+  track: Track;
+  /** Which module holds this card's material, for the dynamic import. */
+  group: string;
+  topics: { id: string; title: string; level: Level }[];
+}

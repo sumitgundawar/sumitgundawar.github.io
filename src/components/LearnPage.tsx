@@ -8,18 +8,26 @@ import { trackQuiz } from "@/lib/api";
 import { track } from "@/lib/track";
 import { useProgress, summarise, type Progress } from "@/lib/progress";
 import { usePageDwell, setSocialMeta } from "@/lib/hooks";
-import {
-  cards,
-  cardsForLevel,
-  countByLevel,
-  topicCount,
-  TRACKS,
-  LEVELS,
-  type Card,
-  type Level,
-  type Topic,
-  type Check,
-} from "@/data/learn";
+/* Imported from the leaf modules rather than from the barrel.
+ *
+ * "@/data/learn" pulls every card into whatever imports it, which is how this
+ * page came to ship 407KB of JavaScript to show one card. The manifest carries
+ * the titles and levels the index renders; the material for an opened card is
+ * fetched as its own chunk. */
+import { manifest, topicCount } from "@/data/learn/manifest";
+import { loadCard } from "@/data/learn/load";
+import { TRACKS, LEVELS, type Card, type CardMeta, type Level, type Topic, type Check } from "@/data/learn/types";
+
+/** Cards that still have something to show once a level filter is applied. */
+function metaForLevel(level: Level | "all"): CardMeta[] {
+  if (level === "all") return manifest;
+  return manifest
+    .map((c) => ({ ...c, topics: c.topics.filter((t) => t.level === level) }))
+    .filter((c) => c.topics.length > 0);
+}
+
+const countByLevel = (level: Level) =>
+  manifest.reduce((n, c) => n + c.topics.filter((t) => t.level === level).length, 0);
 
 const LEVEL_COLOR: Record<Level, string> = {
   beginner: "var(--lv-beginner)",
@@ -433,19 +441,38 @@ export function LearnPage() {
   const setOpenCard = (id: string | null) =>
     navigate(id ? `/learn/${id}${window.location.search}` : `/learn${window.location.search}`);
 
-  const visible = useMemo(() => cardsForLevel(level), [level]);
-  const current = openCard ? visible.find((c) => c.id === openCard) ?? null : null;
+  const visible = useMemo(() => metaForLevel(level), [level]);
+  /* The index knows the card exists and what it is called before any of its
+     material has been fetched, so the heading, the title and the description
+     are correct from the first frame and only the body waits. */
+  const currentMeta = openCard ? manifest.find((c) => c.id === openCard) ?? null : null;
+  const [current, setCurrent] = useState<Card | null>(null);
+
+  useEffect(() => {
+    if (!currentMeta) {
+      setCurrent(null);
+      return;
+    }
+    let live = true;
+    setCurrent(null);
+    void loadCard(currentMeta.group, currentMeta.id).then((card) => {
+      if (live) setCurrent(card);
+    });
+    return () => {
+      live = false;
+    };
+  }, [currentMeta]);
 
   const shownTopics = visible.reduce((n, c) => n + c.topics.length, 0);
 
   useEffect(() => {
-    const title = current
-      ? `${current.title}, Learn engineering`
+    const title = currentMeta
+      ? `${currentMeta.title}, Learn engineering`
       : "Learn engineering, software engineering and system design";
     document.title = title;
-    const desc = current
-      ? current.summary
-      : `${topicCount} topics across ${cards.length} cards, from first principles to senior and staff interview level.`;
+    const desc = currentMeta
+      ? currentMeta.summary
+      : `${topicCount} topics across ${manifest.length} cards, from first principles to senior and staff interview level.`;
     let tag = document.querySelector('meta[name="description"]');
     if (!tag) {
       tag = document.createElement("meta");
@@ -457,7 +484,7 @@ export function LearnPage() {
        site-wide defaults, so a shared link to a specific card was indexed and
        previewed under a name that described the whole site instead. */
     setSocialMeta(title, desc);
-  }, [current]);
+  }, [currentMeta]);
 
   return (
     <main id="content" className="min-h-[100dvh]">
@@ -466,7 +493,16 @@ export function LearnPage() {
           ← back to profile
         </Link>
 
-        {current ? (
+        {currentMeta && !current ? (
+          /* data-loading is the signal the prerenderer waits to disappear.
+             Without it a build could capture this frame and ship a page whose
+             entire content is the word loading. */
+          <div className="mt-10" data-loading="card">
+            <p className="mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
+              loading {currentMeta.title.toLowerCase()}
+            </p>
+          </div>
+        ) : current ? (
           <div className="mt-8">
             <CardDetail
               card={current}
@@ -504,7 +540,7 @@ export function LearnPage() {
                 inside the filter pills immediately below. Same four numbers,
                 four lines of phone screen, no extra information. */}
             {(() => {
-              const all = summarise(progress, cards.flatMap((c) => c.topics.map((t) => t.id)));
+              const all = summarise(progress, manifest.flatMap((c) => c.topics.map((t) => t.id)));
               if (!all.answered) return null;
               return (
                 <div className="mt-6 max-w-[36em]">

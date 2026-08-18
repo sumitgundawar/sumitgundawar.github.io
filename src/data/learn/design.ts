@@ -603,7 +603,7 @@ export const design: Card[] = [
   {
     id: "resilience",
     title: "Rate limiting and resilience",
-    summary: "Staying up when a dependency does not.",
+    summary: "Timeouts, retries, breakers, limits and degradation: staying up when a dependency does not.",
     track: "design",
     topics: [
       {
@@ -611,65 +611,33 @@ export const design: Card[] = [
         title: "Token bucket and sliding window",
         level: "intermediate",
         body: [
-          "A fixed window counter is simple, and it allows double the limit across a boundary: a full quota at the end of one window, another full quota at the start of the next. A limit of 100 a minute permits 200 in the two seconds either side of the boundary, which is the burst you were trying to prevent.",
-          "A sliding window fixes that by weighting the previous window: at twenty seconds into the current one, it counts a third of the current window plus two thirds of the last. A token bucket takes a different approach, refilling at a steady rate up to a maximum, so a caller who has been quiet can spend the accumulated tokens at once.",
-          "Token bucket usually fits an API best, because real traffic is bursty and a strictly even rate feels broken to whoever is using it. A bucket of 100 refilling at 10 a second lets a client that has idled for ten seconds fire 100 requests immediately, then settle to 10 a second, which is what a paginating client or a page loading twelve resources actually does.",
-          "Where you count matters as much as how. Per-IP catches the obvious abuse and punishes an office behind one NAT; per-key is right for an authenticated API but useless before login; per-user-per-endpoint is the most correct and the most state. Return 429 with a Retry-After, because a client that does not know when to come back will either hammer you or give up entirely, and both are worse than telling it.",
+          "A fixed window counter is simple, and it allows double the limit across a boundary: a full quota at the end of one window, another full quota at the start of the next. A limit of 100 a minute permits 200 in the two seconds either side of the boundary, which is exactly the burst you were trying to prevent, and it arrives at the least convenient moment because every client with a cron job fires on the minute.",
+          "A sliding window fixes that by weighting the previous window: twenty seconds into the current one, it counts a third of the current window plus two thirds of the last. It is an approximation, and it is cheap, one counter per window per key rather than a timestamp per request, which is why it is what large edge platforms actually run. A true sliding log, keeping every request timestamp, is exact and costs memory proportional to traffic, which is the wrong trade at the edge and the right one for a small number of very expensive operations.",
+          "A token bucket takes a different approach: refill at a steady rate up to a maximum, spend one token per request. It usually fits an API best, because real traffic is bursty and a strictly even rate feels broken to whoever is using it. A bucket of 100 refilling at 10 a second lets a client that has idled for ten seconds fire 100 requests immediately, then settle to 10 a second, which is what a paginating script or a page loading twelve resources actually does. The leaky bucket is the same shape with the burst removed: a queue that drains at a fixed rate, right when the thing you are protecting cannot absorb a spike at all.",
+          "Where you count matters as much as how you count. Per-IP catches obvious abuse and punishes an office behind one NAT, or every user of a mobile carrier's gateway. Per-key is right for an authenticated API and useless before login, which is where the credential stuffing happens. Per-user-per-endpoint is the most correct and carries the most state. Most real systems run several limiters at once, on different keys, for different reasons.",
+          "Stripe published theirs, and the shape is worth copying: a request rate limiter for sustained traffic, a concurrency limiter for calls in flight at once because a slow endpoint can starve a fleet without ever breaching a rate, and two load shedders that reserve capacity for critical traffic when the fleet is under pressure, so a runaway batch job cannot stop a card being charged.",
+          "Whatever you choose, tell the caller. Return 429 with a Retry-After, and publish the remaining budget and reset time on every response, not just the rejected ones. A client that cannot see the limit either hammers you until it hits the wall or backs off so conservatively that it never uses what it paid for. Both are worse for you than telling it, and the second one generates a support ticket saying your API is slow.",
         ],
         why:
-          "Limits exist to protect a resource, so the shape should follow what that resource cannot absorb. A bucket that permits bursts is right when the cost is throughput; a strict rate is right when the cost is a downstream call you pay for per invocation.",
-        diagram: {
-          "caption": "A bucket refills at a steady rate and permits a burst up to its size",
-          "columns": [
-            [
-              {
-                "id": "c",
-                "label": "Caller",
-                "kind": "client"
-              }
-            ],
-            [
-              {
-                "id": "lim",
-                "label": "Token bucket",
-                "sub": "refills per second",
-                "kind": "edge"
-              }
-            ],
-            [
-              {
-                "id": "app",
-                "label": "Your API",
-                "kind": "service"
-              },
-              {
-                "id": "no",
-                "label": "429",
-                "sub": "with Retry-After",
-                "kind": "external"
-              }
-            ]
-          ],
-          "edges": [
-            {
-              "from": "c",
-              "to": "lim",
-              "label": "request"
-            },
-            {
-              "from": "lim",
-              "to": "app",
-              "label": "token available"
-            },
-            {
-              "from": "lim",
-              "to": "no",
-              "label": "bucket empty"
-            }
-          ]
-        },
+          "Limits exist to protect a resource, so the shape should follow what that resource cannot absorb. A bucket that permits bursts is right when the cost is throughput; a strict rate is right when the cost is a downstream call you pay for per invocation; a concurrency limit is right when the cost is a held connection. Picking the algorithm before naming the resource is how you end up with a limit that blocks good traffic and misses the bad.",
         inPractice:
-          "GitHub's REST API returns X-RateLimit-Remaining and X-RateLimit-Reset on every response, so a client can pace itself rather than discover the limit by hitting it. Stripe does the same and documents the retry behaviour it expects.",
+          "GitHub returns the remaining budget and the reset time on every response, so a client can pace itself rather than discover the limit by hitting it. Stripe runs four limiters side by side, rate, concurrency and two load shedders, because the ways an API can be overwhelmed are not variations of one another.",
+        diagram: {
+          caption: "A bucket refills at a steady rate and permits a burst up to its size",
+          columns: [
+            [{ id: "c", label: "Caller", kind: "client" }],
+            [{ id: "lim", label: "Token bucket", sub: "refills per second", kind: "edge" }],
+            [
+              { id: "app", label: "Your API", kind: "service" },
+              { id: "no", label: "429", sub: "with Retry-After", kind: "external" },
+            ],
+          ],
+          edges: [
+            { from: "c", to: "lim", label: "request" },
+            { from: "lim", to: "app", label: "token available" },
+            { from: "lim", to: "no", label: "bucket empty" },
+          ],
+        },
         check: {
           prompt: "With a fixed window of 100 requests per minute, how many can a client send in a two-second span?",
           options: [
@@ -681,77 +649,248 @@ export const design: Card[] = [
           correctIndex: 2,
           explain: "100 at the end of one window and 100 at the start of the next lands 200 in quick succession. Sliding windows and token buckets avoid this.",
         },
+        checks: [
+          {
+            prompt: "An endpoint holds a connection for 30 seconds. A rate limit of 100 a minute is in place and the fleet still falls over. Why?",
+            options: [
+              "The limiter counts requests, not the calls still open at any moment",
+              "Long requests are counted when they finish, so the window is wrong",
+              "Retry-After is ignored by clients on connections already established",
+              "The limiter refills faster than long requests can be completed",
+            ],
+            correctIndex: 0,
+            explain:
+              "Rate and concurrency are different resources. A hundred slow calls a minute can mean fifty open at once, each holding a worker, which a rate limiter never sees. That is why a concurrency limiter usually sits beside the rate limiter rather than instead of it.",
+          },
+          {
+            prompt: "Why do large edge platforms use a weighted sliding window rather than a sliding log?",
+            options: [
+              "A log cannot be shared across the many nodes serving one customer",
+              "A log stores a timestamp per request, so memory scales with traffic",
+              "A weighted window is exact, and a log is only ever an approximation",
+              "A log cannot express bursts, which is what real clients actually send",
+            ],
+            correctIndex: 1,
+            explain:
+              "The exact answer costs memory proportional to the traffic you are trying to survive. Two counters per key and a weighting is close enough at the edge, and the error is small compared to the cost of being precise about it.",
+          },
+          {
+            prompt: "Rate limiting per IP address is the default in many gateways. What does it get wrong?",
+            options: [
+              "It cannot be applied before a request has been authenticated",
+              "It requires storing an identifier that counts as personal data",
+              "One office or carrier behind one address shares a single budget",
+              "Addresses rotate too often for a counter to accumulate usefully",
+            ],
+            correctIndex: 2,
+            explain:
+              "Thousands of legitimate users behind one NAT or mobile gateway look like one very busy client, while an attacker with a pool of addresses looks like thousands of quiet ones. It is the cheapest key available before login, and it is a poor proxy for a user.",
+          },
+        ],
+      },
+      {
+        id: "timeouts",
+        title: "Timeouts and deadlines",
+        level: "intermediate",
+        body: [
+          "A timeout is the number that decides how long you are willing to hold a resource for an answer that may never come, and most systems get it by accident. The default in many HTTP clients is no timeout at all, or a connect timeout with no read timeout, which is the same thing where it matters: a socket that opens and then goes quiet holds a worker forever.",
+          "Little's Law gives you the arithmetic and it is worth doing on paper before an incident does it for you. Concurrency equals arrival rate times latency. A service taking 100 requests a second at 50ms needs 5 concurrent workers. The same service at 30 seconds needs 3,000. Nothing about the traffic changed and nothing about the code changed; the only thing that moved was latency, and the pool that comfortably held 5 is now short by a factor of six hundred. This is why a slow dependency is more dangerous than a dead one: the dead one returns instantly and you handle it.",
+          "Timeouts have to decrease as you go down the call tree. If a browser gives up after 10 seconds, the API waiting 30 for a service that waits 30 for the database means every layer is working on a result nobody is waiting for, holding connections that live requests need. The rule is that each hop's timeout is shorter than its caller's, with room for a retry if the layer retries.",
+          "The better version of the rule is a deadline rather than a timeout: a wall-clock instant that travels with the request, so each hop passes on the time remaining rather than starting a fresh clock. gRPC does this natively, and it is why a deep call tree there degrades sensibly. Over HTTP you carry it yourself in a header and enforce it in a middleware. The difference shows up in the tail: with independent timeouts, four hops of 2 seconds each can spend 8 seconds serving a client that left after 3.",
+          "Choose the number from the latency distribution, not from a round figure. A timeout at the 99th percentile plus a margin cuts off the pathological tail without failing the merely slow. Setting it at the mean fails a fifth of good requests; setting it at ten times the p99 means it never fires and you have written a comment rather than a control.",
+          "The instinct during an incident is to raise the timeout, and it reliably makes things worse: the calls that were failing now wait longer before failing, holding more resources for longer, and the failure spreads from one dependency to everything sharing that pool. Failing fast is what frees capacity, and it is what turns a broken dependency into a degraded page instead of a total outage.",
+        ],
+        why:
+          "Every timeout is a statement about how long a result stays worth having, and that is a product question as much as an engineering one. Systems that survive dependency failures are the ones where that number was chosen deliberately, propagated down the tree, and set lower than the patience of whoever is waiting.",
+        inPractice:
+          "gRPC carries a deadline on every call and propagates the remainder to downstream calls automatically, which is the mechanism most teams end up reimplementing badly over HTTP. Amazon's Builders' Library recommends picking timeouts from the observed latency distribution rather than round numbers, on the grounds that a timeout chosen without data is either never reached or fires constantly.",
+        diagram: {
+          caption: "A deadline travels with the request; independent timeouts do not",
+          columns: [
+            [{ id: "user", label: "Browser", sub: "gives up at 10s", kind: "client" }],
+            [{ id: "api", label: "API", sub: "budget 9s", kind: "service" }],
+            [{ id: "svc", label: "Service", sub: "budget 6s left", kind: "service" }],
+            [{ id: "db", label: "Database", sub: "budget 3s left", kind: "data" }],
+            [{ id: "drop", label: "Cancelled work", sub: "nobody is waiting", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "user", to: "api", label: "deadline set" },
+            { from: "api", to: "svc", label: "time remaining" },
+            { from: "svc", to: "db", label: "time remaining" },
+            { from: "db", to: "drop", label: "without a deadline", async: true },
+          ],
+        },
+        check: {
+          prompt: "A service handling 100 requests a second sees latency go from 50ms to 30s. How many concurrent requests is it now holding?",
+          options: [
+            "About 5, since the request rate has not changed at all",
+            "About 300, one for every hundredth of the new latency",
+            "About 3,000, because concurrency is arrival rate times latency",
+            "About 30,000, one per second of latency per request in flight",
+          ],
+          correctIndex: 2,
+          explain:
+            "Little's Law: concurrency equals arrival rate times latency. 100 per second times 30 seconds is 3,000 in flight, against a pool sized for 5. The traffic did not change; only the time each request holds a worker did.",
+        },
+        checks: [
+          {
+            prompt: "Why must a deeper service have a shorter timeout than the one calling it?",
+            options: [
+              "Deeper services are slower, so they need a tighter budget to compensate",
+              "Otherwise it keeps working on a result its caller has already abandoned",
+              "Shorter timeouts deeper down reduce the total number of retries attempted",
+              "The connection pool is shared, so the deepest timeout sets the limit",
+            ],
+            correctIndex: 1,
+            explain:
+              "If the layer below waits longer than the layer above, the caller times out first and everything underneath keeps holding connections for an answer nobody will read. Budgets have to shrink as you descend, leaving room for any retry the layer performs.",
+          },
+          {
+            prompt: "What does a propagated deadline give you that per-hop timeouts do not?",
+            options: [
+              "Every hop knows the time actually left, not a fresh full budget",
+              "Slow hops are automatically retried within the remaining budget",
+              "Downstream services can extend the deadline when work is nearly done",
+              "The client is told in advance how long the whole call will take",
+            ],
+            correctIndex: 0,
+            explain:
+              "Independent timeouts each start a new clock, so four hops of two seconds can add up to eight while the client left after three. A deadline is an instant, not a duration, so every hop is working against the same wall clock.",
+          },
+          {
+            prompt: "During an incident, raising a timeout from 2s to 30s usually makes things worse. Why?",
+            options: [
+              "Longer timeouts increase the chance of a retry landing on a healthy node",
+              "The extra latency pushes the service past its rate limit at the edge",
+              "Requests that used to fail fast now hold workers for fifteen times longer",
+              "Clients interpret slow responses as failures and open new connections",
+            ],
+            correctIndex: 2,
+            explain:
+              "The failing calls do not start succeeding, they just occupy the pool for longer, so the queue behind them grows and the failure spreads to everything sharing that pool. Failing fast is what returns capacity to the requests that can still be served.",
+          },
+        ],
+      },
+      {
+        id: "retries-backoff",
+        title: "Retries, backoff and jitter",
+        level: "intermediate",
+        body: [
+          "A retry is the cheapest available fix for a transient failure and the fastest available way to turn a small problem into an outage. Both are true, and which one you get depends on three decisions: whether the call is safe to repeat, how long you wait between attempts, and whether the system as a whole has a budget for retrying at all.",
+          "Safety comes first. Retrying a non-idempotent call after a timeout is how a customer gets charged twice, because a timeout tells you nothing about whether the work happened. The fix is an idempotency key generated by the client, stored server side with the result, so a repeat returns the original outcome rather than performing the work again. Without that, the only correct retry policy for a payment is no retries.",
+          "Immediate retries are the wrong shape because the thing you are retrying is usually overload, and hitting it again straight away adds to exactly the load that caused the failure. Exponential backoff, doubling the wait each attempt with a ceiling, gives the dependency room to recover. But backoff alone leaves every client synchronised: they all failed at the same instant, so they all retry at the same instant, and the recovering service is hit by a wall.",
+          "Jitter is what breaks the synchronisation, and AWS published the arithmetic in 2015. Full jitter, sleeping a random duration between zero and the capped exponential interval, produced substantially less contention and less total work than plain exponential backoff in their simulations. It feels wrong to make the delay random and it is the single highest-value line in most retry implementations.",
+          "The failure that surprises people is amplification. Three attempts at each of four layers is not three times the load, it is up to 3^4, or 81 times, because every layer multiplies the layer below it. A dependency that is slightly unhealthy receives a load spike caused entirely by the reaction to its own slowness, which guarantees it stays unhealthy. Retry at one layer, ideally the one closest to the user, and let the others fail through.",
+          "The systemic answer is a retry budget rather than a per-call limit. Google's SRE practice caps retries at around 10% of requests over a window: below the cap, retries proceed; above it, they are refused, so a broadly failing dependency cannot be flooded by a fleet doing what each node individually considers reasonable. Pair it with servers that say which failures are worth retrying, since a 429 or a 503 with Retry-After is an invitation and a 400 is not, and never retry a call whose deadline has already passed.",
+        ],
+        why:
+          "Retries convert independent failures into correlated load, which is the opposite of what they are meant to do. Everything in a good retry policy, backoff, jitter, budgets, retrying at one layer only, exists to stop the reaction to a failure from being larger than the failure.",
+        inPractice:
+          "The AWS SDKs default to exponential backoff with jitter and a small attempt count, and their guidance is to retry at one layer rather than at every layer. Google's SRE book describes both the client-side retry budget of roughly 10% and servers signalling explicitly when a request should not be retried, which is the pair that keeps a partial failure from becoming a total one.",
+        diagram: {
+          caption: "Retry at one layer, with jitter, inside a budget",
+          columns: [
+            [{ id: "cl", label: "Client", sub: "retries here only", kind: "client" }],
+            [{ id: "budget", label: "Retry budget", sub: "10% of requests", kind: "edge" }],
+            [{ id: "a", label: "Service A", sub: "no retries", kind: "service" }],
+            [{ id: "b", label: "Service B", sub: "no retries", kind: "service" }],
+            [
+              { id: "dep", label: "Dependency", sub: "recovering", kind: "external" },
+              { id: "storm", label: "3 retries per layer", sub: "81x load", kind: "external", alternative: true },
+            ],
+          ],
+          edges: [
+            { from: "cl", to: "budget", label: "attempt" },
+            { from: "budget", to: "a", label: "under budget" },
+            { from: "a", to: "b", label: "fail through" },
+            { from: "b", to: "dep", label: "one attempt" },
+            { from: "b", to: "storm", label: "if every layer retries", async: true },
+          ],
+        },
+        check: {
+          prompt: "Each of four layers retries a failing call three times. How much load does the bottom dependency see?",
+          options: [
+            "Three times the original, since retries at each layer share one budget",
+            "Twelve times, three attempts added at each of the four layers",
+            "Up to 81 times, because each layer multiplies the one below it",
+            "The same as normal, because failed calls never reach the bottom layer",
+          ],
+          correctIndex: 2,
+          explain:
+            "Retries compound rather than add: three attempts per layer over four layers is 3 to the power of 4. The dependency's slowness produces a load spike caused entirely by the reaction to it, which is how it stays slow.",
+        },
+        checks: [
+          {
+            prompt: "Why add jitter to an exponential backoff schedule?",
+            options: [
+              "It spreads clients out, so a recovering service is not hit all at once",
+              "It increases the number of attempts that fit within the retry budget",
+              "It prevents a client from being fingerprinted by its retry pattern",
+              "It compensates for clock differences between client and server",
+            ],
+            correctIndex: 0,
+            explain:
+              "Clients that failed together back off together and return together. Randomising the wait turns a wall of traffic into a slope, and AWS measured it as less total work as well as less contention.",
+          },
+          {
+            prompt: "When is retrying a request after a timeout genuinely unsafe?",
+            options: [
+              "When the call is a read, since the result may have changed since",
+              "When the response was already streamed partially to the client",
+              "When the endpoint has no idempotency key, so a repeat may act twice",
+              "When the deadline is measured by the server rather than the client",
+            ],
+            correctIndex: 2,
+            explain:
+              "A timeout does not tell you whether the work happened. Without an idempotency key stored with its result, the retry may perform the action a second time, which for a payment or a message send is the failure users actually notice.",
+          },
+          {
+            prompt: "What does a retry budget across a fleet achieve that a per-call retry limit does not?",
+            options: [
+              "It guarantees each individual request is eventually served successfully",
+              "It stops a broadly failing dependency being flooded by the whole fleet",
+              "It allows more retries per call when the dependency is healthy again",
+              "It removes the need for backoff, since the total rate is already capped",
+            ],
+            correctIndex: 1,
+            explain:
+              "Every node retrying three times is reasonable in isolation and catastrophic in aggregate. A budget measured against total requests caps the fleet's collective reaction, which is the quantity the dependency actually experiences.",
+          },
+        ],
       },
       {
         id: "circuit-breakers",
-        title: "Circuit breakers and timeouts",
+        title: "Circuit breakers and bulkheads",
         level: "intermediate",
         body: [
-          "A slow dependency is worse than a dead one. A dead one fails immediately and you move on; a slow one holds a thread, a connection and a socket for every caller waiting on it, and those are finite.",
-          "The arithmetic is unforgiving. A service with 200 worker threads calling a dependency that has degraded to 30 seconds, at 100 requests a second, saturates every thread in two seconds and then queues. From outside, your service is down, and the only thing wrong with it is that it is politely waiting.",
-          "A circuit breaker counts failures over a window and trips once they cross a threshold, then fails fast for a cooling period, then lets a single trial request through to test recovery. Closed, open, half-open. The half-open state is what stops it flapping: one request decides, rather than the full load arriving the instant the timer expires.",
-          "Every network call needs a timeout, and it has to be shorter than your caller's. A chain where each hop waits longer than the one above it means the top has already given up while everything below is still working, holding resources for a response nobody will read. Add a bulkhead where one dependency matters more than the rest: a separate connection pool for it caps how much of you it can consume, which a breaker alone does not do.",
+          "A circuit breaker counts failures over a window and trips once they cross a threshold, then fails fast for a cooling period, then lets a single trial request through to test recovery. Closed, open, half-open. The half-open state is the part that matters: without it, the full load arrives the instant the timer expires, knocks the recovering dependency over again, and the breaker flaps between states while everyone watches the dashboard oscillate.",
+          "What a breaker buys you is not error handling, it is capacity. When it is open, calls fail in microseconds instead of holding a worker for the timeout, so the pool stays available for the requests that can still be served. It converts a dependency's failure from something that consumes your service into something that returns an error from one part of your service.",
+          "The threshold should be a rate over a window with a minimum request count, not a raw count. Five failures means nothing at 10,000 requests a second and everything at ten a minute, and a breaker that trips on the first five errors after a quiet night will open on ordinary noise. The usual shape is at least twenty requests in the window and a failure rate above half.",
+          "A bulkhead solves the neighbouring problem: it gives a dependency its own bounded pool of connections or threads, so calls to it cannot consume the resources that every other request needs. The name is from ship compartments, and the point is the same, one flooded compartment does not sink the vessel. A breaker stops you waiting on a broken thing; a bulkhead stops one thing taking everything with it while it breaks. They pair, and neither replaces the other.",
+          "The modern criticism of hand-tuned breakers is that the numbers are guesses that age badly. Netflix built Hystrix, ran it at scale, and then retired it in favour of adaptive concurrency limits, which infer the safe level of in-flight work from observed latency rather than from constants a human chose in 2014. The pattern survived; the fixed thresholds did not, and the lesson worth taking is that a threshold set once will be wrong after the next capacity change.",
+          "Whatever trips has to have somewhere to go. A breaker that opens and returns a 500 has only made the failure faster, which is genuinely valuable, but the better outcome is a fallback: last known good data, a default, or the feature quietly absent from the page. That decision belongs at design time, per dependency, and it is the difference between an incident and a slightly worse page.",
         ],
         why:
-          "Waiting longer holds resources longer, which is why the instinct to raise the timeout makes an outage worse. Failing fast is what frees them, and it is also what turns a partial failure into a degraded page rather than a total one.",
-        diagram: {
-          "caption": "Fail fast so a slow dependency cannot hold your threads",
-          "columns": [
-            [
-              {
-                "id": "req",
-                "label": "Request",
-                "kind": "client"
-              }
-            ],
-            [
-              {
-                "id": "br",
-                "label": "Breaker",
-                "sub": "closed, open, half-open",
-                "kind": "edge"
-              }
-            ],
-            [
-              {
-                "id": "dep",
-                "label": "Dependency",
-                "sub": "slow at 30s",
-                "kind": "external"
-              },
-              {
-                "id": "fb",
-                "label": "Fallback",
-                "sub": "cached or default",
-                "kind": "data"
-              }
-            ]
-          ],
-          "edges": [
-            {
-              "from": "req",
-              "to": "br"
-            },
-            {
-              "from": "br",
-              "to": "dep",
-              "label": "closed: try, with a timeout"
-            },
-            {
-              "from": "br",
-              "to": "fb",
-              "label": "open: return at once"
-            },
-            {
-              "from": "dep",
-              "to": "br",
-              "label": "errors trip it",
-              "async": true
-            }
-          ]
-        },
+          "Waiting longer holds resources longer, which is why the instinct to raise the timeout during an outage makes it worse. Failing fast frees capacity, and combined with a bulkhead it confines the damage: one broken dependency becomes one broken section rather than an unavailable service.",
         inPractice:
-          "Netflix built Hystrix for this and then retired it, having concluded that adaptive concurrency limits beat hand-tuned thresholds. The lesson people take from Hystrix is the pattern; the lesson Netflix took is that the numbers should not be constants.",
+          "Netflix built Hystrix for exactly this and then retired it, concluding that adaptive concurrency limits beat hand-tuned thresholds. The pattern is what most teams take from it; the more useful lesson is the one Netflix took, that the numbers should not be constants.",
+        diagram: {
+          caption: "Fail fast so a slow dependency cannot hold your threads",
+          columns: [
+            [{ id: "req", label: "Request", kind: "client" }],
+            [{ id: "br", label: "Breaker", sub: "closed, open, half-open", kind: "edge" }],
+            [
+              { id: "dep", label: "Dependency", sub: "slow at 30s", kind: "external" },
+              { id: "fb", label: "Fallback", sub: "cached or default", kind: "data" },
+            ],
+          ],
+          edges: [
+            { from: "req", to: "br" },
+            { from: "br", to: "dep", label: "closed: try, with a timeout" },
+            { from: "br", to: "fb", label: "open: return at once" },
+            { from: "dep", to: "br", label: "errors trip it", async: true },
+          ],
+        },
         check: {
           prompt: "A downstream service slows to 30s per call. Your service becomes unavailable too. What prevents this?",
           options: [
@@ -764,17 +903,81 @@ export const design: Card[] = [
           explain:
             "Waiting longer holds resources longer, so failing fast is what stops the failure spreading. A bulkhead is genuinely part of the answer and pairs with a breaker instead of replacing it: it caps how much of you one dependency can consume, but on its own it lets every call into that pool keep waiting the full 30 seconds.",
         },
+        checks: [
+          {
+            prompt: "What is the half-open state actually for?",
+            options: [
+              "It lets one request test recovery instead of the full load returning",
+              "It allows reads through while writes remain blocked during recovery",
+              "It halves the traffic to the dependency until errors stop appearing",
+              "It keeps the breaker open until an operator confirms the fix",
+            ],
+            correctIndex: 0,
+            explain:
+              "Without it, everything resumes the moment the timer expires and knocks over a dependency that had barely recovered, so the breaker flaps. One trial request is enough to decide, and it costs one request to be wrong.",
+          },
+          {
+            prompt: "Why should a breaker trip on a failure rate with a minimum volume, not a raw count?",
+            options: [
+              "Rates can be compared between services with different traffic levels",
+              "Counts are expensive to maintain accurately across many instances",
+              "Five errors is noise at high traffic and a total outage at low traffic",
+              "A minimum volume ensures the breaker resets between deployments",
+            ],
+            correctIndex: 2,
+            explain:
+              "The same absolute number means completely different things at different traffic levels. Requiring a minimum sample before the rate is trusted stops the breaker opening on the ordinary noise of a quiet period.",
+          },
+          {
+            prompt: "A bulkhead and a circuit breaker are often deployed together. What does the bulkhead add?",
+            options: [
+              "It fails calls faster once the dependency has started returning errors",
+              "It caps how much of your service one dependency can ever consume",
+              "It retries the failed calls in a separate pool to avoid interference",
+              "It detects slow calls earlier by measuring latency per connection",
+            ],
+            correctIndex: 1,
+            explain:
+              "The breaker decides when to stop calling; the bulkhead decides how much of you is at risk while you are still calling. With a bounded pool per dependency, a slow one exhausts its own compartment and leaves the rest of the service intact.",
+          },
+        ],
       },
       {
         id: "graceful-degradation",
-        title: "Graceful degradation",
+        title: "Graceful degradation and load shedding",
         level: "advanced",
         body: [
-          "Not every dependency is essential. If recommendations are down, the product page should still render without them.",
-          "That requires deciding in advance which features are optional and what each fallback is, cached data, a default, or simply hiding the section. The alternative is that any dependency failure becomes a total failure, which is a design decision made by omission.",
+          "Not every dependency is essential, but a system only knows that if someone wrote it down. If recommendations are down, the product page should still render, with a cached set, a default set, or without that section at all. Absent an explicit decision, the default behaviour is that any dependency failure becomes a total failure, and that is a design choice made by omission rather than by anyone in particular.",
+          "The exercise is to classify each dependency as critical or optional, and to give every optional one a named fallback: last known good value, a static default, or hide it. This costs almost nothing at design time and is expensive to retrofit, because by then the call is buried three layers down inside a function whose contract says it returns a list of recommendations, not a list or nothing.",
+          "Load shedding is the same idea applied to your own capacity. Past a certain arrival rate, some requests will not be served, and the only question is whether you choose which ones or let a queue choose for you. Choosing means rejecting cheaply at the edge with a 503 and a Retry-After, ideally by priority, so a checkout still works while a report export waits. Not choosing means every request sits in a queue getting slower until they all time out together, which is the strictly worse outcome where nobody is served and you paid for the work anyway.",
+          "Queues need bounds and an eviction policy for the same reason. An unbounded queue during overload fills with requests that will have timed out by the time they are picked up, so the server spends its capacity producing answers nobody is waiting for. Facebook's answer was to switch the queue to LIFO under load with a CoDel-style controlled delay: serve the newest requests, which still have a chance of being useful, and discard the oldest, which almost certainly do not. It feels unfair and it is the correct behaviour.",
+          "Static stability is the other half. A system is statically stable when it keeps working with the data it already has while its control plane is unavailable: the caches keep serving, the routing keeps routing, and only changes stop. AWS designs this way deliberately, which is why running instances survive control plane incidents. It is a useful test to apply to your own design: if the configuration service is down for an hour, does traffic keep flowing, or does everything stop the moment a cache entry expires?",
+          "Finally, degradation has to be visible or it becomes a lie. If the page renders without personalisation, something needs to say so, in a log at minimum and often in the interface, or the next person to look will conclude the personalisation service is fine because the page looks normal. The failure is confined, not fixed, and the difference matters to whoever is on call.",
         ],
-        why: "This is the difference between an outage and a degraded experience most users never notice. It costs almost nothing at design time and is expensive to retrofit.",
-        inPractice: "Netflix's home page renders with cached or default rows when the personalisation service is unavailable, instead of failing the page.",
+        why:
+          "This is the difference between an outage and a degraded experience most users never notice, and the decision has to be made before the incident, because during one nobody has time to work out which of forty dependencies are optional. Shedding load deliberately is the same argument applied to yourself: partial service by choice beats total failure by queueing.",
+        inPractice:
+          "Netflix renders its home page with cached or default rows when personalisation is unavailable, rather than failing the page. Facebook shifted request queues to LIFO with controlled delay under overload, on the reasoning that an old queued request is probably already abandoned, so serving the newest first maximises the number of requests that are still worth answering.",
+        diagram: {
+          caption: "Optional dependencies fall back; excess load is refused at the edge",
+          columns: [
+            [{ id: "u", label: "Request", kind: "client" }],
+            [{ id: "shed", label: "Load shedder", sub: "503 by priority", kind: "edge" }],
+            [{ id: "page", label: "Page assembly", sub: "critical path only", kind: "service" }],
+            [
+              { id: "core", label: "Catalogue", sub: "critical", kind: "data" },
+              { id: "recs", label: "Recommendations", sub: "optional", kind: "external" },
+            ],
+            [{ id: "cache", label: "Last known good", sub: "or hide the section", kind: "data" }],
+          ],
+          edges: [
+            { from: "u", to: "shed", label: "arrives" },
+            { from: "shed", to: "page", label: "accepted" },
+            { from: "page", to: "core", label: "must succeed" },
+            { from: "page", to: "recs", label: "may fail" },
+            { from: "recs", to: "cache", label: "on failure", async: true },
+          ],
+        },
         check: {
           prompt: "The recommendation service is down. What is the correct product page behaviour?",
           options: [
@@ -786,6 +989,44 @@ export const design: Card[] = [
           correctIndex: 1,
           explain: "Recommendations are enhancement, not core. Rendering without them keeps the product usable and confines the failure to one section.",
         },
+        checks: [
+          {
+            prompt: "Under overload, why is shedding load at the edge better than queueing everything?",
+            options: [
+              "A queue reorders requests, so the ones that matter arrive last",
+              "Shedding lets some requests succeed instead of all of them timing out",
+              "Rejected requests are cheaper to log than requests that time out later",
+              "Queues cannot apply priority, so shedding is the only way to rank work",
+            ],
+            correctIndex: 1,
+            explain:
+              "Capacity is capacity. Queueing everything means each request waits longer until they all fail together, and you paid for the work regardless. Refusing some early keeps the rest inside their deadlines.",
+          },
+          {
+            prompt: "Why did Facebook switch request queues to LIFO under overload?",
+            options: [
+              "Newest requests are cheapest to serve, since their data is still cached",
+              "LIFO keeps the queue shorter, which reduces memory pressure per node",
+              "The oldest queued requests have probably been abandoned already",
+              "FIFO cannot be combined with a controlled delay eviction policy",
+            ],
+            correctIndex: 2,
+            explain:
+              "During overload the front of a FIFO queue is full of requests whose clients gave up minutes ago, so serving them spends capacity on answers nobody reads. Newest first maximises the share of served requests that are still wanted.",
+          },
+          {
+            prompt: "What does it mean for a system to be statically stable?",
+            options: [
+              "It keeps operating on existing data when the control plane is unavailable",
+              "Its capacity is fixed in advance, so load never changes its behaviour",
+              "Its configuration is immutable, so no change can be applied at runtime",
+              "It fails into a read-only mode whenever a write dependency is degraded",
+            ],
+            correctIndex: 0,
+            explain:
+              "Static stability means the data plane keeps running on what it already holds while changes are impossible. Running EC2 instances surviving a control plane incident is the canonical example, and the same test applies to your own configuration and cache dependencies.",
+          },
+        ],
       },
     ],
   },

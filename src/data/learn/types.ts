@@ -32,6 +32,11 @@ export interface DiagramNode {
   /** Where it runs and roughly what it costs, which is the other half of the
    *  question anyone looking at an architecture actually has. */
   setup?: string;
+  /** A road not taken: drawn dashed and in a different colour, so a diagram can
+   *  show what was considered as well as what was chosen. An architecture with
+   *  no visible alternatives reads as the only possible answer, which is never
+   *  true and is the opposite of what a design discussion should look like. */
+  alternative?: boolean;
 }
 
 export interface DiagramEdge {

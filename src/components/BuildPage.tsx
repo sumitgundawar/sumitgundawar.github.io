@@ -5,6 +5,7 @@ import { NewsletterPrompt } from "./NewsletterPrompt";
 import { Link } from "react-router-dom";
 import { FlowDiagram } from "./FlowDiagram";
 import { track } from "@/lib/track";
+import { nextQuestion } from "@/lib/api";
 import {
   questions,
   recommend,
@@ -13,7 +14,7 @@ import {
   type Answers,
   type Recommendation,
 } from "@/data/build";
-import type { Diagram } from "@/data/learn";
+import type { Diagram, DiagramEdge } from "@/data/learn";
 
 /** Lay the recommended components out as a request flowing left to right.
  *
@@ -49,15 +50,54 @@ function toDiagram(recs: Recommendation[]): Diagram {
   const columns: Recommendation[][] = [[], [], [], [], []];
   recs.forEach((r) => columns[order[r.kind] ?? 2].push(r));
 
+  /* The roads not taken, drawn beside the choices.
+   *
+   * A diagram showing only what was picked reads as the one possible answer,
+   * which is never true and is the opposite of how the decision was actually
+   * made. Each component's first alternative is drawn dashed next to it, with
+   * the condition under which it becomes the better choice, so the architecture
+   * shows its own reasoning rather than presenting a verdict.
+   *
+   * One per component, not all of them. Three alternatives beside every box is a
+   * diagram nobody can read, and the first is the one worth knowing about. */
+  const withAlternatives = columns.filter((c) => c.length).map((col) =>
+    col.flatMap((r) => {
+      const chosen = {
+        id: r.id,
+        label: r.name,
+        sub: r.pick,
+        kind: r.kind,
+        why: r.why,
+        setup: r.where,
+      };
+      const alt = r.alternatives?.[0];
+      if (!alt) return [chosen];
+      return [
+        chosen,
+        {
+          id: `${r.id}-alt`,
+          label: alt.name,
+          sub: `instead of ${r.pick}`,
+          kind: r.kind,
+          alternative: true,
+          why: `Considered instead of ${r.pick}. ${alt.when}`,
+          setup: "More to set up and usually more to run. Worth it when the condition above is true for you, and not before.",
+        },
+      ];
+    }),
+  );
+
+  // An alternative is joined to the component it replaces, never to anything
+  // else, so the reader can see at a glance which decision it belongs to.
+  const altEdges: DiagramEdge[] = withAlternatives
+    .flat()
+    .filter((n) => n.alternative)
+    .map((n) => ({ from: n.id.replace(/-alt$/, ""), to: n.id, label: "or", async: true }));
+
   return {
-    caption: "Your architecture. Hover or tap any component for what it does and what it costs.",
-    columns: columns
-      .filter((c) => c.length)
-      /* why and where are carried into the diagram rather than left on the cards
-         below it. The reasoning already existed; the diagram simply was not
-         passing it on, so hovering a component said its name back to you. */
-      .map((col) => col.map((r) => ({ id: r.id, label: r.name, sub: r.pick, kind: r.kind, why: r.why, setup: r.where }))),
-    edges,
+    caption: "Your architecture, and what was considered instead. Hover or tap any component.",
+    columns: withAlternatives,
+    edges: [...edges, ...altEdges],
   };
 }
 
@@ -122,6 +162,24 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
   );
 }
 
+/** The model's contribution to one question: new wording, and why it chose it.
+ *  Never an option, and never an id the local catalogue does not already have. */
+interface Adaptive {
+  prompt: string;
+  help: string;
+  reason: string;
+}
+
+/** Back has to undo an adaptive step, which is a question, its wording, and any
+ *  answers that were inferred alongside it. A step counter cannot express that,
+ *  so the whole state of the interview is pushed instead. */
+interface Snapshot {
+  answers: Answers;
+  currentId: string;
+  note: Adaptive | null;
+  inferred: Record<string, string>;
+}
+
 export function BuildPage() {
   usePageMeta(
     "Build a system",
@@ -146,17 +204,108 @@ export function BuildPage() {
     return out;
   }, [params]);
 
-  const [step, setStep] = useState(() => (Object.keys(fromUrl).length ? questions.length : 0));
+  /* An interview, not a form.
+   *
+   * This used to walk the ten questions in file order, every time, so a second
+   * visit was visibly the same page and the wording never acknowledged anything
+   * you had already said. Now each answer is sent to the model, which picks
+   * which of the remaining questions is worth asking next, rewrites it for this
+   * particular build, and fills in anything the earlier answers already settle.
+   *
+   * The fixed list has not gone anywhere; it is the floor. If the call fails,
+   * times out, or comes back with an id that is not in it, the next question is
+   * simply the next one in order, and nothing about the page tells the reader
+   * that something did not happen. The option ids never come from the model, so
+   * whatever it does the answers remain valid input to recommend(). */
   const [answers, setAnswers] = useState<Answers>(fromUrl);
-  const done = step >= questions.length;
+  const [currentId, setCurrentId] = useState<string>(() =>
+    Object.keys(fromUrl).length ? "" : (questions[0]?.id ?? ""),
+  );
+  const [note, setNote] = useState<Adaptive | null>(null);
+  const [inferred, setInferred] = useState<Record<string, string>>({});
+  const [thinking, setThinking] = useState(false);
+  const [history, setHistory] = useState<Snapshot[]>([]);
+  const done = !currentId && Object.keys(answers).length > 0;
 
   const recs = useMemo(() => (done ? recommend(answers) : []), [done, answers]);
   const diagram = useMemo(() => (recs.length ? toDiagram(recs) : null), [recs]);
 
+  const advance = async (current: Answers) => {
+    const left = questions.filter((q) => !(q.id in current));
+    if (!left.length) {
+      setCurrentId("");
+      setNote(null);
+      return;
+    }
+
+    setThinking(true);
+    const res = await nextQuestion(
+      current,
+      left.map((q) => ({ id: q.id, prompt: q.prompt, options: q.options.map((o) => o.id) })),
+    );
+    setThinking(false);
+
+    /* Everything the model said is checked against the local catalogue before
+       any of it is used, including the inferred answers: an option id that is
+       not in the question it claims to answer is dropped rather than repaired,
+       because a plausible wrong answer here silently changes the architecture
+       the reader is shown and they would have no way to notice. */
+    const target = res && questions.find((q) => q.id === res.ask);
+    if (res && target) {
+      const merged = { ...current };
+      const filled: Record<string, string> = {};
+      for (const [qid, oid] of Object.entries(res.infer)) {
+        const q = questions.find((x) => x.id === qid);
+        if (!q || qid === res.ask || qid in merged) continue;
+        if (!q.options.some((o) => o.id === oid)) continue;
+        merged[qid] = oid;
+        filled[qid] = oid;
+      }
+      if (!(res.ask in merged)) {
+        setAnswers(merged);
+        setInferred((prev) => ({ ...prev, ...filled }));
+        setCurrentId(res.ask);
+        setNote({ prompt: res.prompt, help: res.help, reason: res.reason });
+        track("build_adaptive", { question: res.ask, inferred: Object.keys(filled).length });
+        return;
+      }
+    }
+
+    setCurrentId(left[0].id);
+    setNote(null);
+  };
+
   const choose = (qid: string, oid: string, skipped = false) => {
-    setAnswers((a) => ({ ...a, [qid]: oid }));
-    setStep((s) => s + 1);
+    setHistory((h) => [...h, { answers, currentId, note, inferred }]);
+    const next = { ...answers, [qid]: oid };
+    setAnswers(next);
     track(skipped ? "build_skip" : "build_answer", { question: qid, answer: oid });
+    void advance(next);
+  };
+
+  const back = () => {
+    const prev = history[history.length - 1];
+    if (!prev) return;
+    setHistory((h) => h.slice(0, -1));
+    setAnswers(prev.answers);
+    setCurrentId(prev.currentId);
+    setNote(prev.note);
+    setInferred(prev.inferred);
+  };
+
+  /* An answer nobody gave has to be reversible, or it is a decision made on the
+     reader's behalf that they cannot see and cannot undo. */
+  const askInferred = () => {
+    const ids = Object.keys(inferred);
+    if (!ids.length) return;
+    const stripped = { ...answers };
+    ids.forEach((id) => delete stripped[id]);
+    setHistory((h) => [...h, { answers, currentId, note, inferred }]);
+    setAnswers(stripped);
+    setInferred({});
+    setNote(null);
+    setCurrentId(ids[0]);
+    track("build_review_inferred", { count: ids.length });
   };
 
   const [copied, setCopied] = useState(false);
@@ -176,7 +325,10 @@ export function BuildPage() {
   const restart = () => {
     setAnswers({});
     setParams({}, { replace: true });
-    setStep(0);
+    setInferred({});
+    setHistory([]);
+    setNote(null);
+    setCurrentId(questions[0]?.id ?? "");
     track("build_restart", {});
   };
 
@@ -191,7 +343,11 @@ export function BuildPage() {
     }
   }, [done, answers, params, setParams]);
 
-  const q = !done ? questions[step] : null;
+  const base = questions.find((x) => x.id === currentId) ?? null;
+  // The model rewrites the wording, never the answers. Options come from the
+  // local question every time, whatever the reply contained.
+  const q = base && !thinking ? { ...base, prompt: note?.prompt || base.prompt, help: note?.help || base.help } : null;
+  const answeredCount = Object.keys(answers).length;
 
   return (
     <main id="content" className="min-h-[100dvh]">
@@ -207,9 +363,19 @@ export function BuildPage() {
           Build a system
         </h1>
         <p className="mt-3.5 text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
-          Ten questions, then an architecture sized to what you are actually building. Every component
-          comes with why it is there, what it costs, and what you would use instead.
+          A short interview, then an architecture sized to what you are actually building. The questions
+          adapt to your answers, so it asks what still matters and skips what you have already settled.
+          Every component comes with why it is there, what it costs, and what you would use instead.
         </p>
+
+        {thinking && (
+          <div className="mt-10 flex items-center gap-3" aria-live="polite">
+            <span className="build-pulse" aria-hidden />
+            <span className="mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
+              working out what to ask next
+            </span>
+          </div>
+        )}
 
         {q && (
           <>
@@ -217,16 +383,26 @@ export function BuildPage() {
               <div className="h-[4px] flex-1 rounded-full overflow-hidden" style={{ background: "var(--hair-strong)" }}>
                 <div
                   className="h-full rounded-full transition-all duration-300"
-                  style={{ width: `${(step / questions.length) * 100}%`, background: "var(--accent)" }}
+                  style={{ width: `${(answeredCount / questions.length) * 100}%`, background: "var(--accent)" }}
                 />
               </div>
               <span className="mono text-[length:var(--fs-label)] tnum shrink-0" style={{ color: "var(--c-text-dim)" }}>
-                {step + 1} / {questions.length}
+                {answeredCount + 1} / {questions.length}
               </span>
             </div>
 
             <div className="mt-8">
-              <h2 className="text-[length:var(--fs-item)] sm:text-[length:var(--fs-item)] font-semibold tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>
+              {note?.reason && (
+                /* Why this one, and not the next one on a list. A question that
+                   arrives out of order without saying why looks like a bug. */
+                <p className="text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+                  <span className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em]" style={{ color: "var(--accent-2)" }}>
+                    why this one{" "}
+                  </span>
+                  {note.reason}
+                </p>
+              )}
+              <h2 className="mt-2 text-[length:var(--fs-item)] sm:text-[length:var(--fs-item)] font-semibold tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>
                 {q.prompt}
               </h2>
               {q.help && (
@@ -255,10 +431,20 @@ export function BuildPage() {
                 ))}
               </div>
 
+              {Object.keys(inferred).length > 0 && (
+                <p className="mt-4 text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+                  {Object.keys(inferred).length === 1 ? "One question was" : `${Object.keys(inferred).length} questions were`}{" "}
+                  answered from what you had already said, to keep this short.{" "}
+                  <button onClick={askInferred} className="link-underline mono text-[length:var(--fs-label)]" style={{ color: "var(--accent-2)" }}>
+                    ask me those as well
+                  </button>
+                </p>
+              )}
+
               <div className="mt-5 flex items-center gap-5">
-                {step > 0 && (
+                {history.length > 0 && (
                   <button
-                    onClick={() => setStep((s) => s - 1)}
+                    onClick={back}
                     className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"
                     style={{ color: "var(--c-text-dim)" }}
                   >
@@ -281,7 +467,7 @@ export function BuildPage() {
           <div className="mt-9">
             <div className="flex items-center gap-4 flex-wrap">
               <button
-                onClick={() => setStep(questions.length - 1)}
+                onClick={back}
                 className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"
                 style={{ color: "var(--c-text-dim)" }}
               >

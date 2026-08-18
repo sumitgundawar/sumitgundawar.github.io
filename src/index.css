@@ -251,6 +251,17 @@
   70% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--signal) 0%, transparent); }
 }
 
+/* The pause between answering and being asked the next thing. Reduced motion
+   turns the animation off globally below, which leaves a plain dot beside the
+   text, so the state is still legible without movement. */
+.build-pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {

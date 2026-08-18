@@ -171,3 +171,53 @@ export async function askStream(
   if (!whole) throw new Error("The assistant is unavailable right now.");
   return whole;
 }
+
+/* The next question in the /build interview.
+ *
+ * The catalogue of what is still unasked is sent with the request. That looks
+ * redundant, since the server could hold its own copy, but two copies of the
+ * same list drift the moment a question is added, and a questionnaire that
+ * silently stops offering its newest question is the kind of bug nobody
+ * reports. One list, in the file the questions live in.
+ *
+ * Everything about this call is optional. The page has a complete, ordered
+ * questionnaire without it, so a failure, a slow reply, or a model that returns
+ * nonsense all end the same way: the fixed order, immediately. */
+export interface NextQuestion {
+  ask: string;
+  prompt: string;
+  help: string;
+  reason: string;
+  infer: Record<string, string>;
+}
+
+export async function nextQuestion(
+  answers: Record<string, string>,
+  remaining: { id: string; prompt: string; options: string[] }[],
+  timeoutMs = 4500,
+): Promise<NextQuestion | null> {
+  const session = sessionKey();
+  if (!session || !remaining.length) return null;
+  try {
+    const res = await fetch(`${API}/api/build-next`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session, answers, remaining }),
+      /* Nobody waits five seconds to be asked a question. Past this the fixed
+         order is not a degraded experience, it is the better one. */
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) return null;
+    const j = (await res.json()) as Partial<NextQuestion> & { ok?: boolean };
+    if (!j.ok || typeof j.ask !== "string") return null;
+    return {
+      ask: j.ask,
+      prompt: j.prompt ?? "",
+      help: j.help ?? "",
+      reason: j.reason ?? "",
+      infer: j.infer && typeof j.infer === "object" ? j.infer : {},
+    };
+  } catch {
+    return null;
+  }
+}

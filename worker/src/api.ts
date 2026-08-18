@@ -679,6 +679,135 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
     return withRateHeaders(json({ answer: result.text }, 200, origin), rate);
   }
 
+  /* ---- build-next: the questionnaire that does not ask the same ten things ----
+
+     /build used to walk a fixed list in a fixed order, so a second visit was
+     visibly the same ten questions and the page felt like a form rather than a
+     conversation. This endpoint makes the model the interviewer: given what has
+     been answered so far it picks which question is worth asking next, rewrites
+     the wording for this particular build, and may answer for the reader
+     anything the earlier answers already settle.
+
+     What it deliberately cannot do is invent an answer space. The caller sends
+     the catalogue it already holds, and the reply is accepted only if the
+     question id and every inferred option id came from that catalogue: the
+     model chooses the order and the prose, never the values that feed the
+     recommendation rules. A model that returns anything else is discarded and
+     the page falls back to its fixed order, which is why /build works with the
+     model down, over a slow link, and with JavaScript-blocking extensions that
+     eat the request. */
+  if (url.pathname === "/api/build-next" && req.method === "POST") {
+    const b = (await req.json().catch(() => null)) as
+      | {
+          session?: string;
+          answers?: Record<string, string>;
+          remaining?: { id: string; prompt: string; options: string[] }[];
+        }
+      | null;
+
+    if (!SESSION_RE.test(b?.session ?? "")) return json({ error: "bad session" }, 400, origin);
+
+    const remaining = Array.isArray(b?.remaining) ? b.remaining.slice(0, 20) : [];
+    const answers = b?.answers && typeof b.answers === "object" ? b.answers : {};
+    if (!remaining.length) return json({ error: "nothing to ask" }, 400, origin);
+
+    // The catalogue is client-supplied, so it is bounded here rather than
+    // trusted: ids are allowlisted and text is capped before it reaches a
+    // prompt, so a crafted body cannot turn this into a general text endpoint.
+    const catalogue = remaining
+      .filter((q) => q && ID_RE.test(q.id ?? "") && Array.isArray(q.options))
+      .map((q) => ({
+        id: q.id,
+        prompt: String(q.prompt ?? "").slice(0, 200),
+        options: q.options.filter((o) => typeof o === "string" && ID_RE.test(o)).slice(0, 8),
+      }))
+      .filter((q) => q.options.length >= 2);
+    if (!catalogue.length) return json({ error: "nothing to ask" }, 400, origin);
+
+    const known = new Map(catalogue.map((q) => [q.id, new Set(q.options)]));
+
+    const rate = await rateCheck(env, `build:${clientIp(req)}`, 40, 60);
+    if (rate.limited) return withRateHeaders(json({ error: "slow down" }, 429, origin), rate);
+
+    const answered = Object.entries(answers)
+      .filter(([q, o]) => ID_RE.test(q) && typeof o === "string" && ID_RE.test(o))
+      .slice(0, 20)
+      .map(([q, o]) => `${q}=${o}`)
+      .join(", ");
+
+    const system = [
+      "You are interviewing someone about a system they are about to build, to size an architecture for it.",
+      "You are given what they have answered so far and the questions still available.",
+      "Choose the single most useful question to ask next, and rewrite its wording so it refers to what they have already told you.",
+      "If an earlier answer already settles a remaining question beyond reasonable doubt, put it in infer instead of asking it.",
+      "Reply with JSON only, no prose and no code fence:",
+      '{"ask":"<question id>","prompt":"<under 110 characters>","help":"<under 200 characters, or empty>","infer":{"<question id>":"<option id>"},"reason":"<under 90 characters>"}',
+      "ask must be an id from the available list. Every key in infer must be a different id from that list, and every value must be one of that question id's own option ids.",
+      "Never invent an id. Never use an em dash or an en dash. Write in plain British English, second person, no marketing language.",
+    ].join("\n");
+
+    const user = [
+      answered ? `Answered so far: ${answered}` : "Nothing answered yet.",
+      "Available questions:",
+      ...catalogue.map((q) => `- ${q.id}: ${q.prompt} [options: ${q.options.join(", ")}]`),
+    ].join("\n");
+
+    let raw = "";
+    try {
+      const out = await runChain(
+        env.NVIDIA_API_KEY,
+        [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        { maxTokens: 320, temperature: 0.7 },
+      );
+      raw = out.text;
+    } catch {
+      return withRateHeaders(json({ ok: false, reason: "unavailable" }, 200, origin), rate);
+    }
+
+    /* A 200 with ok:false rather than a 5xx. The caller has a complete working
+       questionnaire either way, so an unavailable model is not an error at the
+       call site, it is the absence of an improvement, and returning a status
+       the client has to special-case is how a fallback path stops being taken. */
+    const parsed = parseJsonObject(raw);
+    if (!parsed) return withRateHeaders(json({ ok: false, reason: "unparsable" }, 200, origin), rate);
+
+    const ask = typeof parsed.ask === "string" ? parsed.ask : "";
+    if (!known.has(ask)) return withRateHeaders(json({ ok: false, reason: "unknown id" }, 200, origin), rate);
+
+    const infer: Record<string, string> = {};
+    const rawInfer = parsed.infer;
+    if (rawInfer && typeof rawInfer === "object" && !Array.isArray(rawInfer)) {
+      for (const [q, o] of Object.entries(rawInfer as Record<string, unknown>)) {
+        // An inferred answer for the question being asked would answer it and
+        // ask it in the same breath, so the ask always wins.
+        if (q === ask || typeof o !== "string") continue;
+        if (known.get(q)?.has(o)) infer[q] = o;
+      }
+    }
+
+    const clip = (v: unknown, n: number) =>
+      typeof v === "string" ? normaliseDashes(v.replace(/\s+/g, " ").trim()).slice(0, n) : "";
+
+    return withRateHeaders(
+      json(
+        {
+          ok: true,
+          ask,
+          prompt: clip(parsed.prompt, 140),
+          help: clip(parsed.help, 240),
+          reason: clip(parsed.reason, 120),
+          infer,
+        },
+        200,
+        origin,
+      ),
+      rate,
+    );
+  }
+
   /* ---- track: first-party analytics ---- */
   if (url.pathname === "/api/track" && req.method === "POST") {
     const b = (await req.json().catch(() => null)) as
@@ -1068,6 +1197,28 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
  * Applied on the way out as well as validated on the way in, because rows
  * written before that validation existed are already in the table. */
 const safeId = (s: string) => (s ?? "").replace(/[^a-zA-Z0-9 ._/-]/g, "").slice(0, 80) || "unknown";
+
+/* safeId sanitises, which is what you want on the way out to a report. This is
+   the opposite job: a predicate that rejects rather than repairs, for ids that
+   have to match a catalogue exactly. Sanitising here would turn an unknown id
+   into a different unknown id instead of a refusal. */
+const ID_RE = /^[a-zA-Z0-9_-]{1,40}$/;
+
+/* Models are asked for JSON and mostly give it, wrapped in a code fence or with
+   a sentence in front about as often as not. The braces are found rather than
+   the whole reply parsed, and anything that is not a plain object is refused,
+   so a reply that is valid JSON but the wrong shape fails here and not later. */
+function parseJsonObject(raw: string): Record<string, unknown> | null {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    const v: unknown = JSON.parse(raw.slice(start, end + 1));
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
 
 /* The site's typography rule, applied to text the site did not write.
  *

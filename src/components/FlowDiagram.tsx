@@ -238,6 +238,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
   };
 
   const hoveredNode = hovered ? byId[hovered] : null;
+  const hasAlternatives = diagram.columns.some((col) => col.some((n) => n.alternative));
 
   return (
     <figure className="my-6">
@@ -435,15 +436,22 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                   fill={c.edge}
                   opacity={0.18}
                 />
+                {/* An alternative is drawn as a road not taken: dashed, in the
+                    warning hue rather than its layer colour, and slightly
+                    recessed. It must be legible as "considered and not chosen"
+                    at a glance, without a legend, because a diagram where the
+                    alternatives look like components is worse than one with no
+                    alternatives at all. */}
                 <rect
                   x={n.x}
                   y={n.y - (active ? 2 : 0)}
                   width={W}
                   height={H}
                   rx={9}
-                  fill={c.fill}
-                  stroke={c.edge}
+                  fill={n.alternative ? "rgba(232,178,58,0.08)" : c.fill}
+                  stroke={n.alternative ? "var(--warn)" : c.edge}
                   strokeWidth={active ? 1.8 : 1}
+                  strokeDasharray={n.alternative ? "5 4" : undefined}
                   style={{ transition: "y .18s, stroke-width .18s" }}
                 />
                 <text
@@ -451,7 +459,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                   y={n.y + (n.sub ? 26 : 36) - (active ? 2 : 0)}
                   fontSize={13.5}
                   fontWeight={550}
-                  fill={c.text}
+                  fill={n.alternative ? "var(--warn)" : c.text}
                 >
                   {fit(n.label, 13.5, W - 28)}
                 </text>
@@ -493,6 +501,12 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
             ),
           )}
           <span className="opacity-80">dashed = asynchronous</span>
+          {hasAlternatives && (
+            <span className="inline-flex items-center gap-1.5" style={{ color: "var(--warn)" }}>
+              <span aria-hidden style={{ width: 9, height: 9, border: "1px dashed var(--warn)" }} />
+              considered, not chosen
+            </span>
+          )}
         </div>
         <span>{diagram.caption}</span>
         {hoveredNode && !hoveredNode.why && (

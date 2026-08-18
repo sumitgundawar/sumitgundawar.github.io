@@ -15,6 +15,7 @@ import type { GroupName } from "./groups";
  */
 const LOADERS: Record<GroupName, () => Promise<{ default?: Card[] } & Record<string, unknown>>> = {
   foundations: () => import("./foundations"),
+  languages: () => import("./languages"),
   design: () => import("./design"),
   design2: () => import("./design2"),
   delivery: () => import("./delivery"),

@@ -134,6 +134,137 @@ export const manifest: CardMeta[] = [
     ]
   },
   {
+    "id": "programming-foundations",
+    "title": "Programming foundations",
+    "summary": "The concepts every language shares, explained through what they cost rather than what they look like.",
+    "track": "languages",
+    "group": "languages",
+    "topics": [
+      {
+        "id": "values-and-types",
+        "title": "Values, types and memory",
+        "level": "beginner"
+      },
+      {
+        "id": "control-and-functions",
+        "title": "Control flow, functions and scope",
+        "level": "beginner"
+      },
+      {
+        "id": "data-structures-choice",
+        "title": "Choosing a data structure",
+        "level": "intermediate"
+      },
+      {
+        "id": "recursion-and-iteration",
+        "title": "Recursion, iteration and state",
+        "level": "intermediate"
+      },
+      {
+        "id": "errors-and-failure",
+        "title": "Errors, exceptions and failure",
+        "level": "intermediate"
+      },
+      {
+        "id": "complexity-intuition",
+        "title": "Complexity without hand-waving",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "python",
+    "title": "Python",
+    "summary": "The data model, the mutable default, the GIL, and the parts of the language that catch experienced people.",
+    "track": "languages",
+    "group": "languages",
+    "topics": [
+      {
+        "id": "python-data-model",
+        "title": "Everything is an object",
+        "level": "beginner"
+      },
+      {
+        "id": "python-mutable-defaults",
+        "title": "Mutability and the default argument trap",
+        "level": "intermediate"
+      },
+      {
+        "id": "python-comprehensions",
+        "title": "Comprehensions, generators and laziness",
+        "level": "intermediate"
+      },
+      {
+        "id": "python-gil",
+        "title": "The GIL and how to work with it",
+        "level": "advanced"
+      },
+      {
+        "id": "python-typing",
+        "title": "Type hints, and what they do not do",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "javascript",
+    "title": "JavaScript and TypeScript",
+    "summary": "The event loop, closures, coercion, and what TypeScript actually checks.",
+    "track": "languages",
+    "group": "languages",
+    "topics": [
+      {
+        "id": "js-event-loop",
+        "title": "The event loop",
+        "level": "beginner"
+      },
+      {
+        "id": "js-closures-this",
+        "title": "Closures, prototypes and this",
+        "level": "intermediate"
+      },
+      {
+        "id": "js-coercion",
+        "title": "Equality, coercion and the sharp edges",
+        "level": "intermediate"
+      },
+      {
+        "id": "ts-structural",
+        "title": "TypeScript is structural, and it disappears",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "sql",
+    "title": "SQL",
+    "summary": "Joins, indexes, plans and the queries that get slow at a million rows.",
+    "track": "languages",
+    "group": "languages",
+    "topics": [
+      {
+        "id": "sql-joins",
+        "title": "Joins and the relational model",
+        "level": "beginner"
+      },
+      {
+        "id": "sql-indexes",
+        "title": "Indexes and query plans",
+        "level": "intermediate"
+      },
+      {
+        "id": "sql-aggregation",
+        "title": "Aggregation and window functions",
+        "level": "intermediate"
+      },
+      {
+        "id": "sql-transactions",
+        "title": "Transactions in practice",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
     "id": "caching",
     "title": "Caching and Redis",
     "summary": "Strategies, invalidation, TTLs, edge caching, and what actually goes wrong at scale.",
@@ -1060,5 +1191,5 @@ export const manifest: CardMeta[] = [
   }
 ];
 
-export const topicCount = 149;
-export const cardCount = 34;
+export const topicCount = 168;
+export const cardCount = 38;

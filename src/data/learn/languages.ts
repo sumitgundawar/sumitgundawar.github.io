@@ -1,0 +1,510 @@
+import type { Card } from "./types";
+
+/* Programming, as distinct from system design.
+ *
+ * The rest of this material assumes you can already write the code and asks how
+ * to arrange it. This track is the other half: the concepts every language
+ * shares, and then the handful of languages worth knowing properly, each
+ * covered through the things that actually catch people rather than through a
+ * syntax tour that a reference does better.
+ *
+ * The topics here are shorter than in the design track on purpose. They are
+ * written to be correct and useful now, and to be deepened the same way the
+ * case studies were, one card at a time.
+ */
+
+export const languages: Card[] = [
+  {
+    id: "programming-foundations",
+    title: "Programming foundations",
+    summary: "The concepts every language shares, explained through what they cost rather than what they look like.",
+    track: "languages",
+    topics: [
+      {
+        id: "values-and-types",
+        title: "Values, types and memory",
+        level: "beginner",
+        body: [
+          "A variable is a name bound to a value, and the single most useful thing to understand early is what the name actually holds. For a small value such as a number, it usually holds the value itself. For anything larger, an object, a list, a string in most languages, it holds a reference to something stored elsewhere, and copying the variable copies the reference rather than the thing.",
+          "That distinction explains an entire category of confusing bugs. Passing a list to a function and finding it changed afterwards is not the function misbehaving, it is both names pointing at one list. Languages that avoid this do so by making values immutable, so there is nothing to change, which is why immutability keeps reappearing as a recommendation from people who have debugged the alternative.",
+          "Types are the other half. A static type system checks at compile time that the operations you wrote make sense for the values you have; a dynamic one checks at run time, when the operation happens. Neither is universally better and the trade is well understood: static typing catches a class of mistakes before anything runs and costs you ceremony, dynamic typing gets out of the way and moves those failures into production.",
+          "Worth knowing regardless of language: integers have limits and floating point numbers are approximations. 0.1 plus 0.2 does not equal 0.3 in any language using IEEE 754 doubles, because neither value is exactly representable in binary. Money belongs in integers of the smallest unit, or in a decimal type, and never in a float, which is a rule with a long trail of financial incidents behind it.",
+        ],
+        why: "Most early confusion in any language comes from not knowing whether a name holds a value or a reference to one, and most numeric bugs come from treating floating point as though it were mathematics. Both are cheap to learn and expensive to discover.",
+        check: {
+          prompt: "Why does 0.1 + 0.2 === 0.3 evaluate to false in most languages?",
+          options: [
+            "The comparison runs before the addition has finished being evaluated",
+            "Neither 0.1 nor 0.2 is exactly representable in binary floating point",
+            "Floating point addition is not associative, so the order matters here",
+            "The literals are parsed as decimals and compared as binary values",
+          ],
+          correctIndex: 1,
+          explain:
+            "IEEE 754 stores binary fractions, and a tenth is a repeating fraction in binary just as a third is in decimal. The sum lands a fraction away from 0.3, which is why money is stored in integer minor units or a decimal type.",
+        },
+      },
+      {
+        id: "control-and-functions",
+        title: "Control flow, functions and scope",
+        level: "beginner",
+        body: [
+          "Control flow is the small vocabulary every language shares: do this if that, do this repeatedly, stop early, call something else. What differs is the cost of each. An early return is usually clearer than a nested condition, and a loop that mutates a shared accumulator is usually clearer as a map or a fold, but the version your team reads fastest wins over the version a style guide prefers.",
+          "A function is the unit of naming, and naming is most of what makes code readable. The useful test is whether the name says what it does without saying how: send_welcome_email is a name, do_email_stuff_v2 is an apology. A function that needs the word and in its name is usually two functions.",
+          "Scope decides which names are visible where, and closures are the part that surprises people. A closure is a function that carries the variables it referenced when it was created, which is what makes callbacks and decorators work, and which is also why a loop that creates functions capturing the loop variable can produce a set of functions that all see the same final value.",
+          "Arguments are passed either by value or by reference depending on the language and the type, and the practical consequence is the same as with variables: a function given a mutable structure can change what the caller holds. Making that explicit, by returning a new value instead of modifying the argument, removes a category of bug that is very hard to find by reading.",
+        ],
+        why: "Functions are how a program is made comprehensible: each one is a promise that the reader does not need to look inside. A function that changes something the caller could not predict has broken that promise, which is why side effects deserve to be named in the signature or avoided.",
+        check: {
+          prompt: "A loop creates three functions that each capture the loop variable, and all three return the same value when called. Why?",
+          options: [
+            "The functions were optimised into one, since their bodies are identical",
+            "They closed over the same variable, which held its final value by then",
+            "Closures copy their variables at creation, so all three copied the first",
+            "The loop variable was garbage collected before the functions were called",
+          ],
+          correctIndex: 1,
+          explain:
+            "A closure captures the variable, not a snapshot of its value. If the loop reuses one binding, every function sees the same one after the loop ends, which is why languages introduced per-iteration bindings.",
+        },
+      },
+      {
+        id: "data-structures-choice",
+        title: "Choosing a data structure",
+        level: "intermediate",
+        body: [
+          "Nearly all everyday code is served by four structures, and knowing their costs by heart removes most performance questions before they arise. An array or list gives you position: constant-time access by index, linear-time search. A hash map gives you lookup by key in roughly constant time, at the cost of memory and no ordering. A set is a hash map without values, for membership and deduplication. A queue or stack gives you an order of processing.",
+          "The most common avoidable mistake in real code is searching a list inside a loop. Checking whether each of ten thousand items appears in a list of ten thousand is a hundred million comparisons; the same check against a set is ten thousand lookups. It is the same program with one line changed, and it is the difference between two minutes and a few milliseconds.",
+          "Ordering is the next question. A sorted structure, a balanced tree or a sorted list with binary search, gives you range queries and nearest-neighbour lookups that a hash map cannot answer at all. If your access pattern includes everything between these two values, that is the tell.",
+          "Then there are the specialised few worth recognising when you meet them: a heap for repeatedly taking the smallest item, a trie for prefix search, a bloom filter for a cheap definitely-not-present answer, a ring buffer for a fixed-size stream of recent items. You will rarely implement one; recognising which problem each solves is what stops you writing a slow version by hand.",
+        ],
+        why: "Choosing the structure is choosing the complexity, and it is a decision made once at the start rather than tuned later. Most code that needs optimising does not need a faster language, it needs a hash lookup where it currently has a scan.",
+        check: {
+          prompt: "Checking membership for each of 10,000 items against a list of 10,000 is slow. What changes it most?",
+          options: [
+            "Sorting the list first, so each check can stop halfway on average",
+            "Converting the list to a set, turning each scan into a hash lookup",
+            "Processing the checks in parallel across the available CPU cores",
+            "Caching results, since many of the items being checked will repeat",
+          ],
+          correctIndex: 1,
+          explain:
+            "The scan is the problem: 10,000 checks against 10,000 items is 100 million comparisons. A set makes each check roughly constant time, which is the same program with one line changed.",
+        },
+      },
+      {
+        id: "recursion-and-iteration",
+        title: "Recursion, iteration and state",
+        level: "intermediate",
+        body: [
+          "Recursion expresses a problem in terms of a smaller version of itself, and it is the natural shape for anything tree-like: directory trees, nested JSON, parsers, divide and conquer sorts. Iteration expresses the same thing as a loop with explicit state. Every recursion can be rewritten as iteration with a stack, and the choice is about which one reads more clearly for the shape of the data.",
+          "The practical constraint is the call stack. Each recursive call consumes a frame, and stacks are finite: a few thousand frames in Python by default, more in most compiled languages but never unlimited. Recursing over a list of a million elements will exhaust it. Some languages optimise tail calls, where the recursive call is the last thing the function does, into a loop; many, including Python and most JavaScript engines in practice, do not.",
+          "Memoisation is where recursion becomes practical for overlapping subproblems. The naive recursive Fibonacci recomputes the same values exponentially often, roughly 2 to the power of n calls; caching each result makes it linear. That single change is also the entire idea behind dynamic programming, which sounds like a separate topic and is mostly this observation applied deliberately.",
+          "The state question sits underneath both. A loop that mutates variables is easy to write and easy to get subtly wrong when it grows; a recursive or functional version passes state explicitly, which is more verbose and harder to break. Neither is a rule, but when a loop body reaches thirty lines and four mutable variables, the bug you cannot find is usually one of them being updated in the wrong order.",
+        ],
+        why: "Recursion is the right tool for recursive data and the wrong tool for long flat sequences, and the stack is what decides which is which. Memoisation turns the classic exponential recursion into a linear one, which is the whole trick behind most dynamic programming problems.",
+        check: {
+          prompt: "A naive recursive Fibonacci is exponentially slow. What makes it linear?",
+          options: [
+            "Rewriting it as a loop, which removes the per-call stack frame overhead",
+            "Caching each computed value, so each subproblem is solved exactly once",
+            "Using integers rather than floats, which removes the conversion per call",
+            "Increasing the stack size, so the recursion no longer has to unwind early",
+          ],
+          correctIndex: 1,
+          explain:
+            "The cost is repeated work: the same subproblems are recomputed exponentially often. Memoising each result makes each one solved once, which is the core idea of dynamic programming.",
+        },
+      },
+      {
+        id: "errors-and-failure",
+        title: "Errors, exceptions and failure",
+        level: "intermediate",
+        body: [
+          "There are two families of error handling and it is worth knowing which one you are in. Exceptions are out-of-band: a failure unwinds the stack until something catches it, so the happy path stays uncluttered and the failure path is invisible in the signature. Returned errors are in-band: a function returns either a value or an error and the caller must deal with both, which makes failure visible and the code longer.",
+          "Both fail in the same way, which is silently swallowing the problem. An empty catch block, or an error return assigned and ignored, converts a loud failure into a wrong answer produced quietly. If there is genuinely nothing to do about an error, the minimum is to record it with enough context to identify it later.",
+          "The distinction that matters more than the syntax is between expected and unexpected failures. A file not existing, a validation rule failing, a payment being declined: these are outcomes, and modelling them as return values rather than exceptions usually produces clearer code. A null dereference or an out-of-range index is a bug, and it should be loud, uncaught and fixed rather than handled.",
+          "Finally, errors should carry context that is useful to whoever reads the log at three in the morning. Failed to save is not an error message; failed to save order 12345 for customer 678, database timeout after 5s is. Wrapping an error as it moves up the stack, adding what each layer knows, is the cheapest debugging investment available.",
+        ],
+        why: "The failure path is code, and it is the code least likely to be tested and most likely to run during an incident. Deciding deliberately which failures are outcomes and which are bugs is what keeps the first kind handled and the second kind visible.",
+        check: {
+          prompt: "Which failure is best modelled as a return value rather than an exception?",
+          options: [
+            "An index that falls outside the bounds of an array being read",
+            "A null reference being dereferenced inside a helper function",
+            "A payment being declined by the provider for insufficient funds",
+            "A configuration file that is missing at application startup",
+          ],
+          correctIndex: 2,
+          explain:
+            "A declined payment is an expected outcome that the caller must handle, so putting it in the signature is honest. Out-of-range and null dereference are bugs, and missing configuration at startup should be loud and fatal.",
+        },
+      },
+      {
+        id: "complexity-intuition",
+        title: "Complexity without hand-waving",
+        level: "advanced",
+        body: [
+          "Big O describes how the cost of an operation grows with the size of the input, and it deliberately ignores constants. That is its strength and the source of most of its misuse: it tells you which algorithm wins as n grows, and it says nothing about which is faster for the n you actually have. A linear scan of 50 items beats a hash lookup with an expensive hash function, and both are irrelevant next to one network call.",
+          "The growth rates worth recognising on sight are constant, logarithmic, linear, linearithmic, quadratic and exponential. The useful boundary is between quadratic and everything below it: at a million items, an n log n algorithm does roughly twenty million operations and a quadratic one does a trillion. That is the difference between a second and a fortnight, and it is why nested loops over large collections are the first thing to look for.",
+          "Space complexity gets less attention and causes at least as many incidents. Loading a whole file into memory works until the file is larger than the container's limit, and the failure is an abrupt kill rather than a slow response. Streaming, processing in chunks, and paginating are the answers, and they are much easier to build in from the start than to retrofit.",
+          "Then there is amortised cost, which is where dynamic arrays and hash maps live. Appending to a dynamic array is usually constant time and occasionally linear when it grows and copies, and the average across many appends stays constant. That is fine for throughput and not fine for latency: the request that triggers the resize pays for all the ones that did not, which is the same shape as a garbage collection pause and matters for the same reason.",
+        ],
+        why: "Complexity analysis is for choosing between algorithms, not for predicting runtime. The two facts that repay learning are that quadratic algorithms fall off a cliff at scale, and that amortised constant time means one unlucky call pays for everyone else, which shows up in the tail rather than in the average.",
+        check: {
+          prompt: "Appending to a dynamic array is amortised constant time. What does that hide?",
+          options: [
+            "Some appends are linear, so one unlucky call pays for the resize",
+            "The average is constant only when the array is smaller than the cache",
+            "Constant time here means constant per byte rather than per element",
+            "The cost is constant only if the array is never read while being written",
+          ],
+          correctIndex: 0,
+          explain:
+            "Growth copies the whole array, so occasional appends are linear while the average stays constant. It is fine for throughput and shows up in tail latency, which is the same shape as a collection pause.",
+        },
+      },
+    ],
+  },
+
+  {
+    id: "python",
+    title: "Python",
+    summary: "The data model, the mutable default, the GIL, and the parts of the language that catch experienced people.",
+    track: "languages",
+    topics: [
+      {
+        id: "python-data-model",
+        title: "Everything is an object",
+        level: "beginner",
+        body: [
+          "Python has one uniform rule underneath its syntax: every value is an object with a type, and every operator is a method call. Adding two numbers calls __add__, indexing calls __getitem__, len calls __len__, and a for loop calls __iter__ and then __next__ until it is told to stop. Once you know that, the language stops having special cases and starts having a small set of protocols.",
+          "This is what makes user-defined types feel native. Implement __len__ and __getitem__ and your class works with len, indexing, slicing and iteration. Implement __enter__ and __exit__ and it works with with. There is no interface to declare and nothing to inherit from; the method being present is the entire contract, which is duck typing made explicit.",
+          "Names are bindings rather than boxes. Assignment binds a name to an object; it never copies. Two names can refer to the same list, and mutating through one is visible through the other. The identity operator is checks whether two names refer to the same object, while == asks the objects whether they are equal, and confusing the two produces bugs that appear to depend on the value being tested.",
+          "Memory is managed by reference counting plus a cycle collector. An object is freed the moment its last reference goes away, which is why files closed by scope exit usually work in CPython and are not guaranteed by the language. Reference cycles need the collector, which runs periodically, so a class with __del__ and a cycle can keep memory alive far longer than the code suggests.",
+        ],
+        why: "The protocols are the language. Learning the dunder methods turns Python from a collection of conveniences into a system where your own types behave exactly like the built-in ones, which is the difference between writing Python and writing another language in Python syntax.",
+        check: {
+          prompt: "A class implements __len__ and __getitem__. What does it get for free?",
+          options: [
+            "Iteration, indexing and slicing, since the syntax calls those methods",
+            "Equality and hashing, both derived from the length and the contents",
+            "Sorting, because Python can order any object that reports a length",
+            "Membership testing alone, the one protocol that __len__ enables",
+          ],
+          correctIndex: 0,
+          explain:
+            "Python's syntax is sugar over method calls. Presence of the protocol methods is the whole contract, which is why a class with __getitem__ can be looped over even without __iter__.",
+        },
+      },
+      {
+        id: "python-mutable-defaults",
+        title: "Mutability and the default argument trap",
+        level: "intermediate",
+        body: [
+          "A default argument is evaluated once, when the function is defined, not each time it is called. A function declared with an empty list as a default therefore shares one list across every call that omits the argument, so items appended in one call are visible in the next. It looks like the function is remembering things, and in a sense it is.",
+          "The fix is the idiom you see everywhere: default to None and create the real value inside the body. It looks like ceremony until you know why it exists, at which point it stops looking like a style choice.",
+          "The same underlying fact, that names bind to objects rather than copy them, explains most other surprises. Slicing a list gives you a shallow copy, so the outer list is new and the inner objects are shared; copy.deepcopy exists for when that matters. A tuple is immutable in that its bindings cannot be changed, and a tuple containing a list still lets you mutate that list, which is why a tuple of mutable objects is not hashable in the way people expect.",
+          "This is also where class attributes catch people. An attribute assigned in the class body belongs to the class, so every instance shares it, and mutating it through one instance changes it for all of them. Assigning to it through an instance creates a new instance attribute that shadows the class one, so the two look identical in code and behave differently, which is a genuinely difficult bug to see by reading.",
+        ],
+        why: "Every one of these is the same fact wearing a different hat: Python binds names to objects and does not copy. Learning the rule once means recognising the pattern in the default argument, the shallow copy, the shared class attribute and the tuple that is not as immutable as it looks.",
+        check: {
+          prompt: "Why does a function with an empty list as its default argument appear to remember values between calls?",
+          options: [
+            "The interpreter caches arguments to avoid reallocating on every call",
+            "The default is evaluated once at definition, so one list is shared",
+            "Lists are interned like small integers, so equal lists become one object",
+            "Closures capture defaults, so the list belongs to the enclosing scope",
+          ],
+          correctIndex: 1,
+          explain:
+            "The default expression runs when the def statement executes. Every call that omits the argument gets that same object, which is why the None-and-create-inside idiom exists.",
+        },
+      },
+      {
+        id: "python-comprehensions",
+        title: "Comprehensions, generators and laziness",
+        level: "intermediate",
+        body: [
+          "A comprehension builds a collection in one expression, and its value is not brevity but that it says what is being built rather than how. A list comprehension produces a list immediately; a generator expression, with parentheses instead of brackets, produces an iterator that computes each item when asked, which is the difference between holding a million rows in memory and holding one.",
+          "Generators are the cheapest performance tool in the language for anything sequential. A function with yield in it returns a generator: it runs until the first yield, hands back a value, and resumes where it left off when the next value is requested. That turns a pipeline of transformations into something that streams, so a five gigabyte file can be processed in constant memory by a function that reads like it processes a list.",
+          "The cost is that a generator can only be consumed once, and its laziness moves work later, so an exception can surface in the loop that consumes it rather than in the line that appeared to create it. It also means the timing of side effects is not where it looks, which is why a generator that performs writes is usually a mistake.",
+          "The related tools are worth knowing as a set: enumerate when you need the index, zip to walk two sequences together, itertools for the standard lazy patterns such as chain, islice and groupby, and any and all for short-circuiting checks. Most loops that build a list, filter it and then reduce it are one line of these, and the one line is both faster and easier to check.",
+        ],
+        why: "Laziness is how Python handles data larger than memory without changing how the code reads. The trade is that work happens where it is consumed rather than where it is written, so errors and side effects appear somewhere other than the line that seems to cause them.",
+        check: {
+          prompt: "A five gigabyte file must be processed on a machine with one gigabyte of memory. What shape of code fits?",
+          options: [
+            "Read it into a list, then process in chunks to limit peak memory use",
+            "Generators that yield one line at a time, so memory stays constant",
+            "A comprehension, which is optimised to avoid materialising the result",
+            "Memory-mapped access, which is the only way to exceed available memory",
+          ],
+          correctIndex: 1,
+          explain:
+            "A generator produces items on demand, so a pipeline of them streams the file in constant memory. A list comprehension materialises everything, which is exactly what will not fit.",
+        },
+      },
+      {
+        id: "python-gil",
+        title: "The GIL and how to work with it",
+        level: "advanced",
+        body: [
+          "CPython has a global interpreter lock: one thread executes Python bytecode at a time, per interpreter. Threads are therefore real operating system threads that take turns, which means threading gives you concurrency and not parallelism for anything that computes. Four threads doing arithmetic on four cores run at roughly the speed of one.",
+          "The lock is released around blocking operations, which is why threading is still the right tool for IO. A thread waiting on a socket, a file or a database has released the lock, so other threads run. For a program that spends its time waiting, threads work exactly as you would hope, and asyncio does the same job with less memory per task and explicit switch points.",
+          "For CPU-bound work the answer is more than one interpreter: multiprocessing, or a process pool, so each process has its own lock and its own memory. The cost is that arguments and results are pickled and copied between processes, so the work per task has to be large enough to be worth the transfer. The other answer is to leave Python for the hot loop, which is what NumPy, Polars and every serious numeric library already do by releasing the lock and running C.",
+          "This is changing. PEP 703 added an experimental free-threaded build in Python 3.13, which removes the lock and allows genuine multi-core threading, at the cost of some single-threaded performance and a long tail of C extensions that need to be made safe. It is worth knowing about and not yet worth assuming, which means the practical advice stands: threads for IO, processes for CPU, and a library that drops into C for the numerical work.",
+        ],
+        why: "The GIL is the reason a Python program that looks parallel is not, and the reason the standard advice is threads for waiting and processes for computing. Knowing which of the two your workload is decides the concurrency model before any code is written.",
+        inPractice:
+          "NumPy and its descendants release the interpreter lock while running C, which is why numeric Python is fast without being parallel at the Python level. Python 3.13 shipped an experimental free-threaded build under PEP 703, which removes the lock entirely and is not yet the default.",
+        check: {
+          prompt: "A CPU-bound Python program is given four threads and does not get faster. Why?",
+          options: [
+            "The threads contend for the same cache lines, cancelling the gain",
+            "One thread executes Python bytecode at a time under the interpreter lock",
+            "Python threads are cooperative and only switch at explicit yield points",
+            "The operating system schedules Python threads onto a single core",
+          ],
+          correctIndex: 1,
+          explain:
+            "They are real threads taking turns holding one lock. That is concurrency without parallelism, which is useless for computing and exactly right for waiting on IO.",
+        },
+      },
+      {
+        id: "python-typing",
+        title: "Type hints, and what they do not do",
+        level: "advanced",
+        body: [
+          "Python's type hints are annotations that the interpreter records and does not enforce. Passing a string where an int is annotated runs perfectly happily. The value comes entirely from tools: a checker such as mypy or pyright reads them and tells you before you run anything, and an editor uses them for completion and navigation.",
+          "That makes them a documentation and tooling feature with teeth, and the returns are highest exactly where dynamic typing hurts most: function boundaries in a large codebase, data passed between modules, and anything another team will call. Annotating internal one-line helpers has a much worse ratio.",
+          "The pieces worth learning are Optional for the value that might be None, which is the most common runtime error in any language that has null, union types for genuine alternatives, Protocol for structural typing so a parameter can require behaviour rather than inheritance, and generics for containers whose contents matter. TypedDict is the pragmatic answer for the dictionary shapes that real programs pass around.",
+          "The trap is believing the annotations at run time. Data arriving from a network, a queue or a file is whatever it is, and an annotation saying it is a User does not make it one. Validation at the boundary, with a library such as Pydantic or a hand-written check, is what turns a hint into a guarantee, and the combination of the two is what makes a typed Python codebase actually safer rather than merely better documented.",
+        ],
+        why: "Hints move a class of errors from run time to check time, but only for code that a checker sees. At the edges, where data arrives from outside the program, they describe an intention rather than a fact, and the difference has to be closed by validation.",
+        check: {
+          prompt: "A function annotated to take an int is called with a string. What happens at run time?",
+          options: [
+            "A TypeError is raised, since annotations are checked when calling",
+            "Nothing: annotations are recorded and not enforced by the interpreter",
+            "The value is coerced to an int if it can be, otherwise it raises",
+            "The call succeeds but the annotation is removed from the function",
+          ],
+          correctIndex: 1,
+          explain:
+            "Annotations are metadata. Only a static checker or an explicit validation library acts on them, which is why data crossing the program's boundary still needs validating.",
+        },
+      },
+    ],
+  },
+
+  {
+    id: "javascript",
+    title: "JavaScript and TypeScript",
+    summary: "The event loop, closures, coercion, and what TypeScript actually checks.",
+    track: "languages",
+    topics: [
+      {
+        id: "js-event-loop",
+        title: "The event loop",
+        level: "beginner",
+        body: [
+          "JavaScript runs your code on one thread. Everything else, timers, network responses, file reads, user events, happens elsewhere and is handed back as a task to run when the thread is free. The event loop is the mechanism: run the current task to completion, then take the next one.",
+          "The rule that follows is that nothing else happens while your code runs. A loop that takes 300 milliseconds blocks rendering, input handling and every pending callback for 300 milliseconds. On a page, that is a frozen interface; in Node, that is every concurrent request waiting. This is the single most important operational fact about the language.",
+          "Not all queued work is equal. Promises resolve on the microtask queue, which is drained completely after the current task and before the next one, while setTimeout schedules a macrotask that waits its turn. So a promise chain that never awaits anything real can starve the timer queue, and a setTimeout with zero delay still runs after every pending promise callback.",
+          "Async and await do not add threads. They mark the points where a function may pause and let the loop run something else, then resume. That is why an await inside a loop serialises the whole loop, and why Promise.all is the difference between ten sequential requests and ten concurrent ones. The work is still on one thread; only the waiting overlaps.",
+        ],
+        why: "One thread means the cost of any slow synchronous operation is paid by everything else in the program. Knowing what yields and what does not is the difference between a page that stays responsive and one that freezes for reasons nobody can see in the code.",
+        check: {
+          prompt: "setTimeout(fn, 0) is called, and a resolved promise's then is queued. Which runs first?",
+          options: [
+            "The timer, because a zero delay means it is scheduled immediately",
+            "The promise callback, because microtasks drain before the next task",
+            "Whichever was queued first, since both share one ordered queue",
+            "They run concurrently, since promises are handled on a separate thread",
+          ],
+          correctIndex: 1,
+          explain:
+            "Microtasks are drained completely after the current task and before the next macrotask. A zero delay means as soon as possible, not now, and promises get there first.",
+        },
+      },
+      {
+        id: "js-closures-this",
+        title: "Closures, prototypes and this",
+        level: "intermediate",
+        body: [
+          "A closure is a function plus the variables it captured where it was defined, and it is the mechanism behind most JavaScript patterns: callbacks that remember context, module privacy, function factories, hooks. Understanding that the function holds the variable rather than its value at the time explains both the power and the classic loop bug that let was introduced to fix.",
+          "Objects inherit through a prototype chain rather than through classes. A property lookup walks from the object to its prototype and onwards until it finds the name or runs out, and class syntax is a more familiar spelling of exactly that. Knowing the chain exists explains why adding a method to a prototype affects every existing instance, and why a property that shadows one further up hides rather than replaces it.",
+          "Then there is this, which is bound by how a function is called rather than where it is defined. Extract a method from an object and call it on its own and this is no longer that object, which is the source of the callback that mysteriously stops working. Arrow functions do not bind their own this, taking it from the enclosing scope, which is why they are the default inside callbacks and the wrong choice for an object method that needs the receiver.",
+          "The practical rules: use arrow functions for callbacks, use regular functions or classes for methods that need this, and prefer passing values explicitly over relying on binding. Most this-related bugs disappear when the code stops depending on how a function will be called later.",
+        ],
+        why: "Closures and prototypes are the two mechanisms the whole language is built from, and this is the one piece of it decided at the call site rather than at the definition. Every framework pattern that looks like magic is one of the three.",
+        check: {
+          prompt: "A method is extracted from an object and passed as a callback, and this becomes undefined. Why?",
+          options: [
+            "The object was garbage collected once the method reference was taken",
+            "this is determined by how a function is called, not where it is defined",
+            "Extracting a method copies it, and copies lose their prototype chain",
+            "Callbacks always run in strict mode, which forbids implicit binding",
+          ],
+          correctIndex: 1,
+          explain:
+            "The receiver comes from the call site. Called on its own, there is no receiver, so this is undefined in strict mode. Arrow functions or explicit binding fix it by removing the dependency on how it is called.",
+        },
+      },
+      {
+        id: "js-coercion",
+        title: "Equality, coercion and the sharp edges",
+        level: "intermediate",
+        body: [
+          "JavaScript will convert types to make a comparison work, and the rules are more elaborate than anyone can hold in their head. The practical answer is to use strict equality, which compares without converting, and to convert deliberately when you mean to. Almost every surprising comparison in the language comes from the loose operator being allowed to guess.",
+          "The specific facts worth memorising are short. NaN is not equal to itself, which is why isNaN and Number.isNaN exist. typeof null returns object, a bug preserved since 1995 for compatibility. An empty array is falsy in a boolean context but equal to false and to zero under loose comparison. Adding a number to a string concatenates, and subtracting converts, so the same two values produce a string with one operator and a number with another.",
+          "Falsy values are a fixed set worth knowing exactly: false, 0, minus 0, empty string, null, undefined and NaN. Everything else is truthy, including empty arrays and empty objects, which is why checking a response by truthiness rather than by a property is a reliable way to accept something empty as success.",
+          "Modern syntax removes most of the remaining traps. Optional chaining reads a nested property without throwing when something in the middle is missing, and nullish coalescing supplies a default only for null and undefined rather than for every falsy value, so a legitimate zero or empty string is no longer replaced by a fallback. That last distinction fixes a whole category of quiet bugs in configuration handling.",
+        ],
+        why: "The language guesses when you let it, and the guesses are consistent rather than sensible. Strict equality, explicit conversion and nullish coalescing remove the guessing, which is why every serious style guide requires them.",
+        check: {
+          prompt: "A config value of 0 keeps being replaced by its default. Which operator is responsible?",
+          options: [
+            "Logical or, which treats 0 as falsy and substitutes the default",
+            "Nullish coalescing, which replaces any value that is not an object",
+            "Optional chaining, which returns undefined for a numeric property",
+            "Strict equality, which fails to match 0 against a numeric default",
+          ],
+          correctIndex: 0,
+          explain:
+            "Or substitutes for every falsy value, and 0 is falsy. Nullish coalescing substitutes only for null and undefined, which is why it is the right operator for defaults.",
+        },
+      },
+      {
+        id: "ts-structural",
+        title: "TypeScript is structural, and it disappears",
+        level: "advanced",
+        body: [
+          "TypeScript checks shapes rather than names. If an object has the properties a type requires, it satisfies that type, whether or not anyone declared a relationship. That is structural typing, and it is why you can pass an object literal to a function expecting an interface without implementing anything, and why two identically shaped types from different libraries are interchangeable.",
+          "The second fact is that all of it is erased. Types exist during compilation and produce no runtime code at all, so nothing checks a value at the boundary of the program unless you write that check. An API response cast as a User is a User as far as the compiler is concerned and whatever the server actually sent as far as the program is concerned, which is where a large share of production TypeScript errors come from.",
+          "The tools for closing that gap are narrowing and validation. Type guards, discriminated unions and the unknown type let you start from I do not know what this is and prove what it is with code the compiler follows. Using unknown rather than any for external data is the single highest-value habit: any switches the checker off silently, unknown forces you to establish what you have before using it.",
+          "Beyond that, the type system is expressive enough to encode real rules: unions to make invalid states unrepresentable, generics to keep containers honest, mapped and conditional types to derive one shape from another so they cannot drift apart. It is also expressive enough to write types nobody can read, and the point at which a type needs a comment to explain it is usually the point to simplify it.",
+        ],
+        why: "Structural typing makes TypeScript pleasant to adopt gradually, and erasure means it protects the inside of the program and nothing at its edges. Validating external data and preferring unknown over any is what turns compile-time confidence into runtime safety.",
+        check: {
+          prompt: "An API response is cast to a User type and a field is missing at run time. What went wrong?",
+          options: [
+            "The cast was to the wrong type, so the compiler checked the wrong shape",
+            "Types are erased, so a cast asserts a shape without verifying it",
+            "Structural typing matched a different type with the same field names",
+            "The response was parsed before the type was applied, losing the field",
+          ],
+          correctIndex: 1,
+          explain:
+            "A cast is an assertion to the compiler, not a check. Data crossing into the program has to be validated by code, which is why external input should start as unknown.",
+        },
+      },
+    ],
+  },
+
+  {
+    id: "sql",
+    title: "SQL",
+    summary: "Joins, indexes, plans and the queries that get slow at a million rows.",
+    track: "languages",
+    topics: [
+      {
+        id: "sql-joins",
+        title: "Joins and the relational model",
+        level: "beginner",
+        body: [
+          "SQL is declarative: you describe the result you want and the database decides how to produce it. That is why two queries returning the same rows can differ in cost by orders of magnitude, and why reading the plan matters more than tuning the text.",
+          "A join combines rows from two tables on a condition. An inner join keeps only matching pairs; a left join keeps every row from the left side, filling in nulls where there is no match. The most common bug in this area is a left join with a condition on the right table in the WHERE clause, which discards the null rows and silently turns it back into an inner join. Conditions on the outer side belong in the ON clause.",
+          "Duplicates are the other classic surprise. Joining to a table with several matching rows multiplies the left rows, so a sum over that result is inflated and looks plausible. When a query starts by adding DISTINCT to fix a total, the real fix is almost always to aggregate the right-hand table first and join to that.",
+          "The mental model that keeps this straight is set-based rather than procedural. A query is not a loop over rows; it is a description of a set. Once that clicks, GROUP BY becomes partitioning a set rather than accumulating a variable, and HAVING becomes filtering the groups after aggregation rather than the rows before it, which is the distinction that trips people in interviews.",
+        ],
+        why: "Thinking in sets rather than in loops is what separates SQL that works from SQL that works on the test data. The two failure modes to recognise are a left join demoted to an inner join by a WHERE clause, and totals inflated by a one-to-many join.",
+        check: {
+          prompt: "A LEFT JOIN stops returning unmatched rows after a filter is added. Why?",
+          options: [
+            "The filter references the right table in WHERE, discarding the null rows",
+            "Left joins are converted to inner joins when the result set is filtered",
+            "The filter changed the join order, so the right table became the left",
+            "Null values fail every comparison, so filtered rows are always excluded",
+          ],
+          correctIndex: 0,
+          explain:
+            "Unmatched rows have nulls on the right side, and a WHERE condition on those columns removes them. Put the condition in the ON clause to keep the join outer.",
+        },
+      },
+      {
+        id: "sql-indexes",
+        title: "Indexes and query plans",
+        level: "intermediate",
+        body: [
+          "An index is a sorted structure, usually a B-tree, that lets the database find rows without reading the whole table. It costs storage and slows writes, because every insert and update maintains it, which is why indexing every column is not a strategy.",
+          "Composite indexes have an ordering rule that decides half of real query performance: an index on (customer_id, created_at) can serve a lookup by customer, and by customer and date together, and cannot serve a lookup by date alone. It is a phone book sorted by surname then first name. Choosing the column order is choosing which queries the index can answer.",
+          "Indexes are also easy to disable by accident. Wrapping a column in a function, comparing it to a different type, or starting a LIKE pattern with a wildcard all force a scan, because the index is sorted by the raw value and the query is asking about something else. Most sudden slowdowns after an innocent change are one of those three.",
+          "The way to know rather than guess is EXPLAIN, ideally with ANALYZE so the numbers are measured rather than estimated. What to look for is short: a sequential scan on a large table, an estimated row count far from the actual one, which means the statistics are stale, and a nested loop over many rows where a hash join would be cheaper. A covering index, one that contains every column the query needs, lets the database answer without touching the table at all, which is the largest single win available on a hot read path.",
+        ],
+        why: "Indexes are the difference between a query that scales and one that works until the table grows. The ordering rule for composite indexes and the three ways to accidentally disable one cover most of what goes wrong in practice.",
+        check: {
+          prompt: "An index on (customer_id, created_at) exists. Which query cannot use it?",
+          options: [
+            "One filtering by customer_id and ordering the result by created_at",
+            "One filtering by customer_id alone with no date condition at all",
+            "One filtering by created_at alone with no customer condition at all",
+            "One filtering by both customer_id and created_at with an equality test",
+          ],
+          correctIndex: 2,
+          explain:
+            "A composite index is sorted by the first column first, so it can serve a prefix of its columns. Filtering only on the second is like looking someone up in a phone book by first name.",
+        },
+      },
+      {
+        id: "sql-aggregation",
+        title: "Aggregation and window functions",
+        level: "intermediate",
+        body: [
+          "GROUP BY collapses rows into one row per group, and every selected column must either be in the group or inside an aggregate, because there is no sensible answer otherwise. WHERE filters rows before grouping and HAVING filters groups after it, which is the distinction that decides whether a query is filtering the input or the result.",
+          "Window functions do the other thing people want, which is to compute across related rows while keeping every row. A running total, a rank within each customer, the difference from the previous row, the average over a trailing seven days: each is one OVER clause. Before window functions the same results needed a self-join or application code, and both were slower and harder to read.",
+          "The three parts of a window are worth learning as a unit: PARTITION BY chooses the group, ORDER BY chooses the order within it, and the frame chooses how many rows around the current one to include. ROW_NUMBER, RANK and DENSE_RANK differ only in how they treat ties, and choosing wrongly is a quiet way to lose or duplicate rows in a top-N-per-group query.",
+          "That top-N-per-group pattern is the one to remember, because it appears constantly: number the rows within each partition by the ordering you care about, then keep those numbered at or below N. It replaces a correlated subquery that gets slower with every group, and it reads as what it does.",
+        ],
+        why: "Window functions cover the space between one row per row and one row per group, which is where most reporting questions live. Knowing them turns queries that would need application code into a single statement the database can plan.",
+        check: {
+          prompt: "You need the three most recent orders per customer in one query. What fits best?",
+          options: [
+            "GROUP BY customer with an aggregate that returns the latest three orders",
+            "ROW_NUMBER partitioned by customer, ordered by date, filtered to three",
+            "A correlated subquery selecting the three latest orders for each customer",
+            "DISTINCT ON the customer column, ordered so recent orders come first",
+          ],
+          correctIndex: 1,
+          explain:
+            "Grouping collapses the rows you want to keep. Numbering within each partition and filtering the numbers is the standard top-N-per-group pattern, and it plans far better than a correlated subquery.",
+        },
+      },
+      {
+        id: "sql-transactions",
+        title: "Transactions in practice",
+        level: "advanced",
+        body: [
+          "A transaction groups statements so they succeed or fail together. That much is familiar; what matters in practice is what other transactions can see while yours is running, which is the isolation level, and it is usually left at whatever the database defaults to without anyone choosing it.",
+          "Read committed, the common default, means you never see uncommitted data and can see different results if you run the same query twice, because other transactions commit in between. Repeatable read fixes the second query to the same snapshot. Serializable behaves as though transactions ran one after another, and pays for it in aborts under contention. The anomalies these prevent, dirty reads, non-repeatable reads, phantoms and write skew, are worth being able to name because each maps to a real bug.",
+          "The practical rule is to keep transactions short and to keep anything slow outside them. A transaction that holds a row lock while calling an external API holds it for the length of that call, and a queue of requests forms behind it. The same applies to user interaction: never hold a transaction open across a form being filled in, which is exactly what optimistic concurrency and a version column exist to replace.",
+          "Two more things that catch people. Deadlocks are normal under concurrency and are resolved by the database aborting one transaction, so application code has to be prepared to retry, which means the work must be safe to repeat. And a transaction rolling back does not undo side effects outside the database: emails sent, files written and messages published are gone regardless, which is why those belong after the commit or behind an outbox.",
+        ],
+        why: "The default isolation level is a decision made for you, and it is right often enough that nobody notices until a report double-counts. Short transactions, an explicit choice of level for the paths that need it, and a retry for deadlocks cover almost every case.",
+        check: {
+          prompt: "A transaction holds a row lock while calling a payment provider. What is the consequence?",
+          options: [
+            "The lock is held for the length of the call, and requests queue behind it",
+            "The database aborts the transaction once the call exceeds its timeout",
+            "The lock is released automatically while the transaction waits on the network",
+            "Other readers see the uncommitted row, since read locks are not held",
+          ],
+          correctIndex: 0,
+          explain:
+            "Locks are held until the transaction ends, so an external call inside one converts a slow dependency into database contention. External calls belong outside the transaction, before it or after the commit.",
+        },
+      },
+    ],
+  },
+];

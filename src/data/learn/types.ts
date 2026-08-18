@@ -85,6 +85,7 @@ export interface Topic {
 
 export type Track =
   | "foundations"
+  | "languages"
   | "design"
   | "delivery"
   | "practice"
@@ -101,6 +102,7 @@ export interface Card {
 
 export const TRACKS: { id: Track; label: string; blurb: string }[] = [
   { id: "foundations", label: "Foundations", blurb: "What everything else assumes you already know." },
+  { id: "languages", label: "Programming", blurb: "The concepts every language shares, and the languages worth knowing properly." },
   { id: "design", label: "System design", blurb: "The building blocks, and when each one is the wrong choice." },
   { id: "delivery", label: "Delivery and infrastructure", blurb: "Getting it running, and keeping it running." },
   { id: "practice", label: "Engineering practice", blurb: "Testing, security, code quality, and how teams actually work." },

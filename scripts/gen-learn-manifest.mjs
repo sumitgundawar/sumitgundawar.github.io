@@ -14,6 +14,8 @@
  * silently stops listing the newest one, and nothing fails when it does.
  */
 import { writeFileSync } from "node:fs";
+
+const SITE = "https://sumitgundawar.com";
 import { cards } from "../src/data/learn/index.ts";
 import { GROUPS } from "../src/data/learn/groups.ts";
 
@@ -52,4 +54,26 @@ export const cardCount = ${entries.length};
 `;
 
 writeFileSync("src/data/learn/manifest.ts", body);
+
+/* The sitemap is regenerated from the same list, because the two drifted the
+   moment a card was added: a page that exists, is linked and is not in the
+   sitemap is also not prerendered, so it ships as an empty shell to every
+   crawler. Generating both from one source removes the possibility. */
+const today = new Date().toISOString().slice(0, 10);
+const fixed = [
+  ["/", "1.0"],
+  ["/learn", "0.9"],
+  ["/writing", "0.8"],
+  ["/build", "0.8"],
+  ["/archive", "0.6"],
+];
+const urls = [
+  ...fixed.map(([path, priority]) => `  <url><loc>${SITE}${path}</loc><lastmod>${today}</lastmod><priority>${priority}</priority></url>`),
+  ...entries.map((c) => `  <url><loc>${SITE}/learn/${c.id}</loc><lastmod>${today}</lastmod><priority>0.7</priority></url>`),
+];
+writeFileSync(
+  "public/sitemap.xml",
+  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`,
+);
+console.log(`sitemap: ${urls.length} urls`);
 console.log(`learn manifest: ${entries.length} cards, ${entries.reduce((n, c) => n + c.topics.length, 0)} topics`);

@@ -1,4 +1,5 @@
 import { foundations } from "./foundations";
+import { languages } from "./languages";
 import { design } from "./design";
 import { design2 } from "./design2";
 import { delivery } from "./delivery";
@@ -15,6 +16,7 @@ export * from "./types";
  *  interview last. Tracks group them on the page. */
 export const cards: Card[] = [
   ...foundations,
+  ...languages,
   ...design,
   ...design2,
   ...delivery,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FlowDiagram } from "./FlowDiagram";
 import { DiagramViews } from "./DiagramViews";
@@ -7,7 +7,7 @@ import { NewsletterPrompt } from "./NewsletterPrompt";
 import { trackQuiz } from "@/lib/api";
 import { track } from "@/lib/track";
 import { useProgress, summarise, type Progress } from "@/lib/progress";
-import { usePageDwell, setSocialMeta } from "@/lib/hooks";
+import { usePageDwell, setSocialMeta, useStagger } from "@/lib/hooks";
 /* Imported from the leaf modules rather than from the barrel.
  *
  * "@/data/learn" pulls every card into whatever imports it, which is how this
@@ -28,6 +28,18 @@ function metaForLevel(level: Level | "all"): CardMeta[] {
 
 const countByLevel = (level: Level) =>
   manifest.reduce((n, c) => n + c.topics.filter((t) => t.level === level).length, 0);
+
+/** A grid whose children arrive one after another rather than all at once.
+ *  A component rather than a hook call at the use site, because the grid is
+ *  rendered inside a map over tracks and hooks cannot be called there. */
+function StaggerGrid({ className, children }: { className?: string; children: ReactNode }) {
+  const ref = useStagger<HTMLDivElement>();
+  return (
+    <div ref={ref} className={className}>
+      {children}
+    </div>
+  );
+}
 
 const LEVEL_COLOR: Record<Level, string> = {
   beginner: "var(--lv-beginner)",
@@ -605,7 +617,7 @@ export function LearnPage() {
                     </p>
                   </div>
 
-                  <div className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+                  <StaggerGrid className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
                     {inTrack.map((c) => {
                       const levelsHere = LEVELS.filter((l) => c.topics.some((t) => t.level === l));
                       return (
@@ -619,7 +631,7 @@ export function LearnPage() {
                           key={c.id}
                           to={`/learn/${c.id}${window.location.search}`}
                           onClick={() => track("card_open", { card: c.id, track: c.track })}
-                          className="text-left rounded-lg border p-4 sm:p-5 flex flex-col gap-2 h-full transition-transform hover:-translate-y-0.5"
+                          className="press text-left rounded-lg border p-4 sm:p-5 flex flex-col gap-2 h-full transition-transform hover:-translate-y-0.5"
                           style={{ borderColor: "var(--hair-strong)", background: "var(--surface)" }}
                         >
                           <span className="text-[length:var(--fs-item)] font-medium leading-snug" style={{ color: "var(--c-text)" }}>
@@ -646,7 +658,7 @@ export function LearnPage() {
                         </Link>
                       );
                     })}
-                  </div>
+                  </StaggerGrid>
                 </section>
               );
             })}

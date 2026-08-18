@@ -246,6 +246,45 @@
   }
 }
 
+/* ---------- motion ----------
+   Everything here is an accent on a page that already works without it, which
+   is why each rule is a transform or an opacity: neither reflows the document,
+   so nothing below can shift while it plays. The reduced-motion block further
+   down disables the lot in one place. */
+
+/* Route changes. A page that swaps instantly reads as a reload; 220ms of
+   movement reads as navigation. Short enough that nobody waits for it. */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.page-enter { animation: page-enter 220ms var(--ease) both; }
+
+/* Diagram edges drawing themselves in. The site's diagrams are its most
+   distinctive element and they arrived fully formed, which hid the thing worth
+   noticing: that a diagram is a sequence, not a picture. */
+@keyframes draw-edge {
+  to { stroke-dashoffset: 0; }
+}
+.diagram-draw .edge-path {
+  stroke-dasharray: var(--edge-len, 400);
+  stroke-dashoffset: var(--edge-len, 400);
+  animation: draw-edge 620ms var(--ease) forwards;
+  animation-delay: var(--edge-delay, 0ms);
+}
+.diagram-draw .node-fade {
+  opacity: 0;
+  animation: page-enter 380ms var(--ease) forwards;
+  animation-delay: var(--node-delay, 0ms);
+}
+
+/* Press feedback. Hover states are half a story on a phone, where there is no
+   hover at all and the only signal that a tap registered is this. */
+.press {
+  transition: transform 120ms var(--ease), border-color 200ms var(--ease);
+}
+.press:active { transform: scale(0.985); }
+
 @keyframes pulse-dot {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--signal) 55%, transparent); }
   70% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--signal) 0%, transparent); }
@@ -270,6 +309,8 @@
     transition-duration: 0.001ms !important;
   }
   .reveal { opacity: 1; transform: none; }
+  .diagram-draw .edge-path { stroke-dasharray: none; stroke-dashoffset: 0; }
+  .diagram-draw .node-fade { opacity: 1; }
 }
 
 /* Reading measure, held where it already is.

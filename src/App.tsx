@@ -1,11 +1,13 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { StatusPage } from "@/components/StatusPage";
 import { useAnalyticsPageview } from "@/lib/hooks";
 
-/* The profile page is the entry point and stays in the main bundle. The two
-   learning pages carry the entire curriculum, around 200kB of source data, which someone landing here and leaving should never download. */
+/* The profile page is the entry point and stays in the main bundle. Every other
+   page is fetched when it is first visited, and the learn material is split
+   again beneath that, one chunk per group of cards, so opening one card does
+   not download the whole curriculum. */
 const LearnPage = lazy(() =>
   import("@/components/LearnPage").then((m) => ({ default: m.LearnPage })),
 );
@@ -67,6 +69,15 @@ function RouteFallback() {
   return <div className="min-h-[100dvh]" aria-busy="true" />;
 }
 
+function PageTransition({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  return (
+    <div key={pathname} className="page-enter">
+      {children}
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -74,7 +85,12 @@ export default function App() {
       <AnalyticsListener />
       <ScrollReset />
       <ExitPrompt />
+      {/* One wrapper, keyed by path, so a route change replays the enter
+          animation. Opacity and transform only: nothing here can move the
+          document, and the prerenderer captures the DOM rather than the frame,
+          so the text is present in the HTML whatever the animation is doing. */}
       <Suspense fallback={<RouteFallback />}>
+        <PageTransition>
         <Routes>
           <Route path="/" element={<StatusPage />} />
           <Route path="/learn" element={<LearnPage />} />
@@ -84,6 +100,7 @@ export default function App() {
           <Route path="/archive" element={<ArchivePage />} />
           <Route path="/archive/:slug" element={<ArchivePage />} />
         </Routes>
+        </PageTransition>
       </Suspense>
     </BrowserRouter>
   );

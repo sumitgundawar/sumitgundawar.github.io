@@ -18,6 +18,77 @@ export function usePrefersReducedMotion(): boolean {
 }
 
 /* Reveal an element once it scrolls into view. Returns a ref to attach. */
+/* Reveals the children of a container one after another rather than as a block.
+ *
+ * A grid of twelve cards appearing at once reads as a page that was slow; the
+ * same grid arriving over 300ms reads as a page that is assembling itself. The
+ * delay is capped so a long list never leaves the last item waiting, and the
+ * whole thing is skipped under reduced motion, where every child is simply
+ * shown. Applied to the container, so adding a card needs no extra wiring. */
+export function useStagger<T extends HTMLElement = HTMLDivElement>(step = 45, cap = 360) {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const children = Array.from(el.children) as HTMLElement[];
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    children.forEach((child, i) => {
+      child.classList.add("reveal");
+      if (reduced) {
+        child.classList.add("in");
+        return;
+      }
+      child.style.transitionDelay = `${Math.min(i * step, cap)}ms`;
+    });
+    if (reduced) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        });
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -6% 0px" },
+    );
+    children.forEach((child) => io.observe(child));
+    return () => io.disconnect();
+  }, [step, cap]);
+  return ref;
+}
+
+/* Counts up to a number when it first comes into view.
+ *
+ * Only for figures that are worth noticing, and only once: a number that
+ * re-animates every time it scrolls past is a distraction rather than an
+ * accent. Returns the value to render, which is the final one immediately
+ * under reduced motion so nothing depends on the animation having run. */
+export function useCountUp(target: number, durationMs = 900): number {
+  const [value, setValue] = useState(target);
+  const ref = useRef<HTMLElement | null>(null);
+  void ref;
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setValue(target);
+      return;
+    }
+    let frame = 0;
+    const start = performance.now();
+    setValue(0);
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs);
+      // Ease out, so the number decelerates into its final value.
+      setValue(Math.round(target * (1 - Math.pow(1 - t, 3))));
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, durationMs]);
+  return value;
+}
+
 export function useReveal<T extends HTMLElement = HTMLDivElement>() {
   const ref = useRef<T>(null);
   useEffect(() => {

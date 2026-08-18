@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, type CSSProperties } from "react";
 import { usePrefersReducedMotion } from "@/lib/hooks";
 import type { Diagram, DiagramNode, NodeKind } from "@/data/learn";
 
@@ -97,6 +97,40 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
   // The packets are SMIL, and CSS animation properties do not touch SMIL, // the reduced-motion block in index.css never stopped them. Not rendering
   // them is the only thing that actually does.
   const reducedMotion = usePrefersReducedMotion();
+
+  /* Draw the diagram in the first time it is seen.
+   *
+   * These diagrams are the most distinctive thing on the site and they arrived
+   * fully formed, which hides the fact worth noticing: a diagram is a sequence,
+   * not a picture. Edges draw along their own length, which is measured rather
+   * than guessed, because a dash pattern longer than the path finishes early
+   * and the effect reads as a glitch. Once only: a diagram that redraws every
+   * time it scrolls past is an interruption. */
+  const svgRef = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || reducedMotion) return;
+
+    const paths = Array.from(svg.querySelectorAll<SVGPathElement>(".edge-path"));
+    paths.forEach((path, i) => {
+      const len = path.getTotalLength();
+      path.style.setProperty("--edge-len", `${Math.round(len)}`);
+      path.style.setProperty("--edge-delay", `${180 + Math.min(i * 70, 700)}ms`);
+    });
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          e.target.classList.add("diagram-draw");
+          io.unobserve(e.target);
+        });
+      },
+      { threshold: 0.15 },
+    );
+    io.observe(svg);
+    return () => io.disconnect();
+  }, [reducedMotion, diagram]);
 
   const { placed, width, height, byId } = useMemo(() => {
     // One column per row when stacked, so the graph reads top to bottom and
@@ -310,6 +344,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
           {full ? "exit" : "full screen"}
         </button>
         <svg
+          ref={svgRef}
           viewBox={`0 0 ${width} ${height}`}
           width="100%"
           role="group"
@@ -347,6 +382,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
               <g key={pid} opacity={dim ? 0.22 : 1} style={{ transition: "opacity .18s" }}>
                 <path
                   id={pid}
+                  className="edge-path"
                   d={d}
                   fill="none"
                   stroke="var(--c-text-dim)"
@@ -405,14 +441,23 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
             );
           })}
 
-          {placed.map((n) => {
+          {placed.map((n, ni) => {
             const kind = n.kind ?? "service";
             const c = KIND_COLOR[kind];
             const active = hovered === n.id;
             const dim = hovered !== null && !active;
             return (
+              /* The fade lives on a wrapper rather than on the interactive
+                 group. An animation with a forwards fill sets opacity as a
+                 property, which outranks the presentation attribute below it,
+                 so putting both on one element would leave every node stuck at
+                 full opacity and quietly kill the hover dimming. */
               <g
                 key={n.id}
+                className="node-fade"
+                style={{ "--node-delay": `${Math.min(ni * 55, 640)}ms` } as CSSProperties}
+              >
+              <g
                 opacity={dim ? 0.4 : 1}
                 onMouseEnter={() => setHovered(n.id)}
                 onMouseLeave={() => setHovered(null)}
@@ -475,6 +520,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                     {fit(n.sub, 11, W - 28)}
                   </text>
                 )}
+              </g>
               </g>
             );
           })}

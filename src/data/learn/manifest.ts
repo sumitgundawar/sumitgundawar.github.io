@@ -291,7 +291,7 @@ export const manifest: CardMeta[] = [
   {
     "id": "observability",
     "title": "Observability",
-    "summary": "Knowing what is happening, and what to measure instead of averages.",
+    "summary": "Logs, metrics, traces, percentiles, error budgets and alerts that are worth waking up for.",
     "track": "design",
     "group": "design",
     "topics": [
@@ -308,6 +308,16 @@ export const manifest: CardMeta[] = [
       {
         "id": "slo",
         "title": "SLIs, SLOs and error budgets",
+        "level": "advanced"
+      },
+      {
+        "id": "alerting",
+        "title": "Alerts worth waking up for",
+        "level": "advanced"
+      },
+      {
+        "id": "cardinality",
+        "title": "Cardinality, sampling and the bill",
         "level": "advanced"
       }
     ]
@@ -1045,5 +1055,5 @@ export const manifest: CardMeta[] = [
   }
 ];
 
-export const topicCount = 146;
+export const topicCount = 148;
 export const cardCount = 34;

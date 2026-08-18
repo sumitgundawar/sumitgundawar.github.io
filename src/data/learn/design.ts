@@ -1414,7 +1414,7 @@ export const design: Card[] = [
   {
     id: "observability",
     title: "Observability",
-    summary: "Knowing what is happening, and what to measure instead of averages.",
+    summary: "Logs, metrics, traces, percentiles, error budgets and alerts that are worth waking up for.",
     track: "design",
     topics: [
       {
@@ -1422,27 +1422,114 @@ export const design: Card[] = [
         title: "Logs, metrics and traces",
         level: "beginner",
         body: [
-          "Logs record discrete events with detail. Metrics are aggregated numbers over time, cheap to store and query. Traces follow one request across services.",
-          "Metrics tell you something is wrong. Traces tell you where. Logs tell you why.",
-          "Using only logs means expensive storage and slow answers to simple questions; using only metrics means knowing something broke without knowing what.",
+          "The three signals answer different questions and are priced very differently, which is why the choice between them is an engineering decision rather than a matter of taste. Metrics are numbers aggregated over time: cheap to store, cheap to query, and they tell you that something is wrong. Traces follow one request across every service it touches and tell you where the time went. Logs record discrete events with full detail and tell you why.",
+          "Run only on logs and you are paying to store the answer to questions a metric answers instantly, then waiting on a text search to compute what a counter already knew. Run only on metrics and you know the error rate rose without knowing which call, which customer, or which deploy. Most teams arrive at the right mix by overspending on one of them first.",
+          "A trace is a tree of spans, each with a start, a duration, and a parent, tied together by identifiers that travel with the request. That propagation is the whole mechanism, and it is standardised: W3C Trace Context defines the traceparent header so a trace survives crossing between systems written by different people. Miss the propagation in one hop and the trace silently splits into two unrelated halves, which is the most common reason tracing is installed and not useful.",
+          "Sampling is unavoidable at volume, since keeping every span for every request costs more than the service. Head-based sampling decides at the start, cheap and blind: Google's Dapper paper describes sampling as low as one request in 1,024 for high-throughput services. Tail-based sampling buffers the spans and decides after the fact, so you can keep every trace that was slow or errored and discard the boring majority, which is what you actually want and costs more to run.",
+          "Logs earn their keep when they are structured. A line of prose has to be parsed with a regular expression that breaks the next time someone rewords the message; a JSON object with the same fields on every line can be filtered, counted and grouped without anyone writing a parser. Emit the request id in every line, and the log becomes a joinable dataset rather than a story.",
+          "The connective tissue matters more than any of the three individually. A metric that alerts should link to the trace that shows the slow hop, and the trace should link to the logs for that request id. Without those links each signal is an island and every investigation starts with someone copying identifiers between four browser tabs at two in the morning.",
         ],
-        why: "The three are complementary and priced very differently. Logging everything at high volume is a large bill for questions a metric answers instantly.",
+        why: "Metrics tell you something is wrong, traces tell you where, logs tell you why, and the cost per question rises in that order. Reaching for the expensive signal first is how observability bills grow faster than traffic while investigations stay slow.",
+        inPractice:
+          "Google's Dapper described the design most tracing systems still follow, including aggressive sampling for high-throughput services. W3C Trace Context is now the standard for carrying trace identity between systems, which is what makes a trace survive the boundary between your service and someone else's.",
+        diagram: {
+          caption: "Three signals, one request id joining them",
+          columns: [
+            [{ id: "req", label: "Request", sub: "id generated", kind: "client" }],
+            [
+              { id: "m", label: "Metrics", sub: "counters, histograms", kind: "data" },
+              { id: "t", label: "Trace", sub: "spans per hop", kind: "data" },
+              { id: "l", label: "Logs", sub: "structured, with id", kind: "data" },
+            ],
+            [{ id: "alert", label: "Alert fires", sub: "from a metric", kind: "edge" }],
+            [{ id: "inv", label: "Investigation", sub: "trace then logs", kind: "service" }],
+          ],
+          edges: [
+            { from: "req", to: "m", label: "counted" },
+            { from: "req", to: "t", label: "sampled" },
+            { from: "req", to: "l", label: "written" },
+            { from: "m", to: "alert", label: "threshold crossed" },
+            { from: "alert", to: "inv", label: "link to the trace" },
+          ],
+        },
         check: {
           prompt: "Latency has risen across a request path spanning six services. Which signal localises it fastest?",
           options: ["Application logs", "Distributed traces", "CPU metrics", "Error counts"],
           correctIndex: 1,
           explain: "A trace shows time spent per service for one request, which points at the slow hop immediately. Logs would mean correlating six services by hand.",
         },
+        checks: [
+          {
+            prompt: "Tracing is installed everywhere, and traces stop at the third service. What is the likely cause?",
+            options: [
+              "That service samples at a lower rate than the two services above it",
+              "Its spans exceed the collector's size limit and are dropped silently",
+              "It does not propagate the trace headers, so downstream starts a new trace",
+              "Its clock is skewed, so the spans are ordered outside the trace window",
+            ],
+            correctIndex: 2,
+            explain:
+              "A trace exists because the identifiers travel with the request. One hop that drops the headers splits the trace into two unrelated halves, each of which looks complete on its own.",
+          },
+          {
+            prompt: "What does tail-based sampling give you that head-based sampling cannot?",
+            options: [
+              "A guarantee that every trace from a given customer is retained",
+              "The ability to keep exactly the slow and failed traces, decided after the fact",
+              "Lower overhead, since the decision is made once per service rather than per span",
+              "Consistent sampling across services without propagating a sampling flag",
+            ],
+            correctIndex: 1,
+            explain:
+              "Deciding at the start means keeping a random sample, which is mostly healthy requests. Buffering the spans and deciding at the end lets you keep the interesting ones, at the cost of holding them until the request finishes.",
+          },
+          {
+            prompt: "Why does structured logging matter more than log volume?",
+            options: [
+              "Structured lines compress better, so retention costs fall sharply",
+              "Fields can be filtered and counted without a parser that breaks on rewording",
+              "Structured logs can be sampled safely, whereas prose logs cannot",
+              "It allows log lines to be written asynchronously without losing order",
+            ],
+            correctIndex: 1,
+            explain:
+              "Consistent fields turn a log into a queryable dataset. Prose has to be parsed by pattern, and the pattern breaks the next time somebody improves the wording of a message.",
+          },
+        ],
       },
       {
         id: "percentiles",
         title: "Percentiles, not averages",
         level: "intermediate",
         body: [
-          "An average hides the tail. A system averaging 100ms can still be taking five seconds on one request in a hundred, and p50 describes the typical experience while p95 and p99 describe the worst of it.",
-          "The tail is where users churn, and it is invisible in the mean. One caution while you are moving to percentiles: averaging them across servers is meaningless. A percentile has to be computed over the whole population, not averaged out of per-host summaries.",
+          "An average hides the tail, and the tail is what people complain about. A system averaging 100ms can be taking five seconds on one request in a hundred: the mean barely moves, and the hundredth user is the one who writes to support. p50 describes the typical experience, p95 and p99 describe the worst of it, and only the second pair predicts churn.",
+          "The tail is also structurally worse than it looks in a system made of many services, and the arithmetic is the most useful thing in this topic. If a request fans out to 100 servers and each has a 1% chance of taking over a second, the chance that at least one of them does is 1 minus 0.99 to the power of 100, which is about 63%. A one-in-a-hundred event at the component becomes a two-in-three event at the request. That is the result from Dean and Barroso's paper on tail latency, and it explains why large systems fight for the 99th percentile of their dependencies rather than the mean.",
+          "There is a trap on the way to percentiles that catches almost everyone: you cannot average them. The mean of each host's p99 is not the fleet's p99, and it is not any statistic at all. Percentiles have to be computed over the whole population, which is why metric systems store histograms with fixed buckets, or sketches such as t-digest, rather than the summary number each host computed for itself.",
+          "Choose the percentile from the number of chances a user gets to hit it. A page that makes 20 API calls gives the p95 twenty opportunities to appear, so roughly two thirds of page loads will contain at least one p95 request. For anything a user does repeatedly, p99 and p99.9 are the honest targets, and for a nightly batch job the mean is genuinely fine.",
+          "Measure at the edge as well as inside. Server-side latency excludes queueing before your process, DNS, connection setup, the mobile network and the time the browser spends rendering, and those can dominate. A service that is fast in its own dashboards and slow to its users usually has that gap, and finding it means measuring where the user is rather than where the code is.",
+          "Finally, watch the shape and not only the number. A bimodal distribution, fast on cache hits and slow on misses, has a p50 and a p99 that describe two different populations and a mean that describes neither. Histograms show that immediately; a single summary number never will.",
         ],
-        why: "Reporting p99 instead of the mean is a small change that surfaces problems users complain about but dashboards do not show. It also makes capacity conversations honest.",
+        why: "Reporting p99 instead of the mean is a small change that surfaces the problems users complain about and dashboards do not show. It also makes capacity conversations honest, because the tail is where a system runs out of headroom first.",
+        inPractice:
+          "Dean and Barroso's The Tail at Scale is the canonical treatment: at 100 servers per request, a one-in-a-hundred slow response at a component becomes a roughly two-in-three chance at the request. It is the reason large systems chase tail latency in their dependencies rather than averages.",
+        diagram: {
+          caption: "A one-in-a-hundred component tail becomes a two-in-three request tail",
+          columns: [
+            [{ id: "u", label: "One request", kind: "client" }],
+            [{ id: "fan", label: "Fan-out", sub: "100 services", kind: "service" }],
+            [
+              { id: "ok", label: "99 fast replies", sub: "under 100ms", kind: "data" },
+              { id: "slow", label: "1 slow reply", sub: "over 1s, 1% each", kind: "data", alternative: true },
+            ],
+            [{ id: "res", label: "Response", sub: "63% exceed 1s", kind: "edge" }],
+          ],
+          edges: [
+            { from: "u", to: "fan", label: "one page" },
+            { from: "fan", to: "ok", label: "99% each" },
+            { from: "fan", to: "slow", label: "1% each" },
+            { from: "slow", to: "res", label: "the slowest decides" },
+          ],
+        },
         check: {
           prompt: "Average latency is 100ms and users complain of slowness. Most likely explanation?",
           options: [
@@ -1454,16 +1541,78 @@ export const design: Card[] = [
           correctIndex: 1,
           explain: "A small fraction of very slow requests barely moves the mean but is highly visible to the users who hit it. Look at p95 and p99.",
         },
+        checks: [
+          {
+            prompt: "A dashboard averages each host's p99 to show a fleet-wide p99. What is wrong with that?",
+            options: [
+              "It weights busy hosts equally with idle ones, biasing the result low",
+              "It cannot be computed in real time, so the value is always stale",
+              "The mean of percentiles is not a percentile of the population at all",
+              "It hides which host is slow, so the number cannot be acted on",
+            ],
+            correctIndex: 2,
+            explain:
+              "Percentiles do not average. The fleet p99 has to be computed over all requests, which is why metric systems store histograms or sketches rather than each host's summary number.",
+          },
+          {
+            prompt: "A page makes 20 API calls. What does that do to the latency a user experiences?",
+            options: [
+              "It averages out, so the page tracks the median call latency closely",
+              "It gives the tail twenty chances, so p95 calls show up on most loads",
+              "It reduces the tail, since slow calls overlap with fast ones in parallel",
+              "It shifts the distribution up by exactly twenty times the median",
+            ],
+            correctIndex: 1,
+            explain:
+              "The page is as slow as its slowest call, and twenty draws from the distribution make an unlikely event likely. This is why services that fan out care about their dependencies' tail rather than their mean.",
+          },
+          {
+            prompt: "Latency looks fine server-side but users report slowness. What is the first thing to check?",
+            options: [
+              "Whether measurement starts at the process rather than at the user",
+              "Whether the metric is a gauge rather than a histogram",
+              "Whether the sampling rate is high enough to catch rare requests",
+              "Whether the percentile is computed over too short a window",
+            ],
+            correctIndex: 0,
+            explain:
+              "Server-side timing excludes queueing before your process, DNS, connection setup, the mobile network and rendering. Any of those can dominate, and none of them appear in a dashboard that starts the clock inside the handler.",
+          },
+        ],
       },
       {
         id: "slo",
         title: "SLIs, SLOs and error budgets",
         level: "advanced",
         body: [
-          "An SLI is a measurement, such as the fraction of requests served under 300ms. An SLO is the target for it. The gap between that target and 100 percent is the error budget.",
-          "The budget turns reliability into a resource. Spend it shipping quickly; when it runs out, stop shipping and fix stability. That replaces the argument about whether features or reliability come first with a number both sides already agreed to.",
+          "An SLI is a measurement, such as the proportion of requests served successfully in under 300ms. An SLO is the target for that measurement over a window, say 99.9% over 30 days. The gap between the target and 100% is the error budget, and it is the most useful idea in the set because it turns reliability from a virtue into a quantity.",
+          "The budget makes the trade explicit. Spend it shipping quickly. When it is exhausted, stop shipping and spend the time on stability instead. That replaces a recurring argument about whether features or reliability come first with a number both sides agreed to in advance, when nobody was under pressure and nobody was defending a decision they had already made.",
+          "The arithmetic is worth knowing because the nines are less intuitive than they look. 99.9% over 30 days is about 43 minutes of budget; 99.99% is about 4 minutes and 20 seconds, which is less time than most teams take to acknowledge a page. Each additional nine costs disproportionately more and buys less, and choosing one because it sounds serious is how a team ends up permanently over budget and ignoring the whole scheme.",
+          "The SLI has to be measured where the user is, and it has to describe something a user would recognise. The fraction of successful requests at the load balancer is a reasonable proxy; CPU utilisation is not an SLI at all, because no user has ever noticed it directly. The good ones are usually availability, latency, correctness and freshness, and the test for a candidate is whether a person could describe it in a sentence without using the word server.",
+          "Perfect reliability is the wrong target, and this is the part that sounds like heresy until you cost it. If the network between the user and you fails more often than your service does, the last nine you bought is invisible to everyone, and it was paid for with the features that were not shipped. An error budget that is never spent is a signal that you are shipping too slowly, and it should prompt exactly as much discussion as one that is exhausted.",
+          "None of this works without agreement about who owns the number. An SLO written by an infrastructure team and imposed on a product team becomes a stick; one agreed by both, with the budget policy written down before the first breach, becomes the thing that ends the argument. The mechanism is social as much as technical, which is why the SRE literature spends more pages on the policy than on the maths.",
         ],
-        why: "Chasing 100 percent is the wrong target: each extra nine costs disproportionately more, and perfect reliability means you shipped too slowly. The budget makes the trade explicit instead of political.",
+        why: "Chasing 100% is the wrong target: each extra nine costs disproportionately more, and perfect reliability means you shipped too slowly. The budget makes the trade explicit rather than political, and it is the rare metric that both sides of that argument can accept because they set it together.",
+        inPractice:
+          "Google's SRE practice is the origin of the error budget, including the policy that an exhausted budget freezes feature launches until reliability work restores it. The arithmetic is unforgiving: 99.9% over 30 days is 43 minutes, and 99.99% is 4 minutes and 20 seconds.",
+        diagram: {
+          caption: "The budget is a resource, and the policy is agreed before it runs out",
+          columns: [
+            [{ id: "sli", label: "SLI", sub: "good requests / all", kind: "data" }],
+            [{ id: "slo", label: "SLO", sub: "99.9% over 30 days", kind: "service" }],
+            [{ id: "bud", label: "Error budget", sub: "43 minutes", kind: "data" }],
+            [
+              { id: "ship", label: "Budget remaining", sub: "keep shipping", kind: "service" },
+              { id: "freeze", label: "Budget spent", sub: "stabilise first", kind: "external" },
+            ],
+          ],
+          edges: [
+            { from: "sli", to: "slo", label: "measured against" },
+            { from: "slo", to: "bud", label: "the gap to 100%" },
+            { from: "bud", to: "ship", label: "under budget" },
+            { from: "bud", to: "freeze", label: "over budget" },
+          ],
+        },
         check: {
           prompt: "What is the point of an error budget?",
           options: [
@@ -1475,6 +1624,214 @@ export const design: Card[] = [
           correctIndex: 2,
           explain: "It converts a recurring argument into an agreed number: budget remaining means ship, budget exhausted means stabilise.",
         },
+        checks: [
+          {
+            prompt: "A team sets an SLO of 99.99% over 30 days. How much unavailability does that allow?",
+            options: [
+              "About 43 minutes, roughly one moderate incident in a calendar month",
+              "About 4 minutes 20 seconds, less than most teams take to answer a page",
+              "About 7 hours, because the target applies only during business hours",
+              "About 30 seconds, since each nine divides the previous budget by ten",
+            ],
+            correctIndex: 1,
+            explain:
+              "Four nines over 30 days is roughly 4 minutes 20 seconds. Choosing it because it sounds serious is how a team ends up permanently over budget and quietly ignoring the whole scheme.",
+          },
+          {
+            prompt: "Which of these is a poor SLI?",
+            options: [
+              "The share of requests answered successfully within 300 milliseconds",
+              "The share of data pipeline runs finishing inside their stated window",
+              "Mean CPU utilisation across the fleet, measured in business hours",
+              "The share of writes visible to a following read within one second",
+            ],
+            correctIndex: 2,
+            explain:
+              "An SLI has to describe something a user would recognise. Nobody has ever noticed CPU utilisation directly; it is a cause, and causes belong on dashboards rather than in the contract.",
+          },
+          {
+            prompt: "A team never spends its error budget. What should that prompt?",
+            options: [
+              "A discussion about shipping more, since the reliability is being overpaid for",
+              "A tighter SLO, so that the budget matches the reliability being achieved",
+              "Nothing, since an unspent budget is the goal the SLO was set to reach",
+              "A review of the SLI, since it is probably measuring the wrong thing",
+            ],
+            correctIndex: 0,
+            explain:
+              "An unspent budget means reliability was bought with features that were not shipped. It should prompt as much discussion as an exhausted one, which is the part of the idea teams usually skip.",
+          },
+        ],
+      },
+      {
+        id: "alerting",
+        title: "Alerts worth waking up for",
+        level: "advanced",
+        body: [
+          "An alert is a claim that a human should stop what they are doing right now. Judged that way, most alerting rules do not qualify, and the cost of the ones that do not is not the interruption but the habit: a person who has ignored forty pages will ignore the forty-first, and that is the one that mattered.",
+          "The first rule is to alert on symptoms rather than causes. Users notice slow pages and failed requests; they do not notice a full disk, a restarted pod or a queue with 4,000 messages in it, unless one of those is making pages slow, in which case the symptom alert already fired. Cause-based rules multiply as fast as the system grows and go stale silently, because nothing tells you when a threshold stopped mattering.",
+          "What to measure for a symptom is well-trodden ground. Google's four golden signals are latency, traffic, errors and saturation. The RED method for request-driven services is rate, errors and duration; the USE method for resources is utilisation, saturation and errors. They overlap deliberately, and any of them is enough. Picking one and applying it consistently is worth more than picking the best one.",
+          "Alert on error budget burn rate rather than on a raw threshold, because a raw threshold either pages on a blip or misses a slow bleed. The SRE Workbook's approach is multi-window and multi-burn-rate: page when the recent burn is fast enough to exhaust a meaningful share of the budget quickly, for example 14.4 times the sustainable rate over an hour, which spends 2% of a 30-day budget in that hour, and confirm it with a longer window so a one-minute spike cannot page anyone. A slower burn, several times the sustainable rate over six hours, is a ticket rather than a page.",
+          "Every page needs a runbook link, an owner and an action. If the honest answer to what should I do is wait and see, it should not have woken anyone, and the fix is to make it a dashboard or a ticket. This is also the test that keeps an alerting system from growing without limit: nobody adds an alert they have to write a runbook for unless they mean it.",
+          "Finally, review pages the way you review code. Count them per week, name the ones that were not actionable, and delete or demote them in the same meeting. An alerting configuration is the only part of most systems that nobody ever deletes from, which is precisely why it ends up describing a system that stopped existing two architectures ago.",
+        ],
+        why: "The scarce resource is the attention of the person carrying the pager, and it is spent whether the alert was useful or not. Alerting on symptoms with burn rates keeps the volume proportional to actual user harm, which is the only thing that makes a pager sustainable to carry.",
+        inPractice:
+          "The SRE Workbook's multi-window multi-burn-rate alerts are the standard reference: a 14.4 times burn over an hour spends 2% of a 30-day budget and is worth a page, while a slower burn over six hours is a ticket. The four golden signals, RED and USE all exist to answer the same question of what to measure, and consistency beats the choice between them.",
+        diagram: {
+          caption: "Two windows agreeing before anyone is woken",
+          columns: [
+            [{ id: "sli", label: "SLI stream", sub: "good vs bad requests", kind: "data" }],
+            [
+              { id: "fast", label: "1 hour window", sub: "burn 14.4x", kind: "service" },
+              { id: "slow", label: "5 minute window", sub: "confirms it is now", kind: "service" },
+            ],
+            [{ id: "page", label: "Page", sub: "runbook attached", kind: "edge" }],
+            [{ id: "ticket", label: "Ticket", sub: "6 hour slow burn", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "sli", to: "fast", label: "budget spend rate" },
+            { from: "sli", to: "slow", label: "recent rate" },
+            { from: "fast", to: "page", label: "both agree" },
+            { from: "slow", to: "page", label: "both agree" },
+            { from: "fast", to: "ticket", label: "slower burn", async: true },
+          ],
+        },
+        check: {
+          prompt: "Why alert on symptoms rather than on causes such as high CPU or a full queue?",
+          options: [
+            "Cause alerts are harder to compute accurately across a large fleet",
+            "Symptom alerts fire earlier, giving on-call more time to respond",
+            "Causes multiply as the system grows and go stale without anyone noticing",
+            "Symptoms can be measured client-side, which causes cannot be",
+          ],
+          correctIndex: 2,
+          explain:
+            "A user notices slow pages and failed requests, not a full disk. Cause-based rules grow with the architecture and quietly stop mattering, while the symptom alert stays true regardless of how the system is built underneath.",
+        },
+        checks: [
+          {
+            prompt: "What does a multi-window burn rate alert prevent that a single threshold does not?",
+            options: [
+              "Paging on a brief spike, while still catching a fast sustained burn",
+              "Alerting during a deploy, when errors are expected to rise briefly",
+              "Duplicate pages when several services breach the same SLO at once",
+              "Missing a breach that occurs entirely outside working hours",
+            ],
+            correctIndex: 0,
+            explain:
+              "The long window says the burn is fast enough to matter, the short one says it is still happening. Either alone gives you a pager that fires on noise or one that notices an outage an hour late.",
+          },
+          {
+            prompt: "An alert has no runbook and the usual response is to wait and see. What should happen to it?",
+            options: [
+              "Raise its threshold so that it fires less often during normal operation",
+              "Route it to the secondary on-call so the primary is never interrupted",
+              "Demote it to a dashboard or a ticket, since nobody should be woken",
+              "Keep it, because a human deciding to wait is still a human decision",
+            ],
+            correctIndex: 2,
+            explain:
+              "A page is a claim that someone should act now. If there is no action, the alert is spending the pager's attention for nothing, and the cost is that the next real page is trusted a little less.",
+          },
+          {
+            prompt: "Why review the alerting configuration on a regular schedule?",
+            options: [
+              "Thresholds drift as traffic grows, so every number needs periodic rescaling",
+              "Nobody ever deletes an alert, so the config describes an older architecture",
+              "Alert definitions expire quietly, and stale ones stop firing without warning",
+              "Review is required to keep the on-call rota compliant with company policy",
+            ],
+            correctIndex: 1,
+            explain:
+              "Alerts are added during incidents and removed almost never, so the configuration slowly becomes a description of a system that no longer exists. Counting pages weekly and deleting the useless ones is the only thing that keeps it honest.",
+          },
+        ],
+      },
+      {
+        id: "cardinality",
+        title: "Cardinality, sampling and the bill",
+        level: "advanced",
+        body: [
+          "Observability costs scale with the questions you might ask, not with the questions you do ask, and the mechanism is cardinality. A metric is stored as one time series per distinct combination of its labels, so a request counter labelled by endpoint (50), status code (6) and region (3) is 900 series, which is nothing. Add customer id with 10,000 values and it is 9 million, and the monitoring system falls over before the service does.",
+          "The rule that follows is that labels are for values you would group by, and identifiers are not among them. User id, request id, session id, full URL paths with ids in them, and error messages containing a stack trace all belong in logs or traces, where the cost is per event rather than per distinct combination held in memory forever. The tell is a label whose set of values grows with your customer count.",
+          "High-cardinality questions are legitimate, which is why the answer is not simply do not do that. What is this specific customer seeing, why is this one request slow: those need per-event data. The design that works is metrics for the aggregate and cheap alerting, traces and structured logs for the detail, sampled hard, and an index that lets you find the events belonging to one id. Trying to make one store do both is how observability bills come to rival compute bills.",
+          "Sampling is the other lever, and it should be deliberate rather than emergent. Head sampling at a fixed rate is cheap and keeps a representative picture but loses the rare failure, which is the thing you wanted. Tail sampling keeps what was slow or wrong. A practical compromise is to keep a small uniform sample for baselines and everything anomalous on top, and to make the sampling rate visible so nobody computes a rate from sampled data and forgets to scale it.",
+          "Retention deserves the same scrutiny as volume, because the value of a log line falls off a cliff after about a week while its storage cost does not. Most of the questions asked of observability data are asked within hours. Keeping metrics for a year at low resolution and logs for two weeks at full detail costs a fraction of keeping everything for a year, and answers almost every real question.",
+          "There is a failure mode worth naming: monitoring that takes the system down. An exporter that scrapes every series on every request, a logging call inside a tight loop, or a debug level left on in production can consume more resources than the work being observed. Instrumentation is code that runs on the hot path, and it deserves the same review as the rest of it.",
+        ],
+        why: "Observability is the one system whose cost is driven by the questions you might ask rather than by traffic, and cardinality is where that cost hides. Keeping identifiers out of labels and pushing per-entity detail into sampled events is what keeps the bill proportional to the service rather than to the customer list.",
+        inPractice:
+          "Prometheus and its successors hold an in-memory index of active series, which is why a single unbounded label can take the monitoring system down while the service it monitors stays healthy. The standard split is aggregate metrics for alerting and sampled traces or structured logs for per-entity questions.",
+        diagram: {
+          caption: "One unbounded label turns 900 series into 9 million",
+          columns: [
+            [{ id: "src", label: "Request counter", sub: "one metric", kind: "service" }],
+            [
+              { id: "safe", label: "endpoint, status, region", sub: "50 x 6 x 3 = 900", kind: "data" },
+              { id: "bad", label: "plus customer id", sub: "x 10,000 = 9M", kind: "data", alternative: true },
+            ],
+            [{ id: "tsdb", label: "Metrics store", sub: "index held in memory", kind: "data" }],
+            [{ id: "trace", label: "Sampled traces", sub: "per-entity questions", kind: "data" }],
+          ],
+          edges: [
+            { from: "src", to: "safe", label: "bounded labels" },
+            { from: "src", to: "bad", label: "unbounded label" },
+            { from: "safe", to: "tsdb", label: "cheap" },
+            { from: "bad", to: "tsdb", label: "takes it down" },
+            { from: "bad", to: "trace", label: "belongs here instead", async: true },
+          ],
+        },
+        check: {
+          prompt: "Which label is most likely to take a metrics system down?",
+          options: [
+            "HTTP status code, which has a few dozen possible values",
+            "Deployment version, which changes on every release",
+            "Customer id, whose distinct values grow with the business",
+            "Region, which has one value per data centre in use",
+          ],
+          correctIndex: 2,
+          explain:
+            "Series count is the product of label cardinalities, and an identifier is unbounded by construction. Deployment version is a slower version of the same problem and is usually worth the cost; a customer id never is.",
+        },
+        checks: [
+          {
+            prompt: "You need to answer why one specific customer's requests are slow. Where should that data live?",
+            options: [
+              "In metrics, labelled by customer, so the question can be graphed directly",
+              "In sampled traces and structured logs, indexed by the customer id",
+              "In a separate metrics instance dedicated to per-customer series",
+              "In an aggregate percentile per region, filtered down to that customer",
+            ],
+            correctIndex: 1,
+            explain:
+              "Per-entity questions need per-event data. Metrics are for aggregates and alerting; putting an identifier in a label buys one question and an unbounded series count.",
+          },
+          {
+            prompt: "What is the risk of computing a request rate from tail-sampled trace data?",
+            options: [
+              "Trace timestamps are not precise enough to compute a rate from them",
+              "Sampling keeps the unusual, so the count is not proportional to traffic",
+              "Tail sampling discards spans well before the request has completed",
+              "Rates can only be derived from counters, never from individual events",
+            ],
+            correctIndex: 1,
+            explain:
+              "Tail sampling deliberately over-represents slow and failed requests, so counting them measures the sampling policy rather than the traffic. Rates come from metrics; traces answer why.",
+          },
+          {
+            prompt: "Why keep metrics for a year but logs for two weeks?",
+            options: [
+              "Logs compress poorly, so their storage cost grows faster than their volume",
+              "Metrics are usually needed for compliance, whereas logs rarely are at all",
+              "A log loses its value within days, while its storage cost stays the same",
+              "Long log retention slows down queries over recent data in most systems",
+            ],
+            correctIndex: 2,
+            explain:
+              "Almost every question asked of a log is asked within hours of the event, while a metric is genuinely useful a year later for trends and capacity. Matching retention to how the data is actually used is usually the largest single saving available.",
+          },
+        ],
       },
     ],
   },

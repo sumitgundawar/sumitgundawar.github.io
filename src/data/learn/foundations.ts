@@ -12,10 +12,12 @@ export const foundations: Card[] = [
         title: "The life of a request",
         level: "beginner",
         body: [
-          "Typing a URL sets off DNS resolution, a TCP handshake, a TLS handshake, and then the HTTP request itself.",
-          "Each of those costs at least one round trip, TLS 1.3 needs one, TLS 1.2 needs two, and round trips are what you actually pay for. A user 200ms away pays that 200ms every single time.",
-          "Four round trips before one byte of content is 800ms of blank screen. Bandwidth does not help here, because the pipe is not full, it is idle and waiting. That is why latency, not bandwidth, decides perceived speed on any connection fast enough to matter.",
-          "Name the steps and most performance work becomes obvious. Remove a round trip, or move the server closer.",
+          "Typing a URL sets off DNS resolution, a TCP handshake, a TLS handshake, and then the HTTP request itself. Naming those four steps separately is most of the skill, because each one costs a round trip and round trips are what you actually pay for.",
+          "The prices are known. DNS is one round trip if nothing is cached, and often several as the resolver walks the chain. TCP's three-way handshake is one. TLS 1.3 is one, TLS 1.2 is two, and TLS 1.3 with session resumption can be zero for a returning client. Then the request itself. A user 200ms away pays that 200ms on each of them: four round trips is 800ms of blank screen before a single byte of content moves.",
+          "Bandwidth does not help with any of this. The pipe is not full during a handshake, it is idle and waiting, which is why upgrading a connection from 50 to 500 megabits changes page load far less than people expect and why moving the server closer changes it far more. Above a few megabits, latency decides perceived speed and bandwidth decides how long large files take.",
+          "It gets worse in sequence. Anything that has to happen in order pays the price again: a redirect from the apex to www is one extra round trip plus, if it crosses to a different host, another DNS lookup and another handshake. A page that fetches a script that then fetches configuration that then fetches data is three sequential trips before anything renders, and the browser cannot start any of them early because it does not know they exist.",
+          "Then the connection is reused, which is the part that makes the arithmetic bearable. Keep-alive means subsequent requests on the same connection skip DNS, TCP and TLS entirely, so the first request is expensive and the tenth is nearly free. That is why third-party scripts on other hosts are disproportionately costly, and why domain sharding, once a performance technique, is now the opposite.",
+          "The practical conclusion is short. Remove a round trip, move the server closer, or make the trips happen in parallel rather than in sequence. Everything else in web performance is a variation on one of those three.",
         ],
         why: "Interviewers open with this because it reveals whether you think in terms of round trips or in terms of vague slowness. The answer that names DNS, TCP, TLS and HTTP separately is the one that can then reason about a CDN.",
         check: {
@@ -54,15 +56,61 @@ export const foundations: Card[] = [
             explain:
               "Distance costs latency per round trip, not per byte. Bandwidth to Australia is fine; the 250ms it takes for a packet to get there and back is not, and every request you make in sequence pays it again. This is why batching and parallelism matter more the further away your reader is.",
           },
+          {
+            prompt: "Why does a redirect from example.com to www.example.com cost more than it looks?",
+            options: [
+              "The browser discards the connection and repeats DNS, TCP and TLS",
+              "Redirects are never cached, so the cost is paid on every page view",
+              "Search engines penalise the second request, which delays rendering",
+              "The redirect response cannot be compressed, so it transfers slowly",
+            ],
+            correctIndex: 0,
+            explain:
+              "A cross-host redirect starts the whole sequence again on a different name. That is a round trip for the redirect plus the handshakes for the new host, which is why the canonical host should be the one people are sent to first.",
+          },
+          {
+            prompt: "Upgrading users from 50 to 500 megabits barely changes page load. Why?",
+            options: [
+              "The origin server becomes the bottleneck once client bandwidth rises",
+              "Browsers cap per-connection throughput to avoid saturating a network",
+              "Handshakes and sequential requests spend time waiting, not transferring",
+              "Compression means the payload is already too small to benefit further",
+            ],
+            correctIndex: 2,
+            explain:
+              "Most of a page load is round trips, and a round trip takes the same time on a fast link as a slow one. Bandwidth decides how long large files take; latency decides how long the page takes to start.",
+          },
         ],
+        inPractice:
+          "TLS 1.3 cut the handshake from two round trips to one and added a zero round trip mode for returning clients, which is the single largest protocol-level latency improvement most sites have received. It only helps because the handshake was pure waiting, which is the point.",
+        diagram: {
+          caption: "Four round trips before the first byte of content",
+          columns: [
+            [{ id: "u", label: "Browser", sub: "200ms away", kind: "client" }],
+            [{ id: "dns", label: "DNS", sub: "1 round trip", kind: "edge" }],
+            [{ id: "tcp", label: "TCP handshake", sub: "1 round trip", kind: "edge" }],
+            [{ id: "tls", label: "TLS 1.3", sub: "1 round trip", kind: "edge" }],
+            [{ id: "http", label: "HTTP request", sub: "1 round trip", kind: "service" }],
+          ],
+          edges: [
+            { from: "u", to: "dns", label: "name to address" },
+            { from: "dns", to: "tcp", label: "connect" },
+            { from: "tcp", to: "tls", label: "negotiate" },
+            { from: "tls", to: "http", label: "finally ask" },
+          ],
+        },
       },
       {
         id: "tcp-vs-udp",
         title: "TCP and UDP",
         level: "beginner",
         body: [
-          "TCP guarantees delivery and order: lost packets are retransmitted, and the receiver waits. UDP does neither. It sends and forgets.",
-          "That guarantee is not free. One lost packet stalls everything queued behind it, which is exactly right for a file and useless for a live call, where the retransmitted frame is worthless by the time it lands. Video calls, games and DNS run on UDP and handle loss themselves; nearly everything else takes the guarantee and is glad of it.",
+          "TCP guarantees delivery and order: lost packets are retransmitted, and the receiver holds everything after the gap until it is filled. UDP does neither. It sends a datagram and forgets it, and anything that arrives, arrives.",
+          "That guarantee is not free, and the price is head-of-line blocking. One lost packet stalls everything queued behind it, which is exactly right for a file, where byte 400 is meaningless without byte 399, and useless for a live call, where a frame retransmitted 400ms later is worthless by the time it lands. Video calls, games and DNS run on UDP and handle loss themselves; nearly everything else takes the guarantee and is glad of it.",
+          "TCP also does congestion control, which is the part people forget when they reach for UDP. It probes for available capacity, backs off when it sees loss, and shares the path with other flows in a roughly fair way. Choosing UDP means either implementing that yourself or being the traffic that ruins the network for everyone else, and the internet works partly because most flows are well behaved.",
+          "There is a third cost worth knowing: connection setup. TCP's three-way handshake is a full round trip before any data, and TLS adds one or two more on top. UDP has no handshake at all, which is why DNS uses it for a query and a reply that would otherwise cost three exchanges to set up a connection carrying one small message.",
+          "QUIC is the interesting middle. It runs on UDP and rebuilds reliability, ordering and congestion control in user space, per stream rather than per connection, so a lost packet stalls only the stream it belonged to. It also folds the transport and TLS handshakes together, so a connection is established in one round trip and a resumed one in zero. That is TCP's guarantees without TCP's blocking, at the cost of being much newer and living in user space where it can be updated.",
+          "The rule of thumb is unchanged: take the guarantee unless stale data is worthless. If you find yourself adding sequence numbers, acknowledgements and retransmission on top of UDP, you are reimplementing TCP, and the version you write will be worse than the one in the kernel.",
         ],
         why: "Choosing UDP is choosing to write your own reliability for the parts that need it. Worth it when stale data is useless; a mistake when you end up reimplementing TCP badly.",
         check: {
@@ -76,15 +124,56 @@ export const foundations: Card[] = [
           correctIndex: 3,
           explain: "In a call, a frame from 400ms ago is worthless. TCP would stall the stream waiting for it; UDP drops it and moves on, which is what you want.",
         },
+        checks: [
+          {
+            prompt: "Besides reliability, what does a team give up by choosing raw UDP?",
+            options: [
+              "Encryption, which TCP provides at the transport layer by default",
+              "Congestion control, so the flow no longer shares the path fairly",
+              "Port numbers, which have to be multiplexed by the application",
+              "Checksums, so corrupted payloads are delivered without detection",
+            ],
+            correctIndex: 1,
+            explain:
+              "TCP probes for capacity and backs off on loss. Without that, an application either implements it or becomes the flow that degrades the network for everyone, which is why raw UDP is a bigger commitment than skipping retransmissions.",
+          },
+          {
+            prompt: "Why does DNS use UDP for ordinary queries?",
+            options: [
+              "Its responses are too small to benefit from ordered delivery",
+              "Resolvers cannot keep connections open to thousands of servers",
+              "A handshake would cost more than the single exchange it protects",
+              "UDP responses can be cached by intermediaries, whereas TCP cannot",
+            ],
+            correctIndex: 2,
+            explain:
+              "One question and one answer would need three exchanges to set up a connection first. Retrying a lost query is cheaper than establishing a connection for it, which is exactly the trade UDP is for.",
+          },
+          {
+            prompt: "How does QUIC get TCP's guarantees without TCP's head-of-line blocking?",
+            options: [
+              "It retransmits lost packets before the receiver notices the gap",
+              "It orders bytes per stream, so a loss stalls only that stream",
+              "It disables ordering entirely and reassembles in the application",
+              "It sends every packet twice, so a single loss is always recoverable",
+            ],
+            correctIndex: 1,
+            explain:
+              "TCP orders one byte stream, so any gap holds up everything. QUIC keeps ordering per stream, so a lost packet blocks the stream it belonged to and the others continue.",
+          },
+        ],
       },
       {
         id: "http-versions",
         title: "HTTP/1.1, HTTP/2 and HTTP/3",
         level: "intermediate",
         body: [
-          "HTTP/1.1 pipelining is in the spec but effectively unused, so in practice a connection carries one request at a time. Browsers open six per host and developers bundle files to work around it.",
-          "HTTP/2 multiplexes many streams over one connection, which removes the need for most bundling tricks. It still runs on TCP, so one lost packet blocks every stream sharing that connection.",
-          "HTTP/3 moves to QUIC over UDP, where each stream is independent. Loss affects one stream instead of all of them, which matters most on mobile networks.",
+          "HTTP/1.1 carries one request at a time per connection. Pipelining is in the specification and is effectively unused, because a slow response blocks the ones behind it and proxies handled it badly, so browsers instead open around six connections per host and developers bundled files to fit more work through them.",
+          "That constraint produced an entire generation of workarounds: sprite sheets combining twenty icons into one image, inlined CSS, concatenated JavaScript, and domain sharding, which spread assets across asset1, asset2 and asset3 to get eighteen connections instead of six. Every one of them was a workaround for a protocol limit, and every one of them costs something: a sprite sheet invalidates entirely when one icon changes, and sharding multiplies DNS lookups and handshakes.",
+          "HTTP/2 multiplexes many streams over one connection, which removes the reason for all of it. It also compresses headers with HPACK, which matters more than it sounds when a request carries a kilobyte of cookies and the body is a hundred bytes, and it supports server push, which was so hard to use correctly that Chrome removed support for it.",
+          "What HTTP/2 does not fix is that it still runs on TCP. TCP delivers one ordered byte stream, so a single lost packet stalls every stream sharing that connection, which is worse than HTTP/1.1's six independent connections on a lossy network. On a good connection HTTP/2 wins comfortably; on a bad mobile link the comparison is closer than the version numbers suggest.",
+          "HTTP/3 moves to QUIC over UDP, where each stream is ordered independently, so loss affects one stream instead of all of them. It also merges the transport and TLS handshakes into one round trip, and connections are identified by a connection id rather than by the four-tuple of addresses and ports, so a phone moving from wifi to mobile data keeps its connection instead of starting again.",
+          "The practical advice is to stop carrying the workarounds forward. Bundling still helps a little, because compression works better across concatenated files and there is per-request overhead even when multiplexed, but the aggressive version hurts caching: one changed line invalidates a megabyte. Domain sharding is now actively harmful, since it defeats connection reuse and adds handshakes that HTTP/2 was designed to avoid.",
         ],
         why: "Sprite sheets, domain sharding and aggressive bundling were workarounds for an HTTP/1.1 limit. Carrying them into an HTTP/2 or HTTP/3 world adds complexity for no gain, and can hurt caching.",
         check: {
@@ -98,14 +187,58 @@ export const foundations: Card[] = [
           correctIndex: 1,
           explain: "Multiplexing happens above TCP. TCP still guarantees ordered delivery of the whole byte stream, so one lost packet holds up everything behind it. QUIC solves it by making streams independent.",
         },
+        checks: [
+          {
+            prompt: "Why is domain sharding now harmful rather than helpful?",
+            options: [
+              "Browsers ignore extra hostnames and reuse the first connection anyway",
+              "It defeats connection reuse and adds a DNS lookup and handshake per host",
+              "Shared hostnames cannot be covered by a single TLS certificate",
+              "Assets on separate hosts are excluded from the browser cache",
+            ],
+            correctIndex: 1,
+            explain:
+              "It existed to get around the six-connection limit that HTTP/2 removed. Now each extra host costs its own resolution and handshake, and splits traffic that would have multiplexed over one warm connection.",
+          },
+          {
+            prompt: "What does a QUIC connection id give a phone moving from wifi to mobile data?",
+            options: [
+              "The connection survives the address change instead of being re-established",
+              "The handshake is cached, so the new network reuses the old session key",
+              "Packets in flight on the old network are retransmitted on the new one",
+              "The server can keep sending while the client has no address at all",
+            ],
+            correctIndex: 0,
+            explain:
+              "TCP identifies a connection by addresses and ports, so changing network kills it. QUIC identifies it by an id that travels in the packets, so the same connection continues from a new address.",
+          },
+          {
+            prompt: "On a lossy mobile link, why can HTTP/1.1 sometimes beat HTTP/2?",
+            options: [
+              "HTTP/1.1 responses are smaller because headers are not compressed",
+              "Six separate connections isolate loss; one shared connection does not",
+              "HTTP/2 requires TLS, and the extra handshake dominates on slow links",
+              "Multiplexed streams are processed serially by most server implementations",
+            ],
+            correctIndex: 1,
+            explain:
+              "One lost packet stalls the whole TCP byte stream, and with HTTP/2 every stream is in it. With six connections, a loss affects one sixth of the work, which is the case HTTP/3 was built to settle.",
+          },
+        ],
+        inPractice:
+          "Chrome removed support for HTTP/2 server push, which is the clearest evidence that a protocol feature nobody can use correctly is not a feature. HTTP/3 is now carried by every major browser and CDN, and the connection id is why it noticeably improves mobile browsing rather than benchmarks.",
       },
       {
         id: "dns",
         title: "DNS and why it hurts you",
         level: "intermediate",
         body: [
-          "DNS turns a name into an address, and the answer is cached at every layer between you and the client for as long as the TTL you set. Low TTL, fast changes and more lookups; high TTL, the reverse.",
-          "The catch is that your TTL is a request, not an instruction. Some resolvers hold answers well past it, so a migration planned around 60 seconds can still be sending traffic to the old address hours later. This is why cutovers change what the address points at, rather than changing the address.",
+          "DNS turns a name into an address, and the answer is cached at every layer between you and the client: the browser, the operating system, the corporate resolver, the ISP's resolver. Each holds it for as long as the TTL you published, which makes TTL the single most consequential number in a migration plan. Low TTL means fast changes and more lookups; high TTL means the reverse.",
+          "The catch is that your TTL is a request, not an instruction. Some resolvers clamp it to a minimum of their own, some ignore it, and some clients cache for the life of the process regardless. A migration planned around 60 seconds can still be sending traffic to the old address hours later, from a client nobody can identify, which is why the old address has to keep working rather than being decommissioned on schedule.",
+          "The folk explanation, that changes take hours to propagate down from the root servers, is wrong and worth unlearning. Nothing propagates: authoritative servers are updated immediately, and the delay is entirely caches holding the previous answer until it expires. That distinction matters because it tells you what to do, which is to lower the TTL well in advance rather than to wait and hope.",
+          "The practical technique follows. Days before a cutover, drop the TTL to 60 seconds and let the old, long TTL expire everywhere. Make the change. Keep the old address serving, ideally proxying to the new one, until traffic to it has stopped for longer than any plausible cache. Then raise the TTL again, because a permanently low TTL costs a lookup on every cold client and makes your resolver a hard dependency of every page load.",
+          "Better still, do not fail over in DNS at all. Point the name at something stable, a load balancer or an anycast address, and move traffic behind it. Then a failover takes effect in seconds for everyone, rather than in an interval decided by other people's caches. This is why every large system's public name resolves to an address that has not changed in years.",
+          "One more property worth knowing: negative answers are cached too. If a name does not exist when someone looks it up, that absence is cached according to the SOA record's minimum, so creating a record after a client has already asked for it can leave that client failing for the duration. Create the record before you tell anyone to try it.",
         ],
         why: "Lowering TTL days ahead of a migration, then failing over at the load balancer instead of in DNS, is the difference between a clean cutover and a long tail of traffic hitting a decommissioned box.",
         check: {
@@ -120,16 +253,56 @@ export const foundations: Card[] = [
           explain:
             "TTL is a request, not a guarantee, and some resolvers cache well past it. Propagation from the root is the folk explanation and it is wrong: the root is never consulted for a record already cached downstream. Plan cutovers so the old address keeps working, or fail over behind a stable address instead.",
         },
+        checks: [
+          {
+            prompt: "Why do large systems avoid failing over by changing DNS records?",
+            options: [
+              "The change takes effect at a time decided by other people's caches",
+              "Authoritative servers rate limit updates during an active incident",
+              "Records cannot be changed without a registrar confirmation delay",
+              "Anycast addresses cannot be represented in a DNS record at all",
+            ],
+            correctIndex: 0,
+            explain:
+              "A DNS failover completes when the last cache expires, which is unknowable. Pointing the name at a stable address and moving traffic behind it makes the switch take seconds for everyone.",
+          },
+          {
+            prompt: "A record is created after a client has already looked the name up and failed. What happens?",
+            options: [
+              "The client retries immediately, since a failed lookup is never cached",
+              "The absence is cached, so that client keeps failing for a while",
+              "The resolver falls back to the root servers on the next attempt",
+              "The new record is pushed to resolvers that recorded the failure",
+            ],
+            correctIndex: 1,
+            explain:
+              "Negative answers are cached according to the zone's SOA minimum. Creating the record before anyone is told to use it avoids a class of failure that looks like the record was never created.",
+          },
+          {
+            prompt: "Why raise the TTL again after a migration is complete?",
+            options: [
+              "A low TTL forces a lookup on every cold client, on every page load",
+              "Low TTLs are rejected by some resolvers, which substitute their own",
+              "Long TTLs are required for a domain to be eligible for DNSSEC",
+              "A low TTL prevents the record from being served by secondary servers",
+            ],
+            correctIndex: 0,
+            explain:
+              "A permanently low TTL makes your resolver a hard dependency of every page load, and DNS is one of the few dependencies with no fallback. Lower it for the migration, then put it back.",
+          },
+        ],
       },
       {
         id: "cdn",
         title: "CDNs and edge caching",
         level: "intermediate",
         body: [
-          "A CDN puts copies of your content in data centres near your users.",
-          "The round trips that dominate page load then take tens of milliseconds instead of hundreds. Nothing about your origin got faster. The distance got shorter.",
-          "Static assets are the easy part. The interesting work is caching HTML and API responses at the edge, which forces you to be deliberate about cache keys and invalidation, which are the two things that go wrong.",
-          "Modern edge platforms also run code at those locations, so personalisation and auth checks can happen near the user instead of at origin.",
+          "A CDN puts copies of your content in data centres near your users, so the round trips that dominate page load take tens of milliseconds instead of hundreds. Nothing about your origin got faster. The distance got shorter, and distance was the bill.",
+          "It helps even when nothing is cached, which surprises people. The connection is established with a nearby edge node, so the expensive handshakes happen over a short path, and the edge holds a warm, tuned connection back to your origin. A cache miss served through an edge is often meaningfully faster than the same miss served directly, purely from terminating TLS close to the user.",
+          "Static assets are the easy part, and the reason they are easy is content addressing: a hashed filename can be cached forever because a new build is a new URL. The interesting work is caching HTML and API responses, where you have to be deliberate about the cache key and about invalidation, which are the two things that go wrong and the two things nobody owns.",
+          "Cache keys are where hit ratios are won and lost. The key is the URL plus whatever Vary names, so an analytics parameter appended to a shared link produces a distinct entry per recipient, and Vary on a header with high cardinality shatters one entry into thousands. Normalising the key, stripping parameters that do not change the response, is routinely the largest single improvement available and costs nothing to run.",
+          "Modern edge platforms also run code at those locations, which changes what can be moved. Authentication checks, personalisation, redirects, A/B assignment and geographic routing can happen near the user rather than at origin, so a personalised page can still be served from a cached shell with the personal part filled in at the edge. That is the difference between a CDN as a file server and a CDN as part of the application.",
+          "The failure mode to respect is that an edge cache is very good at holding whatever you told it to hold. A wrong header applied by path rather than by response can pin the wrong content under the right URL for as long as you specified, and no purge reaches copies already held in browsers. Immutable caching is a promise about the URL, and it should only be made where the URL identifies the bytes.",
         ],
         why: "A CDN is usually the highest-leverage performance change available, because it attacks latency instead of throughput. Adding servers makes a busy system faster; moving content closer makes a distant system faster.",
         inPractice: "Cloudflare and Fastly serve most of their traffic from cache; origin servers see a small fraction of total requests.",
@@ -143,6 +316,62 @@ export const foundations: Card[] = [
           ],
           correctIndex: 0,
           explain: "Load tests run near the server, so they never measure distance. If the system is fast under load but slow abroad, the problem is geography, not capacity.",
+        },
+        checks: [
+          {
+            prompt: "How can a CDN help a request that misses the cache entirely?",
+            options: [
+              "It compresses the response better than most origin servers do",
+              "It retries the origin automatically if the first attempt is slow",
+              "The handshakes happen nearby, and the edge holds a warm link to origin",
+              "It serves a stale copy while fetching, so the miss is never visible",
+            ],
+            correctIndex: 2,
+            explain:
+              "Terminating TLS near the user moves the expensive round trips off the long path, and the connection from edge to origin is already established and tuned. Serving stale is a separate feature that has to be asked for.",
+          },
+          {
+            prompt: "Which change most often produces the largest hit ratio improvement?",
+            options: [
+              "Normalising the key by stripping parameters that do not vary the response",
+              "Raising the max-age on the assets that are already cached at the edge",
+              "Adding more edge locations closer to the largest group of your users",
+              "Enabling compression on the responses that are currently sent without it",
+            ],
+            correctIndex: 0,
+            explain:
+              "A tracking parameter on a shared link makes one popular page into thousands of unique entries, each hit once. Removing parameters that do not change the response collapses them back into one.",
+          },
+          {
+            prompt: "What does running code at the edge make possible that a plain cache does not?",
+            options: [
+              "Serving a cached shell while personalising the response near the user",
+              "Caching responses that vary by cookie without splitting the cache key",
+              "Purging content from browser caches that already hold a stale copy",
+              "Guaranteeing a cache hit for the first request from each location",
+            ],
+            correctIndex: 0,
+            explain:
+              "The reason personalised pages usually cannot be cached is that one piece varies. Running logic at the edge lets the invariant part be cached and the variable part filled in nearby, rather than sending everything to origin.",
+          },
+        ],
+        diagram: {
+          caption: "The edge shortens the round trips, cached or not",
+          columns: [
+            [{ id: "user", label: "User", sub: "Sydney", kind: "client" }],
+            [{ id: "pop", label: "Edge node", sub: "10ms away", kind: "edge" }],
+            [
+              { id: "hit", label: "Cache hit", sub: "answered locally", kind: "data" },
+              { id: "miss", label: "Cache miss", sub: "warm link to origin", kind: "data" },
+            ],
+            [{ id: "origin", label: "Origin", sub: "London, 250ms", kind: "service" }],
+          ],
+          edges: [
+            { from: "user", to: "pop", label: "handshakes here" },
+            { from: "pop", to: "hit", label: "most requests" },
+            { from: "pop", to: "miss", label: "the rest" },
+            { from: "miss", to: "origin", label: "one long trip, reused" },
+          ],
         },
       },
     ],

@@ -4,7 +4,7 @@ export const design: Card[] = [
   {
     id: "caching",
     title: "Caching and Redis",
-    summary: "Strategies, invalidation, TTLs, and what actually goes wrong at scale.",
+    summary: "Strategies, invalidation, TTLs, edge caching, and what actually goes wrong at scale.",
     track: "design",
     topics: [
       {
@@ -12,31 +12,107 @@ export const design: Card[] = [
         title: "Cache-aside, write-through, write-behind",
         level: "beginner",
         body: [
-          "Cache-aside: the application checks the cache, and on a miss reads the database and populates the cache. Simple, and the default nearly everywhere.",
-          "Write-through: writes go to cache and database together. The cache is never stale, but every write pays both costs.",
-          "Write-behind: writes go to cache and are flushed to the database later. Fastest writes, and a crash between the two loses data.",
+          "Cache-aside is the default nearly everywhere: the application checks the cache, and on a miss it reads the database and populates the cache itself. The cache knows nothing about the database, which is the whole appeal. Any store can sit behind it, only the data actually asked for is ever cached, and the failure mode is mild, since a cache that is empty or unreachable costs you a database read rather than an error.",
+          "Read-through moves that logic into the cache or its client library: the application asks the cache, and the cache fetches from the source on a miss. The behaviour is identical from outside; what changes is where the code lives and who is responsible for getting it right. It is worth having when a dozen services read the same data, because otherwise each of them implements the miss path slightly differently and one of them forgets the TTL.",
+          "Write-through writes to the cache and the database together, so the cache is never stale for data that has been written through it. Every write pays both costs, and you have made the cache part of the write path, which means a cache outage is now a write outage unless you are careful. It fits read-heavy data with strict freshness needs and a modest write rate.",
+          "Write-behind acknowledges the write once it is in the cache and flushes to the database later, in batches. It is the fastest option and the only one that can lose committed data: anything not yet flushed when the node dies is gone, and the application already told the user it was saved. That is acceptable for view counters and session activity, and not for anything a person would notice missing.",
+          "Refresh-ahead is the fifth and least discussed: refresh an entry before it expires, based on the prediction that something read this often will be read again. It keeps hit rates high for a known hot set and wastes work on everything else, so it belongs on a small, identified set of expensive keys rather than as a general policy.",
+          "The choice is usually not about performance, because all five are fast on a hit. It is about what happens on a miss, on a write, and when the cache is unavailable, and those are three questions with different answers per dataset. A system with one caching strategy applied uniformly is a system where four of those questions were never asked.",
         ],
-        why: "Cache-aside wins by default because the failure mode is mild, a miss costs a database read. Write-behind trades durability for speed, which is only acceptable when the data is genuinely disposable.",
+        why: "Cache-aside wins by default because its failure mode is mild and its coupling is low: the cache can be flushed, restarted or lost entirely and the system still answers, more slowly. Write-behind trades durability for speed, which is only honest when the data is genuinely disposable, and write-through puts the cache in the write path, which is a decision worth making deliberately rather than inheriting from a library default.",
         inPractice:
-          "Facebook's memcached deployment is cache-aside: the application reads the cache, misses, reads MySQL, and populates. Their 2013 paper is largely about the failure modes that shape causes, in particular the thundering herd on a hot key after invalidation.",
+          "Facebook's memcached deployment is cache-aside, and their 2013 paper is mostly about the failure modes that shape causes rather than about the caching itself. That is the tell: at scale the interesting part of a cache is never the hit path.",
+        diagram: {
+          caption: "Cache-aside: the application owns the miss path",
+          columns: [
+            [{ id: "app", label: "Application", kind: "service" }],
+            [{ id: "cache", label: "Cache", sub: "hit in under 1ms", kind: "data" }],
+            [{ id: "db", label: "Database", sub: "miss costs 50ms", kind: "data" }],
+          ],
+          edges: [
+            { from: "app", to: "cache", label: "1. read" },
+            { from: "cache", to: "db", label: "2. on miss, app reads" },
+            { from: "db", to: "cache", label: "3. app populates" },
+          ],
+        },
         check: {
           prompt: "Which strategy risks losing committed writes if the cache node dies?",
           options: ["Cache-aside", "Write-through", "Write-behind", "Read-through"],
           correctIndex: 2,
           explain: "Write-behind acknowledges the write once it is in cache and flushes later. Anything not yet flushed is gone.",
         },
+        checks: [
+          {
+            prompt: "Why is cache-aside the safer default when the cache tier goes down entirely?",
+            options: [
+              "Requests fall through to the database and the system serves more slowly",
+              "The application retries against a replica until the cache tier returns",
+              "Writes are buffered locally and replayed when the cache comes back",
+              "The client library falls back to an in-process cache automatically",
+            ],
+            correctIndex: 0,
+            explain:
+              "Nothing in cache-aside depends on the cache existing. It degrades to a slower system rather than a broken one, which is not true of a write-through path where the cache sits inside the write.",
+          },
+          {
+            prompt: "When does write-through earn its extra cost over cache-aside?",
+            options: [
+              "When writes vastly outnumber reads and must be acknowledged quickly",
+              "When reads dominate, freshness matters, and the write rate is modest",
+              "When the dataset is too large to fit in the cache tier's memory",
+              "When several services need to read the same keys concurrently",
+            ],
+            correctIndex: 1,
+            explain:
+              "Paying the cache write on every database write only makes sense when many reads follow each write and a stale read would be a real problem. With a heavy write rate you are paying twice for entries that are often never read.",
+          },
+          {
+            prompt: "Refresh-ahead keeps hit rates high. Why is it a poor general policy?",
+            options: [
+              "It requires write-through semantics, which most caches cannot provide",
+              "It refreshes keys nobody will read again, spending work on cold data",
+              "It cannot be combined with TTL expiry, so entries never leave the cache",
+              "It doubles memory use, since old and new values are both retained",
+            ],
+            correctIndex: 1,
+            explain:
+              "Predicting the next read is only cheap for a small, identified hot set. Applied to everything it becomes a background job recomputing entries on the chance somebody wants them, which is work you did not have to do.",
+          },
+        ],
       },
       {
         id: "invalidation",
         title: "Invalidation: TTL, explicit, and versioned keys",
         level: "intermediate",
         body: [
-          "TTL expiry is the simplest: entries die after a set time. You accept staleness up to the TTL in exchange for needing no invalidation logic at all.",
-          "Explicit invalidation deletes the key when the underlying data changes. Fresher, but every write path must know every key it affects, and one missed path means permanently stale data.",
-          "Versioned keys sidestep deletion entirely. Include a version or timestamp in the key, and bump it on write. Old entries are never read again and expire on their own.",
+          "TTL expiry is the simplest thing that works: entries die after a set time, and you accept staleness up to that time in exchange for writing no invalidation logic at all. The reason it survives contact with production is that it is self-healing. Any bug, any missed path, any inconsistency corrects itself within one TTL, which is a property none of the cleverer schemes have.",
+          "Explicit invalidation deletes the key when the underlying data changes. It is fresher and it is fragile, because every write path must know every key derived from that data. Add a new page that composes the same record into a different key, forget the delete, and you have a permanently stale entry that no amount of waiting will fix, discovered eventually by a customer who says the price is wrong.",
+          "Versioned keys sidestep deletion entirely. Put a version or an updated-at timestamp in the key, bump it on write, and old entries become unreachable rather than wrong. Invalidation becomes one write to one value instead of a fan-out of deletes, and the stale entries age out on their own. This is usually the best of the three, and the cost is that the old entries occupy memory until they expire, which is a memory problem rather than a correctness one.",
+          "Whichever you choose, jitter the TTLs. Entries created together with identical lifetimes expire together, and a cache populated at deploy time will empty itself in one synchronised moment some hours later, which arrives as an unexplained database spike at an odd hour. A random spread of ten to twenty per cent is enough to turn the cliff into a slope.",
+          "Distributed invalidation is where this gets genuinely hard, because deletes have to reach every node in every region, and a delete that is lost in transit leaves one region serving stale data indefinitely with nothing to detect it. The pragmatic answer most large systems reach is to stop trying: short TTLs plus versioned keys, so correctness never depends on a message arriving.",
+          "There is one more failure worth naming: the stale set. A client reads a value, is slow, and writes what it read into the cache after a concurrent update has already invalidated it, so the cache now holds an old value with a fresh lifetime. Facebook's leases exist partly for this, since a lease token issued at read time can be invalidated by an intervening write, letting the cache reject the late set.",
         ],
-        why: "Versioned keys are usually the best of the three because they make invalidation a write to one value instead of a fan-out of deletes. Deleting keys correctly requires knowing every key derived from a piece of data, and that knowledge rots.",
-        inPractice: "Netflix leans on short TTLs plus versioned keys instead of trying to invalidate precisely across regions, with EVCache replicating within a region, a coordinated global delete is slower and less reliable than simply letting stale entries age out.",
+        why: "Versioned keys make invalidation a property of the read path rather than a duty of every write path, and duties spread across write paths rot as the system grows. The general principle: prefer schemes where a missed step degrades to a slower read rather than to a wrong answer that persists.",
+        inPractice:
+          "Netflix leans on short TTLs and versioned keys rather than precise cross-region invalidation, with EVCache replicating within a region. A coordinated global delete is slower and less reliable than letting stale entries age out, and it fails silently when it fails at all.",
+        diagram: {
+          caption: "A version bump makes old keys unreachable instead of wrong",
+          columns: [
+            [{ id: "w", label: "Write", sub: "price changes", kind: "service" }],
+            [{ id: "vk", label: "Version key", sub: "product:9:v", kind: "data" }],
+            [{ id: "rd", label: "Read path", sub: "builds the key", kind: "service" }],
+            [
+              { id: "new", label: "product:9:v8", sub: "fresh, populated", kind: "data" },
+              { id: "old", label: "product:9:v7", sub: "unreachable, expires", kind: "data", alternative: true },
+            ],
+          ],
+          edges: [
+            { from: "w", to: "vk", label: "v7 becomes v8" },
+            { from: "vk", to: "rd", label: "read the version" },
+            { from: "rd", to: "new", label: "miss, then populate" },
+            { from: "rd", to: "old", label: "never requested again", async: true },
+          ],
+        },
         check: {
           prompt: "A product appears with an old price on some pages after an update. Which approach avoids this class of bug most reliably?",
           options: [
@@ -48,35 +124,161 @@ export const design: Card[] = [
           correctIndex: 1,
           explain: "The bug is a missed delete path. Versioning removes the need to enumerate derived keys: bump the version and every old key becomes unreachable.",
         },
+        checks: [
+          {
+            prompt: "What is a stale set, and why does a TTL not protect you from it?",
+            options: [
+              "A late write of an old value that arrives with a fresh lifetime",
+              "An entry written with no TTL, so it is never reclaimed by expiry",
+              "A value cached before the schema changed, so it fails to deserialise",
+              "A key that survives eviction because it is read on every request",
+            ],
+            correctIndex: 0,
+            explain:
+              "A slow reader can populate the cache after an update has invalidated it, so the cache holds an old value that will now live a full TTL. Leases and versioned keys both prevent it; a shorter TTL only shortens the damage.",
+          },
+          {
+            prompt: "Why jitter TTLs rather than give a whole dataset the same lifetime?",
+            options: [
+              "Jitter improves the hit ratio by keeping popular entries alive longer",
+              "Entries created together expire together, producing a synchronised miss storm",
+              "Identical TTLs prevent the eviction policy from sampling keys fairly",
+              "A varying TTL lets the cache compress entries with similar lifetimes",
+            ],
+            correctIndex: 1,
+            explain:
+              "A cache warmed at deploy time empties itself in one instant hours later, and the database gets the whole dataset as a cold read at once. Ten to twenty per cent of randomness turns that cliff into a slope.",
+          },
+          {
+            prompt: "Why do large systems often abandon precise cross-region cache invalidation?",
+            options: [
+              "Regional caches cannot be addressed individually from another region",
+              "The delete message costs more bandwidth than the value it removes",
+              "A lost delete leaves a region permanently stale with nothing detecting it",
+              "Invalidation messages arrive out of order and cannot be sequenced",
+            ],
+            correctIndex: 2,
+            explain:
+              "Correctness that depends on a message arriving fails silently when the message does not. Short TTLs and versioned keys make the failure self-healing, which is a better property than being right most of the time.",
+          },
+        ],
       },
       {
         id: "redis-structures",
         title: "Redis beyond get and set",
         level: "intermediate",
         body: [
-          "Redis stores structures, not just strings. Sorted sets give you leaderboards and time-ordered feeds with range queries. Hashes let you update one field of an object without rewriting the whole thing.",
-          "Sets handle membership and deduplication, lists work as simple queues, and streams add consumer groups and acknowledgements for real message processing. Picking the right one is often the difference between a single operation and a read-modify-write round trip.",
+          "Redis stores structures, not just strings, and treating it as a string cache is the most common way to leave performance on the table. Sorted sets maintain order by score and answer rank and range queries directly, which is a leaderboard or a time-ordered feed without the application fetching everything to sort it. Hashes let you update one field of an object without rewriting the whole record. Sets handle membership and deduplication. Streams add consumer groups and acknowledgements, which is real message processing rather than a list pretending to be a queue.",
+          "The operational model matters as much as the data model, and the key fact is that Redis executes commands on a single thread. Redis 6 added threaded I/O for reading and writing sockets, but the commands themselves still run one at a time, which has two consequences. One slow command blocks everything, so a KEYS scan over a large keyspace or an O(n) operation on a million-element set is an outage rather than a slow query. And a single hot key is bounded by one core, no matter how many nodes you add.",
+          "Memory is managed by an eviction policy you choose, and the default is the one that surprises people: noeviction, which starts returning errors on writes when maxmemory is reached rather than making room. For a cache you almost certainly want allkeys-lru or allkeys-lfu. Both are approximations, sampling a handful of keys and evicting the worst rather than maintaining a true ordering, because exact LRU across millions of keys costs more than it saves. LFU, added in Redis 4.0, is the better choice when a small set is genuinely hot, since one burst of scanning traffic cannot evict everything the way it can with LRU.",
+          "Expiry and eviction are different mechanisms and get confused constantly. Expiry removes a key because its TTL passed; it is checked lazily on access and sampled by a background cycle, so an expired key can occupy memory for a while after it logically died. Eviction removes a key because you are out of memory, regardless of TTL. A cache filling up with keys that have no TTL at all will evict things you wanted while holding things you did not.",
+          "Clustering shards the keyspace across 16,384 hash slots assigned to nodes, and the constraint to design around is that a multi-key operation only works when the keys live in the same slot. Hash tags, the braces in user:{42}:profile, force related keys together for exactly this reason. Get that wrong and transactions and Lua scripts that worked on a single node start failing in the cluster with a cross-slot error, usually the week after launch.",
+          "Finally, persistence. Redis offers RDB snapshots and an append-only file, and both are useful, and neither turns a cache into a database. RDB loses everything since the last snapshot; AOF with the default fsync policy loses up to a second. Both are reasonable for a cache that would rather restart warm than cold, and neither is a promise you should make to a user about their data.",
         ],
-        why: "Treating Redis as a string cache is the most common way to leave performance on the table. A sorted set does ranking server-side; strings force you to fetch, sort in the application, and write back.",
+        why: "Choosing the right structure often turns a read-modify-write round trip into one server-side operation, which is the difference between three network hops and one. The single-threaded execution model is the constraint behind most Redis incidents: it makes one expensive command everyone's problem, and it makes a hot key a single-core problem that horizontal scale does not solve.",
+        inPractice:
+          "Redis Cluster's 16,384 slots and hash tags are the mechanism behind most real sharding designs on it, and the cross-slot error is the standard rite of passage. Netflix's EVCache and Facebook's memcached tiers both take the opposite route, staying with a simpler key-value model and putting the intelligence in the client, which is a legitimate answer to the same problem.",
+        diagram: {
+          caption: "One thread executes commands: a slow one blocks everyone",
+          columns: [
+            [
+              { id: "c1", label: "Client A", sub: "GET user:9", kind: "client" },
+              { id: "c2", label: "Client B", sub: "KEYS *", kind: "client" },
+            ],
+            [{ id: "io", label: "I/O threads", sub: "Redis 6+", kind: "edge" }],
+            [{ id: "cmd", label: "Command loop", sub: "single threaded", kind: "service" }],
+            [
+              { id: "fast", label: "O(1) commands", sub: "microseconds", kind: "data" },
+              { id: "slow", label: "O(n) scan", sub: "blocks the loop", kind: "data", alternative: true },
+            ],
+          ],
+          edges: [
+            { from: "c1", to: "io", label: "request" },
+            { from: "c2", to: "io", label: "request" },
+            { from: "io", to: "cmd", label: "queued in order" },
+            { from: "cmd", to: "fast", label: "returns at once" },
+            { from: "cmd", to: "slow", label: "everything waits" },
+          ],
+        },
         check: {
           prompt: "You need a live leaderboard with rank lookups. Which Redis structure fits?",
           options: ["A string per player", "A sorted set scored by points", "A list of players", "A hash of player to score"],
           correctIndex: 1,
           explain: "Sorted sets maintain order by score and support rank and range queries directly. A hash stores scores but cannot rank without fetching everything.",
         },
+        checks: [
+          {
+            prompt: "Why is running KEYS against a large Redis keyspace in production dangerous?",
+            options: [
+              "It returns more data than most client libraries can buffer safely",
+              "Commands run on one thread, so a long scan blocks every other client",
+              "It resets the LRU information used by the eviction policy",
+              "It bypasses the cluster router and queries only one shard",
+            ],
+            correctIndex: 1,
+            explain:
+              "Redis executes commands one at a time. An O(n) scan over millions of keys is not a slow query for one caller, it is a pause for everyone, which is why SCAN with a cursor exists.",
+          },
+          {
+            prompt: "A Redis cache reaches its memory limit and starts refusing writes. What is the likely cause?",
+            options: [
+              "The eviction policy is noeviction, which errors instead of making room",
+              "Expiry is lazy, so expired keys are never reclaimed automatically",
+              "The keyspace exceeded the 16,384 slot limit of a clustered deployment",
+              "Persistence is enabled, so memory is reserved for the snapshot fork",
+            ],
+            correctIndex: 0,
+            explain:
+              "noeviction is the default and is right for a data store, not a cache. A cache wants allkeys-lru or allkeys-lfu so that memory pressure costs you hit rate rather than availability.",
+          },
+          {
+            prompt: "Why do related keys in Redis Cluster often carry a hash tag such as user:{42}:profile?",
+            options: [
+              "It shortens the key, which reduces memory overhead per entry",
+              "It marks the key as exempt from eviction under memory pressure",
+              "It forces related keys into the same slot so multi-key commands work",
+              "It lets the client route reads to a replica rather than the primary",
+            ],
+            correctIndex: 2,
+            explain:
+              "Only the part inside the braces is hashed, so tagged keys land on the same node. Without it, transactions and Lua scripts touching several keys fail with a cross-slot error once you move from a single node to a cluster.",
+          },
+        ],
       },
       {
         id: "cache-failures",
         title: "Stampedes, avalanches and hot keys",
         level: "advanced",
         body: [
-          "A stampede happens when a popular key expires and every concurrent request misses at once, all hitting the database together. The fix is a short lock so one request recomputes while others wait or serve stale.",
-          "An avalanche is the same thing at scale: many keys given identical TTLs expire simultaneously. Jitter the TTLs so expiry spreads out.",
-          "A hot key is one entry so popular that a single Redis node becomes the bottleneck. Replicate it across nodes or add a small local in-process cache in front.",
+          "A stampede happens when a popular key expires and every concurrent request misses at once, so all of them hit the database together to compute the same value. The load is proportional to concurrency rather than to traffic, which is why it appears suddenly at a scale that was fine yesterday. The standard fix is a short lock: one request wins the right to recompute while the others wait briefly or serve the stale value they can still see.",
+          "Facebook's version is a lease. On a miss the cache hands one client a token granting permission to recompute, and tells everyone else to wait or use stale data. It is the same shape as a lock, expressed as something the cache issues, which also lets the cache reject a set whose lease was invalidated by an intervening write. Probabilistic early expiry is the other approach: as an entry approaches its TTL, each reader has a small and rising chance of refreshing it early, so the recomputation happens before the expiry rather than at it, spread across readers.",
+          "An avalanche is the same problem multiplied: many keys given identical TTLs expire simultaneously, usually because the cache was warmed in one pass at deploy time. The database sees the entire working set arrive as cold reads in a few seconds. Jitter fixes it, and it is worth adding at the moment you write the TTL rather than after the first incident.",
+          "A hot key is one entry so popular that a single node becomes the bottleneck, and it is not solved by adding nodes, because the key still hashes to one of them. Redis executing commands on a single thread makes it a single-core limit. The two fixes are replication of that key under several suffixed names with clients choosing at random, and a small in-process cache in front of the shared one, holding the top few keys for a second or two. The second is the more effective and the more dangerous, since every process now has its own slightly different copy.",
+          "Cache penetration is the quieter cousin: requests for keys that do not exist anywhere, so nothing is ever cached and every one becomes a database read. It appears naturally with user-supplied identifiers and it is the standard shape of a cheap denial of service. The fixes are negative caching, storing a short-lived marker meaning this does not exist, and a Bloom filter holding the set of ids that do exist, which answers definitely not present in memory.",
+          "The pattern behind all four is synchronisation. Requests miss together, keys expire together, traffic concentrates on one key, or absent keys share a path with no memory. Each fix is a deliberate desynchronisation: a lock so one goes first, jitter so they separate, replication so they spread, a marker so the second one is cheap. When you can name which of the four you are looking at, the fix is usually already obvious.",
         ],
-        why: "These are the failures that only appear under real traffic, which is why they are asked about. All three are caused by synchronised behaviour, and all three are fixed by deliberately desynchronising it.",
+        why: "These are the failures that only appear under real traffic, which is why they are asked about in interviews and why they arrive on a Friday in production. They are also the failures where the cache makes things worse than no cache at all, because a stampede concentrates load that would otherwise have been spread across the whole period.",
         inPractice:
-          "Facebook's answer to the stampede is a lease: on a miss, one client gets a token and permission to recompute while everyone else waits or serves stale. It is the same shape as a short lock, expressed as a token the cache hands out.",
+          "Facebook's leases fix both the stampede and the stale set with one mechanism, and their memcached paper describes them alongside the regional pools and the gutter tier that catch the other failure modes. It is the most honest published account of what caching costs at scale, and almost none of it is about the hit path.",
+        diagram: {
+          caption: "One recomputes, the rest serve stale: the shape of every stampede fix",
+          columns: [
+            [{ id: "many", label: "1,000 requests", sub: "same expired key", kind: "client" }],
+            [{ id: "cache", label: "Cache", sub: "issues one lease", kind: "data" }],
+            [
+              { id: "one", label: "Winner", sub: "recomputes", kind: "service" },
+              { id: "rest", label: "Everyone else", sub: "stale or brief wait", kind: "service" },
+            ],
+            [{ id: "db", label: "Database", sub: "sees one query", kind: "data" }],
+          ],
+          edges: [
+            { from: "many", to: "cache", label: "all miss" },
+            { from: "cache", to: "one", label: "lease granted" },
+            { from: "cache", to: "rest", label: "lease refused" },
+            { from: "one", to: "db", label: "single read" },
+            { from: "one", to: "cache", label: "populates", async: true },
+          ],
+        },
         check: {
           prompt: "Every hour, database load spikes hard for a few seconds. Caches were warmed at deploy with the same TTL. What is happening?",
           options: [
@@ -88,18 +290,159 @@ export const design: Card[] = [
           correctIndex: 2,
           explain: "Keys created together with identical TTLs expire together. Adding random jitter to each TTL spreads expiry and flattens the spike.",
         },
+        checks: [
+          {
+            prompt: "Adding cache nodes does not help with a hot key. Why?",
+            options: [
+              "The key hashes to one node, so the extra capacity is never addressed",
+              "Replication lag means the copies serve stale values under load",
+              "Clients pin connections to one node for the lifetime of a session",
+              "Hot keys are evicted first, so they are recomputed on every node",
+            ],
+            correctIndex: 0,
+            explain:
+              "Sharding spreads keys, not requests for one key. You either replicate that key under several names and pick at random, or hold it in a tiny in-process cache in front of the shared tier.",
+          },
+          {
+            prompt: "Requests for ids that do not exist bypass the cache entirely and hit the database. What is the fix?",
+            options: [
+              "Increase the TTL, so surviving entries absorb more of the traffic",
+              "Cache the absence itself, or keep a Bloom filter of ids that exist",
+              "Reject unknown ids at the edge with a rate limit per client address",
+              "Warm the cache with every id in the database at deployment time",
+            ],
+            correctIndex: 1,
+            explain:
+              "Nothing is cached because nothing exists to cache, so every request is a database read. A short-lived marker meaning not found, or a membership filter in memory, makes the second request cheap.",
+          },
+          {
+            prompt: "What does probabilistic early expiry do that a plain lock does not?",
+            options: [
+              "It guarantees only one client can recompute a given key at a time",
+              "It removes the need for a TTL, since entries refresh continuously",
+              "It moves the recomputation before the expiry, so no request ever misses",
+              "It spreads the recomputation cost across every reader equally",
+            ],
+            correctIndex: 2,
+            explain:
+              "As the entry ages, each reader has a rising chance of refreshing it early. The value is replaced while it is still valid, so the moment of expiry never arrives with a thousand requests waiting on it.",
+          },
+        ],
+      },
+      {
+        id: "http-caching",
+        title: "Caching at the edge",
+        level: "intermediate",
+        body: [
+          "The cheapest cache is the one you do not operate. HTTP has caching built into it, and a correctly labelled response can be held by the browser, by any proxy in the path and by a CDN with a few hundred points of presence, none of which you pay for or run. The whole mechanism is a handful of headers, which is why getting them wrong is both easy and expensive.",
+          "Cache-Control carries the instructions. max-age is how long any cache may reuse the response; s-maxage overrides it for shared caches only, which is how you say five seconds at the CDN and none in the browser. private means only the browser may store it, which is what you want for anything user-specific. no-store means keep no copy at all, and it is what people mean when they wrongly write no-cache, which actually means store it but revalidate before reuse.",
+          "Validators handle the revalidation. The server sends an ETag or a Last-Modified, the client sends it back as If-None-Match or If-Modified-Since, and the server answers 304 Not Modified with no body when nothing changed. The saving is the payload, and on APIs it can be most of the traffic: GitHub does not count a conditional request that returns 304 against your rate limit, which turns polite polling into something the platform actively encourages.",
+          "Two extensions from RFC 5861 are worth more than they cost. stale-while-revalidate lets a cache serve a slightly stale copy immediately and refresh in the background, so the person waiting never pays for the refresh. stale-if-error lets it serve stale content when the origin is failing, which converts an origin outage into slightly old pages for anyone whose request the edge can answer.",
+          "The cache key is the part that bites. By default it is the URL, and Vary adds request headers to it, so Vary: Accept-Encoding is fine and Vary: User-Agent shatters your hit ratio into thousands of fragments, one per browser string. Query parameters count too, which is why an analytics parameter appended to a shared link produces a fresh miss for every recipient of that link. Normalising the key is often the single largest hit-ratio improvement available.",
+          "Purging is where people reach first and should reach last. Content-addressed URLs, the hashed filenames every bundler emits, make purging unnecessary: a new build is a new URL, so the old one can be cached forever and the new one is never stale. That works precisely because the URL identifies the bytes. Applying the same immutable policy to a URL whose content can change is how a site serves a year-old page to everyone who visited during a bad deploy, and no purge fixes the copies already held in browsers.",
+        ],
+        why: "An edge cache is the only tier that reduces latency and origin load at the same time, for a cost of nothing. The reason it is under-used is that its controls live in headers rather than in code, so they are invisible in review and nobody owns them, which is also why one wrong header can sit in production for months.",
+        inPractice:
+          "GitHub exempts conditional requests that return 304 from its rate limits, which is a rate limit designed to reward correct caching. This site learned the other half the hard way: an immutable Cache-Control applied by path rather than by response meant the SPA fallback was cached under asset URLs for a year, and the fix was to decide the header from what the response actually is.",
+        diagram: {
+          caption: "Three caches before your origin, and the headers that drive them",
+          columns: [
+            [{ id: "b", label: "Browser cache", sub: "max-age", kind: "client" }],
+            [{ id: "p", label: "Shared proxy", sub: "s-maxage", kind: "edge" }],
+            [{ id: "cdn", label: "CDN", sub: "stale-while-revalidate", kind: "edge" }],
+            [{ id: "org", label: "Origin", sub: "sees the misses", kind: "service" }],
+            [{ id: "v", label: "304 Not Modified", sub: "ETag matched", kind: "data" }],
+          ],
+          edges: [
+            { from: "b", to: "p", label: "on miss" },
+            { from: "p", to: "cdn", label: "on miss" },
+            { from: "cdn", to: "org", label: "on miss or revalidate" },
+            { from: "org", to: "v", label: "unchanged: no body" },
+          ],
+        },
+        check: {
+          prompt: "What does Cache-Control: no-cache actually instruct a cache to do?",
+          options: [
+            "Store nothing, so every request goes to the origin for a fresh copy",
+            "Store the response, but revalidate with the origin before reusing it",
+            "Store the response only in the browser, never in a shared proxy",
+            "Store the response and serve it stale whenever the origin is failing",
+          ],
+          correctIndex: 1,
+          explain:
+            "no-cache permits storage and requires revalidation, which is usually cheap because it ends in a 304 with no body. The directive that forbids storing anything is no-store, and confusing the two is the most common mistake in this area.",
+        },
+        checks: [
+          {
+            prompt: "An API adds Vary: User-Agent to its responses. What happens to the CDN hit ratio?",
+            options: [
+              "It improves, because responses are tailored to each client type",
+              "It is unchanged, since Vary only affects browser caches, not shared ones",
+              "It collapses, because each distinct user agent string is a separate entry",
+              "It collapses only for authenticated requests, which already vary by token",
+            ],
+            correctIndex: 2,
+            explain:
+              "Vary adds the named headers to the cache key. User-Agent has effectively unbounded cardinality, so one shared entry becomes thousands of near-identical ones, most of which are never hit twice.",
+          },
+          {
+            prompt: "Why can hashed asset filenames be cached for a year with no purge mechanism?",
+            options: [
+              "CDNs purge hashed paths automatically when a new build is deployed",
+              "The hash is checked by the browser before the cached copy is reused",
+              "The URL identifies the bytes, so new content is always a new URL",
+              "Immutable responses are revalidated cheaply using their ETag",
+            ],
+            correctIndex: 2,
+            explain:
+              "Content addressing removes the possibility of staleness: the old URL is still correct for the old bytes and simply stops being requested. The same policy on a URL whose content can change is how caches end up serving a wrong page nobody can recall.",
+          },
+          {
+            prompt: "What does stale-if-error buy you during an origin outage?",
+            options: [
+              "The edge keeps serving the last good copy instead of an error page",
+              "The edge retries the origin until one of the attempts succeeds",
+              "Requests are queued at the edge and replayed once the origin recovers",
+              "The edge falls back to a second origin in another region entirely",
+            ],
+            correctIndex: 0,
+            explain:
+              "It converts an origin outage into slightly old content for everyone the edge can answer from cache. For a content site that is close to invisible, and it costs one directive.",
+          },
+        ],
       },
       {
         id: "what-not-to-cache",
         title: "What not to cache",
         level: "advanced",
         body: [
-          "Caching adds a second source of truth and a new class of bug. It earns that when reads dominate, the data tolerates staleness, and recomputation is genuinely expensive.",
-          "Data that changes on nearly every read gains nothing, you pay the write cost and still miss, and per-user data with no reuse usually lands there too. Anything where stale means wrong, such as permissions or balances, should be read from the source, or cached with very tight bounds and explicit invalidation.",
+          "Caching adds a second source of truth and a new class of bug, and it earns that when three things are true: reads dominate writes, the data tolerates some staleness, and recomputing it is genuinely expensive. Miss any one of them and you have added complexity for nothing, or worse, for a correctness problem that shows up as a customer complaint rather than as an alert.",
+          "Data that changes on nearly every read gains nothing. You pay the write cost, then miss anyway, and the cache becomes a tax on the read path plus an extra system to operate. Per-user data with no reuse is usually the same story: a cache entry read once before it expires has cost more than it saved, and a million of them evict the entries that were actually working.",
+          "Anything where stale means wrong deserves a different answer entirely. A permission set cached for five minutes means access revoked five minutes ago still works, and that is a security failure rather than a latency tradeoff. If you must cache it, cache it for seconds, with an explicit revocation path, and write the staleness into the contract so it is a known property rather than an accident.",
+          "The arithmetic of hit ratios is worth internalising, because it is not linear and people reason about it as if it were. At a 1ms hit and a 50ms miss, a 95% hit ratio gives an average of about 3.5ms, and 99% gives about 1.5ms. That looks like a modest difference until you look at the origin instead of the average: going from 99% to 98% doubles the load reaching your database, and from 99% to 95% multiplies it by five. Cache work should be judged by what it does to the miss rate, not by what it does to the mean.",
+          "It follows that a cache is not a fix for a slow query, it is a way to run a slow query less often. The queries still run, on every miss, on every eviction, and on every cold start, which is exactly the moment you are least able to absorb them: a restart after an incident empties the cache and sends the full read load at a database that has just recovered. If the origin cannot survive its own traffic without the cache, the cache has become a load-bearing part of the system, and it should be designed as one rather than described as an optimisation.",
+          "The honest question, then, is not what to cache but what staleness is acceptable for, and for how long. Answer it per dataset, write the answer down next to the TTL, and the caching design follows. If the answer is none, the fix is a faster query, a better index, or a different shape of data, and no amount of caching will substitute for it.",
         ],
-        why: "The honest question is not what to cache but what staleness is acceptable for. If the answer is none, caching is the wrong tool and the fix is a faster query or a better index.",
+        why: "Every cache is a bet that stale data is cheaper than slow data, and the bet has to be made per dataset rather than per system. The failure mode people miss is the cold start: a cache is an optimisation right up until the origin cannot survive without it, at which point it is a dependency with a much weaker durability story than the database behind it.",
         inPractice:
-          "AWS IAM is eventually consistent by design and says so: a policy change may take seconds to propagate globally. That is the honest version of caching permissions, with the staleness written into the contract rather than hidden.",
+          "AWS IAM is eventually consistent by design and documents it: a policy change may take seconds to propagate globally. That is the honest form of caching permissions, with the staleness written into the contract rather than hidden inside an implementation detail that surprises someone during an incident.",
+        diagram: {
+          caption: "Hit ratio compounds at the origin, not in the average",
+          columns: [
+            [{ id: "t", label: "10,000 reads", kind: "client" }],
+            [
+              { id: "h99", label: "99% hit", sub: "100 reach origin", kind: "data" },
+              { id: "h95", label: "95% hit", sub: "500 reach origin", kind: "data", alternative: true },
+            ],
+            [{ id: "db", label: "Database", sub: "five times the load", kind: "data" }],
+          ],
+          edges: [
+            { from: "t", to: "h99", label: "same traffic" },
+            { from: "t", to: "h95", label: "same traffic" },
+            { from: "h99", to: "db", label: "100 queries" },
+            { from: "h95", to: "db", label: "500 queries" },
+          ],
+        },
         check: {
           prompt: "Which is the weakest candidate for caching?",
           options: [
@@ -112,10 +455,47 @@ export const design: Card[] = [
           explain:
             "Stale permissions are a security bug, not a performance tradeoff: the failure grants access instead of costing latency. Session validity is the close call, it is cached constantly in practice, but with seconds-long TTLs and a revocation list precisely because it carries the same risk in weaker form.",
         },
+        checks: [
+          {
+            prompt: "A cache hit ratio falls from 99% to 98%. What happens at the database?",
+            options: [
+              "Load roughly doubles, because the miss rate has doubled",
+              "Load rises by about one per cent, matching the ratio change",
+              "Average latency doubles, but the query count is unchanged",
+              "Nothing changes until the ratio falls below the eviction threshold",
+            ],
+            correctIndex: 0,
+            explain:
+              "Origin load is the miss rate, not the hit rate. One per cent to two per cent is twice as many queries, which is why cache work should be measured against misses rather than against averages.",
+          },
+          {
+            prompt: "Why is a cold cache after a restart particularly dangerous?",
+            options: [
+              "Eviction policies behave unpredictably until the keyspace is populated",
+              "The full read load arrives at a database that has just recovered",
+              "Connection pools are re-established more slowly than caches populate",
+              "Warming the cache requires writes, which contend with normal traffic",
+            ],
+            correctIndex: 1,
+            explain:
+              "The cache was absorbing most reads, and now none of them. If the origin cannot survive its own traffic unaided, the cache is load-bearing, and restarting the system is the moment that becomes visible.",
+          },
+          {
+            prompt: "What is the right first question before adding a cache to a dataset?",
+            options: [
+              "Which structure and eviction policy suit the access pattern best",
+              "Whether the data fits in memory at the current growth rate",
+              "How much staleness is acceptable here, and for how long",
+              "Whether the read path can tolerate an extra network hop",
+            ],
+            correctIndex: 2,
+            explain:
+              "Everything else follows from the staleness budget: TTL, invalidation strategy, whether to cache at all. If the acceptable staleness is zero, the answer is a faster query rather than a cache.",
+          },
+        ],
       },
     ],
   },
-
   {
     id: "load-balancing",
     title: "Load balancing and traffic",

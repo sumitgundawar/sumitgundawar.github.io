@@ -136,7 +136,7 @@ export const manifest: CardMeta[] = [
   {
     "id": "caching",
     "title": "Caching and Redis",
-    "summary": "Strategies, invalidation, TTLs, and what actually goes wrong at scale.",
+    "summary": "Strategies, invalidation, TTLs, edge caching, and what actually goes wrong at scale.",
     "track": "design",
     "group": "design",
     "topics": [
@@ -159,6 +159,11 @@ export const manifest: CardMeta[] = [
         "id": "cache-failures",
         "title": "Stampedes, avalanches and hot keys",
         "level": "advanced"
+      },
+      {
+        "id": "http-caching",
+        "title": "Caching at the edge",
+        "level": "intermediate"
       },
       {
         "id": "what-not-to-cache",
@@ -1040,5 +1045,5 @@ export const manifest: CardMeta[] = [
   }
 ];
 
-export const topicCount = 145;
+export const topicCount = 146;
 export const cardCount = 34;

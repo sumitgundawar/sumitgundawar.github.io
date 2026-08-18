@@ -728,179 +728,928 @@ export const caseStudies: Card[] = [
   {
     id: "uber",
     title: "Uber",
-    summary: "Matching riders to drivers in real time, over geography, at city scale.",
+    summary:
+      "Matching riders to drivers over real geography: indexing the world, dispatching against it, and keeping the money correct.",
     track: "case-study",
     topics: [
       {
         id: "uber-geo",
-        title: "Geospatial indexing with H3",
-        level: "advanced",
+        title: "H3: why the world is tiled in hexagons",
+        level: "intermediate",
         body: [
-          "Finding nearby drivers by comparing latitude and longitude means scanning everything, because neither coordinate on its own narrows the search usefully.",
-          "Uber divides the world into hexagonal cells, their H3 library, so a location becomes a cell id, and finding nearby drivers becomes looking up a handful of ids. Hexagons rather than squares because every neighbour is equidistant, which makes expanding the search ring uniform.",
+          "The core query is deceptively simple: which drivers are near this rider. Doing it directly means comparing a point against every driver's coordinates and sorting by distance, which is fine at a hundred drivers and hopeless at scale, because the work grows with the size of the fleet rather than with the size of the neighbourhood.",
+          "The standard fix is to index space itself: divide the world into cells, put each driver in a cell, and look only at the rider's cell and its neighbours. Uber built H3 for this and open-sourced it, and the choice of shape is the interesting part.",
+          "Squares have a problem that sounds pedantic and is not. A square has eight neighbours at two different distances: four sharing an edge and four sharing only a corner, which are further away. So 'the neighbouring cells' is an ambiguous phrase, and any radial search has to decide what to do about the diagonals. A hexagon has six neighbours, all at the same distance from the centre, so expanding a search outward is unambiguous. Uber's own framing is that hexagons have one distance between a centre and its neighbours, against two for squares and three for triangles.",
+          "The second reason is quantisation error. People move continuously and cells are discrete, so a moving driver keeps crossing boundaries. Hexagons are closer to circles than squares are, which means the error introduced by snapping a moving point to a cell is smaller and more uniform in every direction.",
+          "H3 has sixteen resolutions, each cell holding roughly one seventh the area of the level above, so the same system serves a city-wide heat map and a street-level match by changing one number. It projects the sphere onto an icosahedron, twenty flat faces rather than one, which keeps cells much closer to equal area than a single flat projection would. The catch is that you cannot tile an icosahedron with hexagons alone: twelve pentagons are unavoidable, and H3 orients the solid so they fall in the ocean.",
         ],
-        why: "The move is turning a continuous two-dimensional problem into a discrete key lookup. Once location is a key, ordinary tools, hash maps, caches, shards, all work again.",
+        why: "The general move is to convert a geometry problem into a lookup problem. Comparing distances is expensive and scales with the fleet; looking up a cell key is cheap and scales with the neighbourhood. Almost every spatial system does some version of this, and the differences between geohash, S2 and H3 are mostly about which distortions they accept in exchange.",
+        inPractice:
+          "The same conversion works whenever a range query is really a proximity query. Bucketing timestamps into fixed windows, rounding prices into bands, hashing a user into a cohort: each replaces a comparison across everything with a lookup into a bucket, and each accepts a defined quantisation error to get it.",
         diagram: {
-          caption: "A ride request: match on cells, then track over a persistent connection",
+          caption: "Location becomes a cell key, and matching becomes a lookup",
           columns: [
             [
-              { id: "rider", label: "Rider app", kind: "client" },
               { id: "driver", label: "Driver app", sub: "pings location", kind: "client" },
+              { id: "rider", label: "Rider app", sub: "requests a trip", kind: "client" },
             ],
-            [{ id: "gw", label: "API gateway", sub: "WebSocket", kind: "edge" }],
+            [{ id: "gw", label: "Gateway", sub: "persistent connections", kind: "edge" }],
             [
-              { id: "match", label: "Matching", sub: "supply and demand", kind: "service" },
-              { id: "loc", label: "Location service", sub: "H3 cell index", kind: "service" },
-              { id: "price", label: "Pricing", sub: "surge by cell", kind: "service" },
+              { id: "loc", label: "Location service", sub: "point to H3 cell", kind: "service" },
+              { id: "match", label: "Matching", sub: "reads cell and ring", kind: "service" },
             ],
+            [{ id: "index", label: "Driver index", sub: "cell to drivers", kind: "data" }],
+          ],
+          edges: [
+            { from: "driver", to: "gw", label: "every few seconds" },
+            { from: "rider", to: "gw", label: "request" },
+            { from: "gw", to: "loc" },
+            { from: "loc", to: "index", label: "writes cell membership" },
+            { from: "gw", to: "match" },
+            { from: "index", to: "match", label: "candidates in ring" },
+          ],
+        },
+        check: {
+          prompt: "Why index drivers by hexagonal cell rather than querying coordinates directly?",
+          options: [
+            "Hexagons store coordinates more compactly, reducing the memory the index needs",
+            "It turns a distance comparison over the fleet into a lookup over a neighbourhood",
+            "Coordinate queries cannot be indexed by a database without specialised extensions",
+            "Cell membership changes less often than coordinates, so fewer writes are required",
+          ],
+          correctIndex: 1,
+          explain:
+            "Comparing distances costs work proportional to the number of drivers. Looking up a cell and its ring costs work proportional to the neighbourhood, which stays roughly constant however large the fleet becomes.",
+        },
+        checks: [
+          {
+            prompt: "What specifically do hexagons give you that squares do not, for a radial search?",
+            options: [
+              "Six neighbours all at the same distance, so expanding outward is unambiguous",
+              "Hexagons tile a sphere exactly, whereas squares leave gaps at the poles",
+              "Hexagonal cells can be subdivided evenly, which square cells cannot",
+              "Hexagons align with road networks more closely than square grids do",
+            ],
+            correctIndex: 0,
+            explain:
+              "A square has eight neighbours at two different distances: four across edges and four across corners. A hexagon has six, all equidistant, so a ring of neighbours is a well-defined thing rather than a decision about diagonals.",
+          },
+          {
+            prompt: "H3 places twelve pentagons on the globe. Why do they exist and where are they put?",
+            options: [
+              "They mark the icosahedron vertices used for projection and sit at the poles",
+              "An icosahedron cannot be tiled with hexagons alone, so they are oriented into ocean",
+              "They provide coarser cells over sparsely populated regions to save index space",
+              "They are reserved cells used to signal boundaries between operating regions",
+            ],
+            correctIndex: 1,
+            explain:
+              "Hexagons alone cannot tile the solid, so twelve pentagons are a geometric necessity rather than a design choice. What is a choice is the orientation, which puts them in water so almost no real trip is affected.",
+          },
+        ],
+      },
+
+      {
+        id: "uber-dispatch",
+        title: "Dispatch: matching is an assignment problem, not a search",
+        level: "advanced",
+        body: [
+          "The naive dispatch is to give each request the nearest free driver, first come first served. It is simple, it is obviously fair, and it is measurably worse than the alternative.",
+          "Consider two requests arriving seconds apart and two available drivers. Greedy assignment gives the first request its nearest driver, which may be the same driver that was much closer to the second request, leaving the second rider with a driver several minutes away. Considering both requests together and minimising total pickup time can leave both riders better off than serving one of them optimally. That is the difference between a search, which answers one query at a time, and an assignment, which optimises a batch.",
+          "So dispatch batches over a short window, typically a few seconds, and solves a small assignment problem. The window is a real trade: longer windows produce better matches and make everybody wait, and the right length is an empirical question rather than a principled one.",
+          "Distance is also the wrong objective, which is easy to miss. What matters is time to pickup, and a driver eight hundred metres away across a river with no bridge is further, in the sense the rider cares about, than one two kilometres away on the same road. Real dispatch uses estimated travel time from a routing engine over the road network, not straight-line distance.",
+          "The system also has to reason about drivers who are not free yet. A driver two minutes from dropping off may be a better match than an idle driver ten minutes away, which means dispatch is matching against predicted future supply, not just present supply.",
+        ],
+        why: "The transferable idea is that batching changes what is possible, not just what is efficient. A queue processed one item at a time can only ever make locally optimal choices; a queue processed in small batches can make globally better ones. The cost is latency, and the design question is how much latency the batch is worth.",
+        inPractice:
+          "The same shape appears in database write batching, ad auctions, and any scheduler worth the name. If you find yourself making a sequence of independent greedy choices that interact, the fix is usually to accumulate briefly and decide together.",
+        diagram: {
+          caption: "Batch a few seconds of demand and supply, then assign together",
+          columns: [
             [
-              { id: "geo", label: "Driver index", sub: "Redis, cell to drivers", kind: "data" },
-              { id: "trips", label: "Trip store", sub: "sharded by city", kind: "data" },
-              { id: "kafka", label: "Event stream", sub: "Kafka", kind: "queue" },
+              { id: "reqs", label: "Open requests", sub: "last few seconds", kind: "queue" },
+              { id: "supply", label: "Available drivers", sub: "and soon-free", kind: "queue" },
+            ],
+            [{ id: "cands", label: "Candidate pairs", sub: "from H3 rings", kind: "service" }],
+            [{ id: "eta", label: "Routing engine", sub: "time, not distance", kind: "service" }],
+            [{ id: "assign", label: "Assignment", sub: "minimise total wait", kind: "service" }],
+            [{ id: "offer", label: "Offers", sub: "sent to drivers", kind: "service" }],
+          ],
+          edges: [
+            { from: "reqs", to: "cands" },
+            { from: "supply", to: "cands" },
+            { from: "cands", to: "eta", label: "cost each pair" },
+            { from: "eta", to: "assign" },
+            { from: "assign", to: "offer" },
+          ],
+        },
+        check: {
+          prompt: "Why batch requests for a few seconds instead of matching each on arrival?",
+          options: [
+            "Batching reduces load on the routing engine by amortising its cost per request",
+            "Considering several requests together can leave every rider better off than greedy",
+            "Drivers cannot receive offers more frequently than every few seconds anyway",
+            "It gives the location index time to converge before candidates are selected",
+          ],
+          correctIndex: 1,
+          explain:
+            "Greedy assignment can hand the first request a driver who was much closer to the second, leaving that rider stranded. Solving a small batch together optimises total pickup time, which is a different and better objective than optimising each request in turn.",
+        },
+        checks: [
+          {
+            prompt: "Why rank candidates by estimated travel time rather than straight-line distance?",
+            options: [
+              "Travel time is cheaper to compute than distance over a spherical surface",
+              "Rivers, one-way streets and traffic make the nearest driver often not the soonest",
+              "Distance calculations are inaccurate near the twelve pentagons in the grid",
+              "Drivers are paid by time, so ranking by time keeps the incentives aligned",
+            ],
+            correctIndex: 1,
+            explain:
+              "The rider is waiting for an arrival, not for a shorter line on a map. Eight hundred metres across a river with no bridge is further, in every sense that matters, than two kilometres along the same road.",
+          },
+          {
+            prompt: "Why does dispatch consider drivers who are still completing a trip?",
+            options: [
+              "A driver two minutes from dropping off may beat an idle driver ten minutes away",
+              "It prevents idle drivers from receiving too many consecutive offers",
+              "Trips in progress hold a lock on the driver record until dispatch releases it",
+              "Predicting completion smooths the load on the assignment solver between batches",
+            ],
+            correctIndex: 0,
+            explain:
+              "Supply is not only what is idle now. Matching against predicted near-future availability produces better pickups than restricting the pool to drivers who happen to be free at the instant the request arrives.",
+          },
+        ],
+      },
+
+      {
+        id: "uber-surge",
+        title: "Surge: a control loop that people can see",
+        level: "intermediate",
+        body: [
+          "Surge pricing is a control loop. Demand in a cell exceeds supply, price rises, which suppresses some demand and attracts drivers from nearby cells, and the imbalance closes. H3 is what makes it computable: supply and demand are measured per hexagon, and a multiplier is set per hexagon.",
+          "The complications are almost all about the loop's dynamics rather than its economics. Set the multiplier from an instantaneous reading and it oscillates: price spikes, drivers converge, price collapses before most arrive, drivers leave, price spikes again. Any control loop with delayed feedback does this if you do not damp it, and the delay here is however long it takes a driver to physically drive somewhere.",
+          "Cell size is a genuine tension. Small cells give precise pricing and noisy estimates, because a handful of requests in a small area is not much of a signal. Large cells give stable estimates and price people incorrectly, because the busy corner and the quiet street two hundred metres away get the same number. H3's resolutions let this be tuned rather than argued about, and the answer is usually different for a dense city centre and a suburb.",
+          "There is also a boundary problem that is entirely artificial and very visible: two riders standing next to each other on opposite sides of a cell boundary should not see very different prices. Smoothing across neighbouring cells is what keeps the abstraction from leaking into someone's fare, and hexagons help precisely because 'neighbouring' is unambiguous.",
+        ],
+        why: "The lesson is that any feedback loop acting on a system with delay needs damping, and that the delay is usually physical and irreducible. The instinct to react quickly to the newest reading produces oscillation, and oscillation in a pricing system is far more damaging than being slightly slow, because customers experience it as arbitrary.",
+        inPractice:
+          "Autoscaling is the same loop with the same failure. Scale on an instantaneous CPU reading and instances are added, load drops, instances are removed before the added ones were warm, and the cycle repeats. The fixes are the same: average over a window, add hysteresis, and cool down between changes.",
+        diagram: {
+          caption: "Measure per cell, damp the response, smooth the boundaries",
+          columns: [
+            [
+              { id: "dem", label: "Open requests", sub: "per hexagon", kind: "data" },
+              { id: "sup", label: "Available drivers", sub: "per hexagon", kind: "data" },
+            ],
+            [{ id: "ratio", label: "Imbalance", sub: "smoothed over time", kind: "service" }],
+            [{ id: "smooth", label: "Neighbour smoothing", sub: "no cliff at borders", kind: "service" }],
+            [{ id: "mult", label: "Multiplier", sub: "per hexagon", kind: "data" }],
+            [
+              { id: "riders", label: "Riders", sub: "some defer", kind: "client" },
+              { id: "drivers", label: "Drivers", sub: "some relocate", kind: "client" },
             ],
           ],
           edges: [
-            { from: "driver", to: "gw", label: "location every few sec" },
-            { from: "gw", to: "loc" },
-            { from: "loc", to: "geo", label: "update cell" },
-            { from: "rider", to: "gw", label: "request ride" },
-            { from: "gw", to: "match" },
-            { from: "match", to: "geo", label: "drivers in nearby cells" },
-            { from: "match", to: "price" },
-            { from: "match", to: "trips", label: "create trip" },
-            { from: "trips", to: "kafka", label: "events", async: true },
+            { from: "dem", to: "ratio" },
+            { from: "sup", to: "ratio" },
+            { from: "ratio", to: "smooth" },
+            { from: "smooth", to: "mult" },
+            { from: "mult", to: "riders" },
+            { from: "mult", to: "drivers" },
+            { from: "drivers", to: "sup", label: "supply responds, slowly", async: true },
           ],
         },
         check: {
-          prompt: "Why does cell-based indexing beat comparing latitude and longitude ranges?",
+          prompt: "Why must a surge multiplier be damped rather than set from the latest reading?",
           options: [
-            "It keeps nearby points close in the index, so a scan reads fewer pages",
-            "It stores a precomputed distance, so no trigonometry runs at query time",
-            "It turns a two-dimensional range scan into a lookup of a few discrete keys",
-            "It bounds the error, so results stay correct regardless of cell size",
+            "Frequent price changes are more expensive to distribute to every client",
+            "Supply responds with a physical delay, so an undamped loop oscillates",
+            "Riders cannot perceive price changes that happen faster than a few minutes",
+            "Instantaneous readings are unavailable, so an average is the only option",
           ],
-          correctIndex: 2,
-          explain: "A bounding-box query on two independent columns cannot use one index efficiently. A cell id is a single key, so hashing and sharding work normally.",
+          correctIndex: 1,
+          explain:
+            "Drivers take minutes to arrive. Reacting to the newest reading raises the price, pulls in supply that has not landed yet, collapses the price before it does, and starts again. Delayed feedback without damping oscillates, every time.",
         },
+        checks: [
+          {
+            prompt: "What is the trade-off in choosing a smaller hexagon resolution for surge?",
+            options: [
+              "Smaller cells price more precisely but produce noisier and less reliable estimates",
+              "Smaller cells cost more to store, since the index grows with the cell count",
+              "Smaller cells cannot be smoothed, because their neighbours change too often",
+              "Smaller cells are less accurate at high latitudes because of grid distortion",
+            ],
+            correctIndex: 0,
+            explain:
+              "A handful of requests in a small area is a weak signal, so precision buys noise. Larger cells give a stable number that is wrong for parts of the area. Resolution is the dial between the two, and the right setting differs between a city centre and a suburb.",
+          },
+        ],
       },
+
       {
-        id: "uber-surge",
-        title: "Surge pricing as a control loop",
+        id: "uber-trip-state",
+        title: "The trip as a state machine, and why that matters",
         level: "advanced",
         body: [
-          "Surge is not primarily a revenue mechanism, it is a feedback loop balancing supply and demand within a geographic cell.",
-          "When requests outnumber available drivers in a cell, the multiplier rises. That suppresses some demand and attracts drivers from neighbouring cells, and the imbalance closes.",
-          "It must be computed per small area and updated continuously, because conditions differ street by street and change within minutes.",
+          "A trip is a long-lived object that moves through defined states: requested, matched, driver en route, arrived, in progress, completed, paid. Or cancelled, from most of them. Modelling it explicitly as a state machine rather than as a row with a handful of booleans is one of those decisions that looks like bureaucracy until the first time it saves you.",
+          "The reason is that the transitions are where all the rules live, and the rules are unintuitive. A rider can cancel before pickup, sometimes with a fee. A driver can cancel, which returns the request to dispatch rather than ending the trip. A trip can complete without payment succeeding, and that is a normal case rather than an error. With booleans, each of these becomes a condition scattered across the codebase, and the set of reachable combinations quietly becomes unknowable.",
+          "Every state change is also a message to several other systems: the rider app, the driver app, pricing, the receipt, driver earnings, fraud checks. Doing that synchronously would make the trip's write path depend on all of them being healthy, so the durable transition is recorded first and the notifications follow from it. Consumers are idempotent because at-least-once delivery means duplicates are certain rather than possible.",
+          "The genuinely hard part is that the phone is unreliable, and the trip is happening in the physical world regardless. A driver goes through a tunnel mid-trip and comes out with events queued up, possibly arriving out of order. The state machine has to reject impossible transitions rather than trust the order things arrive in: a 'trip started' message for a trip already completed is not a state change, it is a late duplicate, and the only safe response is to ignore it.",
         ],
-        why: "Framing it as a control system, not a pricing lever, explains the design: it needs fast feedback, small granularity, and damping so it does not oscillate.",
-        check: {
-          prompt: "What does surge pricing primarily do to the system?",
-          options: [
-            "It rations scarce supply to the riders who value the trip most highly",
-            "It raises revenue per ride, which funds driver incentives in that area",
-            "It signals to riders that waiting a few minutes will be materially cheaper",
-            "It is a feedback loop, cutting demand and drawing supply until the gap closes",
+        why: "The value of an explicit state machine is that illegal states become unrepresentable rather than merely unlikely. With booleans, cancelled and completed can both be true and nothing stops it; with states, the transition simply is not defined, and a late or duplicated event is rejected by the model rather than by a condition somebody remembered to write.",
+        inPractice:
+          "Any entity with a lifecycle benefits: orders, subscriptions, onboarding, document review. The test for whether you need one is whether you have ever written a condition like this flag but not that one, which is a state machine that has escaped and is living in your if statements.",
+        diagram: {
+          caption: "Record the transition, then tell everyone about it",
+          columns: [
+            [{ id: "apps", label: "Rider and driver apps", sub: "unreliable network", kind: "client" }],
+            [{ id: "trip", label: "Trip service", sub: "validates transitions", kind: "service" }],
+            [{ id: "store", label: "Trip store", sub: "state, durable", kind: "data" }],
+            [{ id: "bus", label: "Event stream", sub: "at least once", kind: "queue" }],
+            [
+              { id: "pay", label: "Payments", kind: "service" },
+              { id: "earn", label: "Driver earnings", kind: "service" },
+              { id: "notify", label: "Notifications", kind: "service" },
+            ],
           ],
-          correctIndex: 3,
-          explain: "It is a control loop over a local imbalance. Revenue is a side effect; the function is clearing the market in that cell.",
+          edges: [
+            { from: "apps", to: "trip", label: "events, possibly late" },
+            { from: "trip", to: "store", label: "valid transitions only" },
+            { from: "store", to: "bus", label: "emitted after commit", async: true },
+            { from: "bus", to: "pay", async: true },
+            { from: "bus", to: "earn", async: true },
+            { from: "bus", to: "notify", async: true },
+          ],
         },
-      },
-      {
-        id: "uber-sharding",
-        title: "Sharding by city",
-        level: "intermediate",
-        body: [
-          "Trips are overwhelmingly local. A rider and a driver are in the same city, and almost no query needs to join across cities.",
-          "That makes city, or region, an excellent shard key: traffic distributes naturally and cross-shard queries are rare. It also isolates failure and allows per-city configuration, which matters because regulation and pricing differ by market.",
-        ],
-        why: "A good shard key follows a natural boundary in the domain. City works because it matches how the data is actually queried; user id would scatter the two halves of every trip.",
         check: {
-          prompt: "Why is city a good shard key for trips?",
+          prompt: "A phone comes out of a tunnel and sends 'trip started' for a trip already completed. What should happen?",
           options: [
-            "Trips are local, so almost every query stays inside a single shard",
-            "Cities are roughly equal in size, so the shards stay well balanced",
-            "City is immutable for a trip, so a row never moves between shards",
-            "It keeps the shard count low enough to fit in one connection pool",
+            "Reject it, because the transition is not defined from the completed state",
+            "Apply it, because the device is the authority on what physically happened",
+            "Queue it until a matching completion event arrives to pair it with",
+            "Apply it and immediately re-complete the trip to restore the correct state",
           ],
           correctIndex: 0,
-          explain: "Locality is the point: rider, driver and trip share a city, so queries rarely cross shards. Uneven city sizes are handled by splitting large ones.",
+          explain:
+            "Arrival order says nothing about event order on an unreliable network. A state machine that only permits defined transitions rejects the late duplicate by construction, rather than relying on someone having written the right condition.",
         },
+        checks: [
+          {
+            prompt: "Why emit the trip events after committing the state change rather than during it?",
+            options: [
+              "Emitting first would make the events arrive before consumers are ready for them",
+              "Otherwise the write path depends on every consumer being healthy at that moment",
+              "The event stream cannot accept writes inside a database transaction",
+              "It guarantees exactly-once delivery, which is impossible the other way round",
+            ],
+            correctIndex: 1,
+            explain:
+              "Notifying pricing, receipts, earnings and fraud synchronously means a trip cannot progress unless all of them are up. Commit the transition, then publish, and let consumers be idempotent because at-least-once delivery makes duplicates certain.",
+          },
+          {
+            prompt: "What is the concrete argument against modelling trip status as several boolean flags?",
+            options: [
+              "Booleans use more storage than a single enumerated status column would",
+              "Combinations that should be impossible become representable and eventually occur",
+              "Boolean columns cannot be indexed efficiently for the queries dispatch needs",
+              "Flags cannot be replicated consistently between regions during a failover",
+            ],
+            correctIndex: 1,
+            explain:
+              "With flags, cancelled and completed can both be true and nothing in the model prevents it, so correctness depends on conditions scattered through the code. With explicit states the transition is undefined, and the illegal combination cannot be reached.",
+          },
+        ],
+      },
+
+      {
+        id: "uber-sharding",
+        title: "Sharding by city, and what breaks at the edges",
+        level: "advanced",
+        body: [
+          "Trips are overwhelmingly local. A rider in Manchester is matched with a driver in Manchester, priced by Manchester's supply and demand, and paid in pounds. That locality is a gift, because it means the data can be partitioned geographically and almost every query stays inside one partition.",
+          "Sharding by city therefore gives near-linear scaling for the common case. Each shard holds its own trips, its own driver index, its own surge state, and a busy Friday in one city does not consume capacity in another. It also gives a natural failure boundary: a shard problem is a city problem, not a company problem.",
+          "The edges are where it gets interesting, and they are real rather than theoretical. A trip from one city to a neighbouring one crosses a boundary. Airports sit outside city limits and serve several. Cities grow, and a shard that was comfortable becomes hot. Some things are genuinely global and cannot be sharded at all: a rider's account, their payment methods, their lifetime history, and any fraud signal worth having, since fraud that is invisible within one city is often obvious across several.",
+          "The practical answer is not one scheme but two. Geographic sharding for the operational data, which is local and high volume, and a separate globally-scoped store for identity and money, which is low volume and must be correct everywhere. Trying to force both into one partitioning scheme is how you end up with cross-shard transactions in the hot path.",
+        ],
+        why: "The lesson is to shard by the boundary that the workload already has, and to accept that some data will not fit it. The mistake is not having two schemes; it is pretending one scheme covers everything and discovering the exceptions in production, when a query that was supposed to be local turns out to fan out across every shard.",
+        inPractice:
+          "A tenant-per-shard SaaS has exactly this shape, and exactly this exception: tenant data shards cleanly, and then billing, authentication and cross-tenant reporting do not. Deciding that up front is much cheaper than discovering it when the reporting query starts timing out.",
+        diagram: {
+          caption: "Local data shards by city, global data does not shard at all",
+          columns: [
+            [{ id: "req", label: "Request", sub: "carries a city", kind: "client" }],
+            [{ id: "route", label: "Routing layer", sub: "picks the shard", kind: "edge" }],
+            [
+              { id: "s1", label: "City shard A", sub: "trips, index, surge", kind: "data" },
+              { id: "s2", label: "City shard B", sub: "trips, index, surge", kind: "data" },
+            ],
+            [
+              { id: "acct", label: "Accounts", sub: "global", kind: "data" },
+              { id: "pay", label: "Payment methods", sub: "global", kind: "data" },
+              { id: "fraud", label: "Fraud signals", sub: "global by necessity", kind: "service" },
+            ],
+          ],
+          edges: [
+            { from: "req", to: "route" },
+            { from: "route", to: "s1" },
+            { from: "route", to: "s2" },
+            { from: "s1", to: "acct", label: "identity lookup" },
+            { from: "s2", to: "acct", label: "identity lookup" },
+            { from: "s1", to: "fraud", async: true },
+            { from: "s2", to: "fraud", async: true },
+          ],
+        },
+        check: {
+          prompt: "Why does sharding by city work well for trips but not for accounts?",
+          options: [
+            "Account records are larger, so they do not fit within a single shard's storage",
+            "Trips are local by nature; an account follows a person across every city",
+            "Accounts change more often than trips, so they need a different storage engine",
+            "City shards cannot enforce the uniqueness constraints an account table requires",
+          ],
+          correctIndex: 1,
+          explain:
+            "Shard by the boundary the workload already has. Trips have one, because a trip happens in a place. A person does not, so pinning their account to a city makes every trip they take elsewhere a cross-shard query.",
+        },
+        checks: [
+          {
+            prompt: "Why is fraud detection one of the things that cannot be sharded geographically?",
+            options: [
+              "Fraud models are too large to replicate into every city shard efficiently",
+              "The patterns worth catching are the ones visible across cities, not within one",
+              "Fraud data must be retained longer than city shards keep trip history",
+              "Regulators require fraud signals to be stored in a single jurisdiction",
+            ],
+            correctIndex: 1,
+            explain:
+              "An account behaving unremarkably in five cities can be obviously fraudulent when the five are seen together. Sharding by city hides exactly the correlation the detection depends on.",
+          },
+        ],
+      },
+
+      {
+        id: "uber-payments",
+        title: "Payments: money is the part you cannot retry casually",
+        level: "advanced",
+        body: [
+          "Everything up to this point tolerates approximation. A slightly worse match, a surge multiplier that is a little stale, a location a second out of date: all survivable. Payments do not work that way, because charging a rider twice is not a degraded experience, it is a defect they will remember and tell people about.",
+          "The mechanism that makes this safe is the idempotency key. The client generates a key for the payment attempt and sends it with the request. If the response is lost to a timeout and the client retries with the same key, the payment service recognises it and returns the original outcome rather than charging again. This matters because a timeout is genuinely ambiguous: the caller cannot distinguish a request that never arrived from one that succeeded and whose response was lost, and without a key the only options are to risk a double charge or to risk not charging at all.",
+          "Payment is also not one operation. A card is authorised at the start of a trip, the final amount is not known until it ends, and capture happens afterwards for an amount that may differ. Any of those steps can fail independently. The driver's earnings are a separate flow again, on a different schedule, through a different rail, and a trip can legitimately be complete, paid by the rider, and not yet paid out to the driver.",
+          "So the money is modelled as a ledger rather than as a balance field. Every movement is an immutable entry, and the balance is derived by summing them. This is slower to read and it is what makes the system auditable: you can answer why a number is what it is, and a mistake is corrected by writing a compensating entry rather than by overwriting history and destroying the evidence.",
+        ],
+        why: "The principle is that any operation with an external side effect needs a key that makes retries safe, because the network guarantees you will retry in an ambiguous state eventually. The second principle is that append-only beats mutable for anything you may have to explain later, and money is the canonical example of something you will have to explain.",
+        inPractice:
+          "This is directly the pattern behind an idempotent POST endpoint: accept a client-supplied key, store the outcome against it, and return the stored outcome on a repeat. It is worth doing for any request that sends an email, charges a card, or provisions something, all of which are unpleasant to do twice.",
+        diagram: {
+          caption: "Authorise, capture, pay out. Each retryable, none repeatable.",
+          columns: [
+            [{ id: "trip", label: "Trip completed", kind: "service" }],
+            [{ id: "pay", label: "Payment service", sub: "idempotency keys", kind: "service" }],
+            [
+              { id: "psp", label: "Card processor", sub: "external", kind: "external" },
+              { id: "ledger", label: "Ledger", sub: "append only", kind: "data" },
+            ],
+            [{ id: "payout", label: "Driver payout", sub: "separate schedule", kind: "service" }],
+            [{ id: "bank", label: "Banking rail", sub: "external", kind: "external" }],
+          ],
+          edges: [
+            { from: "trip", to: "pay", label: "final amount" },
+            { from: "pay", to: "psp", label: "capture, with key" },
+            { from: "pay", to: "ledger", label: "entry per movement" },
+            { from: "ledger", to: "payout", async: true },
+            { from: "payout", to: "bank", label: "with key", async: true },
+          ],
+        },
+        check: {
+          prompt: "A payment request times out with no response. Why does an idempotency key resolve this?",
+          options: [
+            "It lets the client retry safely, because a repeat returns the original outcome",
+            "It causes the processor to roll back any charge that was partially applied",
+            "It proves the request originated from the client and not from a replay attack",
+            "It allows the payment to be queued and retried automatically by the processor",
+          ],
+          correctIndex: 0,
+          explain:
+            "A timeout is ambiguous: the request may never have arrived, or may have succeeded with the response lost. The key removes the ambiguity by making the retry return whatever happened the first time, so the caller can retry without risking a second charge.",
+        },
+        checks: [
+          {
+            prompt: "Why model money as an append-only ledger rather than a mutable balance?",
+            options: [
+              "Appending is faster than updating a row under concurrent write load",
+              "Every movement stays explainable, and errors are fixed by compensating entries",
+              "Ledgers can be sharded by city whereas balances cannot be partitioned",
+              "It avoids the need for transactions, since appends never conflict with each other",
+            ],
+            correctIndex: 1,
+            explain:
+              "A balance field tells you the number and nothing about how it got there. A ledger lets you answer why, which is the question that always eventually arrives, and it is corrected by writing a correction rather than by overwriting the evidence.",
+          },
+          {
+            prompt: "Why is authorisation separated from capture rather than charging once at the end?",
+            options: [
+              "The card is validated before the trip, and the amount is unknown until it ends",
+              "Card processors charge a lower fee for authorisations than for direct charges",
+              "It lets the rider switch payment method mid-trip without the charge failing",
+              "Capture must occur in a different region from authorisation for redundancy",
+            ],
+            correctIndex: 0,
+            explain:
+              "You want to know the card works before providing the service, and you cannot know the amount until the trip is over. Splitting the two gives you an early check and a late, accurate amount, at the cost of a second step that can fail on its own.",
+          },
+        ],
+      },
+
+      {
+        id: "uber-realtime",
+        title: "Keeping millions of connections open",
+        level: "intermediate",
+        body: [
+          "Both apps need a live channel. The driver app reports location continuously; the rider app wants the car moving on the map without polling for it. That means long-lived connections at very large numbers, which is a different engineering problem from serving requests.",
+          "The first consequence is that connections cost memory whether or not they are doing anything. A thread-per-connection server runs out of memory long before it runs out of processor, which is why gateways in this shape are built on asynchronous non-blocking I/O, where an idle connection is a small object rather than a stack.",
+          "The second is that connection state has to live somewhere, because a driver's connection lands on one gateway instance and a message for that driver may arrive at another. Something has to know where each connection is, which is a registry with all the usual problems: it must be fast to read, it changes constantly as mobile clients reconnect, and it is wrong the moment a client silently disappears.",
+          "The third is that mobile networks drop connections constantly, so reconnection is the normal case rather than the exception. Clients need backoff so a network blip does not become a reconnection storm, and jitter so every client that dropped together does not come back in lockstep and do it again.",
+          "It is also worth being honest that not everything needs this. Location updates do, and a receipt does not. Sending everything down a live channel because you built one is a common and expensive mistake, since it makes the connection layer part of the critical path for things that were happily asynchronous.",
+        ],
+        why: "The core insight is that connections are state, and state at that scale is the constraint. Every design decision follows from it: asynchronous I/O because idle connections must be cheap, a registry because the state is distributed, backoff and jitter because reconnection is constant and correlated. Treating a live channel as free is how a system that works at ten thousand connections fails at a million.",
+        inPractice:
+          "The reconnection detail is the one most often skipped and most damaging. If clients reconnect immediately on failure, a brief gateway restart becomes a self-sustaining storm, because everything that dropped together retries together. Exponential backoff with jitter is not a nicety; it is what stops a recoverable blip becoming an outage.",
+        diagram: {
+          caption: "Connections are state, and the state has to be findable",
+          columns: [
+            [
+              { id: "d", label: "Driver apps", sub: "millions, live", kind: "client" },
+              { id: "r", label: "Rider apps", sub: "live during a trip", kind: "client" },
+            ],
+            [
+              { id: "gw1", label: "Gateway 1", sub: "async I/O", kind: "edge" },
+              { id: "gw2", label: "Gateway 2", sub: "async I/O", kind: "edge" },
+            ],
+            [{ id: "reg", label: "Connection registry", sub: "who is where", kind: "data" }],
+            [{ id: "svc", label: "Trip and dispatch", sub: "sends messages", kind: "service" }],
+          ],
+          edges: [
+            { from: "d", to: "gw1", label: "persistent" },
+            { from: "r", to: "gw2", label: "persistent" },
+            { from: "gw1", to: "reg", label: "registers" },
+            { from: "gw2", to: "reg", label: "registers" },
+            { from: "svc", to: "reg", label: "where is this driver" },
+            { from: "svc", to: "gw1", label: "deliver" },
+          ],
+        },
+        check: {
+          prompt: "Why do gateways holding millions of connections use asynchronous non-blocking I/O?",
+          options: [
+            "It reduces the number of network packets each connection needs to send",
+            "Idle connections cost a small object rather than a thread and its stack",
+            "Asynchronous I/O is the only model that supports persistent connections",
+            "It allows a single connection to be shared between several clients at once",
+          ],
+          correctIndex: 1,
+          explain:
+            "Connections cost memory whether or not they are active. A thread per connection exhausts memory long before the processor is busy, so the constraint is how cheap an idle connection can be made.",
+        },
+        checks: [
+          {
+            prompt: "Why do reconnecting clients need backoff with jitter rather than immediate retry?",
+            options: [
+              "Immediate retries are rejected by most mobile networks as abusive traffic",
+              "Everything that dropped together returns together, turning a blip into a storm",
+              "Jitter is required to keep the connection registry entries unique per client",
+              "Backoff allows the gateway to finish replaying messages missed while offline",
+            ],
+            correctIndex: 1,
+            explain:
+              "A gateway restart drops its connections simultaneously, so synchronised retries arrive as one spike that knocks it over again. Backoff spreads the load over time and jitter breaks the synchronisation that caused the spike.",
+          },
+        ],
+      },
+
+      {
+        id: "uber-data",
+        title: "The data platform: the same events, twice",
+        level: "intermediate",
+        body: [
+          "Every location ping, trip transition, price calculation and payment produces events, and there are two very different consumers of them. The operational side needs them in seconds: dispatch needs current supply, surge needs current demand, the rider needs the car moving on the map. The analytical side needs them completely and correctly, but can wait: finance, forecasting, model training, regulatory reporting.",
+          "These requirements conflict enough that trying to serve both from one system serves neither well. The fast path optimises for latency and accepts approximation, because a supply count that is a second stale is fine. The slow path optimises for completeness and accepts latency, because a revenue figure that is missing a percent is not fine at all.",
+          "So the same event stream feeds both. A streaming layer maintains the aggregates dispatch and pricing read, in memory, updated continuously, deliberately approximate. A batch layer writes everything to durable storage and recomputes properly on a schedule, with late-arriving events folded in.",
+          "That last detail is the one worth remembering. Events arrive late, sometimes hours late, from a phone that was in a tunnel or a basement. The fast path has already moved on and cannot incorporate them; the batch path can, because it recomputes over a window rather than incrementing a counter. This is exactly why the batch numbers and the real-time numbers disagree, and why the batch ones are the ones finance uses.",
+        ],
+        why: "The general rule is that latency and completeness are different requirements, and a single pipeline forces one to be sacrificed. Serving both from the same stream, with different guarantees and an explicit understanding of which is authoritative, is cheaper and more honest than making the real-time system pretend to be exact.",
+        inPractice:
+          "The practical version is knowing which number is authoritative before anyone asks. A dashboard reading from the streaming layer and a report reading from the warehouse will disagree, and the correct response is not to reconcile them but to label them: one is current, the other is correct.",
+        diagram: {
+          caption: "One stream, two paths, different guarantees",
+          columns: [
+            [{ id: "apps", label: "Apps and services", sub: "events", kind: "client" }],
+            [{ id: "bus", label: "Event stream", sub: "durable log", kind: "queue" }],
+            [
+              { id: "fast", label: "Streaming layer", sub: "seconds, approximate", kind: "service" },
+              { id: "batch", label: "Batch layer", sub: "hours, complete", kind: "service" },
+            ],
+            [
+              { id: "ops", label: "Dispatch and surge", sub: "reads current", kind: "service" },
+              { id: "wh", label: "Warehouse", sub: "reads correct", kind: "data" },
+            ],
+          ],
+          edges: [
+            { from: "apps", to: "bus" },
+            { from: "bus", to: "fast", label: "continuous" },
+            { from: "bus", to: "batch", label: "replayable", async: true },
+            { from: "fast", to: "ops" },
+            { from: "batch", to: "wh", label: "late events included", async: true },
+          ],
+        },
+        check: {
+          prompt: "Why run a streaming layer and a batch layer over the same events?",
+          options: [
+            "The batch layer serves as a backup in case the streaming layer loses data",
+            "Latency and completeness are different requirements that one pipeline cannot both meet",
+            "Streaming systems cannot write to durable storage without a batch intermediary",
+            "Batch processing is cheaper, so it handles the majority of the overall volume",
+          ],
+          correctIndex: 1,
+          explain:
+            "Dispatch needs a number now and can tolerate approximation. Finance needs a number that is right and can wait. Forcing both through one pipeline means giving up one of the two, so the same stream feeds two paths with different guarantees.",
+        },
+        checks: [
+          {
+            prompt: "Why can the batch layer incorporate a location event that arrives two hours late when the streaming layer cannot?",
+            options: [
+              "Batch storage retains events for longer than the streaming layer buffers them",
+              "It recomputes over a window rather than incrementing a counter that has moved on",
+              "Late events are routed only to the batch layer and never reach the stream",
+              "The streaming layer discards events that fail its ordering checks on arrival",
+            ],
+            correctIndex: 1,
+            explain:
+              "An incremental counter has already produced its answer and moved past that window. A batch job reads the window again, sees the late event, and produces a corrected result. This is exactly why the two disagree and why the batch figure is the one finance uses.",
+          },
+        ],
       },
     ],
   },
 
   {
     id: "twitter-feed",
-    title: "Twitter and news feeds",
-    summary: "Fan-out on write versus read, and the celebrity problem.",
+    title: "Twitter and the feed",
+    summary:
+      "Fan-out on write against read, the celebrity problem, ranking, and the graph underneath it all.",
     track: "case-study",
     topics: [
       {
         id: "fanout",
-        title: "Fan-out on write or on read",
+        title: "Fan-out on write against fan-out on read",
+        level: "intermediate",
+        body: [
+          "A home timeline is the union of everything the accounts you follow have posted, most recent first. There are exactly two places that union can be computed, and the entire design follows from which one you pick.",
+          "Fan-out on read computes it when the timeline is requested: look up who this person follows, fetch recent posts from each, merge, sort. Writing is trivial, a single row. Reading is expensive and gets worse the more accounts someone follows, and it happens far more often than writing.",
+          "Fan-out on write does the work at post time: when someone posts, push the post's identifier into a precomputed list for every follower. Reading becomes a single lookup of an already-assembled list, which is exactly what you want for the operation that dominates. The cost is that one post becomes as many writes as the author has followers.",
+          "The ratio decides it. Timelines are read vastly more often than posts are written, so paying at write time to make reads cheap is the right trade for almost everyone. Twitter maintains materialised timelines of roughly the most recent 800 post identifiers per user, held in a Redis-derived store where pushing to the head and trimming the tail are both cheap operations, which is precisely the access pattern fan-out needs.",
+          "Note what is stored: identifiers, not posts. Eight hundred identifiers per user is a manageable amount of memory; eight hundred full posts per user, duplicated across every follower, would not be. The timeline is an index into the posts, and the posts themselves are fetched and cached separately.",
+        ],
+        why: "The choice is not about which is faster in the abstract, it is about which operation is more frequent. Precomputing at write time is right when reads dominate, and it inverts the moment writes dominate. The question to ask of any denormalisation is the read-to-write ratio, and if you do not know it, you are not yet in a position to choose.",
+        inPractice:
+          "This is the same decision as a materialised view against a query, or a denormalised counter against a count. Precompute when reads dominate, compute on demand when they do not, and keep in mind that the ratio can change under you as a product grows.",
+        diagram: {
+          caption: "Pay at write time so the read is one lookup",
+          columns: [
+            [{ id: "author", label: "Author posts", kind: "client" }],
+            [{ id: "svc", label: "Post service", sub: "stores once", kind: "service" }],
+            [
+              { id: "posts", label: "Post store", sub: "the content", kind: "data" },
+              { id: "fan", label: "Fan-out worker", sub: "reads the follower list", kind: "queue" },
+            ],
+            [{ id: "tl", label: "Timeline store", sub: "800 ids per user", kind: "data" }],
+            [{ id: "reader", label: "Reader", sub: "one lookup", kind: "client" }],
+          ],
+          edges: [
+            { from: "author", to: "svc" },
+            { from: "svc", to: "posts", label: "one write" },
+            { from: "svc", to: "fan", async: true },
+            { from: "fan", to: "tl", label: "one push per follower", async: true },
+            { from: "tl", to: "reader", label: "ids" },
+            { from: "posts", to: "reader", label: "hydrate" },
+          ],
+        },
+        check: {
+          prompt: "Why does fan-out on write suit a timeline despite costing far more writes?",
+          options: [
+            "Writes are cheaper than reads in most storage engines used for feeds",
+            "Timelines are read far more often than written, so reads should be cheap",
+            "It removes the need to store the follower graph in a queryable form",
+            "Precomputed timelines can be replicated more efficiently between regions",
+          ],
+          correctIndex: 1,
+          explain:
+            "It is a ratio argument. Paying once at write to make every subsequent read a single lookup wins when reads dominate, and it stops winning the moment they do not.",
+        },
+        checks: [
+          {
+            prompt: "Why store post identifiers in the timeline rather than the posts themselves?",
+            options: [
+              "Identifiers can be sorted by time whereas post bodies cannot be ordered",
+              "Duplicating full posts across every follower's timeline would not fit in memory",
+              "Post bodies change after publication, so only identifiers remain stable",
+              "It allows the timeline to be rebuilt without reading the post store at all",
+            ],
+            correctIndex: 1,
+            explain:
+              "The timeline is an index, not a copy. Eight hundred identifiers per user is affordable; eight hundred full posts per user, duplicated across every follower of every author, is not.",
+          },
+          {
+            prompt: "Under what condition does fan-out on read become the better choice?",
+            options: [
+              "When the follower graph changes frequently enough to invalidate timelines",
+              "When writes are frequent relative to reads, so precomputed work goes unused",
+              "When timelines must be strictly ordered rather than approximately ordered",
+              "When storage is more constrained than the available processing capacity",
+            ],
+            correctIndex: 1,
+            explain:
+              "Precomputation only pays if the result is read. An account posting constantly to followers who rarely open the app is doing enormous work for timelines nobody looks at, and computing on demand is then strictly cheaper.",
+          },
+        ],
+      },
+
+      {
+        id: "celebrity-problem",
+        title: "The celebrity problem, and the hybrid that solves it",
         level: "advanced",
         body: [
-          "Fan-out on write pushes each post into every follower's precomputed timeline. Reads become a single fast lookup, and writes get expensive.",
-          "Fan-out on read builds the timeline when it is requested, by querying everyone you follow. Writes are cheap and reads are expensive.",
-          "Neither survives the extremes. A million followers means a million inserts per post; following thousands of accounts means an enormous query on every refresh.",
-          "Which is why real systems run both. Fan out on write for ordinary accounts, leave the handful with millions of followers out of it entirely, and merge their posts in at read time. The cost then tracks the median user, not the most extreme one in the system.",
+          "Fan-out on write has one failure mode and it is severe. An account with fifty million followers posts once, and that single action becomes fifty million writes. Post ten times in a day and it is five hundred million. The work is unbounded in the follower count, and a handful of accounts can saturate the infrastructure that everyone else depends on.",
+          "Worse, it is bursty in exactly the wrong way. Popular accounts post at moments of high general activity, so the fan-out spike lands while read traffic is also peaking. A queue absorbs some of it, but a large enough fan-out delays every other user's timeline behind it.",
+          "The answer is a hybrid, and it is what Twitter, Instagram and Facebook all independently arrived at. Ordinary accounts fan out on write, because their follower counts are small and the cost is trivial. Accounts above a threshold, commonly cited around ten thousand followers, do not fan out at all. Their posts are fetched at read time instead.",
+          "So a timeline read does two things and merges them: fetch the precomputed list, and separately fetch recent posts from the small number of large accounts this person follows. Merge by time, return the top slice. The pull side is bounded because nobody follows very many celebrities, and the push side is bounded because ordinary accounts have few followers. Each strategy is applied exactly where its cost is small.",
+          "The threshold itself is an operational dial rather than a principle. Too low and too many accounts are pulled, making every read do more work. Too high and the write spikes return. It also creates a boundary that has to be handled: an account crossing the threshold needs its existing followers' timelines to stay coherent while the strategy changes underneath them.",
         ],
-        why: "Neither works alone, which is the actual answer: fan out on write for ordinary accounts, and merge in celebrity posts at read time. The hybrid exists because the follower distribution is extremely skewed.",
+        why: "The generalisable idea is that a strategy which is optimal on average can be catastrophic in the tail, and the fix is usually not a better single strategy but a different one for the tail. Identifying that your distribution has a heavy tail, and treating it separately, is often the entire architectural insight.",
+        inPractice:
+          "The same shape appears wherever a distribution is skewed: a cache that works for most keys and is destroyed by a few hot ones, a sharding scheme where one tenant is a thousand times larger than the rest, a batch job whose runtime is set by its largest partition. Look for the tail first, because that is where the design will fail.",
         diagram: {
-          caption: "Hybrid: precomputed timelines for most, merged at read for large accounts",
+          caption: "Push for the many, pull for the few, merge at read",
           columns: [
-            [{ id: "poster", label: "User posts", kind: "client" }],
-            [{ id: "write", label: "Write service", kind: "service" }],
             [
-              { id: "fan", label: "Fan-out worker", sub: "normal accounts", kind: "queue" },
-              { id: "celeb", label: "Celebrity store", sub: "not fanned out", kind: "data" },
+              { id: "normal", label: "Ordinary account", sub: "few followers", kind: "client" },
+              { id: "celeb", label: "Large account", sub: "millions", kind: "client" },
             ],
             [
-              { id: "tl", label: "Timeline cache", sub: "Redis per user", kind: "data" },
-              { id: "reader", label: "Read service", sub: "merges both", kind: "service" },
+              { id: "fan", label: "Fan-out worker", sub: "push path", kind: "queue" },
+              { id: "hot", label: "Recent posts", sub: "pull path", kind: "data" },
+            ],
+            [{ id: "tl", label: "Materialised timeline", sub: "ids per user", kind: "data" }],
+            [{ id: "merge", label: "Merge at read", sub: "sort by time", kind: "service" }],
+            [{ id: "reader", label: "Reader", kind: "client" }],
+          ],
+          edges: [
+            { from: "normal", to: "fan", label: "fan out on write" },
+            { from: "fan", to: "tl", async: true },
+            { from: "celeb", to: "hot", label: "no fan-out" },
+            { from: "tl", to: "merge" },
+            { from: "hot", to: "merge", label: "fetched per read" },
+            { from: "merge", to: "reader" },
+          ],
+        },
+        check: {
+          prompt: "Why are large accounts exempted from fan-out on write?",
+          options: [
+            "Their posts are more likely to be edited, invalidating precomputed timelines",
+            "One post becomes millions of writes, which can saturate shared infrastructure",
+            "Their followers are more active and would read stale timelines regardless",
+            "Precomputed timelines cannot hold posts from accounts above a size threshold",
+          ],
+          correctIndex: 1,
+          explain:
+            "The work is unbounded in follower count. Fifty million followers means fifty million writes for a single post, arriving in a burst that delays everyone else's timelines behind it.",
+        },
+        checks: [
+          {
+            prompt: "Why is the pull side of the hybrid bounded in cost?",
+            options: [
+              "Large accounts post less frequently than ordinary accounts do",
+              "Nobody follows very many large accounts, so few must be fetched per read",
+              "Pulled posts are cached globally, so most reads never reach the store",
+              "The merge step limits how many pulled posts can enter a timeline",
+            ],
+            correctIndex: 1,
+            explain:
+              "A person might follow a thousand accounts and perhaps a dozen very large ones. Fetching a dozen recent-post lists at read time is cheap, which is exactly why the strategy can be inverted for them.",
+          },
+          {
+            prompt: "What is the risk in setting the celebrity threshold too low?",
+            options: [
+              "Too many accounts are pulled, so every timeline read does more work",
+              "Ordinary accounts lose their precomputed timelines and must rebuild them",
+              "The merge step cannot order posts correctly across too many sources",
+              "Follower counts near the threshold would oscillate between strategies",
+            ],
+            correctIndex: 0,
+            explain:
+              "Every account moved to the pull side is another list to fetch and merge on every read by every follower. The threshold trades write spikes against read cost, and both directions have a real failure mode.",
+          },
+        ],
+      },
+
+      {
+        id: "timeline-ranking",
+        title: "Ranking: when the timeline stops being chronological",
+        level: "advanced",
+        body: [
+          "A reverse-chronological timeline is simple, predictable, and increasingly useless as the number of accounts someone follows grows. Follow two thousand accounts and the last hour contains more posts than anyone will read, so the question shifts from what is newest to what is worth showing.",
+          "Ranking changes the shape of the system in a way that is easy to underestimate. Chronological order can be maintained incrementally: a new post goes at the head, and nothing else moves. A ranked order can change for a post that already exists, because it gained engagement, or because the reader's interests shifted, or because the model was retrained. The timeline is no longer an append-only list.",
+          "The usual resolution is to keep fan-out producing a candidate set in time order, then rank that candidate set at read time. Retrieval stays cheap and incremental; scoring happens on a few hundred candidates rather than everything ever posted. This is the same retrieve-then-rank shape that search engines use, and for the same reason: scoring is too expensive to apply to the full corpus.",
+          "The costs are worth naming honestly. A ranked timeline is not reproducible, so two people cannot compare what they saw. Debugging becomes statistical rather than deterministic. And engagement-based ranking has a well-documented pull towards content that provokes, because provocation generates engagement, which means the objective function is a product decision with consequences rather than a technical parameter.",
+        ],
+        why: "The structural insight is that ranking converts an append-only problem into a scoring problem, and the way to keep it affordable is to separate retrieval from ranking. Retrieve cheaply and broadly, score expensively and narrowly. Trying to rank at retrieval time is what makes these systems impossible to scale.",
+        inPractice:
+          "Any search or recommendation surface should be built this way: a cheap recall step that over-fetches, then an expensive precision step over the shortlist. It is also the reason a naive semantic search over an entire corpus does not work, and why vector retrieval is followed by a reranker.",
+        diagram: {
+          caption: "Retrieve in time order, then score the shortlist",
+          columns: [
+            [{ id: "tl", label: "Materialised timeline", sub: "time ordered", kind: "data" }],
+            [{ id: "pull", label: "Large accounts", sub: "fetched per read", kind: "data" }],
+            [{ id: "cands", label: "Candidate set", sub: "a few hundred", kind: "service" }],
+            [
+              { id: "feat", label: "Features", sub: "engagement, affinity", kind: "data" },
+              { id: "rank", label: "Ranker", sub: "scores candidates", kind: "service" },
+            ],
+            [{ id: "out", label: "Timeline", sub: "ordered by score", kind: "client" }],
+          ],
+          edges: [
+            { from: "tl", to: "cands" },
+            { from: "pull", to: "cands" },
+            { from: "cands", to: "rank" },
+            { from: "feat", to: "rank", async: true },
+            { from: "rank", to: "out" },
+          ],
+        },
+        check: {
+          prompt: "Why separate retrieval from ranking rather than ranking everything?",
+          options: [
+            "Retrieval and ranking must run in different services for isolation reasons",
+            "Scoring is too expensive to apply to the corpus, so it runs on a shortlist",
+            "Ranking models cannot read from the same store that retrieval uses",
+            "It allows the timeline to remain chronological if the ranker is unavailable",
+          ],
+          correctIndex: 1,
+          explain:
+            "Retrieve cheaply and broadly, score expensively and narrowly. Applying an expensive model to everything ever posted does not scale, and running it over a few hundred candidates does.",
+        },
+        checks: [
+          {
+            prompt: "What does ranking break that a chronological timeline had for free?",
+            options: [
+              "The ability to add a new post without recomputing anything else",
+              "The guarantee that every follower eventually sees every post",
+              "The ability to store timelines as identifiers rather than full posts",
+              "The option to merge pulled and pushed sources into one list",
+            ],
+            correctIndex: 0,
+            explain:
+              "Chronological order is incremental: a new post goes at the head and nothing else moves. A ranked order can change for posts that already exist, because engagement or the model changed, so the list is no longer append-only.",
+          },
+        ],
+      },
+
+      {
+        id: "social-graph",
+        title: "The follower graph, and why it is not just a table",
+        level: "intermediate",
+        body: [
+          "Underneath everything is a graph: who follows whom. It looks like a two-column table and behaves like nothing of the sort, because of how it is queried and how skewed it is.",
+          "Both directions are needed and they are wildly asymmetric. Fan-out asks for an account's followers, which for a large account is tens of millions of rows and is read on every post. A timeline asks who someone follows, which is usually hundreds. Storing one relationship and deriving the other means one of these queries is always expensive, so both directions are typically materialised and kept consistent.",
+          "The distribution is the real problem. Most accounts have a handful of followers, and a few have tens of millions. A single row's worth of relationship for one account and a hundred million for another cannot sit comfortably in the same partitioning scheme: shard by account and the shard holding a very large account is enormously hotter than its neighbours.",
+          "The graph also mutates constantly, and each mutation has consequences. A follow means the new follower's timeline is missing that account's history, so either it is backfilled or their timeline is simply thin until new posts arrive. An unfollow means existing entries are now wrong. Blocks and mutes add filtering that must be applied at read time, because applying them at write time would mean rewriting timelines whenever a block changes.",
+          "That last point is a useful general lesson. Some things must be evaluated at read time, not because it is cheaper but because the alternative is a rewrite of everything already written.",
+        ],
+        why: "The recurring theme is that a heavily skewed distribution defeats a uniform strategy. Uniform sharding assumes roughly equal partitions; a follower graph provides nothing of the sort. Recognising skew early and planning for the tail is what separates a design that scales from one that works in testing and falls over on the account that matters.",
+        inPractice:
+          "Any many-to-many relationship queried from both ends has this shape: tags on items, memberships in groups, permissions on resources. Ask early which direction is read most, whether the distribution is skewed, and what happens to already-written data when a relationship is removed.",
+        diagram: {
+          caption: "Both directions materialised, filters applied at read",
+          columns: [
+            [{ id: "edge", label: "Follow or unfollow", kind: "client" }],
+            [{ id: "graph", label: "Graph service", sub: "writes both directions", kind: "service" }],
+            [
+              { id: "fwd", label: "Following", sub: "who I follow", kind: "data" },
+              { id: "rev", label: "Followers", sub: "who follows me", kind: "data" },
+            ],
+            [
+              { id: "fan", label: "Fan-out", sub: "reads followers", kind: "queue" },
+              { id: "read", label: "Timeline read", sub: "reads following", kind: "service" },
+            ],
+            [{ id: "filter", label: "Blocks and mutes", sub: "applied at read", kind: "service" }],
+          ],
+          edges: [
+            { from: "edge", to: "graph" },
+            { from: "graph", to: "fwd" },
+            { from: "graph", to: "rev" },
+            { from: "rev", to: "fan", label: "millions for a large account" },
+            { from: "fwd", to: "read", label: "hundreds" },
+            { from: "filter", to: "read", label: "removes entries" },
+          ],
+        },
+        check: {
+          prompt: "Why apply blocks and mutes at read time rather than when the timeline is written?",
+          options: [
+            "Blocks change too rarely to justify the cost of a write-time check",
+            "A block would otherwise require rewriting every timeline already materialised",
+            "Read-time filtering is faster than excluding entries during fan-out",
+            "Write-time filtering cannot see the relationship between two accounts",
+          ],
+          correctIndex: 1,
+          explain:
+            "Timelines are already written. A block applied at write time would mean going back and editing every timeline that contains the blocked account, so the filter has to run on the way out.",
+        },
+        checks: [
+          {
+            prompt: "Why materialise both directions of the follow relationship?",
+            options: [
+              "Deriving either direction from the other makes one common query expensive",
+              "Graph databases require both directions to be stored explicitly",
+              "It allows follower counts to be computed without scanning the table",
+              "Both directions are needed to detect and prevent follow loops",
+            ],
+            correctIndex: 0,
+            explain:
+              "Fan-out needs an account's followers on every post, and timeline reads need who a person follows. Store one and derive the other and you have made one of the two hot paths a scan.",
+          },
+        ],
+      },
+
+      {
+        id: "twitter-search",
+        title: "Search and trends: a different index over the same firehose",
+        level: "advanced",
+        body: [
+          "Timelines answer what the people I follow said. Search answers who said anything about this, which is a completely different access pattern over the same data, and it needs its own index rather than a query against the post store.",
+          "Real-time search has an awkward requirement: something posted seconds ago should be findable. Traditional inverted indexes are built in batches, because merging into a large index is expensive. The usual resolution is tiered: a small in-memory index absorbs the newest posts and is searched alongside larger, older segments that are rebuilt less often. Queries hit both and merge.",
+          "Trends are a different problem again, and the naive version is wrong in an obvious way once stated. The most frequent terms are not trending, they are common: the same ordinary words appear constantly. What is interesting is the deviation from the expected rate for that term, at that time, in that place. A term appearing a thousand times an hour is unremarkable if it usually appears nine hundred times, and extraordinary if it usually appears twice.",
+          "That framing makes trends a statistics problem rather than a counting one, and it brings the problems that come with statistics. Baselines have to be maintained per term and per region. Manipulation is a constant, since a group can coordinate to lift a term artificially. Time windows matter enormously: too short and noise dominates, too long and nothing ever looks sudden.",
+        ],
+        why: "The lesson is that the same underlying data usually needs several purpose-built indexes rather than one general store queried cleverly. A timeline index, a search index and a trend baseline are three different shapes over identical events, and trying to serve all three from one structure produces something that serves none of them well.",
+        inPractice:
+          "The trend insight generalises to alerting: alerting on absolute thresholds produces noise, because the normal level differs by service, by hour and by day. Alerting on deviation from an expected baseline is what makes an alert mean something, and it is the same computation.",
+        diagram: {
+          caption: "One stream, three indexes, three access patterns",
+          columns: [
+            [{ id: "posts", label: "Post stream", kind: "queue" }],
+            [
+              { id: "tl", label: "Timeline fan-out", sub: "by follower", kind: "service" },
+              { id: "idx", label: "Search indexer", sub: "by term", kind: "service" },
+              { id: "cnt", label: "Term counter", sub: "rate per window", kind: "service" },
+            ],
+            [
+              { id: "hot", label: "Recent index", sub: "in memory", kind: "data" },
+              { id: "cold", label: "Older segments", sub: "rebuilt in batches", kind: "data" },
+              { id: "base", label: "Baselines", sub: "expected rate", kind: "data" },
+            ],
+            [
+              { id: "search", label: "Search", sub: "queries both tiers", kind: "service" },
+              { id: "trend", label: "Trends", sub: "deviation, not volume", kind: "service" },
             ],
           ],
           edges: [
-            { from: "poster", to: "write" },
-            { from: "write", to: "fan", label: "if followers < threshold", async: true },
-            { from: "write", to: "celeb", label: "if large account" },
-            { from: "fan", to: "tl", label: "insert per follower", async: true },
-            { from: "tl", to: "reader" },
-            { from: "celeb", to: "reader", label: "merged at read" },
+            { from: "posts", to: "tl", async: true },
+            { from: "posts", to: "idx", async: true },
+            { from: "posts", to: "cnt", async: true },
+            { from: "idx", to: "hot" },
+            { from: "hot", to: "cold", label: "merged periodically", async: true },
+            { from: "hot", to: "search" },
+            { from: "cold", to: "search" },
+            { from: "cnt", to: "base" },
+            { from: "base", to: "trend", label: "compare to expected" },
           ],
         },
         check: {
-          prompt: "Why is pure fan-out on write impractical for accounts with millions of followers?",
+          prompt: "Why are the most frequent terms not the trending ones?",
           options: [
-            "Timelines for inactive followers get written and then never read",
-            "Follower lists change during the fan-out, so some followers are missed",
-            "Redis cannot hold that many timeline keys in one instance's memory",
-            "One post becomes millions of writes, a spike that delays delivery for everyone",
+            "Frequent terms are usually filtered out as stop words before indexing",
+            "Common words are always frequent; what is interesting is deviation from normal",
+            "Frequency counts lag behind real time by too much to be useful for trends",
+            "Trending requires geographic distribution, which raw frequency does not capture",
           ],
-          correctIndex: 3,
-          explain: "The write amplification is the problem. Excluding large accounts from fan-out and merging them at read keeps both paths bounded.",
+          correctIndex: 1,
+          explain:
+            "A term appearing a thousand times an hour is unremarkable if it normally appears nine hundred, and extraordinary if it normally appears twice. Trending is a comparison against an expected rate, which makes it statistics rather than counting.",
         },
-      },
-      {
-        id: "timeline-ranking",
-        title: "Ranking a timeline",
-        level: "advanced",
-        body: [
-          "Reverse chronological is simple and predictable. Ranked feeds score each candidate on predicted engagement, recency, affinity and content type.",
-          "Ranking needs candidates first: retrieve a few hundred plausible posts cheaply, then score those expensively, because scoring everything is not affordable. That two-stage shape, cheap retrieval, expensive ranking, is how very nearly every recommendation system is built.",
+        checks: [
+          {
+            prompt: "Why does real-time search use a small in-memory index alongside larger older segments?",
+            options: [
+              "Recent posts are searched more often, so they are cached separately",
+              "Merging into a large index is expensive, so new posts land in a small one first",
+              "In-memory indexes support ranking operations that disk-based ones cannot",
+              "It allows recent posts to be removed quickly if they are later deleted",
+            ],
+            correctIndex: 1,
+            explain:
+              "Rebuilding or merging a large inverted index for every new post is prohibitive. A small hot index absorbs the newest data and is queried alongside the older segments, which are merged on a slower schedule.",
+          },
         ],
-        why: "Candidate generation then ranking is the general pattern worth carrying into any recommendation question. It bounds the expensive step regardless of corpus size.",
-        check: {
-          prompt: "Why do feed systems separate candidate generation from ranking?",
-          options: [
-            "Scoring everything is unaffordable, so a cheap step narrows it down first",
-            "The ranking model needs features that exist only after candidates are chosen",
-            "Candidate generation can run offline, while ranking must run per request",
-            "It lets each source of candidates be tuned without retraining the model",
-          ],
-          correctIndex: 0,
-          explain: "It bounds the cost of the expensive stage. Retrieval is cheap and approximate; ranking is precise and applied to a small set.",
-        },
       },
     ],
   },

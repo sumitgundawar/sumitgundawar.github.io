@@ -507,10 +507,12 @@ export const design: Card[] = [
         title: "Round robin, least connections, hashing",
         level: "beginner",
         body: [
-          "Round robin sends each request to the next server. Fine when requests cost roughly the same, poor when they do not.",
-          "Least connections routes to whichever server is handling fewest requests, which copes far better with uneven work.",
-          "Consistent hashing sends the same key to the same server, which matters when servers hold local state or a cache.",
-          "The choice follows from what your requests look like. Uniform and stateless, and round robin is enough. Wildly variable durations, and it is least connections. Anything cached or held per server, and it is hashing, accepting that you have just made your traffic distribution depend on your key distribution.",
+          "Round robin sends each request to the next server in turn. It is the default nearly everywhere and it is correct when requests cost roughly the same, because then counting requests is a good proxy for counting work. It stops being correct the moment one endpoint takes thirty seconds and another takes five milliseconds, since the balancer keeps feeding a server that is already saturated.",
+          "Least connections routes to whichever server currently has the fewest requests in flight, which is a much better proxy for load when durations vary. Least response time goes further and weights by observed latency, so a server that is degraded but still accepting connections gets less traffic rather than the same amount.",
+          "Consistent hashing sends the same key to the same server, which is what you want when servers hold local state, a cache, or a session. It is also the option that makes your traffic distribution depend on your key distribution, so a single hot key becomes a single hot server and no amount of capacity elsewhere helps.",
+          "Two more worth knowing. Weighted round robin lets a fleet of mixed instance sizes share work in proportion to capacity, which matters during a migration between instance types. Power of two random choices is the elegant one: pick two servers at random and send the request to the less busy of the two. It needs no global state, and it gets remarkably close to least connections, which is why it is common in large distributed proxies where maintaining an exact count everywhere is impractical.",
+          "Layer 4 and layer 7 is the other axis. A layer 4 balancer forwards packets by address and port and knows nothing about requests, so it is fast and it balances connections. A layer 7 balancer terminates the connection, reads the request, and can balance per request, route by path, retry a failure and add headers. With long-lived connections such as gRPC or HTTP/2, layer 4 balancing pins every request from a client to one backend, which is the trap that makes adding capacity do nothing at all.",
+          "The choice, then, follows from the traffic rather than from a preference. Uniform and stateless: round robin. Wildly variable durations: least connections or two random choices. Anything cached or held per server: hashing, with the hot key risk accepted deliberately. Long-lived connections: layer 7, or client-side balancing that knows the backend set.",
         ],
         why: "Round robin is the default and is wrong whenever request cost varies wildly, one slow endpoint drags a server down while the balancer keeps feeding it work.",
         check: {
@@ -519,14 +521,75 @@ export const design: Card[] = [
           correctIndex: 1,
           explain: "Round robin counts requests, not work in flight. Least connections notices a server tied up with long requests and routes around it.",
         },
+        checks: [
+          {
+            prompt: "Why does power of two random choices work nearly as well as least connections?",
+            options: [
+              "Random selection converges on an even distribution as traffic grows",
+              "Comparing two candidates avoids the herd that one global answer creates",
+              "It samples the whole fleet cheaply, so its view of load is more current",
+              "It weights servers by their capacity, which least connections does not",
+            ],
+            correctIndex: 1,
+            explain:
+              "Always choosing the globally least busy server sends every concurrent decision to the same node. Comparing two at random keeps most of the benefit, needs no shared state, and avoids the stampede.",
+          },
+          {
+            prompt: "A gRPC service gets no faster when replicas are added behind a layer 4 balancer. Why?",
+            options: [
+              "Connections are balanced, and each carries many requests to one backend",
+              "Layer 4 cannot read HTTP/2 frames, so it drops multiplexed streams",
+              "Protobuf payloads bypass the balancer's connection accounting entirely",
+              "New replicas are not registered until their health check has passed twice",
+            ],
+            correctIndex: 0,
+            explain:
+              "A long-lived connection is assigned once and then carries everything. Request-level balancing at layer 7, or client-side balancing with a resolver, is what actually spreads the load.",
+          },
+          {
+            prompt: "What does consistent hashing cost you compared with least connections?",
+            options: [
+              "The ability to weight servers differently by their capacity",
+              "Traffic distribution now depends on how evenly the keys are spread",
+              "The balancer must terminate TLS to read the key from the request",
+              "Requests can no longer be retried against a different server",
+            ],
+            correctIndex: 1,
+            explain:
+              "Routing by key means a hot key is a hot server, and spare capacity elsewhere cannot absorb it. That is the price of sending the same key to the same place, which is exactly why you chose it.",
+          },
+        ],
+        diagram: {
+          caption: "Counting requests is not counting work",
+          columns: [
+            [{ id: "in", label: "Requests", sub: "5ms and 30s mixed", kind: "client" }],
+            [
+              { id: "rr", label: "Round robin", sub: "next in turn", kind: "edge", alternative: true },
+              { id: "lc", label: "Least connections", sub: "fewest in flight", kind: "edge" },
+            ],
+            [
+              { id: "busy", label: "Server A", sub: "three long requests", kind: "service" },
+              { id: "idle", label: "Server B", sub: "idle", kind: "service" },
+            ],
+          ],
+          edges: [
+            { from: "in", to: "rr", label: "one policy" },
+            { from: "in", to: "lc", label: "the other" },
+            { from: "rr", to: "busy", label: "keeps feeding it" },
+            { from: "lc", to: "idle", label: "routes around" },
+          ],
+        },
       },
       {
         id: "consistent-hashing",
         title: "Consistent hashing",
         level: "advanced",
         body: [
-          "Hashing a key modulo the number of servers works until that number changes. Add one server and almost every key maps somewhere new, which invalidates every cache at once.",
-          "Consistent hashing places servers and keys on a ring, so adding or removing a node only moves the keys between it and its neighbour, roughly one over n of the total. Virtual nodes spread each physical server across many ring positions, which evens out a distribution that would otherwise be lumpy.",
+          "Hashing a key modulo the number of servers works perfectly until that number changes. With four servers and a fifth added, the modulus changes for every key, so roughly four keys in five map somewhere new. Every cache empties simultaneously, every request misses, and the database receives the entire working set as cold reads at the exact moment you were adding capacity because you were already under load.",
+          "Consistent hashing places both servers and keys on a ring of hash values, and a key belongs to the first server clockwise from it. Add a node and only the keys between it and its predecessor move, which is roughly one over n of the total rather than nearly all of it. Remove a node and its keys go to its successor, and nothing else is disturbed.",
+          "Plain rings are lumpy, because a handful of random positions rarely divide a circle evenly, and one server can end up owning a third of the space. Virtual nodes fix it: each physical server takes many positions on the ring, typically a hundred or more, so the law of large numbers does the balancing. It also gives you weighting for free, since a larger machine can simply be given more positions.",
+          "Two refinements are worth recognising. Bounded loads add a capacity limit per node, so a node that is already at its share passes the key onward rather than accepting it, which stops a hot region overwhelming one server. Rendezvous hashing reaches the same goal by a different route: hash the key with each server's name and pick the highest score, which needs no ring and handles weighting cleanly.",
+          "The property to hold on to is that this is a technique for making membership changes cheap, not for making distribution perfect. A single very hot key still lands on a single server whatever the scheme, and the answer to that is replication of that key or a small cache in front, which is a different problem with a different fix.",
         ],
         why: "This is the technique that makes distributed caches and sharded stores survivable. Without it, scaling the cluster is an outage.",
         inPractice: "Used by Cassandra, DynamoDB and every serious distributed cache for exactly this reason.",
@@ -542,6 +605,44 @@ export const design: Card[] = [
           explain:
             "The modulus is part of the mapping, so changing the server count changes nearly every result and the cache empties at the worst possible moment. Uneven node capacity is a real weakness of plain modulo too, but consistent hashing fixes it separately, with virtual nodes.",
         },
+        checks: [
+          {
+            prompt: "What problem do virtual nodes solve in a consistent hashing ring?",
+            options: [
+              "A few random positions divide the ring unevenly, so shares are lumpy",
+              "Keys cluster around popular hash prefixes, biasing one region",
+              "Nodes joining simultaneously can claim the same ring position",
+              "The ring cannot be rebalanced without moving every key once",
+            ],
+            correctIndex: 0,
+            explain:
+              "With one position each, a handful of servers rarely split a circle evenly. Many positions per server let averages do the balancing, and they make weighting trivial: a bigger machine takes more positions.",
+          },
+          {
+            prompt: "Adding a fifth server to a modulo-4 cache scheme causes a database spike. Why?",
+            options: [
+              "The new server starts cold and absorbs a fifth of all traffic at once",
+              "The modulus changed, so about four keys in five now hash elsewhere",
+              "Rebalancing copies existing entries between nodes over the network",
+              "Clients keep the old mapping cached until their connections recycle",
+            ],
+            correctIndex: 1,
+            explain:
+              "The server count is part of the mapping, so changing it remaps nearly everything. Every request misses at once and the origin sees the whole working set as cold reads.",
+          },
+          {
+            prompt: "Consistent hashing is in place and one key is overwhelming its node. What helps?",
+            options: [
+              "Adding virtual nodes, which spreads that key over more positions",
+              "Switching to rendezvous hashing, which distributes hot keys evenly",
+              "Replicating that key under several names, or caching it in-process",
+              "Increasing the ring size, so the key occupies a smaller arc",
+            ],
+            correctIndex: 2,
+            explain:
+              "Every scheme that routes a key deterministically sends a hot key to one place. The fix is to stop it being one key, by replicating it or holding it in front, which is a different problem from membership changes.",
+          },
+        ],
       },
       {
         id: "health-checks",
@@ -553,7 +654,33 @@ export const design: Card[] = [
           "The usual compromise is a deep check that degrades instead of failing. Report unhealthy only after several consecutive failures, and never let a dependency the request path does not need mark you down.",
           "Connection draining then lets a server finish its in-flight requests before it leaves the pool, so a deploy does not drop live traffic. Keep readiness and liveness separate while you are there, not ready yet and needs restarting call for very different responses.",
         ],
-        why: "Making the health check depend on the database means a brief database blip marks every server unhealthy simultaneously, turning a degraded system into a total outage.",
+        why: "Making the health check depend on the database means a brief database blip marks every server unhealthy simultaneously, turning a degraded system into a total outage. The check is part of the failure path, and a failure path that amplifies is worse than no failure path at all.",
+        inPractice:
+          "Kubernetes separates liveness, readiness and startup probes precisely because they answer different questions: restart me, do not send me traffic yet, and I am still booting. Conflating the first two is how a slow dependency turns into a restart loop that removes the fleet.",
+        diagram: {
+          caption: "A shared dependency makes health correlated across the fleet",
+          columns: [
+            [{ id: "lb", label: "Load balancer", sub: "polls each node", kind: "edge" }],
+            [
+              { id: "n1", label: "Node 1", kind: "service" },
+              { id: "n2", label: "Node 2", kind: "service" },
+              { id: "n3", label: "Node 3", kind: "service" },
+            ],
+            [
+              { id: "shallow", label: "Shallow check", sub: "process is alive", kind: "data" },
+              { id: "deep", label: "Deep check", sub: "queries the database", kind: "data", alternative: true },
+            ],
+            [{ id: "db", label: "Database", sub: "one brief blip", kind: "data" }],
+          ],
+          edges: [
+            { from: "lb", to: "n1", label: "healthy?" },
+            { from: "lb", to: "n2", label: "healthy?" },
+            { from: "lb", to: "n3", label: "healthy?" },
+            { from: "n1", to: "shallow", label: "answers locally" },
+            { from: "n2", to: "deep", label: "answers for the database" },
+            { from: "deep", to: "db", label: "all nodes fail together" },
+          ],
+        },
         check: {
           prompt: "Why can a deep health check that queries the database be dangerous?",
           options: [
@@ -565,6 +692,44 @@ export const design: Card[] = [
           correctIndex: 3,
           explain: "Shared dependencies make health correlated. Every node fails the check together, so a partial problem becomes a complete outage.",
         },
+        checks: [
+          {
+            prompt: "What is the difference between a liveness and a readiness check?",
+            options: [
+              "Liveness runs at startup; readiness runs continuously afterwards",
+              "Liveness means restart me; readiness means do not send me traffic yet",
+              "Liveness is shallow by definition; readiness is always deep",
+              "Liveness is checked by the balancer; readiness by the orchestrator",
+            ],
+            correctIndex: 1,
+            explain:
+              "They call for opposite responses. Failing readiness should remove a node from rotation until it recovers; failing liveness should kill it. Conflating them turns a slow dependency into a restart loop.",
+          },
+          {
+            prompt: "Why require several consecutive failures before marking a node unhealthy?",
+            options: [
+              "A single failure is usually a transient blip rather than a broken node",
+              "Load balancers cache health state, so one result is often stale",
+              "It gives connection draining time to finish the in-flight requests",
+              "Health endpoints are unauthenticated, so results can be spoofed once",
+            ],
+            correctIndex: 0,
+            explain:
+              "Removing a healthy node concentrates load on the rest, which makes the next check more likely to fail. Requiring a run of failures keeps one dropped packet from starting that cascade.",
+          },
+          {
+            prompt: "What does connection draining prevent during a deploy?",
+            options: [
+              "New requests arriving at a node that has already begun shutting down",
+              "In-flight requests being dropped when the node leaves the pool",
+              "The balancer routing to a node before its startup probe has passed",
+              "A node rejoining the pool before its caches have been repopulated",
+            ],
+            correctIndex: 1,
+            explain:
+              "Draining stops new work while letting existing requests finish, so a rolling deploy does not turn into a small burst of errors for whoever was mid-request.",
+          },
+        ],
       },
     ],
   },

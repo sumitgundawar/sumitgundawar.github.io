@@ -580,8 +580,12 @@ export const design: Card[] = [
         title: "What a queue actually buys you",
         level: "beginner",
         body: [
-          "A queue lets a request return before the work is done. The user gets a fast response, and the work happens behind them. It also absorbs spikes: a burst that would overwhelm a synchronous system becomes a backlog that drains at whatever rate the workers manage.",
-          "The cost is that the system is now eventually consistent, and you owe the user a way to see the outcome.",
+          "A queue lets a request return before the work is done. The user gets a fast response, and the work happens behind them. That is the obvious benefit and the least interesting one; what a queue really buys is that the arrival rate and the processing rate stop having to match.",
+          "Absorbing spikes is the clearest form of that. A synchronous system sized for average traffic falls over at four times average, because every arriving request needs a worker at the moment it arrives. The same system behind a queue turns that spike into a backlog that drains over the next few minutes, and nobody sees an error. You have traded latency for survival, deliberately, for work where latency is cheap.",
+          "It also decouples failure. When the email provider is down, a synchronous handler fails the user's request; a queued one keeps accepting work and drains when the provider returns. The blast radius of a dependency shrinks to the queue depth, which is a number you can watch, rather than to your error rate, which is a number your users watch.",
+          "The costs are real and they are all the same cost in different clothes: the system is now eventually consistent. You owe the user a way to see the outcome, which means a status somewhere and usually a notification. You owe yourself a way to see the backlog, which means monitoring the age of the oldest message rather than only its depth. And you owe the on-call an answer to what happens when the queue is 200,000 deep at 3am, which is a question worth answering before it is asked.",
+          "The failure people underestimate is that a queue hides overload instead of removing it. If the sustained arrival rate exceeds what the workers can process, the backlog grows without bound and the queue is now a very expensive way of delaying an outage: the work is late by a growing margin and eventually irrelevant. A queue smooths bursts. It cannot create throughput, and treating a growing backlog as something that will sort itself out is how a two-hour incident becomes a two-day one.",
+          "So the test for whether work belongs behind a queue is not whether it is slow. It is whether the caller needs the result to continue. Sending an email, generating a report, transcoding a video, syncing to a third party: none of those are things the user is watching. Charging a card while the customer looks at a spinner is, and putting it behind a queue means building a way to tell them what happened, which is more work than the queue saved.",
         ],
         why: "Adding a queue converts a latency problem into a state problem. That is usually a good trade for email, image processing or reports, and a bad one for anything the user is waiting to see.",
         inPractice:
@@ -597,6 +601,44 @@ export const design: Card[] = [
           correctIndex: 2,
           explain: "The response now means accepted, not done. That is fine if the interface reflects it, and confusing if it pretends the work is complete.",
         },
+        checks: [
+          {
+            prompt: "Arrival rate exceeds processing rate for an hour. What does the queue do about it?",
+            options: [
+              "It sheds the excess automatically once the configured depth is reached",
+              "It spreads the load evenly, so each worker sees the same arrival rate",
+              "Nothing: the backlog grows, and the work is late by a growing margin",
+              "It applies backpressure to producers, slowing them to the drain rate",
+            ],
+            correctIndex: 2,
+            explain:
+              "A queue smooths bursts and cannot create throughput. Sustained overload becomes an unbounded backlog, which is a delayed outage rather than an avoided one, unless something sheds load or adds workers.",
+          },
+          {
+            prompt: "Which metric best tells you a queue is in trouble?",
+            options: [
+              "The age of the oldest unprocessed message in the queue",
+              "The number of messages currently waiting to be processed",
+              "The rate at which producers are publishing new messages",
+              "The number of consumers currently connected to the broker",
+            ],
+            correctIndex: 0,
+            explain:
+              "Depth alone is ambiguous: 10,000 messages is fine at 5,000 a second and an outage at five a second. Age answers the question a user would ask, which is how long the work has been waiting.",
+          },
+          {
+            prompt: "Which piece of work is the worst candidate for a queue?",
+            options: [
+              "Transcoding an uploaded video into several output formats",
+              "Sending a receipt by email after an order is completed",
+              "Charging a card while the customer waits on the checkout page",
+              "Rebuilding a search index after a batch of records changes",
+            ],
+            correctIndex: 2,
+            explain:
+              "The caller needs that result to continue. Making it asynchronous means building a status channel and explaining a pending state to the user, which is more work than the queue saved.",
+          },
+        ],
       },
       {
         id: "delivery-guarantees",
@@ -661,6 +703,44 @@ export const design: Card[] = [
           correctIndex: 1,
           explain: "Exactly-once is scoped to the broker's own state. Once your handler sends an email or charges a card, only idempotency protects you.",
         },
+        checks: [
+          {
+            prompt: "Why can no messaging system offer end-to-end exactly-once delivery?",
+            options: [
+              "Message ids can collide, so a duplicate cannot always be recognised",
+              "A lost acknowledgement is indistinguishable from a lost message",
+              "Clock skew means the receiver cannot order two attempts reliably",
+              "Brokers cannot hold a message long enough to guarantee one delivery",
+            ],
+            correctIndex: 1,
+            explain:
+              "The sender times out and cannot tell whether the message never arrived or the acknowledgement did not come back. It must choose to resend or not, which is at-least-once or at-most-once, and there is no third option.",
+          },
+          {
+            prompt: "Where should the idempotency check live in a consumer?",
+            options: [
+              "In the same transaction as the work, keyed by a unique constraint",
+              "In a cache checked before the work, with a short expiry per message",
+              "In the broker, which refuses to redeliver an acknowledged message",
+              "In a nightly job that removes the duplicate rows after the fact",
+            ],
+            correctIndex: 0,
+            explain:
+              "Anything outside the transaction can succeed while the work fails, or the reverse. Inserting the id and doing the work atomically means a duplicate hits the constraint and rolls back having changed nothing.",
+          },
+          {
+            prompt: "Why is an order id often a better idempotency key than the broker's message id?",
+            options: [
+              "Message ids are longer, so they cost more to index at high volume",
+              "Message ids are not visible to the consumer in every broker",
+              "A republished message gets a new id but is the same unit of work",
+              "Order ids are sequential, which makes the unique index cheaper",
+            ],
+            correctIndex: 2,
+            explain:
+              "Anything that republishes, a redrive from a dead letter queue or a producer retry, mints a fresh message id for work you have already done. A natural key from the payload survives that.",
+          },
+        ],
       },
       {
         id: "ordering",
@@ -735,6 +815,44 @@ export const design: Card[] = [
           correctIndex: 3,
           explain: "Keying by user gives ordering where it matters while keeping parallelism across users. One partition would order everything and destroy throughput.",
         },
+        checks: [
+          {
+            prompt: "Why is increasing a topic's partition count a one-way door in practice?",
+            options: [
+              "Existing messages must be rewritten into the new partition layout",
+              "Consumers cannot rebalance while the partition count is changing",
+              "Keys hash differently, so one entity's events split across old and new",
+              "Retention is per partition, so older messages expire immediately",
+            ],
+            correctIndex: 2,
+            explain:
+              "The partition for a key is a function of the partition count. Change it and events for the same entity land in a different partition from their predecessors, so the per-entity ordering you added partitioning to protect is exactly what breaks.",
+          },
+          {
+            prompt: "A topic has ten partitions and a consumer group of sixteen. What happens?",
+            options: [
+              "Six consumers sit idle, since a partition has at most one consumer",
+              "Each partition is shared by two consumers, halving per-partition latency",
+              "The broker rejects the group until the counts match exactly",
+              "Messages are round-robined across all sixteen, losing per-key order",
+            ],
+            correctIndex: 0,
+            explain:
+              "A partition is the unit of parallelism and is assigned to one consumer in a group. Extra consumers are spare capacity for failover, not throughput, which is why the partition count is a capacity decision.",
+          },
+          {
+            prompt: "When is global ordering across a whole topic genuinely the right choice?",
+            options: [
+              "When consumers are stateless and cannot buffer out-of-order events",
+              "When the throughput of one partition and one consumer is enough",
+              "When events for different entities can affect one another indirectly",
+              "When the producer cannot compute a stable key for each message",
+            ],
+            correctIndex: 1,
+            explain:
+              "Global ordering means one partition and one consumer, so it is a throughput decision before it is a correctness one. For a ledger or an audit log that is often fine, and it should come with a measured number rather than an assumption.",
+          },
+        ],
       },
       {
         id: "dead-letter",
@@ -816,6 +934,133 @@ export const design: Card[] = [
           correctIndex: 1,
           explain: "Pure exponential backoff keeps clients synchronised, they all wait the same intervals and retry together. Jitter breaks that alignment.",
         },
+        checks: [
+          {
+            prompt: "A schema-invalid message is retried eight times over a day. What should happen instead?",
+            options: [
+              "Retry it with a longer ceiling, since the schema may be fixed later",
+              "Send it to the dead letter queue immediately, with the error attached",
+              "Acknowledge and drop it, since a broken message cannot be processed",
+              "Hold it at the head of the queue until an operator inspects it",
+            ],
+            correctIndex: 1,
+            explain:
+              "Retrying a permanent failure only delays the moment someone finds out, while occupying a consumer slot. Transient failures deserve the ladder; permanent ones deserve a dead letter with the reason recorded.",
+          },
+          {
+            prompt: "What makes a dead letter queue worth having rather than a slower delete?",
+            options: [
+              "The retry count it records, which shows how long the failure persisted",
+              "The alert that fires when the first message arrives in it",
+              "Someone reads it, and there is a path to replay after the fix",
+              "The separate storage, which keeps the main queue's latency low",
+            ],
+            correctIndex: 2,
+            explain:
+              "Preserving failures is only useful if the failures are examined and can be put back. A dead letter queue nobody reads, with no redrive path, is a more expensive way of dropping messages.",
+          },
+          {
+            prompt: "One poison message sits at the head of a partition. Why is that worse than a normal failure?",
+            options: [
+              "It blocks every message behind it in that partition until it is resolved",
+              "It is redelivered to every consumer in the group simultaneously",
+              "It cannot be acknowledged, so the consumer group rebalances repeatedly",
+              "It causes the broker to stop accepting new messages for that topic",
+            ],
+            correctIndex: 0,
+            explain:
+              "In a log-based broker, order means the consumer cannot simply skip it, so the whole partition waits on one message. That is the case a bounded retry count and a dead letter path exist to end.",
+          },
+        ],
+      },
+      {
+        id: "broker-choice",
+        title: "Choosing a broker",
+        level: "advanced",
+        body: [
+          "The first distinction is between a queue and a log, and most confusion about brokers comes from missing it. A queue holds work: a message is delivered, acknowledged, and removed, and the queue is empty when the work is done. A log holds a record: messages are appended and kept for a retention period, consumers track their own position, and reading does not consume anything. SQS and RabbitMQ are queues; Kafka is a log.",
+          "That difference decides more than it looks. In a log, a new consumer can start from the beginning and rebuild its state, several independent consumers can read the same stream at their own pace, and replaying a bad day is a matter of resetting an offset. In a queue, a message read by one consumer is gone, which is exactly what you want for a unit of work and useless for anything wanting a second opinion on the same events.",
+          "SQS is the low-operations option: no cluster to run, effectively unlimited depth, at-least-once with best-effort ordering. Its mechanism worth knowing is the visibility timeout, which hides a message from other consumers while one works on it, defaulting to 30 seconds and extendable to twelve hours. A handler that takes longer than the timeout without extending it will find the same message being processed by somebody else, which is the most common way people discover their consumer is not idempotent. FIFO queues add ordering and deduplication with a throughput ceiling that standard queues do not have.",
+          "Kafka is the option that buys retention and fan-out, and charges in operational complexity. Ordering is per partition, consumers commit offsets, and the retention window is a design parameter rather than an implementation detail: it decides how far back you can replay and how long a consumer can be down before it loses data. RabbitMQ sits between them, with routing rules rich enough to express most topologies and per-message acknowledgement, and it is the right answer more often than its unfashionability suggests.",
+          "Redis Streams deserve a mention because they are already installed. Consumer groups, acknowledgements and a pending entries list give real queue semantics, at a fraction of the operational cost, with the caveat that durability is Redis durability: an append-only file with a one-second fsync loses up to a second of messages on a hard failure. For work that can be recomputed, that is fine and the simplicity is worth a great deal.",
+          "The decision, then, is three questions rather than a comparison table. Does anything need to read these events more than once, or later, which means a log. Does the work need ordering, and within what, which sets the partitioning. And who operates it at 3am, which is the question that most often decides between running a cluster and paying someone else to.",
+        ],
+        why:
+          "Almost every broker argument is actually an argument about queue semantics versus log semantics, and it resolves the moment someone asks whether the events need to be readable twice. The operational question is the other half: a managed queue with fewer features is usually a better system than a self-hosted log nobody has time to run.",
+        inPractice:
+          "SQS defaults to a 30 second visibility timeout, extendable to twelve hours, and a handler that overruns it without extending will see the message processed twice. Kafka's retention window is the parameter that decides how long a consumer can be down or how far back you can replay, which is why it is a design decision rather than a default to leave alone.",
+        diagram: {
+          caption: "A queue empties as work completes; a log keeps what happened",
+          columns: [
+            [{ id: "prod", label: "Producer", kind: "service" }],
+            [
+              { id: "q", label: "Queue", sub: "SQS, RabbitMQ", kind: "queue" },
+              { id: "log", label: "Log", sub: "Kafka, retention", kind: "queue" },
+            ],
+            [
+              { id: "w1", label: "Worker", sub: "acks, message gone", kind: "service" },
+              { id: "c1", label: "Consumer A", sub: "own offset", kind: "service" },
+              { id: "c2", label: "Consumer B", sub: "own offset, replayable", kind: "service" },
+            ],
+          ],
+          edges: [
+            { from: "prod", to: "q", label: "one unit of work" },
+            { from: "prod", to: "log", label: "one event" },
+            { from: "q", to: "w1", label: "delivered once, then removed" },
+            { from: "log", to: "c1", label: "read, not consumed" },
+            { from: "log", to: "c2", label: "reads the same events" },
+          ],
+        },
+        check: {
+          prompt: "Two independent services need to react to the same events, and a third will be added later. Queue or log?",
+          options: [
+            "A queue, with the producer publishing one message per consumer",
+            "A log, since consumers read at their own pace and can start from the past",
+            "A queue with a fan-out exchange, which delivers a copy to each consumer",
+            "A log, but only if the consumers can tolerate messages arriving twice",
+          ],
+          correctIndex: 1,
+          explain:
+            "A log keeps the events, so a consumer added next year can read history rather than needing the producer changed. Fan-out on a queue works for known consumers today and requires a change every time the list grows.",
+        },
+        checks: [
+          {
+            prompt: "An SQS handler takes 45 seconds and the visibility timeout is the default. What happens?",
+            options: [
+              "The message is deleted when the handler eventually acknowledges it",
+              "The message becomes visible again and a second consumer processes it",
+              "The broker extends the timeout automatically while the handler runs",
+              "The handler is cancelled at 30 seconds and the message is retried",
+            ],
+            correctIndex: 1,
+            explain:
+              "The visibility timeout hides the message rather than locking it. Overrun it and the same work runs twice concurrently, which is how most teams discover their consumer was never idempotent.",
+          },
+          {
+            prompt: "What does a log's retention window actually determine?",
+            options: [
+              "How long a consumer can be down, and how far back a replay can go",
+              "How much disk each broker needs, and nothing about the consumers",
+              "How long the broker waits before compacting duplicate keys away",
+              "How long an unacknowledged message stays hidden from other readers",
+            ],
+            correctIndex: 0,
+            explain:
+              "Retention is the recovery budget. A consumer offline for longer than the window has lost data with no way to catch up, which makes the number an availability decision rather than a storage one.",
+          },
+          {
+            prompt: "Why might Redis Streams be the right broker despite weaker durability?",
+            options: [
+              "They provide exactly-once processing without idempotent consumers",
+              "They preserve global ordering across all consumers in a group",
+              "It is already running, and the work can be recomputed if lost",
+              "They retain messages indefinitely at no additional memory cost",
+            ],
+            correctIndex: 2,
+            explain:
+              "For work that can be regenerated, losing up to a second of messages on a hard failure costs little, and not operating another cluster is worth a great deal. The judgement is about what the messages are, not about which broker is best.",
+          },
+        ],
       },
     ],
   },

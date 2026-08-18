@@ -222,6 +222,11 @@ export const manifest: CardMeta[] = [
         "id": "dead-letter",
         "title": "Retries and dead letter queues",
         "level": "intermediate"
+      },
+      {
+        "id": "broker-choice",
+        "title": "Choosing a broker",
+        "level": "advanced"
       }
     ]
   },
@@ -1055,5 +1060,5 @@ export const manifest: CardMeta[] = [
   }
 ];
 
-export const topicCount = 148;
+export const topicCount = 149;
 export const cardCount = 34;

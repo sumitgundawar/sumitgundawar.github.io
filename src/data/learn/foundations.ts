@@ -388,9 +388,12 @@ export const foundations: Card[] = [
         title: "Big-O without the ritual",
         level: "beginner",
         body: [
-          "Big-O describes how cost grows as input grows. It deliberately ignores constants, because for large inputs the shape of the curve dominates everything else.",
-          "That also makes it misleading for small inputs. An O(n log n) algorithm with a heavy constant loses to an O(n squared) one on a list of twenty items, which is why real sort implementations switch to insertion sort for small slices.",
-          "Say which n you mean. 'O(n) in the number of users' and 'O(n) in the number of requests' are very different claims.",
+          "Big-O describes how cost grows as input grows, and it deliberately ignores constants because for large inputs the shape of the curve dominates everything else. That is its strength and the source of most of its misuse: it answers which algorithm wins as n grows and says nothing about which is faster at the n you have.",
+          "It is actively misleading for small inputs. An n log n algorithm with a heavy constant loses to a quadratic one on a list of twenty items, which is why real sort implementations switch to insertion sort below a threshold of a few dozen elements. The asymptotic class is a statement about the limit, and production code spends most of its life nowhere near it.",
+          "Say which n you mean, because it is where most vague answers hide. Linear in the number of users, linear in the number of requests, and linear in the number of rows returned are three different claims with three different consequences, and an algorithm that is constant per request and linear per user is a completely different system from one that is the reverse.",
+          "The numbers worth carrying are these. At a million items, log n is about twenty operations, n log n is about twenty million, and n squared is a trillion. That is the difference between instant, a second, and a fortnight, and it is why a nested loop over two large collections is the first thing to look for when something is unexpectedly slow.",
+          "Averages, worst cases and amortised costs are separate claims and are worth distinguishing. A hash map is constant on average and linear in its degenerate case. A dynamic array append is amortised constant and occasionally linear when it grows. Quicksort is n log n typically and quadratic on an unlucky pivot. Whether the worst case matters depends on whether an attacker or an unlucky input can reach it.",
+          "Finally, complexity is about operations rather than about time, and the two diverge when the operations differ in price. Twenty sequential disk reads beat a thousand in-memory comparisons, and one network call beats both by a mile in the other direction. Cache locality is why a linear scan of an array frequently outperforms a linked list traversal with the same asymptotic class, and why the array is the better default.",
         ],
         why: "Quoting complexity without naming n is the most common way to sound rigorous and say nothing. Naming it is what turns the answer into engineering.",
         check: {
@@ -405,14 +408,55 @@ export const foundations: Card[] = [
           explain:
             "Big-O drops constants, and constants are exactly what decides it at small n. Insertion sort's near-zero overhead wins despite the worse asymptotic class. Its behaviour on nearly-sorted input is real and is what Timsort exploits, but that is not why quicksort hands off to it, the handoff happens on partitions of arbitrary order.",
         },
+        checks: [
+          {
+            prompt: "At a million items, roughly what separates an n log n algorithm from a quadratic one?",
+            options: [
+              "About twenty million operations against about a trillion",
+              "About a million operations against about twenty million",
+              "About twenty operations against about twenty million",
+              "About a thousand operations against about a million",
+            ],
+            correctIndex: 0,
+            explain:
+              "Twenty million is a second of work; a trillion is a fortnight. That gap is why nested loops over large collections are the first thing to look for when something is unexpectedly slow.",
+          },
+          {
+            prompt: "Why does a linear scan of an array often beat a linked list of the same length?",
+            options: [
+              "Arrays are stored contiguously, so each cache line brings several items",
+              "Linked lists require a comparison per node that arrays can skip",
+              "Array indexing is compiled to a single instruction on most hardware",
+              "Linked lists are allocated lazily, so traversal triggers page faults",
+            ],
+            correctIndex: 0,
+            explain:
+              "Complexity counts operations and hardware charges for memory locality. Pointer chasing misses the cache on nearly every step, which is why the array is the better default despite identical asymptotics.",
+          },
+          {
+            prompt: "Why does naming which n you mean change the answer?",
+            options: [
+              "Constant factors differ between the units being counted",
+              "Linear per request and linear per user describe different systems",
+              "The base of the logarithm depends on the unit being measured",
+              "Amortised analysis is only valid when the unit is fixed in advance",
+            ],
+            correctIndex: 1,
+            explain:
+              "One scales with traffic and the other with the customer list, and they fail at different times for different reasons. Quoting a complexity without naming its n sounds rigorous and says nothing.",
+          },
+        ],
       },
       {
         id: "hash-maps",
         title: "Hash maps and their worst case",
         level: "beginner",
         body: [
-          "A hash map gives average constant-time lookup by turning a key into a bucket index, handling collisions by chaining or by open addressing.",
-          "The average case assumes keys spread evenly. Let an attacker choose keys that all hash to one bucket and every lookup degrades to scanning a list, which turns your hash map into a denial-of-service vector. Languages now randomise the hash seed per process for exactly this reason.",
+          "A hash map turns a key into a bucket index and looks there, which is why it is constant time on average regardless of size. Collisions are handled either by chaining, where a bucket holds a small list, or by open addressing, where a colliding entry moves to the next free slot. Chaining is simpler and tolerates a fuller table; open addressing is faster in practice because it stays within a cache line more often.",
+          "The average case assumes keys spread evenly, and that assumption is an attack surface. Choose keys that all hash to one bucket and every lookup becomes a scan of a list, turning constant time into linear time on every operation. That was a real, widely exploited denial-of-service class, and the fix now standard in every major language is a hash seed randomised per process, so an attacker cannot compute the collisions in advance.",
+          "Load factor is the parameter that decides performance, and it is the ratio of entries to buckets. Past roughly 70 to 75 per cent, collisions rise sharply, so the map grows by allocating a larger table and rehashing every entry into it. That resize is a linear pause, which is fine for throughput and shows up in tail latency, and it is why pre-sizing a map you know the size of is a genuine optimisation.",
+          "Ordering is the property people accidentally depend on. A hash map has none by definition, and any apparent order is an implementation detail that will change. Python's dictionaries preserve insertion order as a guarantee since 3.7; most other languages do not, and code that iterates a map and expects stability across runs or versions is code waiting to break.",
+          "Keys must be hashable and stable, which in practice means immutable. Mutating an object after using it as a key changes its hash and strands the entry: it is still in the table, in the bucket it originally hashed to, and no lookup will ever find it again. Languages that allow mutable keys make this easy to do by accident, and the resulting bug looks like data loss.",
         ],
         why: "Reaching for a hash map is right almost always. Knowing the degenerate case is what separates using one from being able to defend the choice.",
         check: {
@@ -426,15 +470,56 @@ export const foundations: Card[] = [
           correctIndex: 2,
           explain: "Deliberate collisions collapse average constant time into linear time on every operation. Randomised per-process hash seeds make the attack impractical.",
         },
+        checks: [
+          {
+            prompt: "An object is used as a map key and then mutated. What happens to its entry?",
+            options: [
+              "It is rehashed automatically the next time the map is resized",
+              "It stays in its original bucket and no lookup can find it again",
+              "The map raises an error on the next access to that bucket",
+              "It is removed, since the map detects that the hash has changed",
+            ],
+            correctIndex: 1,
+            explain:
+              "The entry sits where the old hash put it, and lookups now compute a different bucket. It is present, unreachable, and it looks exactly like data loss, which is why keys should be immutable.",
+          },
+          {
+            prompt: "Why does a hash map grow at around a 70 per cent load factor rather than when full?",
+            options: [
+              "Collisions rise sharply as the table fills, degrading every operation",
+              "Allocation is cheaper before the underlying array is fully committed",
+              "The remaining slots are reserved for entries with the same hash prefix",
+              "Growing later would require rehashing more entries in a single pass",
+            ],
+            correctIndex: 0,
+            explain:
+              "Performance falls apart well before the table is full, because probes get longer as free slots become scarce. Resizing early keeps the average case actually constant.",
+          },
+          {
+            prompt: "Which is safe to rely on for a standard hash map?",
+            options: [
+              "That iteration order matches insertion order across runs",
+              "That iteration order is stable between two versions of the runtime",
+              "That lookups are constant on average and linear in the worst case",
+              "That two equal objects always land in the same bucket regardless of seed",
+            ],
+            correctIndex: 2,
+            explain:
+              "Order is not part of the contract unless a language states it. The complexity is, along with the fact that adversarial or unlucky keys can reach the worst case.",
+          },
+        ],
       },
       {
         id: "trees-indexes",
         title: "B-trees and why databases use them",
         level: "intermediate",
         body: [
-          "A balanced binary tree is fine in memory. On disk it is poor, because each level is a separate read and disk reads are expensive.",
-          "A B-tree stores many keys per node, matched to the size of a disk page. Fanout is high, depth is low, and a lookup in a large table takes a handful of reads instead of dozens.",
-          "This is why almost every relational index is a B-tree, and why index depth barely grows as tables get large.",
+          "A balanced binary tree is a fine in-memory structure and a poor on-disk one, because every level is a separate read and a disk read costs roughly a hundred thousand times what a memory access costs. A tree of depth thirty is thirty reads, and the shape of the structure, not the algorithm, is what makes it slow.",
+          "A B-tree fixes it by storing many keys per node, sized to match a disk page, usually a few kilobytes. Fanout of several hundred means depth stays tiny: a table of a hundred million rows is typically three or four levels deep, so a lookup is three or four reads, and the top levels are cached in memory anyway. That is why index depth barely grows as tables get large, which is the property that makes relational databases scale gracefully on reads.",
+          "Almost every relational index is a B-tree, and the variant in use is nearly always a B+ tree, where only the leaves hold values and the leaves are linked to each other. That linking is what makes range scans cheap: find the start, then walk sideways, without returning to the root for each subsequent key. Ordered results and BETWEEN queries both come from that one detail.",
+          "LSM trees are the other family and they make the opposite trade. Writes go to an in-memory table and are flushed as sorted files, so writes are sequential and fast, and reads may have to consult several files, which is why they lean on Bloom filters to skip the ones that cannot contain a key. Compaction merges those files in the background, spending disk bandwidth later to keep reads from degrading. Cassandra, RocksDB and most modern key-value stores are built this way.",
+          "The choice between them is a workload question rather than a fashion. B-trees favour reads and in-place updates; LSM trees favour heavy sustained writes and pay for it in read amplification and background compaction that has to be operated. Knowing which one is underneath your database explains a surprising number of its performance characteristics.",
+          "The general lesson is the one worth keeping: the structure is chosen to match the cost model of the medium it lives on. Memory rewards pointer-light layouts and cache locality, disk rewards few large sequential reads, and the network rewards fewer round trips. The same data deserves a different structure in each.",
         ],
         why: "The structure is chosen to match the storage medium, not for elegance. That is the general lesson: data structure choice follows the cost model of where the data lives.",
         check: {
@@ -449,14 +534,55 @@ export const foundations: Card[] = [
           explain:
             "Disk reads dominate, so the goal is fewer levels. Packing many keys per node makes a lookup cost a handful of reads instead of one per level. Matching node size to the page is true and it is how fanout gets high in the first place, it is the mechanism, not the reason.",
         },
+        checks: [
+          {
+            prompt: "What makes range scans cheap in a B+ tree specifically?",
+            options: [
+              "Values live only in the leaves, and the leaves are linked together",
+              "Internal nodes cache the minimum and maximum of each subtree",
+              "Keys are stored sorted within every node, including internal ones",
+              "The root is pinned in memory, so re-descending costs nothing",
+            ],
+            correctIndex: 0,
+            explain:
+              "Once you find the start of the range you walk sideways along the leaf chain instead of returning to the root for each key. Ordered results and BETWEEN both fall out of that one design choice.",
+          },
+          {
+            prompt: "What trade does an LSM tree make relative to a B-tree?",
+            options: [
+              "Faster reads for slower writes, since data is stored fully sorted",
+              "Faster sequential writes, paid for in read amplification and compaction",
+              "Lower memory use, since nothing needs to be buffered before flushing",
+              "Stronger durability, because every write is applied in place immediately",
+            ],
+            correctIndex: 1,
+            explain:
+              "Writes become sequential appends and reads may consult several files, which is why Bloom filters sit in front of them and why compaction runs in the background consuming disk bandwidth.",
+          },
+          {
+            prompt: "A table grows from one million rows to a hundred million. What happens to index depth?",
+            options: [
+              "It rises by roughly one or two levels, because fanout is high",
+              "It rises proportionally, so lookups cost a hundred times more",
+              "It stays identical, since depth is fixed when the index is created",
+              "It falls, because larger tables allow denser packing per node",
+            ],
+            correctIndex: 0,
+            explain:
+              "With a fanout of several hundred, each additional level multiplies capacity enormously. That is why relational reads degrade so gently as tables grow.",
+          },
+        ],
       },
       {
         id: "bloom-filters",
         title: "Bloom filters",
         level: "advanced",
         body: [
-          "A Bloom filter answers one question cheaply: is this item definitely absent, or possibly present. False positives happen. False negatives cannot.",
-          "That asymmetry is the whole point. Put one in front of an expensive lookup and everything definitely not there skips the lookup entirely, for a few bits per item, far less than storing the keys would cost.",
+          "A Bloom filter answers exactly one question cheaply: is this item definitely absent, or possibly present. It is a bit array plus a handful of hash functions. Adding an item sets the bits those hashes point at; checking one reads them. If any bit is zero the item was never added, which is certain. If all are set, it probably was, and it might be a coincidence of other items' bits.",
+          "That asymmetry is the whole point. Put one in front of an expensive lookup and everything definitely absent skips the lookup entirely, for a few bits per item rather than the cost of storing the keys. Around ten bits per item gives roughly a one per cent false positive rate, which means a filter for a hundred million keys fits in about 120 megabytes while the keys themselves would be many gigabytes.",
+          "The parameters trade against each other in a known way: more bits per item lowers the false positive rate, and the number of hash functions has an optimum for a given ratio. What you cannot do is delete. Clearing bits would break other items that share them, which is why a standard Bloom filter is add-only and why counting variants exist for the cases that need removal.",
+          "It appears constantly once you recognise it. Storage engines keep one per data file so a read can skip files that cannot contain the key. Caches use one to answer the penetration problem, where requests for keys that exist nowhere would otherwise reach the database every time. Browsers and mail systems have used them for candidate checks against large blocklists.",
+          "The relatives are worth knowing by name. A cuckoo filter supports deletion and is often smaller at low error rates. HyperLogLog answers a different question, how many distinct items are there, in kilobytes rather than gigabytes with a couple of per cent error, which is why every analytics product uses it to count unique visitors. Both belong to the same family: give up exactness, buy an enormous reduction in space.",
         ],
         why: "Useful precisely where a definite no is valuable and a maybe is cheap to verify. Storage engines use them to avoid reading files that cannot contain a key.",
         inPractice: "Cassandra and most LSM-tree storage engines keep a Bloom filter per data file to avoid pointless disk reads.",
@@ -471,6 +597,44 @@ export const foundations: Card[] = [
           correctIndex: 1,
           explain: "A negative is definitive; a positive means maybe, and needs confirming. That is what makes it a cheap filter in front of an expensive check.",
         },
+        checks: [
+          {
+            prompt: "Why can a standard Bloom filter not support deletion?",
+            options: [
+              "Clearing bits would break other items that share those positions",
+              "The hash functions are one-way, so the positions cannot be recovered",
+              "Deletion would require rehashing every item currently in the filter",
+              "The bit array is immutable once the expected item count is fixed",
+            ],
+            correctIndex: 0,
+            explain:
+              "Bits are shared between items by design. Clearing them for one item introduces false negatives for others, which destroys the only guarantee the structure offers.",
+          },
+          {
+            prompt: "Roughly how much space does a Bloom filter need for a one per cent error rate?",
+            options: [
+              "About one bit per item, regardless of the number of hash functions",
+              "About ten bits per item, so a hundred million keys fit in megabytes",
+              "About one byte per item, plus the original keys for verification",
+              "About the size of the keys themselves, with a constant factor saved",
+            ],
+            correctIndex: 1,
+            explain:
+              "Ten bits per item is the rule of thumb for one per cent. That is why a filter for a hundred million keys is around 120 megabytes while the keys would be gigabytes.",
+          },
+          {
+            prompt: "You need the number of distinct visitors, not membership. Which structure fits?",
+            options: [
+              "A Bloom filter sized for the expected number of visitors",
+              "A cuckoo filter, which supports the deletions a session requires",
+              "HyperLogLog, which estimates cardinality in kilobytes",
+              "A hash set, since exact counts cannot be approximated usefully",
+            ],
+            correctIndex: 2,
+            explain:
+              "Membership and cardinality are different questions. HyperLogLog answers the second in kilobytes with a couple of per cent error, which is why analytics products count unique visitors with it.",
+          },
+        ],
       },
     ],
   },

@@ -486,10 +486,12 @@ export const foundations: Card[] = [
         title: "ACID, stated plainly",
         level: "beginner",
         body: [
-          "Atomicity: all of a transaction happens, or none of it. Consistency: it moves the database between valid states. Isolation: concurrent transactions do not see each other's partial work. Durability: once committed, it survives a crash.",
-          "Three of those four are largely settled. Isolation is where the detail lives, and where the surprises are.",
-          "Most databases default to read committed, not full serialisability, because full isolation is expensive: the database has to behave as though transactions ran one after another, and enforcing that costs you either locks or aborts.",
-          "That default permits anomalies most developers never think about. Two transactions read the same row, each computes from what it read, and one result quietly overwrites the other.",
+          "Atomicity: all of a transaction happens, or none of it. Consistency: it moves the database between valid states, meaning the constraints you declared still hold afterwards. Isolation: concurrent transactions do not see each other's partial work. Durability: once committed, it survives a crash.",
+          "Three of those four are largely settled and you can rely on them without thinking. Isolation is where the detail lives, where the defaults differ between databases, and where the surprises are.",
+          "Most databases default to read committed rather than serialisable, because full isolation is expensive: the database must behave as though transactions ran one after another, and enforcing that costs either locks that others wait on or aborts that the application must retry. The default is a performance decision made on your behalf, and it is usually right and occasionally the cause of a bug nobody can reproduce.",
+          "What read committed permits is worth stating concretely. Two transactions read a balance of 100 into application memory, each subtracts 60, each writes 40, and the second write silently overwrites the first. Nothing errors. The same operation expressed as a single update statement is safe, because the row lock serialises it, so the bug lives entirely in the gap between reading and writing rather than in the database.",
+          "Durability also has a dial that people rarely look at. A commit is durable once the write-ahead log is flushed to disk, and most databases let you relax that: Postgres has synchronous_commit, MySQL has its flush setting, and turning either down makes writes markedly faster while putting the last fraction of a second at risk in a hard crash. That is a legitimate choice for analytics ingestion and a poor one for orders.",
+          "The useful habit is to state the level you are running at and the anomalies it permits, rather than saying you use a relational database and therefore have ACID. The letters are a promise about a configuration, and the configuration has a default that nobody chose.",
         ],
         why: "'We use a relational database so we get ACID' is only true at the isolation level you actually configured. Knowing your default is the difference between a guarantee and an assumption.",
         check: {
@@ -503,15 +505,56 @@ export const foundations: Card[] = [
           correctIndex: 3,
           explain: "Read committed permits this because the value was read into the application and written back later. Note that a single UPDATE ... SET balance = balance - 60 would be safe: row locks serialise it. The gap between reading and writing is what creates the bug.",
         },
+        checks: [
+          {
+            prompt: "Why do most databases default to read committed rather than serialisable?",
+            options: [
+              "Serialisable is not implemented by every storage engine in common use",
+              "Full isolation costs either waiting on locks or retrying aborted work",
+              "Read committed is required for replication to remain consistent",
+              "Serialisable would prevent read replicas from serving any queries",
+            ],
+            correctIndex: 1,
+            explain:
+              "Behaving as though transactions ran one at a time has to be paid for somewhere. The default trades a class of rare anomaly for throughput, which is usually right and is a decision made on your behalf.",
+          },
+          {
+            prompt: "What does turning down synchronous commit actually trade away?",
+            options: [
+              "Atomicity, since a partially applied transaction may survive a crash",
+              "Isolation, because other transactions can observe uncommitted rows",
+              "Durability, risking the last fraction of a second of commits in a crash",
+              "Consistency, because constraints are checked asynchronously afterwards",
+            ],
+            correctIndex: 2,
+            explain:
+              "The commit returns before the log reaches disk, so a hard failure loses recently acknowledged writes. Reasonable for analytics ingestion, poor for orders, and worth being an explicit decision either way.",
+          },
+          {
+            prompt: "Which rewrite removes a lost update without changing the isolation level?",
+            options: [
+              "Reading the row a second time immediately before writing the new value",
+              "Expressing the change as one update that computes from the stored value",
+              "Wrapping the read and the write in an explicit transaction block",
+              "Adding a unique index on the column being read and written back",
+            ],
+            correctIndex: 1,
+            explain:
+              "A single statement takes the row lock and computes from what is stored, so the two transactions serialise. Re-reading just before writing narrows the window without closing it, and a transaction alone does not prevent it at read committed.",
+          },
+        ],
       },
       {
         id: "indexes",
         title: "Indexes and their cost",
         level: "beginner",
         body: [
-          "An index is a sorted structure that turns a full table scan into a targeted lookup. Reads get faster, sometimes by orders of magnitude.",
-          "Every index must be updated on write, so each one makes inserts and updates slower and takes disk space. An unused index is pure cost.",
-          "Composite indexes only help when the query uses a leading prefix of the columns, in order. An index on (a, b) helps a query on a, and on a and b, but not one on b alone.",
+          "An index is a sorted structure, in nearly every case a B-tree, that turns a full table scan into a targeted lookup. On a large table that is the difference between reading a million pages and reading four, which is why the first index on a hot query is often a thousandfold improvement and the fifteenth is not.",
+          "Every index must be maintained on write, so each one slows inserts, updates and deletes and occupies disk and memory. An unused index is pure cost with no benefit, and most mature databases can tell you which of theirs have never been scanned. Removing those is the rare optimisation that improves writes without risking reads.",
+          "Composite indexes follow the prefix rule, which is the single most useful piece of indexing knowledge: an index on (a, b) serves a query on a, and on a and b together, and cannot seek on b alone. It is a phone book ordered by surname then first name. Choosing the column order is choosing which queries the index can answer, and the usual guidance is equality columns first, then the range or ordering column.",
+          "A covering index is the next step: if the index contains every column the query needs, the database answers from the index without touching the table at all. On a read-heavy endpoint that removes half the work, and it is why adding one included column sometimes beats adding a cache.",
+          "There are ways to disable an index by accident, and they are worth memorising because each looks harmless in review. Wrapping the column in a function, comparing it against a different type so the database has to cast, and starting a LIKE pattern with a wildcard all mean the index's ordering no longer matches the question being asked. Expression indexes exist for the first case, when the function is genuinely needed.",
+          "Finally, indexes are not only B-trees. Hash indexes serve equality alone, GIN and inverted indexes serve containment and full text, and BRIN indexes are tiny and effective for columns that correlate with physical order, such as an append-only timestamp. Recognising when the default is the wrong shape is worth more than tuning the default.",
         ],
         why: "The instinct to add an index per slow query produces tables with fifteen indexes and slow writes. The question is always which queries matter, not which are slow.",
         check: {
@@ -525,14 +568,56 @@ export const foundations: Card[] = [
           correctIndex: 2,
           explain: "A composite index is sorted by its leading column, so without country there is no seekable prefix for city. Some engines can still skip-scan or use it as a narrower substitute for a full table scan, but neither is a real seek.",
         },
+        checks: [
+          {
+            prompt: "A query filters on a column wrapped in lower(). The index on that column is unused. Why?",
+            options: [
+              "The index stores raw values, and the query asks about a computed one",
+              "Functions force a sequential scan because their cost cannot be estimated",
+              "Case-insensitive comparison requires a collation the index does not carry",
+              "The planner disables indexes whenever a function appears in the predicate",
+            ],
+            correctIndex: 0,
+            explain:
+              "The index is ordered by the stored value, and the predicate is about lower(value), which is a different ordering. An index on the expression itself restores the seek.",
+          },
+          {
+            prompt: "What does a covering index give you that an ordinary one does not?",
+            options: [
+              "The query is answered from the index without reading the table",
+              "The index is kept entirely in memory rather than paged from disk",
+              "Writes become cheaper, since fewer table pages have to be touched",
+              "The planner can use it even when the leading column is not filtered",
+            ],
+            correctIndex: 0,
+            explain:
+              "If every column the query needs is in the index, there is no need to fetch the row itself. On a hot read path that removes half the work, which is sometimes a better answer than adding a cache.",
+          },
+          {
+            prompt: "Which index is unused on a table with fifteen of them, and how would you know?",
+            options: [
+              "The largest one, since size correlates with how rarely it is chosen",
+              "The newest one, because the planner prefers established statistics",
+              "Whichever the database reports as never scanned in its own statistics",
+              "The one on the column with the fewest distinct values in the table",
+            ],
+            correctIndex: 2,
+            explain:
+              "Databases track index usage, so this is a question with a measured answer rather than a guess. Dropping never-scanned indexes speeds up every write and risks nothing that was being read.",
+          },
+        ],
       },
       {
         id: "normalisation",
         title: "Normalisation and when to break it",
         level: "intermediate",
         body: [
-          "Normalising stores each fact once, so an update touches one row and the data cannot contradict itself. It costs joins on read.",
-          "Denormalising duplicates data to avoid those joins. Reads get faster and simpler, and every copy becomes something that can drift. The usual shape is a normalised source of truth plus deliberately denormalised read models, kept up to date asynchronously.",
+          "Normalising means storing each fact exactly once, so an update touches one row and the data cannot contradict itself. The customer's address lives in the customer table and every order refers to it. That is the default, it is right most of the time, and it costs joins on read.",
+          "Denormalising duplicates data to avoid those joins. Reads get faster and simpler, and every copy becomes a thing that can drift from the original. The trade is write complexity for read speed, and it is worth making when reads dominate and there is a reliable mechanism for keeping the copies current: a trigger, an outbox, a stream consumer, a scheduled rebuild.",
+          "There is a category of duplication that is not denormalisation at all, and confusing the two causes real bugs. The price on an order line is not a cached copy of the product price; it is the price at the time of sale, and it must not change when the product is repriced. Any value that is part of a historical record belongs on that record permanently. Copying it is correct modelling rather than an optimisation.",
+          "The usual mature shape is a normalised source of truth plus deliberately denormalised read models, updated asynchronously. That is the same idea as a materialised view, and where the database offers one, using it is preferable to hand-rolled duplication, because the refresh path is somebody else's tested code rather than yours.",
+          "The classical normal forms are worth knowing at a level of one sentence each. First: no repeating groups, one value per column. Second: every non-key column depends on the whole key. Third: and on nothing but the key. Almost every practical schema stops there, and the higher forms exist mostly in exam papers.",
+          "The one thing to avoid is denormalising early because joins feel expensive. A join on an indexed foreign key is one of the cheapest operations a relational database performs, and the intuition that it is slow usually comes from a missing index rather than from the join itself.",
         ],
         why: "Denormalisation is not a shortcut, it is a trade of write complexity for read speed. Make it when reads dominate and you have a reliable way to keep copies current.",
         check: {
@@ -546,15 +631,56 @@ export const foundations: Card[] = [
           correctIndex: 0,
           explain: "Space is the trivial part. The real cost is consistency: each copy needs updating, and any missed path leaves the system contradicting itself.",
         },
+        checks: [
+          {
+            prompt: "An order line stores the product price at the time of sale. Is that denormalisation?",
+            options: [
+              "Yes, and it needs a mechanism to keep it in step with the product",
+              "No, it is a different fact: the price then, not the price now",
+              "Yes, but it is acceptable because prices change infrequently",
+              "No, because the value can be recomputed from the product history",
+            ],
+            correctIndex: 1,
+            explain:
+              "It must not change when the product is repriced, so it is not a copy of anything. Historical records own their values, and treating that as duplication leads to invoices that rewrite themselves.",
+          },
+          {
+            prompt: "Why is denormalising because joins feel slow usually a mistake?",
+            options: [
+              "Joins are cheap on an indexed foreign key, so the intuition is wrong",
+              "The planner can rewrite a join into a lookup when statistics are fresh",
+              "Duplicated columns are excluded from indexes in most engines",
+              "The cost of a join grows only with the number of tables, not rows",
+            ],
+            correctIndex: 0,
+            explain:
+              "A join on an indexed key is among the cheapest things a relational database does. The feeling that joins are slow almost always traces back to a missing index rather than to the join.",
+          },
+          {
+            prompt: "What does third normal form require, in one sentence?",
+            options: [
+              "Every column holds one value, with no repeating groups in a row",
+              "Every non-key column depends on the whole key and on nothing else",
+              "Every table has a surrogate key rather than a natural composite one",
+              "Every foreign key is indexed and declared with a referential action",
+            ],
+            correctIndex: 1,
+            explain:
+              "The key, the whole key, and nothing but the key. Almost every practical schema stops at third normal form, and the higher forms rarely earn their complexity.",
+          },
+        ],
       },
       {
         id: "sql-vs-nosql",
         title: "Relational or document",
         level: "intermediate",
         body: [
-          "Relational databases are the default for a reason: flexible querying, real constraints, and transactions across rows. Choose otherwise only with a reason you can state.",
-          "Document stores suit data read as a whole unit, with a shape that varies per record. Key-value stores suit lookups by a single known key at very high volume.",
-          "The honest version is that most applications fit a relational model, and Postgres handles JSON well enough to cover the semi-structured parts.",
+          "Relational databases are the default for reasons that are easy to undervalue until they are gone: you can query the data in ways nobody anticipated, the database enforces constraints rather than trusting every writer, and a transaction can span several rows in several tables. Choose otherwise with a reason you can state in a sentence.",
+          "Document stores suit data that is read as a whole unit and whose shape varies per record: a product with wildly different attributes per category, an event payload, a document that genuinely is a document. The gain is that the record matches the object, and the loss is that a question the schema did not anticipate becomes a scan or a second copy of the data.",
+          "Key-value stores serve lookups by one known key at very high volume, and nothing else. Wide-column stores such as Cassandra sit near them and are designed around the query: you model the tables from the access patterns, accept duplication as normal, and get linear write scaling and no ad hoc querying at all.",
+          "The honest summary is that most applications fit a relational model, and a managed Postgres will carry far more load than most products ever see. It also handles JSON well, with indexing on document fields, which covers the semi-structured part of a schema without a second database and a second operational burden.",
+          "Schemaless is the claim that deserves the most scepticism, because there is always a schema: it either lives in the database, where it is enforced once, or in every piece of code that reads the data, where each has its own slightly different idea of what a record looks like. The second option is not the absence of a schema, it is a schema nobody can query and nobody maintains.",
+          "The strongest argument for a second store is a genuinely different access pattern rather than a performance claim: full text search, time series at high ingest rates, a graph traversal that would be a self-join twelve levels deep. Those are real, and they are much rarer than the number of polyglot architectures in the wild suggests.",
         ],
         why: "'It scales better' is not a reason on its own, a managed Postgres handles more load than most products ever see. The reasons that hold up are access pattern and data shape.",
         check: {
@@ -568,6 +694,44 @@ export const foundations: Card[] = [
           correctIndex: 2,
           explain: "The defensible reason is access pattern and shape. Blanket performance and scaling claims do not survive contact with a properly indexed relational database.",
         },
+        checks: [
+          {
+            prompt: "What is wrong with describing a document store as schemaless?",
+            options: [
+              "Documents still validate against a schema, it is simply implicit",
+              "The schema moves into every reader, where nobody can query or enforce it",
+              "Schemas are required for indexing, so one is generated automatically",
+              "The term refers to migrations, which document stores still require",
+            ],
+            correctIndex: 1,
+            explain:
+              "The structure does not disappear; it stops being enforced in one place and starts being assumed in many. That is a schema nobody maintains rather than no schema.",
+          },
+          {
+            prompt: "Which is the strongest reason to add a second datastore alongside Postgres?",
+            options: [
+              "Write throughput has reached the limits of a single primary instance",
+              "The team prefers a document model for new services being written",
+              "An access pattern Postgres serves badly, such as high-rate time series",
+              "Schema migrations have become slow enough to delay every release",
+            ],
+            correctIndex: 2,
+            explain:
+              "A genuinely different access pattern is a reason; a preference or a performance claim usually is not. Every additional store is another thing to back up, monitor, upgrade and reason about during an incident.",
+          },
+          {
+            prompt: "What does a wide-column store such as Cassandra ask you to do differently?",
+            options: [
+              "Model tables from the queries first, and accept duplication as normal",
+              "Normalise more aggressively, since joins are performed on the client",
+              "Define the schema up front, because columns cannot be added later",
+              "Keep all related data in one partition to preserve transactionality",
+            ],
+            correctIndex: 0,
+            explain:
+              "The design starts from the access pattern rather than from the entities, and the same data is written into several tables shaped for different queries. Ad hoc querying is what you give up in exchange for linear write scaling.",
+          },
+        ],
       },
       {
         id: "connection-pooling",
@@ -593,6 +757,44 @@ export const foundations: Card[] = [
           explain:
             "The limit is connection slots, not query capacity, and a pooler multiplexes many clients onto few real ones. Raising max_connections is the tempting fix and it buys very little: each connection is a backend process with its own memory, so the ceiling moves a bit and then the database runs out of RAM instead.",
         },
+        checks: [
+          {
+            prompt: "What does transaction pooling give up compared with session pooling?",
+            options: [
+              "Anything living beyond a transaction: prepared statements, session state",
+              "Transactional guarantees, since a commit may land on another connection",
+              "Read consistency, because successive queries can reach different replicas",
+              "Connection reuse, since each transaction opens a connection of its own",
+            ],
+            correctIndex: 0,
+            explain:
+              "The real connection is returned at every commit, so nothing that outlives a transaction survives. That is what makes it effective, and it is why session variables and advisory locks stop working.",
+          },
+          {
+            prompt: "Why does serverless make connection exhaustion worse?",
+            options: [
+              "Cold starts hold a connection open while the runtime initialises",
+              "Instances scale with traffic, and each opens its own connections",
+              "Serverless runtimes cannot reuse a connection between invocations",
+              "Managed databases reserve slots per region rather than per client",
+            ],
+            correctIndex: 1,
+            explain:
+              "Connection count follows instance count, and instance count follows load, so the demand for slots peaks exactly when the database is busiest. A pooler decouples the two.",
+          },
+          {
+            prompt: "Why does adding read replicas not fix connection exhaustion on the primary?",
+            options: [
+              "Replicas share the primary's connection limit through replication slots",
+              "Writes still go to the primary, and those connections are unchanged",
+              "Replicas require their own poolers, which consume primary slots",
+              "The application cannot route reads without a proxy in front of both",
+            ],
+            correctIndex: 1,
+            explain:
+              "Replicas add read capacity, and the exhaustion is slots on the primary held by every instance that might write. It is a different resource from the one replicas add.",
+          },
+        ],
       },
     ],
   },

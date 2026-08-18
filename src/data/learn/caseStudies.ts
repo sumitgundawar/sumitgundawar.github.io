@@ -1656,153 +1656,813 @@ export const caseStudies: Card[] = [
 
   {
     id: "whatsapp",
-    title: "WhatsApp and chat",
-    summary: "Delivery guarantees, ordering and end-to-end encryption at billions of messages.",
+    title: "WhatsApp",
+    summary:
+      "Delivery, ordering and encryption at billions of messages, with a server that is deliberately not allowed to read them.",
     track: "case-study",
     topics: [
       {
+        id: "whatsapp-connections",
+        title: "A process per connection, and why Erlang",
+        level: "advanced",
+        body: [
+          "Messaging is not a request-response workload. Every user holds a connection open for as long as the app is running, because a message can arrive at any moment and polling for it would be both slow and expensive. So the primary resource is not processor time, it is connections, and the engineering problem is how cheap an idle connection can be made.",
+          "WhatsApp is well known for handling extraordinary numbers of connections per server, with published accounts describing a million or more on a single machine, and for running an unusually small engineering team while doing it. The choice that made both possible was Erlang, which is not a fashionable answer but is very nearly the correct one for this specific shape of problem.",
+          "Erlang's processes are not operating system threads. They are extremely lightweight, scheduled by the runtime, with tiny initial stacks that grow only if needed. That makes one process per connection viable, where one thread per connection would exhaust memory at a fraction of the count. The model is direct: a connection arrives, a process owns it, the process holds the session state, and when the user disconnects the process exits and everything it held is gone. No pooling, no multiplexing, no shared mutable state to reason about.",
+          "The second property matters as much and is less often mentioned. Erlang processes are isolated and fail independently: a crash takes down one connection's process and a supervisor restarts it, without touching the other million. In a language where connections share a heap, a bug triggered by one user's malformed input can take down everything on that machine.",
+          "There is also a deployment property that mattered for a small team. Erlang supports upgrading code in a running system, which for a service holding millions of long-lived connections is the difference between a routine deploy and disconnecting everybody.",
+        ],
+        why: "The general lesson is to choose the runtime that matches the resource you are actually constrained by. Almost every mainstream stack optimises for throughput of short requests, and a messaging server is not that: it is millions of mostly-idle connections where the constraint is memory per connection and the failure mode is one bad connection taking others with it. Erlang was designed for telephone switches, which is the same shape of problem.",
+        inPractice:
+          "The transferable part is not to use Erlang. It is to identify the actual constraint before choosing tools. If idle connections dominate, the question is cost per idle connection, which is why other stacks reach for asynchronous non-blocking I/O to approximate the same property.",
+        diagram: {
+          caption: "One process per connection, isolated and independently restartable",
+          columns: [
+            [{ id: "clients", label: "Clients", sub: "millions, mostly idle", kind: "client" }],
+            [{ id: "accept", label: "Acceptor", sub: "spawns per connection", kind: "edge" }],
+            [
+              { id: "p1", label: "Connection process", sub: "owns session state", kind: "service" },
+              { id: "sup", label: "Supervisor", sub: "restarts on crash", kind: "service" },
+            ],
+            [{ id: "route", label: "Routing", sub: "which node holds whom", kind: "data" }],
+            [{ id: "store", label: "Offline queue", sub: "until delivered", kind: "data" }],
+          ],
+          edges: [
+            { from: "clients", to: "accept" },
+            { from: "accept", to: "p1", label: "spawn" },
+            { from: "sup", to: "p1", label: "watches" },
+            { from: "p1", to: "route", label: "registers" },
+            { from: "route", to: "store", label: "recipient offline" },
+          ],
+        },
+        check: {
+          prompt: "Why is one process per connection viable in Erlang but not one thread per connection elsewhere?",
+          options: [
+            "Erlang processes are scheduled by the operating system rather than the runtime",
+            "Erlang processes are lightweight with tiny stacks, so idle ones cost very little",
+            "Erlang connections are multiplexed, so several share one underlying process",
+            "Erlang avoids TCP entirely, which removes the per-connection kernel overhead",
+          ],
+          correctIndex: 1,
+          explain:
+            "The constraint is memory per idle connection. An operating system thread carries a stack measured in megabytes; an Erlang process starts far smaller and grows only if it needs to, which is what makes a million of them fit.",
+        },
+        checks: [
+          {
+            prompt: "Why does process isolation matter as much as process weight for this workload?",
+            options: [
+              "Isolated processes can be scheduled across more processor cores in parallel",
+              "A crash from one user's malformed input takes one connection, not the machine",
+              "Isolation is what allows connections to be migrated between servers live",
+              "It prevents one connection from reading another connection's messages",
+            ],
+            correctIndex: 1,
+            explain:
+              "With a shared heap, a bug triggered by one client can take down everything on that server. Isolated processes mean a supervisor restarts one connection while the other million never notice.",
+          },
+        ],
+      },
+
+      {
         id: "chat-delivery",
-        title: "Delivery, receipts and offline users",
+        title: "Delivery: the ticks, and what each one actually promises",
         level: "intermediate",
         body: [
-          "A message is stored server-side until delivered, then usually deleted. The server is a relay with a queue attached, not an archive.",
-          "The three ticks, sent, delivered, read, are acknowledgements flowing back at each stage, each one a separate event. Offline users make this a queue-per-recipient problem, drained when the device finally reconnects.",
+          "The tick marks are a user interface for a distributed systems problem, and they are unusually honest about it. One tick means the server has the message. Two ticks mean the recipient's device has it. Two blue ticks mean the recipient's app has displayed it. Three separate facts, because in a distributed system they are genuinely three separate facts and collapsing them would be a lie.",
+          "The mechanics behind the first tick are what make the rest possible. The sender transmits, the server persists the message, and only then acknowledges. That ordering matters: acknowledging before persisting would mean a server crash silently loses a message the sender believes was sent. Persist, then acknowledge, and a crash before the acknowledgement causes a retry rather than a loss.",
+          "If the recipient is connected, the server pushes immediately. If not, the message waits in a per-recipient queue until they reconnect, which is the ordinary case rather than an exception: phones lose signal, go into tunnels, and run out of battery constantly. Once delivered and acknowledged, the server has no further need for it, and WhatsApp's design deliberately discards it at that point rather than retaining a copy.",
+          "Ordering is subtler than it appears. Messages from one sender to one recipient must arrive in the order they were sent, which a sequence number per conversation gives you. Ordering across different senders in a group is not achievable in any meaningful sense, because there is no global clock and two people genuinely can send at the same instant. What actually gets shipped is a consistent order rather than a true one, which is enough because nobody can tell the difference.",
+          "Every step needs idempotency. Retries are certain on mobile networks, so each message carries an identifier and a redelivery of one already seen is dropped rather than shown twice.",
         ],
-        why: "Treating chat as a per-recipient queue instead of a shared log is what makes offline delivery and multi-device sync tractable.",
+        why: "The design principle is to persist before acknowledging, always, for anything you promise to deliver. The window between accepting a message and durably storing it is a window in which a crash loses data the sender believes is safe, and that is the one failure people never forgive. Every reliable messaging system pays this latency cost deliberately.",
+        inPractice:
+          "The same rule applies to any queue consumer that acknowledges before finishing its work: the acknowledgement is a promise that the work survived, so it belongs after the durable write, not before. Acknowledge-then-process is one of the most common sources of silent data loss.",
         diagram: {
-          caption: "Message path with an offline recipient",
+          caption: "Persist, then acknowledge. Each tick is a different fact.",
           columns: [
-            [{ id: "a", label: "Sender", kind: "client" }],
-            [{ id: "gw", label: "Gateway", sub: "persistent socket", kind: "edge" }],
+            [{ id: "s", label: "Sender", kind: "client" }],
+            [{ id: "srv", label: "Message service", sub: "persist first", kind: "service" }],
             [
-              { id: "msg", label: "Message service", kind: "service" },
-              { id: "q", label: "Per-user queue", sub: "undelivered", kind: "queue" },
+              { id: "q", label: "Offline queue", sub: "per recipient", kind: "data" },
+              { id: "push", label: "Delivery", sub: "if connected", kind: "service" },
             ],
+            [{ id: "r", label: "Recipient device", kind: "client" }],
+          ],
+          edges: [
+            { from: "s", to: "srv", label: "send" },
+            { from: "srv", to: "q", label: "store" },
+            { from: "srv", to: "s", label: "one tick, after storing" },
+            { from: "q", to: "push", label: "on reconnect" },
+            { from: "push", to: "r" },
+            { from: "r", to: "srv", label: "delivered, two ticks", async: true },
+            { from: "r", to: "srv", label: "read, blue ticks", async: true },
+          ],
+        },
+        check: {
+          prompt: "Why must the server persist a message before acknowledging it to the sender?",
+          options: [
+            "Persisting first allows the acknowledgement to include the stored identifier",
+            "Otherwise a crash before storage loses a message the sender believes was sent",
+            "Acknowledgements cannot be sent until the recipient's queue has been located",
+            "It ensures messages are stored in the order the senders transmitted them",
+          ],
+          correctIndex: 1,
+          explain:
+            "An acknowledgement is a promise that the message survived. Sending it before the durable write means a crash in that window loses a message the sender was told was safe, and a lost message is the failure people remember.",
+        },
+        checks: [
+          {
+            prompt: "Why can messages from different senders in a group not be truly ordered?",
+            options: [
+              "Group messages are delivered through separate queues that cannot be merged",
+              "There is no global clock, and two people can genuinely send at the same instant",
+              "Encryption prevents the server from reading timestamps to order by",
+              "Sequence numbers are assigned per sender and cannot be compared across senders",
+            ],
+            correctIndex: 1,
+            explain:
+              "Simultaneity is real, and no shared clock exists to break the tie. What is achievable is a consistent order that everyone sees identically, which is sufficient because no participant can detect the difference.",
+          },
+          {
+            prompt: "Why does each message carry an identifier that the recipient checks?",
+            options: [
+              "Retries on mobile networks are certain, so duplicates must be dropped not shown",
+              "Identifiers are needed to sort messages into their conversation threads",
+              "It allows the sender to recall a message after it has been delivered",
+              "The server uses it to decide which device in a group should receive it",
+            ],
+            correctIndex: 0,
+            explain:
+              "At-least-once delivery over unreliable mobile networks means duplicates are certain rather than possible. Without an identifier to deduplicate against, a retry appears to the user as the same message sent twice.",
+          },
+        ],
+      },
+
+      {
+        id: "e2e",
+        title: "End-to-end encryption, and designing so the server cannot help",
+        level: "advanced",
+        body: [
+          "WhatsApp uses the Signal Protocol, which combines an initial key agreement with a ratcheting scheme that derives a fresh key for every message. The consequence that matters architecturally is that the server routes ciphertext it cannot read, and that constraint shapes everything else in the system.",
+          "The two properties worth naming are forward secrecy and post-compromise security. Forward secrecy means compromising a key today does not decrypt yesterday's messages, because those keys were derived and discarded. Post-compromise security means the ratchet heals: after an attacker obtains a key, continued normal messaging derives new keys they cannot follow. Together they bound the damage of a compromise in both directions in time.",
+          "Sending to a device you have never messaged requires a key exchange, and both parties being online simultaneously is not a realistic assumption. So each client uploads a batch of pre-keys to the server in advance. A sender takes one, performs the agreement against it, and sends. The server distributes public key material without ever holding the private keys, which is the property that keeps it honest.",
+          "Groups do not encrypt once per group, because there is no shared secret the server could hold without being able to read everything. Each sender establishes a sender key distributed to each member over their existing pairwise encrypted sessions, so the message body is encrypted once and the key is delivered individually. Cost grows with membership, which is a real constraint on group size.",
+          "Multi-device is where this gets genuinely hard, and WhatsApp's answer since 2021 is that each device has its own identity and its own session with every contact. A message to a contact with four devices is four encryptions. The alternative, sharing one key between a person's devices, would be simpler and would mean compromising any one device compromises all of them.",
+          "The honest limitation is that encryption protects content, not metadata. The server necessarily knows who talked to whom and when, because it has to route the message, and that metadata is often as revealing as the text would be.",
+        ],
+        why: "The design lesson is that the strongest guarantee comes from making it impossible for the server to comply rather than promising it will not. A server that could read messages and undertakes not to is one subpoena, one breach or one policy change away from doing so. A server holding only ciphertext has nothing useful to hand over, and that property survives changes of ownership and jurisdiction.",
+        inPractice:
+          "The applicable version for ordinary systems: prefer designs where the sensitive thing is never present rather than present and guarded. Not storing a card number is stronger than encrypting it, and a token that cannot be replayed is stronger than a secret you promise to rotate.",
+        diagram: {
+          caption: "Keys at the edges, ciphertext in the middle, metadata unavoidably visible",
+          columns: [
+            [{ id: "a", label: "Sender device", sub: "own identity key", kind: "client" }],
+            [{ id: "keys", label: "Pre-key store", sub: "public material only", kind: "data" }],
+            [{ id: "srv", label: "Message service", sub: "routes ciphertext", kind: "service" }],
             [
-              { id: "b", label: "Recipient", sub: "offline, then reconnects", kind: "client" },
-              { id: "push", label: "Push notification", sub: "APNs, FCM", kind: "external" },
+              { id: "b1", label: "Recipient phone", sub: "own session", kind: "client" },
+              { id: "b2", label: "Recipient laptop", sub: "own session", kind: "client" },
+            ],
+            [{ id: "meta", label: "Metadata", sub: "who and when", kind: "data" }],
+          ],
+          edges: [
+            { from: "keys", to: "a", label: "fetch a pre-key" },
+            { from: "a", to: "srv", label: "ciphertext per device" },
+            { from: "srv", to: "b1" },
+            { from: "srv", to: "b2" },
+            { from: "srv", to: "meta", label: "necessarily known", async: true },
+          ],
+        },
+        check: {
+          prompt: "Why do clients upload batches of pre-keys to the server in advance?",
+          options: [
+            "It lets the server verify a device's identity before allowing it to connect",
+            "A sender can start an encrypted session without the recipient being online",
+            "Pre-keys allow the server to decrypt and re-encrypt for additional devices",
+            "They are used to compress the key exchange into a single network round trip",
+          ],
+          correctIndex: 1,
+          explain:
+            "A key agreement normally needs both parties present, which is not realistic for phones. Pre-published public material lets a sender complete the agreement alone, and the server distributes it without ever seeing a private key.",
+        },
+        checks: [
+          {
+            prompt: "Why give each of a person's devices its own key rather than sharing one across them?",
+            options: [
+              "Shared keys cannot be synchronised reliably between devices over the network",
+              "Compromising one device would otherwise compromise every device they own",
+              "Per-device keys are required for messages to appear in the correct order",
+              "It reduces the number of encryptions needed when messaging a contact",
+            ],
+            correctIndex: 1,
+            explain:
+              "Sharing a key makes every device only as secure as the weakest one. Per-device sessions cost more encryptions per message and contain the blast radius of a single compromised laptop.",
+          },
+          {
+            prompt: "What does end-to-end encryption specifically not protect?",
+            options: [
+              "The content of group messages, which use a shared sender key",
+              "Metadata: who communicated with whom and when, which routing requires",
+              "Messages stored on the device after they have been decrypted",
+              "Media attachments, which are transferred over a separate channel",
+            ],
+            correctIndex: 1,
+            explain:
+              "The server has to know where to send a message, so it necessarily learns the social graph and the timing. That metadata is frequently as revealing as the content would have been, and no amount of content encryption addresses it.",
+          },
+        ],
+      },
+
+      {
+        id: "whatsapp-media",
+        title: "Media: the message is not the file",
+        level: "intermediate",
+        body: [
+          "Sending a photo through the message path would be a mistake. Messages are small, ordered and latency-sensitive; media is large, unordered and throughput-sensitive. Putting a fifty megabyte video through the same channel as a text message means one upload blocks a conversation.",
+          "So media goes out of band. The sender encrypts the file locally, uploads the ciphertext to a blob store, and sends a message containing a reference and the key needed to decrypt it. The message stays small and the transfers are independent, which also means an upload can resume after a network drop without affecting anything else.",
+          "The encryption ordering is the important detail. The file is encrypted on the device before upload, so the blob store holds bytes it cannot interpret, exactly like the message service. If it were uploaded in the clear and encrypted server-side, the end-to-end property would be broken by the largest and most sensitive payloads in the system.",
+          "Forwarding is where the design pays off. The same encrypted blob can be referenced by many messages without re-uploading, which is why forwarding something to twenty people is instant while the original send was not. The key travels with each message; the bytes are stored once.",
+          "Thumbnails are the small detail that makes it feel fast. A low-resolution preview is small enough to embed directly in the message, so a recipient sees something immediately while the full file downloads. It is the same instinct as a progressive image: show something true as early as possible rather than nothing until everything is ready.",
+        ],
+        why: "The pattern is to separate the reference from the payload whenever their characteristics differ. Small, ordered, latency-sensitive control messages belong on one path; large, unordered, throughput-sensitive data belongs on another. Mixing them means the constraints of the larger one govern the smaller.",
+        inPractice:
+          "This is exactly why an API should return a URL for a large export rather than the export itself, and why a job queue should carry an identifier rather than the payload. The moment a message can be megabytes, everything that handles that message inherits the problem.",
+        diagram: {
+          caption: "Encrypt locally, upload once, reference many times",
+          columns: [
+            [{ id: "s", label: "Sender", sub: "encrypts locally", kind: "client" }],
+            [
+              { id: "blob", label: "Blob store", sub: "ciphertext only", kind: "data" },
+              { id: "msg", label: "Message service", sub: "reference plus key", kind: "service" },
+            ],
+            [{ id: "r", label: "Recipient", sub: "fetches and decrypts", kind: "client" }],
+            [{ id: "fwd", label: "Forwarded copies", sub: "same blob reused", kind: "client" }],
+          ],
+          edges: [
+            { from: "s", to: "blob", label: "upload encrypted" },
+            { from: "s", to: "msg", label: "small message with thumbnail" },
+            { from: "msg", to: "r", label: "reference and key" },
+            { from: "blob", to: "r", label: "download" },
+            { from: "msg", to: "fwd", label: "new reference, no re-upload" },
+          ],
+        },
+        check: {
+          prompt: "Why send media out of band rather than through the message channel?",
+          options: [
+            "Blob stores provide stronger durability guarantees than message queues",
+            "Large transfers would block a channel built for small, ordered, fast messages",
+            "Media cannot be encrypted using the same protocol as text messages",
+            "It allows media to be delivered before the message that references it",
+          ],
+          correctIndex: 1,
+          explain:
+            "Messages and media have opposite characteristics: small and ordered against large and throughput-bound. Sharing one path means the fifty megabyte video governs the latency of the text message behind it.",
+        },
+        checks: [
+          {
+            prompt: "Why is the file encrypted on the device before upload rather than by the server?",
+            options: [
+              "Client-side encryption is faster than encrypting at the storage layer",
+              "Otherwise the largest and most sensitive payloads are not end-to-end encrypted",
+              "The server cannot encrypt files large enough to exceed its memory limits",
+              "It allows the same file to be decrypted by recipients using different keys",
+            ],
+            correctIndex: 1,
+            explain:
+              "Uploading in the clear and encrypting server-side would mean photos and videos, the most revealing content in the system, pass through a server that can read them. The guarantee has to hold for the payloads that matter most.",
+          },
+        ],
+      },
+
+      {
+        id: "whatsapp-groups",
+        title: "Groups: where the costs stop being linear",
+        level: "advanced",
+        body: [
+          "A one-to-one message is one encryption and one delivery. A group message to two hundred people, each with several devices, is hundreds of deliveries and a key distributed to every one of them. The cost per message grows with membership, and because the server cannot read the content it cannot do anything clever to reduce it.",
+          "The sender key scheme keeps the encryption cost sane. Rather than encrypting the message body separately for every member, the sender generates a sender key, distributes it once to each member over the existing pairwise sessions, and then encrypts each message once with it. Distribution is linear in membership; ongoing messaging is not.",
+          "Membership changes force key rotation, and the reason is a genuine security requirement rather than tidiness. When someone leaves, the remaining members must rotate, otherwise the departed member can still decrypt everything sent afterwards, having kept the old sender key. In an active group this means rotations are frequent, and each one is another round of distribution.",
+          "Delivery fan-out is the other half. Every message multiplies by members and again by devices per member, and the offline case makes it worse: a member offline for a week has a queue that must be retained and then delivered in a burst when they return. This is why group size limits exist. They are not arbitrary product decisions, they are where the fan-out arithmetic stops being affordable.",
+          "It is worth contrasting this with a broadcast channel, which looks similar and is not. A channel has one sender and many passive readers, so it can be built as fan-out on read with no per-recipient encryption at all. The moment every participant can also send, the costs change entirely.",
+        ],
+        why: "The lesson is that end-to-end encryption removes the server's ability to optimise. A server that can read content can deduplicate, compress, and fan out at the edge; a server holding ciphertext keyed per recipient cannot do any of it. That is a real cost paid for a real property, and pretending otherwise leads to designs that assume server-side optimisations which cannot exist.",
+        inPractice:
+          "The general point is to check whether your costs are linear in something that grows. Anything per-recipient, per-device or per-member is a multiplication waiting to happen, and product limits usually exist exactly where that multiplication became unaffordable.",
+        diagram: {
+          caption: "Distribute the key once, then encrypt once per message",
+          columns: [
+            [{ id: "s", label: "Sender", kind: "client" }],
+            [{ id: "sk", label: "Sender key", sub: "generated once", kind: "service" }],
+            [{ id: "dist", label: "Key distribution", sub: "over pairwise sessions", kind: "service" }],
+            [{ id: "srv", label: "Message service", sub: "fans out ciphertext", kind: "service" }],
+            [
+              { id: "m1", label: "Member devices", sub: "each decrypts", kind: "client" },
+              { id: "q", label: "Offline queues", sub: "per absent member", kind: "data" },
             ],
           ],
           edges: [
-            { from: "a", to: "gw", label: "send" },
-            { from: "gw", to: "msg" },
-            { from: "msg", to: "q", label: "store if offline" },
-            { from: "msg", to: "push", label: "wake device", async: true },
-            { from: "q", to: "b", label: "drain on reconnect" },
-            { from: "b", to: "msg", label: "delivered ack" },
-            { from: "msg", to: "a", label: "ticks", async: true },
+            { from: "s", to: "sk" },
+            { from: "sk", to: "dist", label: "once per member" },
+            { from: "s", to: "srv", label: "encrypted once" },
+            { from: "srv", to: "m1", label: "per device" },
+            { from: "srv", to: "q", label: "if offline" },
+            { from: "dist", to: "m1", async: true },
           ],
         },
         check: {
-          prompt: "Why does the server queue per recipient rather than keeping one shared log?",
+          prompt: "Why must the sender key rotate when a member leaves a group?",
           options: [
-            "Group messages would otherwise be stored once per group, not per member",
-            "Each recipient has their own delivery state, and their copy goes once received",
-            "Per-recipient queues let each device acknowledge at its own pace",
-            "A shared log cannot be ordered per conversation across many recipients",
+            "Otherwise the departed member can still decrypt messages sent afterwards",
+            "Group identifiers change on membership change, invalidating the old key",
+            "The server requires a new key to recalculate the delivery fan-out",
+            "Rotation is what triggers the removal of the member from the delivery list",
           ],
-          correctIndex: 1,
-          explain: "Delivery is per device and per user. A per-recipient queue makes 'what does this device still need' a direct question.",
+          correctIndex: 0,
+          explain:
+            "They already hold the old sender key and the server cannot selectively withhold anything, since it cannot read the traffic. Only rotation stops them decrypting what follows.",
         },
-      },
-      {
-        id: "e2e",
-        title: "End-to-end encryption and its consequences",
-        level: "advanced",
-        body: [
-          "With end-to-end encryption the server relays ciphertext it cannot read. Keys live on devices, and each conversation has its own session.",
-          "That removes entire categories of server-side feature: search across history, server-side spam classification on content, and web access without a linked device.",
-          "Multi-device support becomes hard, because each device needs its own keys and its own copy of the session state.",
+        checks: [
+          {
+            prompt: "Why does end-to-end encryption make group delivery more expensive than it would otherwise be?",
+            options: [
+              "Encrypted messages are larger, so each delivery consumes more bandwidth",
+              "The server cannot deduplicate or fan out at the edge on content it cannot read",
+              "Each member must acknowledge before the next delivery can be attempted",
+              "Encryption keys must be verified by the server before every delivery",
+            ],
+            correctIndex: 1,
+            explain:
+              "A server that can read content can compress it, deduplicate it and expand it near the recipients. One holding per-recipient ciphertext can do none of that, which is a genuine cost paid for a genuine guarantee.",
+          },
         ],
-        why: "This is the clearest example of a security decision constraining the product. Choosing E2E means accepting that the server cannot help with anything requiring message content.",
-        check: {
-          prompt: "Which of these does end-to-end encryption make structurally hard, rather than merely fiddly?",
-          options: [
-            "Delivering to a second device, which needs the message re-encrypted per device",
-            "Searching a user's history server-side, since the server holds only ciphertext",
-            "Group messaging, which needs a separate key exchange with every member",
-            "Delivery receipts, which must be produced without the server reading anything",
-          ],
-          correctIndex: 1,
-          explain: "The server holds only ciphertext, so it cannot index content. Search must happen on-device over locally decrypted messages.",
-        },
       },
     ],
   },
 
   {
     id: "classic-designs",
-    title: "Classic interview systems",
-    summary: "URL shortener, rate limiter, ticket booking, file sync, the ones that come up most.",
+    title: "The classic designs",
+    summary:
+      "URL shortener, rate limiter, ticket booking, file sync, distributed cache, notifications. The six that come up most.",
     track: "case-study",
     topics: [
       {
         id: "url-shortener",
-        title: "URL shortener",
+        title: "URL shortener: the interview question that is actually about ids",
         level: "beginner",
         body: [
-          "The core is a mapping from short key to long URL, read far more often than it is written, which makes it a caching problem more than a storage one.",
-          "Keys can be generated by base62-encoding a counter, or by hashing and handling collisions. A counter gives short sequential keys and leaks your volume to anyone who looks; hashing does not.",
-          "Redirects should be 301 or 302 deliberately. A 301 is cached by the browser, which is fast and makes click analytics impossible.",
-          "The scale is smaller than it looks. Seven base62 characters is about 3.5 trillion keys, and the hot set fits in memory on one machine. This is a question about which tradeoffs you notice, not about capacity.",
+          "The apparent problem is mapping a short code to a long URL, which is a hash table and would be a dull question. The real problem is generating the codes, and that is where every interesting decision lives.",
+          "Hashing the URL is the first instinct and it is wrong in a specific way. A hash truncated short enough to be a usable code will collide, so you need collision handling, and the same URL submitted twice produces the same code, which sounds like a feature until someone wants two codes with different analytics or different expiry.",
+          "A counter is better than it sounds. Take an incrementing number, encode it in base 62 using digits and both cases of the alphabet, and you have short codes with no collisions by construction. Seven characters of base 62 is about 3.5 trillion combinations, which is more than enough. The objection is that codes are sequential and therefore guessable, and the objection is correct: anyone can enumerate every link ever created. If links are ever private, this alone disqualifies it.",
+          "The usual answer is to keep the counter and break the sequence. Give each server a block of the range to hand out, so they do not coordinate on every request, and either encode the number through a reversible permutation or mix in random characters so consecutive ids do not produce consecutive codes.",
+          "Then the read path, which is where the traffic actually is. Reads outnumber writes by orders of magnitude and the mapping never changes once created, which is the ideal shape for caching. A cache in front of the store serves almost everything, and the redirect itself should be an HTTP 301 or 302 chosen deliberately: 301 is permanent and browsers cache it aggressively, which is fast and means you stop seeing the traffic, so anyone who wants click analytics must use 302 and accept the load.",
         ],
-        why: "The 301-versus-302 choice is the interesting decision. If you need per-click analytics you must use 302 and accept the traffic, because a cached 301 never reaches your server again.",
-        check: {
-          prompt: "A URL shortener redirects with 302 rather than 301. What does it gain, and what does it pay?",
-          options: [
-            "It gets a cacheable response, at the cost of never being able to change the target",
-            "It avoids a redirect chain, at the cost of a slower first resolution",
-            "It sees every click, at the cost of a request to its servers on each one",
-            "It signals permanence to search engines, at the cost of losing link equity",
+        why: "The lesson is that the interesting part of a system is rarely the part the question names. Storage here is trivial; identifier generation carries the trade-offs between coordination, guessability and length, and the redirect status code silently decides whether you have analytics at all.",
+        inPractice:
+          "The same identifier question appears everywhere: sequential integers leak volume and are enumerable, random UUIDs are unguessable and index poorly because they are not ordered, and something like a sortable random identifier is the usual compromise. Pick deliberately rather than by default.",
+        diagram: {
+          caption: "Writes allocate an id, reads are almost all cache",
+          columns: [
+            [{ id: "u", label: "Client", kind: "client" }],
+            [{ id: "api", label: "Shortener API", kind: "service" }],
+            [
+              { id: "alloc", label: "Id allocator", sub: "blocks per server", kind: "service" },
+              { id: "cache", label: "Cache", sub: "code to URL", kind: "data" },
+            ],
+            [{ id: "db", label: "Mapping store", sub: "immutable rows", kind: "data" }],
+            [{ id: "click", label: "Click events", sub: "if using 302", kind: "queue" }],
           ],
-          correctIndex: 2,
-          explain: "Permanent redirects are cached aggressively. That is a performance win and an analytics loss, so the answer depends on which you need.",
+          edges: [
+            { from: "u", to: "api", label: "shorten" },
+            { from: "api", to: "alloc", label: "next id" },
+            { from: "api", to: "db", label: "write once" },
+            { from: "u", to: "cache", label: "follow link" },
+            { from: "cache", to: "db", label: "on miss" },
+            { from: "cache", to: "click", async: true },
+          ],
         },
+        check: {
+          prompt: "Why is a plain incrementing counter, base 62 encoded, a problem for short codes?",
+          options: [
+            "Counters collide once the identifier space has been substantially consumed",
+            "Sequential codes are enumerable, so every link ever created can be discovered",
+            "Base 62 encoding produces codes too long to be useful as short links",
+            "A counter requires coordination on every request, which limits write throughput",
+          ],
+          correctIndex: 1,
+          explain:
+            "Counters do not collide, which is their appeal. The problem is that consecutive ids produce guessable codes, so anyone can walk the space and read every link. Fine for public links, disqualifying for anything else.",
+        },
+        checks: [
+          {
+            prompt: "Why does the choice between a 301 and a 302 redirect matter here?",
+            options: [
+              "A 301 is cached by browsers, so subsequent clicks never reach you or your analytics",
+              "A 302 allows the destination URL to be changed later, whereas a 301 does not",
+              "Search engines only follow 301 redirects, so 302 links are not indexed",
+              "A 301 requires the mapping to be immutable, which prevents link expiry",
+            ],
+            correctIndex: 0,
+            explain:
+              "Permanent redirects are cached aggressively, which is excellent for latency and load and fatal for click counting. If you want analytics you must serve a 302 and accept the traffic that comes with it.",
+          },
+          {
+            prompt: "Why give each server a block of the identifier range rather than a shared counter?",
+            options: [
+              "Blocks make identifiers unguessable without any further transformation",
+              "It avoids coordinating with a central counter on every single write",
+              "Ranges allow identifiers to be reused once links have expired",
+              "It guarantees identifiers are allocated in strict global time order",
+            ],
+            correctIndex: 1,
+            explain:
+              "A single shared counter is a synchronous dependency on the write path and a bottleneck. Handing out blocks means a server allocates locally and only coordinates when its block runs out.",
+          },
+        ],
       },
+
+      {
+        id: "rate-limiter",
+        title: "Rate limiter: four algorithms and the one you should reach for",
+        level: "intermediate",
+        body: [
+          "A rate limiter answers whether this caller may make this request now, and the algorithm chosen determines exactly how it behaves at the edges, which is where all the complaints come from.",
+          "A fixed window counts requests per calendar window: a hundred per minute, reset on the minute. It is trivial and it has an obvious flaw. A caller making a hundred requests at 10:00:59 and a hundred more at 10:01:00 has made two hundred in one second while never exceeding the stated limit. The boundary is a hole.",
+          "A sliding window log fixes it exactly by storing a timestamp per request and counting those within the last minute. It is precise, and it costs memory proportional to the request rate per caller, which for a busy API is a great deal of memory to spend on bookkeeping.",
+          "A sliding window counter is the usual compromise: keep the current and previous window counts and weight the previous one by how far into the current window you are. It approximates the sliding log closely, with two integers instead of a list.",
+          "A token bucket is different in kind and is usually the right answer. Tokens are added at a fixed rate up to a maximum, and each request consumes one. The rate sets the sustained throughput and the bucket size sets how large a burst is tolerated, which means bursts are permitted deliberately rather than as an artefact. Real traffic is bursty, and a limiter that forbids bursts entirely rejects requests that the system could comfortably have served.",
+          "Two implementation details matter more than the algorithm. Distributed limiters need shared state, and a strictly consistent counter puts a coordination round trip on every request; most systems accept approximate limits with eventually consistent state, because the goal is protecting the service rather than perfect accounting. And the limiter should tell the caller what happened: a 429 with RateLimit headers and Retry-After lets a well-behaved client back off correctly instead of guessing.",
+        ],
+        why: "The choice is really about what you want to happen at the boundary and during a burst. Fixed windows are cheap and wrong at the edges; logs are exact and expensive; token buckets encode the two things you actually care about, sustained rate and burst tolerance, as two independent numbers you can reason about.",
+        inPractice:
+          "Limits that are enforced but not reported are the ones callers complain about, because the first they know is a failure. Returning the limit, what remains, when it resets and how long to wait turns a rejection into information the client can act on.",
+        diagram: {
+          caption: "Token bucket: rate sets throughput, size sets the burst",
+          columns: [
+            [{ id: "c", label: "Caller", kind: "client" }],
+            [{ id: "lim", label: "Limiter", sub: "take a token", kind: "edge" }],
+            [
+              { id: "bucket", label: "Bucket", sub: "capacity, refill rate", kind: "data" },
+              { id: "shared", label: "Shared state", sub: "approximate", kind: "data" },
+            ],
+            [
+              { id: "svc", label: "Service", sub: "if a token was taken", kind: "service" },
+              { id: "rej", label: "429 with headers", sub: "limit, remaining, reset", kind: "service" },
+            ],
+          ],
+          edges: [
+            { from: "c", to: "lim" },
+            { from: "lim", to: "bucket", label: "token available" },
+            { from: "bucket", to: "shared", label: "eventually consistent", async: true },
+            { from: "lim", to: "svc", label: "allowed" },
+            { from: "lim", to: "rej", label: "empty bucket" },
+          ],
+        },
+        check: {
+          prompt: "What is the flaw in a fixed window rate limiter?",
+          options: [
+            "It requires storing a timestamp per request, which does not scale with volume",
+            "Bursts either side of a window boundary allow double the intended rate",
+            "Counters reset unpredictably when servers are added or removed",
+            "It cannot express a burst allowance separately from a sustained rate",
+          ],
+          correctIndex: 1,
+          explain:
+            "A hundred requests at the end of one window and a hundred at the start of the next is two hundred within a second or two, without ever breaching the stated limit. The boundary is a hole and callers find it.",
+        },
+        checks: [
+          {
+            prompt: "Why is a token bucket usually preferred over a sliding window counter?",
+            options: [
+              "It expresses sustained rate and burst tolerance as two independent numbers",
+              "It requires less shared state in a distributed deployment than counters do",
+              "It is the only algorithm that can be implemented without a shared clock",
+              "Token buckets are exact, whereas sliding window counters are approximate",
+            ],
+            correctIndex: 0,
+            explain:
+              "Real traffic arrives in bursts, and the two things you want to control are how much sustained load is allowed and how large a spike is tolerable. The bucket makes those the refill rate and the capacity, so you can reason about each on its own.",
+          },
+          {
+            prompt: "Why do most distributed rate limiters accept approximate rather than exact counting?",
+            options: [
+              "Exact counting is impossible when servers are in different regions",
+              "Exactness needs coordination per request, and the goal is protection",
+              "Approximate counters use less memory than exact ones at high request rates",
+              "Rate limits are advisory, so precision has no effect on client behaviour",
+            ],
+            correctIndex: 1,
+            explain:
+              "A strictly consistent counter puts a coordination round trip in front of every request, which is a cost paid constantly to prevent a caller occasionally getting a few extra. The limiter exists to protect the service, and approximate does that.",
+          },
+        ],
+      },
+
       {
         id: "ticket-booking",
-        title: "Ticket booking and seat reservation",
+        title: "Ticket booking: the seat that two people want",
         level: "advanced",
         body: [
-          "The defining constraint is that a seat must not be sold twice, under a load spike concentrated on a few popular events.",
-          "Seats are held with a short-lived reservation, typically a few minutes, created atomically, so a user has exclusive claim while paying.",
-          "Expired holds must be released reliably, which means a background reaper or a TTL, not just an application timer.",
+          "Selling a finite inventory of unique items to concurrent buyers is one of the few genuinely hard consistency problems that appears in ordinary products. Two people click the same seat within milliseconds and exactly one must get it. There is no eventual consistency answer that is acceptable, because the failure is selling one seat twice.",
+          "Optimistic concurrency is usually the right mechanism. Each seat carries a version, and the update says set this seat to sold where the version is still what I read. One update matches and succeeds; the other matches nothing and fails, and its buyer is told the seat has gone. No locks are held while a human decides, which matters because humans are slow and a lock held across a checkout flow is a lock held for minutes.",
+          "The reservation window is where the design gets interesting, because a purchase is not instant. A buyer needs time to enter payment details, so the seat is held. Holding it forever means abandoned baskets consume the inventory; not holding it means someone completes payment for a seat that has just gone, which is far worse. So holds carry an expiry, typically a few minutes, and expired holds are released. The expiry must be enforced by the system rather than by the client, because a browser that closed will never tell you anything.",
+          "The queue is what makes a high-demand sale survivable. Ten thousand people arriving for a hundred seats will collapse a system that lets all of them into the checkout, and the answer is a virtual waiting room that admits people at the rate the inventory system can actually serve. It converts an unbounded spike into a controlled flow, and it is more honest with the customer than a page that fails.",
+          "Payment failure is the last piece and needs care. A hold succeeds, payment fails, the seat must return to inventory. But payment failure is sometimes ambiguous, as a timeout tells you nothing about whether the charge succeeded, so the resolution needs an idempotency key and a reconciliation step rather than an immediate guess.",
         ],
-        why: "This is where optimistic concurrency stops working. Under contention for the same rows, optimistic retries mostly fail, so an explicit hold with a TTL is the correct model.",
-        check: {
-          prompt: "Why hold a seat rather than only checking availability at payment time?",
-          options: [
-            "The seat map would have to be re-read on every page, which is expensive",
-            "Payment providers require the item reserved before a charge is authorised",
-            "Refunds are harder than holds, so failing early is cheaper operationally",
-            "Without an exclusive hold, two users both pass the check and both pay",
+        why: "The principle is to hold locks for as short a time as possible and never across a human. Optimistic concurrency lets you detect the conflict at the moment of commit instead of preventing it for minutes beforehand, and a time-bounded reservation gives the human their thinking time without giving them a lock.",
+        inPractice:
+          "Any limited resource has this shape: appointment slots, inventory, licences, meeting rooms. The two questions are always the same, which are what happens when two requests collide, and what happens when someone starts and does not finish.",
+        diagram: {
+          caption: "Admit at a controlled rate, hold with an expiry, commit optimistically",
+          columns: [
+            [{ id: "buyers", label: "Buyers", sub: "a spike", kind: "client" }],
+            [{ id: "room", label: "Waiting room", sub: "admits at a rate", kind: "edge" }],
+            [{ id: "hold", label: "Reservation", sub: "expires in minutes", kind: "service" }],
+            [
+              { id: "seats", label: "Seat inventory", sub: "versioned rows", kind: "data" },
+              { id: "pay", label: "Payment", sub: "idempotent", kind: "external" },
+            ],
+            [{ id: "sweeper", label: "Expiry sweeper", sub: "releases abandoned", kind: "service" }],
           ],
-          correctIndex: 3,
-          explain: "The gap between checking and paying is where the race lives. An atomic hold closes it, and the TTL stops abandoned carts locking inventory forever.",
+          edges: [
+            { from: "buyers", to: "room" },
+            { from: "room", to: "hold", label: "admitted" },
+            { from: "hold", to: "seats", label: "conditional update" },
+            { from: "hold", to: "pay", label: "with a key" },
+            { from: "sweeper", to: "seats", label: "release expired", async: true },
+          ],
         },
+        check: {
+          prompt: "Why use optimistic concurrency rather than locking the seat while the buyer pays?",
+          options: [
+            "Optimistic updates are faster, since they avoid a round trip to acquire the lock",
+            "A lock held across a human's checkout is held for minutes, blocking everyone else",
+            "Locks cannot be applied to individual rows in most transactional databases",
+            "Optimistic concurrency allows two buyers to hold the same seat safely",
+          ],
+          correctIndex: 1,
+          explain:
+            "Humans are slow. A pessimistic lock taken when someone selects a seat is held while they find their card, and that is minutes of exclusive access. Optimistic concurrency detects the conflict at commit instead, which takes microseconds.",
+        },
+        checks: [
+          {
+            prompt: "Why must reservation expiry be enforced by the server rather than the client?",
+            options: [
+              "Clients cannot measure elapsed time accurately enough to expire a hold",
+              "A browser that was closed will never send anything to release the seat",
+              "Server-side expiry allows the hold duration to be changed per event",
+              "Client-side expiry would allow buyers to extend their own reservations",
+            ],
+            correctIndex: 1,
+            explain:
+              "Abandonment is the normal case, not the exception. If release depends on the client doing something, every closed tab permanently consumes inventory, so the system has to expire holds on its own schedule.",
+          },
+          {
+            prompt: "What does a virtual waiting room actually solve?",
+            options: [
+              "It converts an unbounded spike into a flow the inventory system can serve",
+              "It ensures buyers are served strictly in the order they arrived",
+              "It prevents automated clients from participating in a high-demand sale",
+              "It allows inventory to be partitioned across several independent systems",
+            ],
+            correctIndex: 0,
+            explain:
+              "Ten thousand people arriving for a hundred seats will collapse a checkout that admits all of them. Admitting at the rate the system can genuinely handle turns a failure into a queue, which is also more honest with the customer.",
+          },
+        ],
       },
+
       {
         id: "file-sync",
-        title: "File sync, Dropbox style",
+        title: "File sync: conflicts are not an edge case",
         level: "advanced",
         body: [
-          "Files are split into chunks, each hashed. Only chunks whose hash changed are uploaded, so editing one page of a large document transfers very little.",
-          "Identical chunks across users are stored once, which is deduplication and a large storage saving.",
-          "Conflicts happen when two devices edit while offline. The usual resolution is to keep both as a conflicted copy instead of silently picking a winner.",
+          "Syncing files across devices sounds like copying and is not. The moment two devices can edit while offline, you have concurrent writes without coordination, and the interesting question is not how to move bytes but what to do when both changed.",
+          "The transfer itself has a well-known optimisation: split files into content-addressed chunks. A file becomes a list of chunk hashes, and syncing means transferring only the chunks the other side lacks. Change one paragraph in a large document and one chunk moves. Chunking also gives deduplication for free, since identical chunks anywhere are stored once, which is why uploading a file someone else already has can be nearly instant.",
+          "Detecting conflict needs causality rather than timestamps. Wall clocks on two devices disagree, and last-write-wins by timestamp silently discards edits when a clock is wrong. Version vectors record what each device had seen when it wrote, which makes it possible to distinguish a genuine concurrent edit from one device simply being behind.",
+          "Once detected, something must resolve it, and the honest options are limited. Automatic merge works for structured data with defined semantics and not for arbitrary binary files. Last-write-wins is simple and loses work. Keeping both versions, which is what most sync products do, is the only option that never destroys data, and it hands the problem to the person, which is where it belongs when the system genuinely cannot know.",
+          "Deletion is the subtle one. A file deleted on one device and edited on another is ambiguous, and worse, a deletion cannot simply be the absence of a file, because absence is indistinguishable from never having received it. Deletions must be recorded as explicit tombstones that propagate, and tombstones have to be retained long enough for every device to see them, including one that has been offline for months.",
         ],
-        why: "Content-addressed chunking gives deduplication, delta sync and integrity checking from one idea. Preferring a conflicted copy over automatic merge is a deliberate choice: silent data loss is worse than a confusing filename.",
-        check: {
-          prompt: "Why hash file chunks rather than whole files?",
-          options: [
-            "Only changed chunks upload, and identical chunks are stored once for everyone",
-            "Chunk hashes are shorter, so the whole index of them fits in memory",
-            "A whole-file hash changes on any edit, so nothing could ever be cached",
-            "Chunks can be verified in parallel, which a single file hash cannot be",
+        why: "The lesson is that offline editing makes conflict a normal operating condition rather than an exception, so the design must have an answer before it ships. The systems that go wrong are the ones that treat conflict as rare, because the resolution path is then written late, under pressure, by someone guessing.",
+        inPractice:
+          "Any offline-capable client faces this: mobile apps with local storage, collaborative editors, distributed caches with local writes. The question to answer first is what happens when two people change the same thing while disconnected, and never-lose-data is usually a better default than automatically-resolve.",
+        diagram: {
+          caption: "Chunk, compare, and decide what a conflict means",
+          columns: [
+            [
+              { id: "d1", label: "Device A", sub: "edits offline", kind: "client" },
+              { id: "d2", label: "Device B", sub: "edits offline", kind: "client" },
+            ],
+            [{ id: "chunk", label: "Chunker", sub: "content addressed", kind: "service" }],
+            [
+              { id: "meta", label: "Metadata", sub: "version vectors", kind: "data" },
+              { id: "blobs", label: "Chunk store", sub: "deduplicated", kind: "data" },
+            ],
+            [{ id: "res", label: "Conflict handling", sub: "keep both", kind: "service" }],
           ],
-          correctIndex: 0,
-          explain: "Chunk-level hashing gives delta sync and cross-user deduplication together. A whole-file hash tells you only that something changed.",
+          edges: [
+            { from: "d1", to: "chunk" },
+            { from: "d2", to: "chunk" },
+            { from: "chunk", to: "blobs", label: "missing chunks only" },
+            { from: "chunk", to: "meta", label: "what each device saw" },
+            { from: "meta", to: "res", label: "concurrent edit detected" },
+            { from: "res", to: "d1", label: "both versions" },
+            { from: "res", to: "d2", label: "both versions" },
+          ],
         },
+        check: {
+          prompt: "Why use version vectors rather than timestamps to detect conflicting edits?",
+          options: [
+            "Version vectors are smaller to store than timestamps at scale",
+            "Clocks on separate devices disagree, so timestamps silently discard real edits",
+            "Timestamps cannot be compared across different operating systems",
+            "Version vectors allow conflicts to be resolved without user involvement",
+          ],
+          correctIndex: 1,
+          explain:
+            "Last-write-wins by wall clock means a device with a wrong clock can overwrite newer work, and nobody finds out. Version vectors record causality, which distinguishes a true concurrent edit from one device being behind.",
+        },
+        checks: [
+          {
+            prompt: "Why must deletions be recorded as explicit tombstones?",
+            options: [
+              "Tombstones allow deleted files to be recovered within a retention window",
+              "An absent file is indistinguishable from one that was never received",
+              "Deletions must be ordered relative to edits, which requires a record",
+              "Storage engines cannot propagate the absence of a chunk between devices",
+            ],
+            correctIndex: 1,
+            explain:
+              "If deletion is just absence, a device that never received a file looks identical to one where it was deleted, so the file gets resurrected. An explicit tombstone propagates the fact of the deletion, and must be retained until every device has seen it.",
+          },
+          {
+            prompt: "Why do most sync products keep both versions on conflict rather than merging?",
+            options: [
+              "Merging is computationally expensive for files of significant size",
+              "Merge is impossible for arbitrary binary content, and losing work is worse",
+              "Keeping both versions uses less storage than storing a merged result",
+              "Users expect to see the conflict rather than have it resolved for them",
+            ],
+            correctIndex: 1,
+            explain:
+              "Merge needs semantics, and a system cannot merge two versions of an arbitrary file without understanding its format. Given a choice between guessing and keeping both, keeping both never destroys work, and the person can decide.",
+          },
+        ],
+      },
+
+      {
+        id: "distributed-cache",
+        title: "Distributed cache: hashing, stampedes and the hot key",
+        level: "advanced",
+        body: [
+          "A cache spread across many nodes needs an answer to which node holds a given key, and the naive answer breaks badly. Hashing the key modulo the node count means adding or removing one node changes the destination of almost every key at once, so a single node joining invalidates the entire cache and sends the full load to the origin.",
+          "Consistent hashing fixes this. Nodes and keys are placed on a ring, and a key belongs to the next node clockwise, so adding a node reassigns only the keys between it and its predecessor. Virtual nodes, several ring positions per physical node, are what make the distribution even, because a handful of random positions produces very uneven arcs.",
+          "The cache stampede is the failure that catches people. A popular key expires, and every request that wanted it simultaneously misses and goes to the origin, which now receives the full unmitigated load for that key at once. The fixes are to have one request recompute while others wait or serve stale, and to jitter expiry times so a batch of keys written together does not expire together.",
+          "A hot key is a different problem with a similar smell. Consistent hashing distributes keys evenly and says nothing about traffic, so one extremely popular key sends all of its traffic to one node however many nodes you have. The answers are local caching in front of the distributed one, or replicating that key deliberately across several nodes.",
+          "Eviction policy is the last decision and it is usually less important than people think, with one exception. Least-recently-used is the sensible default. The exception is a scan, where something walks a large number of keys once, evicting everything useful in favour of things that will never be read again. This is why some systems segment the cache so a scan cannot evict the working set.",
+        ],
+        why: "The pattern across all three failures is that uniformity in one dimension does not give uniformity in another. Consistent hashing distributes keys evenly while traffic remains skewed; simultaneous expiry distributes storage evenly while creating a synchronised event. Ask what is uniform and what is not, because the failure is always in the dimension you did not consider.",
+        inPractice:
+          "Jittering expiry is the cheapest lesson here and the most widely applicable. Anything scheduled together, cache entries, retries, cron jobs, token refreshes, will fire together and produce a spike unless you deliberately spread it.",
+        diagram: {
+          caption: "Ring placement, one recompute per key, replication for hot keys",
+          columns: [
+            [{ id: "app", label: "Application", kind: "client" }],
+            [{ id: "local", label: "Local cache", sub: "absorbs hot keys", kind: "data" }],
+            [{ id: "ring", label: "Consistent hash", sub: "virtual nodes", kind: "service" }],
+            [
+              { id: "n1", label: "Cache node", kind: "data" },
+              { id: "n2", label: "Cache node", kind: "data" },
+              { id: "n3", label: "Cache node", kind: "data" },
+            ],
+            [{ id: "origin", label: "Origin", sub: "one recompute per key", kind: "service" }],
+          ],
+          edges: [
+            { from: "app", to: "local" },
+            { from: "local", to: "ring", label: "on miss" },
+            { from: "ring", to: "n1" },
+            { from: "ring", to: "n2" },
+            { from: "ring", to: "n3" },
+            { from: "n2", to: "origin", label: "single flight, others wait" },
+          ],
+        },
+        check: {
+          prompt: "Why is hashing a key modulo the node count a poor way to place cache keys?",
+          options: [
+            "It distributes keys unevenly when the node count is not a prime number",
+            "Adding or removing one node relocates nearly every key at once",
+            "Modulo hashing cannot be computed quickly enough at high request rates",
+            "It requires every client to know the full list of nodes in advance",
+          ],
+          correctIndex: 1,
+          explain:
+            "Change the divisor and almost every key maps somewhere new, so one node joining empties the cache and sends the entire load to the origin. Consistent hashing moves only the keys belonging to the arc that changed.",
+        },
+        checks: [
+          {
+            prompt: "What is a cache stampede and what actually prevents it?",
+            options: [
+              "Too many keys evicted at once; prevented by increasing the cache size",
+              "Simultaneous misses on one expired key; prevented by one recompute while others wait",
+              "Uneven key distribution across nodes; prevented by adding virtual nodes",
+              "Clients retrying failed reads; prevented by exponential backoff on the client",
+            ],
+            correctIndex: 1,
+            explain:
+              "A popular key expires and every concurrent request misses together, delivering the full load to the origin in an instant. Letting one request recompute while the rest wait or serve stale collapses that into a single origin call.",
+          },
+          {
+            prompt: "Why does consistent hashing not solve the hot key problem?",
+            options: [
+              "It distributes keys evenly, and a single key's traffic still lands on one node",
+              "Hot keys are usually larger, so they occupy a disproportionate share of memory",
+              "Virtual nodes cause hot keys to be replicated unpredictably across the ring",
+              "It only balances reads, leaving writes concentrated on the primary node",
+            ],
+            correctIndex: 0,
+            explain:
+              "Even key distribution says nothing about traffic distribution. One key receiving a million requests a second maps to exactly one node no matter how many you have, so the fix is local caching or deliberate replication of that key.",
+          },
+        ],
+      },
+
+      {
+        id: "notifications",
+        title: "Notifications: fan-out with a person on the other end",
+        level: "intermediate",
+        body: [
+          "A notification system takes an event and delivers it to people across channels: push, email, in-app, sometimes SMS. The infrastructure is a fan-out problem and the hard part is not the fan-out, it is deciding what deserves to be sent at all.",
+          "Structurally it is a pipeline. An event arrives, preferences are resolved to decide who wants what through which channel, messages are rendered, and each channel is dispatched through its own provider. Every stage can fail independently, and channels have wildly different characteristics: push is fast and unreliable, email is slow and durable, SMS costs real money per message.",
+          "So delivery has to be per-channel rather than per-notification. Retrying a push aggressively is fine; retrying an SMS aggressively costs money and irritates someone. Each channel needs its own retry policy, its own rate limits and its own failure handling, which is why treating them uniformly behind one abstraction usually goes wrong.",
+          "Deduplication and batching are what make the system tolerable to receive. Ten people commenting produces ten events and should produce one notification saying ten people commented. This is a windowing problem, and the window is a product decision rather than a technical one: too short and it fragments, too long and it arrives after it mattered.",
+          "Preferences must be enforced at the point of sending, not at the point of subscribing. People change their minds, unsubscribe, mute a thread, or turn off a category, and any of those can happen between an event being queued and it being delivered. Checking at queue time means a message sent minutes after someone unsubscribed, which is at best rude and, for marketing categories, potentially unlawful.",
+          "Finally, quiet hours and priority. A security alert should wake someone; a weekly digest should not. Without a priority model everything becomes urgent, and once everything is urgent people turn all of it off, which is the real failure mode of notification systems.",
+        ],
+        why: "The design lesson is that the constraint is human attention rather than throughput. Any notification system can deliver more than people will read, so the valuable engineering is in suppression: deduplicating, batching, respecting preferences at send time and distinguishing what is worth interrupting someone for.",
+        inPractice:
+          "The alerting equivalent is exactly the same problem. A monitoring system that pages on everything trains people to ignore pages, so the engineering that matters is grouping related alerts, suppressing known conditions and reserving the loud channel for things a human must act on now.",
+        diagram: {
+          caption: "Resolve, batch, then dispatch per channel with its own rules",
+          columns: [
+            [{ id: "ev", label: "Event", sub: "something happened", kind: "queue" }],
+            [{ id: "pref", label: "Preference resolution", sub: "who, which channel", kind: "service" }],
+            [{ id: "batch", label: "Dedupe and batch", sub: "windowed", kind: "service" }],
+            [
+              { id: "push", label: "Push", sub: "fast, unreliable", kind: "external" },
+              { id: "mail", label: "Email", sub: "slow, durable", kind: "external" },
+              { id: "sms", label: "SMS", sub: "costly per message", kind: "external" },
+            ],
+            [{ id: "check", label: "Send-time check", sub: "still subscribed", kind: "service" }],
+          ],
+          edges: [
+            { from: "ev", to: "pref" },
+            { from: "pref", to: "batch" },
+            { from: "batch", to: "check", label: "before dispatch" },
+            { from: "check", to: "push" },
+            { from: "check", to: "mail" },
+            { from: "check", to: "sms" },
+          ],
+        },
+        check: {
+          prompt: "Why check notification preferences at send time rather than when the event is queued?",
+          options: [
+            "Queue-time checks would require storing preferences alongside every event",
+            "Someone can unsubscribe between the event being queued and delivered",
+            "Send-time checks allow the channel to be selected based on current load",
+            "Preferences cannot be resolved until the message has been rendered",
+          ],
+          correctIndex: 1,
+          explain:
+            "There is a real gap between queueing and delivery, and people change their minds inside it. Checking at queue time means messages arriving after someone opted out, which is rude at best and unlawful for some categories.",
+        },
+        checks: [
+          {
+            prompt: "Why should each channel have its own retry policy?",
+            options: [
+              "Providers reject retries that arrive faster than their published rate limits",
+              "Their characteristics differ: retrying push is free, retrying SMS costs money",
+              "Retries must be ordered consistently across channels to avoid duplicates",
+              "Each channel uses a different message format, so retries must be re-rendered",
+            ],
+            correctIndex: 1,
+            explain:
+              "Push is fast, free and unreliable, so retry hard. SMS costs real money per attempt and irritates the recipient. One uniform retry policy across channels is either too timid for push or too expensive for SMS.",
+          },
+          {
+            prompt: "What is the actual failure mode of a notification system without a priority model?",
+            options: [
+              "Delivery latency rises because every message competes for the same capacity",
+              "Everything becomes urgent, so people disable all of it and miss what mattered",
+              "Providers throttle the sender for exceeding their per-recipient limits",
+              "Batching windows cannot be tuned without a way to rank the events",
+            ],
+            correctIndex: 1,
+            explain:
+              "Attention is the scarce resource. If a digest interrupts as loudly as a security alert, people turn notifications off wholesale, and the one that genuinely needed a response is the one that gets missed.",
+          },
+        ],
       },
     ],
   },
+
 ];

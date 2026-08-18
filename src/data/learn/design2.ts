@@ -711,10 +711,12 @@ export const design2: Card[] = [
         title: "Authentication and authorisation",
         level: "beginner",
         body: [
-          "Authentication establishes who you are. Authorisation decides what you may do. They fail differently, and they are constantly confused in code.",
-          "Most serious access-control bugs are authorisation bugs. The user is correctly identified, and the system simply never checks whether this user may touch this particular record.",
-          "The reason is structural. Authentication happens once, in one place, so it is hard to forget. Authorisation happens on every request against every resource, so it is easy to miss exactly one.",
-          "Which is why the durable fix is to check ownership where the data is fetched rather than in each handler. A query that cannot return another tenant's row is safer than a hundred handlers that each have to remember to ask.",
+          "Authentication establishes who you are. Authorisation decides what you may do. They fail differently, they are fixed differently, and they are confused constantly in both code and conversation.",
+          "Most serious access-control bugs are authorisation bugs. The user is correctly identified, the session is valid, and the system simply never checks whether this particular user may touch this particular record. Changing an identifier in a URL and seeing someone else's data has sat near the top of the OWASP list for years, and it is not a clever attack; it is a missing line.",
+          "The reason is structural rather than careless. Authentication happens once, in one place, at the edge, so it is nearly impossible to forget. Authorisation happens on every request against every resource, in every handler, so forgetting exactly one is the default outcome as a codebase grows. Counting on discipline across two hundred endpoints is not a security model.",
+          "The durable fix is to make the check impossible to skip by moving it to where the data is fetched. A repository whose queries always carry the tenant or owner constraint cannot return another tenant's row, whatever the handler above it forgot. Row-level security in the database is the strongest version of the same idea, since it holds even for a query someone writes by hand during an incident.",
+          "Then there is the model itself. Role-based access control assigns permissions to roles and roles to users, which is simple and gets awkward when the answer depends on the object rather than the person: the same editor may edit their own drafts and not someone else's. Attribute-based rules describe the condition instead, and relationship-based systems, like Google's Zanzibar, store who is related to what and answer questions about the graph. Most products start with roles and grow a relationship model whether or not they name it.",
+          "Two rules survive every model. Deny by default, so a missing rule refuses rather than permits, and check on every request rather than only when rendering a link, because the button being hidden is not a control when the endpoint is still open.",
         ],
         why: "Insecure direct object reference, changing an id in a URL and seeing someone else's data, is consistently among the most common real vulnerabilities, and it is purely a missing authorisation check.",
         check: {
@@ -728,16 +730,75 @@ export const design2: Card[] = [
           correctIndex: 1,
           explain: "They authenticated correctly. Nothing verified that this invoice belongs to them, which is an authorisation failure.",
         },
+        checks: [
+          {
+            prompt: "Why do authorisation bugs outnumber authentication bugs so heavily?",
+            options: [
+              "Authentication libraries are mature, and authorisation ones are not",
+              "Authentication is checked once centrally; authorisation on every request",
+              "Authorisation runs after the data is loaded, so failures come too late",
+              "Authentication failures are visible immediately, so they get fixed first",
+            ],
+            correctIndex: 1,
+            explain:
+              "One check in one place is hard to forget. Hundreds of checks across every handler and every resource means forgetting exactly one is the normal outcome, which is why the check belongs where the data is fetched.",
+          },
+          {
+            prompt: "A UI hides the delete button for users without permission. Is that an access control?",
+            options: [
+              "Yes, provided the same role check is applied when rendering the page",
+              "Yes, since a user cannot issue a request the interface never offers",
+              "No, the endpoint is still reachable by anyone who sends the request",
+              "No, unless the button is removed from the server-rendered markup",
+            ],
+            correctIndex: 2,
+            explain:
+              "Hiding a control changes what is convenient, not what is possible. Anyone can send the request directly, so the check has to exist on the server for every request that acts.",
+          },
+          {
+            prompt: "What makes row-level security in the database stronger than a check in the handler?",
+            options: [
+              "It applies to every query, including ones written by hand later",
+              "It runs before authentication, so unauthenticated access is impossible",
+              "It is enforced by the connection pool rather than by application code",
+              "It cannot be bypassed by an administrator with database credentials",
+            ],
+            correctIndex: 0,
+            explain:
+              "The constraint lives where the data is rather than in the path that happens to be reading it, so a new endpoint, a script, or a query typed during an incident all inherit it.",
+          },
+        ],
+        diagram: {
+          caption: "Put the check where the data is, not in every handler",
+          columns: [
+            [{ id: "req", label: "Request", sub: "authenticated", kind: "client" }],
+            [
+              { id: "h1", label: "Handler A", sub: "remembers to check", kind: "service" },
+              { id: "h2", label: "Handler B", sub: "forgot", kind: "service", alternative: true },
+            ],
+            [{ id: "repo", label: "Repository", sub: "tenant always in the query", kind: "service" }],
+            [{ id: "db", label: "Database", sub: "row-level security", kind: "data" }],
+          ],
+          edges: [
+            { from: "req", to: "h1", label: "fetch invoice" },
+            { from: "req", to: "h2", label: "fetch invoice" },
+            { from: "h1", to: "repo", label: "scoped" },
+            { from: "h2", to: "repo", label: "still scoped" },
+            { from: "repo", to: "db", label: "cannot return another tenant" },
+          ],
+        },
       },
       {
         id: "sessions-vs-jwt",
         title: "Sessions or JWTs",
         level: "intermediate",
         body: [
-          "A session id is a reference. The server holds the state, can revoke it instantly, and pays a lookup on every request.",
-          "A JWT carries its claims and a signature, so it validates without a lookup, and that is exactly why it cannot be revoked before it expires.",
-          "The usual compromise is short-lived access tokens alongside longer-lived refresh tokens that can be revoked.",
-          "Worth saying plainly: for one application talking to a database it already has open, a session is simpler and better. JWTs earn their keep when the validating service cannot reach your session store, across services, across companies, or at an edge with no database at all.",
+          "A session id is a reference: an opaque random string that means nothing on its own. The server holds the state it points at, can change or delete it instantly, and pays a lookup on every request. That lookup is a cache hit in practice, measured in a fraction of a millisecond, which is worth remembering when statelessness is being justified on performance grounds.",
+          "A JWT carries its claims and a signature, so any service holding the public key can validate it without asking anyone. That is the entire feature, and the cost follows directly from it: a token that validates locally cannot be revoked locally, because revocation is shared state and shared state is what the design removed. A user who logs out, an employee who is dismissed, a token that leaks: each stays valid until it expires.",
+          "The usual compromise is a short-lived access token, minutes rather than hours, alongside a longer-lived refresh token that is stored server side and can be revoked. That is a session with extra steps, and it is the right answer when the validating services genuinely cannot reach a shared store. It is worth being honest that the revocation window is now the access token lifetime, and choosing that number is choosing how long a compromised token keeps working.",
+          "Where the token is stored matters as much as its format. A cookie with HttpOnly is unreadable by JavaScript, which removes the main consequence of a cross-site scripting bug, and needs SameSite and a CSRF defence because the browser attaches it automatically. Local storage is readable by any script on the page, so one compromised dependency takes every token, and it is chosen mainly because it is convenient for a single-page application.",
+          "The claims themselves need care. Verify the signature before reading anything, reject the none algorithm outright, check the issuer and audience so a token minted for another service is not accepted by yours, and keep the payload small because it travels on every request and is readable by anyone holding it. A JWT is signed, not encrypted; putting anything private in it publishes it.",
+          "Said plainly: for one application talking to a database it already has open, a session is simpler, revocable and better. JWTs earn their keep when the validator cannot reach your store, across services, across companies, or at an edge with no database at all.",
         ],
         why: "JWTs are frequently chosen for statelessness and then paired with a revocation list, which reintroduces the lookup and leaves you with the drawbacks of both.",
         check: {
@@ -752,15 +813,56 @@ export const design2: Card[] = [
           explain:
             "Validation is local by design, and revocation needs shared state, precisely what the token was chosen to avoid. Rotating the signing key does revoke it, but it revokes everyone's at once, which is a blast radius rather than a mechanism.",
         },
+        checks: [
+          {
+            prompt: "Why is an HttpOnly cookie usually safer than local storage for a token?",
+            options: [
+              "Cookies are encrypted by the browser before being written to disk",
+              "Any script on the page can read local storage, including a dependency",
+              "Local storage is shared between subdomains, so tokens leak sideways",
+              "Cookies expire automatically, whereas local storage persists forever",
+            ],
+            correctIndex: 1,
+            explain:
+              "HttpOnly keeps the token out of reach of JavaScript, so a cross-site scripting bug or a compromised package cannot exfiltrate it. The price is CSRF protection, because the browser now sends it automatically.",
+          },
+          {
+            prompt: "Which check is most often missed when validating a JWT?",
+            options: [
+              "That the signature matches, which some libraries skip by default",
+              "That the token has not expired, which requires a synchronised clock",
+              "That the issuer and audience match this service, not another one",
+              "That the payload is small enough to fit within header size limits",
+            ],
+            correctIndex: 2,
+            explain:
+              "A validly signed token issued for a different service will pass a naive check. Verifying issuer and audience is what stops a token minted elsewhere in the same estate being accepted here.",
+          },
+          {
+            prompt: "A team adds a revocation list to their JWT setup. What have they built?",
+            options: [
+              "A session, with an extra signature and a lookup on every request",
+              "A refresh token flow, which is the standard remedy for revocation",
+              "A blocklist that scales better than sessions, since entries are short-lived",
+              "A stateless system, since the list can be replicated to every validator",
+            ],
+            correctIndex: 0,
+            explain:
+              "The lookup that statelessness was meant to remove is back, and the signature is now doing work a session id already did. It is sometimes the right answer, and it should be chosen knowingly rather than arrived at.",
+          },
+        ],
       },
       {
         id: "oauth",
         title: "OAuth and OpenID Connect",
         level: "advanced",
         body: [
-          "OAuth is delegated authorisation: it lets an application act on a user's behalf without holding their password. It is not a login protocol.",
-          "OpenID Connect is the layer on top that adds identity, returning an ID token describing who the user is.",
-          "'Sign in with Google' is OpenID Connect. Using raw OAuth for login means inferring identity from an access token, which is the source of several classic vulnerabilities.",
+          "OAuth is delegated authorisation: it lets an application act on a user's behalf without ever holding their password. The user is sent to the provider, approves a specific scope, and the application receives a token that grants exactly that. It is not a login protocol, and the many systems that treat it as one have a class of vulnerability in common.",
+          "OpenID Connect is the thin layer on top that adds identity. Alongside the access token it returns an ID token, a signed JWT stating who the user is, which issuer authenticated them, which client it was issued for and when. Sign in with Google is OIDC. Inferring identity from an access token instead is the classic mistake, because an access token proves the bearer may call an API and says nothing about who the bearer is.",
+          "The flow worth knowing in detail is authorisation code with PKCE, which is now the recommendation for every client type rather than only for mobile. The application redirects the user with a challenge derived from a secret it keeps, the provider returns a short-lived code through the browser, and the application exchanges that code plus the original secret for tokens over a back channel. The code alone is useless to anyone who intercepts it, which is what PKCE exists to guarantee.",
+          "Two parameters carry most of the remaining security. The redirect URI must be matched exactly against a registered value, because a wildcard or a loose prefix lets an attacker have the code delivered to a host they control. The state parameter must be generated, sent and verified on return, since it is the cross-site request forgery defence for the callback and skipping it is easy because everything works without it.",
+          "The implicit flow, which returned tokens directly in the URL fragment, is deprecated for good reason: tokens ended up in browser history, in referrer headers and in server logs. If you find it in an existing integration, that is a finding rather than a style preference.",
+          "Scopes deserve a moment of thought rather than a copied list. Ask for the narrowest scope that does the job, because the consent screen is where users decide whether to trust you and because a token stolen from you can do whatever it was granted. An integration that requests full account access to read a profile is both a security risk and a conversion problem.",
         ],
         why: "Conflating the two is the common error. If you need to know who the user is, you want OIDC's ID token, not an access token that merely proves you may call an API.",
         check: {
@@ -774,16 +876,75 @@ export const design2: Card[] = [
           correctIndex: 3,
           explain: "OAuth grants access to resources. OIDC adds authenticated identity, which is what login actually requires.",
         },
+        checks: [
+          {
+            prompt: "What does PKCE protect against in the authorisation code flow?",
+            options: [
+              "An intercepted authorisation code being exchanged by an attacker",
+              "A user approving a scope broader than the application requested",
+              "A provider issuing a token for the wrong audience by mistake",
+              "An access token being replayed after the user has signed out",
+            ],
+            correctIndex: 0,
+            explain:
+              "The code travels through the browser and can be captured. Without the original secret behind the challenge, the code cannot be exchanged, which is why PKCE is now recommended for every client type.",
+          },
+          {
+            prompt: "Why must the redirect URI be matched exactly rather than by prefix?",
+            options: [
+              "A prefix match breaks when the provider appends query parameters",
+              "Exact matching is required for the state parameter to be verified",
+              "A loose match lets an attacker have the code delivered to their host",
+              "Providers cache the redirect target, so it must never change shape",
+            ],
+            correctIndex: 2,
+            explain:
+              "Anything that widens the match widens where the code can be sent. Since the code is the credential in flight, a redirect an attacker controls is a full account takeover in a single step.",
+          },
+          {
+            prompt: "An integration needs the user's name and email. Which scope request is appropriate?",
+            options: [
+              "Full account access, which avoids a second consent prompt later",
+              "The narrowest scope covering profile and email, and nothing more",
+              "Read and write on the profile, so it can keep the details in sync",
+              "Whatever scope the provider marks as recommended for new clients",
+            ],
+            correctIndex: 1,
+            explain:
+              "The token you hold is the token an attacker holds if you are compromised, and the consent screen is where users decide whether to trust you. Both argue for the smallest scope that does the job.",
+          },
+        ],
+        diagram: {
+          caption: "Authorisation code with PKCE: the code is useless without the verifier",
+          columns: [
+            [{ id: "u", label: "User", sub: "redirected", kind: "client" }],
+            [{ id: "app", label: "Application", sub: "keeps the verifier", kind: "service" }],
+            [{ id: "idp", label: "Provider", sub: "authenticates", kind: "external" }],
+            [
+              { id: "code", label: "Code", sub: "via the browser", kind: "data" },
+              { id: "tok", label: "Tokens", sub: "back channel only", kind: "data" },
+            ],
+          ],
+          edges: [
+            { from: "u", to: "app", label: "sign in" },
+            { from: "app", to: "idp", label: "challenge, exact redirect" },
+            { from: "idp", to: "code", label: "short-lived code" },
+            { from: "code", to: "app", label: "returned to the app" },
+            { from: "app", to: "tok", label: "code plus verifier" },
+          ],
+        },
       },
       {
         id: "secrets",
         title: "Secrets and encryption",
         level: "intermediate",
         body: [
-          "Secrets belong in a manager with rotation and an audit trail, not in environment variables committed to a repository or baked into an image.",
-          "Passwords are a separate problem. They are hashed with a slow algorithm built for the job, bcrypt, scrypt or Argon2, never a fast general-purpose hash like SHA-256, which is brute-forced trivially.",
-          "Encryption in transit is table stakes, and essentially free.",
-          "Encryption at rest is worth less than people assume. It defends against a stolen disk and it satisfies an auditor. It does nothing against an attacker holding application credentials, which is how the data usually leaves.",
+          "Secrets belong in a manager with rotation and an audit trail, not in environment variables committed to a repository or baked into an image. The property that matters is not secrecy alone but revocability: when a credential leaks, the question is how quickly it can be replaced and how confidently you can tell what it touched. A secret nobody can rotate without a deploy is a secret that will not be rotated.",
+          "Assume every secret leaks eventually, and design for the aftermath. Short lifetimes, one credential per service rather than one shared everywhere, and scoped permissions all shrink what a leak costs. Scanning for committed secrets is worth having, and rotating anything a scanner finds is the only correct response, because a secret that reached a repository has reached everyone who cloned it.",
+          "Passwords are a separate problem with a settled answer. Hash them with an algorithm designed to be slow and memory-hard, Argon2id by preference, bcrypt or scrypt where it is not available, with a per-user salt that the algorithm handles for you. Never a fast general-purpose hash such as SHA-256: a modern graphics card tries billions of those a second, so the speed that makes it a good checksum makes it a poor password hash.",
+          "Encryption in transit is table stakes and essentially free. Encryption at rest is worth less than people assume: it defends against a stolen disk and it satisfies an auditor, and it does nothing at all against an attacker holding valid application credentials, which is how data actually leaves. Field-level encryption for the few genuinely sensitive columns, with keys held separately, is the version that changes an attacker's outcome.",
+          "Key management is the part that decides whether any of it holds. Keys in the same store as the data they protect are decoration. A key management service, an envelope scheme where a data key is encrypted by a master key, and a documented rotation path are the difference between encryption as a control and encryption as a checkbox.",
+          "Finally, secrets leak through channels nobody calls a secret store: log lines, error messages, exception trackers, URL query strings, and the analytics tool watching the page. Redacting at the logging boundary, and keeping credentials out of URLs, closes the most common route, and it is cheaper than discovering a token in a third-party tool's search index.",
         ],
         why: "Using SHA-256 for passwords is fast, which is precisely the flaw: an attacker with the hashes can try billions per second. The slowness of bcrypt is the feature.",
         check: {
@@ -798,6 +959,44 @@ export const design2: Card[] = [
           explain:
             "SHA-256 is a good hash and the wrong tool here, speed is its virtue and the whole problem. bcrypt and Argon2 are deliberately expensive, with a cost factor you raise as hardware improves. Salting is a separate fix for a separate bug: it stops one rainbow table covering every user, but a salted fast hash is still brute-forced per user.",
         },
+        checks: [
+          {
+            prompt: "What property of a secrets manager matters most in practice?",
+            options: [
+              "Encryption at rest, so a stolen backup reveals nothing usable",
+              "Revocability: a leaked credential can be replaced quickly and audited",
+              "Central storage, so every service reads secrets from one place",
+              "Access logging, which shows which service used which secret when",
+            ],
+            correctIndex: 1,
+            explain:
+              "Every secret leaks eventually, so the useful question is how fast it can be replaced and what it touched. A secret that needs a deploy to rotate is a secret that will not be rotated.",
+          },
+          {
+            prompt: "What does encryption at rest not protect you from?",
+            options: [
+              "A disk removed from a decommissioned server in a data centre",
+              "A backup file copied from storage that was left publicly readable",
+              "An attacker using valid application credentials to query the data",
+              "A cloud provider engineer with physical access to the hardware",
+            ],
+            correctIndex: 2,
+            explain:
+              "The application decrypts as a matter of course, so anything holding its credentials reads plaintext. That is how data usually leaves, which is why field-level encryption with separate keys is the version that changes the outcome.",
+          },
+          {
+            prompt: "A secret is found committed in git history from two years ago. What is the correct response?",
+            options: [
+              "Rotate it now, since anyone who cloned the repository already has it",
+              "Rewrite the history to remove it, then confirm the scanner is clean",
+              "Restrict repository access, then rotate at the next scheduled window",
+              "Check the access logs, and rotate only if the secret was actually used",
+            ],
+            correctIndex: 0,
+            explain:
+              "History rewriting does not reach clones, forks, mirrors or caches. The credential must be treated as public from the moment it was pushed, and rotation is the only action that changes anything.",
+          },
+        ],
       },
     ],
   },

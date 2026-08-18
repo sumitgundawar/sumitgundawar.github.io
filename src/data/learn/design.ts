@@ -1152,16 +1152,56 @@ export const design: Card[] = [
           correctIndex: 2,
           explain: "Classic replication lag. Pin that user's reads to the primary for a short window after their write.",
         },
+        checks: [
+          {
+            prompt: "Why do read replicas do nothing for a write-heavy workload?",
+            options: [
+              "Every replica must apply every write, so write capacity is unchanged",
+              "Replicas refuse writes, so the application has to buffer them locally",
+              "Write latency rises with each replica added to the replication set",
+              "Replication is synchronous by default, so writes wait for every replica",
+            ],
+            correctIndex: 0,
+            explain:
+              "A replica is a copy: it performs the same writes as the primary and adds read capacity only. If writes are the constraint, replicas move the ceiling not at all, which is when sharding starts being the honest answer.",
+          },
+          {
+            prompt: "When is replication lag usually at its worst?",
+            options: [
+              "During low traffic, when the replica applies queued maintenance work",
+              "Immediately after a replica restarts and rebuilds its connection pool",
+              "Under peak load and bulk writes, exactly when reads are heaviest",
+              "During schema migrations, which pause replication until they complete",
+            ],
+            correctIndex: 2,
+            explain:
+              "Lag grows when the primary produces changes faster than a replica can apply them, which is peak traffic and bulk updates. The stale reads therefore arrive when the most users are looking, not when the system is quiet.",
+          },
+          {
+            prompt: "Why pin only the writing user's reads to the primary rather than all reads?",
+            options: [
+              "Only that user can tell the difference, and only for a few seconds",
+              "The primary cannot serve reads for more than one session at a time",
+              "Other users' reads are served from cache, so they never reach a replica",
+              "Pinning everyone would break replication by adding read load to the primary",
+            ],
+            correctIndex: 0,
+            explain:
+              "Nobody notices someone else's write arriving late; everybody notices their own going missing. Pinning the writer costs a fraction of the traffic, and pinning everyone throws away the reason the replicas exist.",
+          },
+        ],
       },
       {
         id: "sharding",
         title: "Sharding and choosing a key",
         level: "advanced",
         body: [
-          "Sharding splits data across databases so writes scale. The shard key decides which shard holds a row, and it is the hardest decision to reverse.",
-          "A poor key creates hotspots. Sharding by country puts most traffic on one shard; sharding by timestamp puts every current write on the newest one.",
-          "Queries that span shards get slow and complicated, so the key has to match how the data is read, not how it is naturally grouped.",
-          "Resharding later means moving live data while still serving traffic from it. That is why the honest order is replicas, caching, better indexes and a bigger machine first, all of which are reversible, and none of which this is.",
+          "Sharding splits data across independent databases so that writes scale, which is the one thing replicas cannot do. The shard key decides which shard holds a row, and it is the hardest decision in the system to reverse, because it is embedded in every query, every foreign key that no longer works, and every piece of application code that assumed a join was possible.",
+          "A poor key creates hotspots, and the two classic mistakes are geography and time. Sharding by country puts most of the traffic on whichever country you are largest in. Sharding by timestamp puts every current write on the newest shard while the others sit idle holding history, which is the worst possible arrangement: all the storage cost of many machines and the write capacity of one.",
+          "Hashing an identifier distributes evenly regardless of skew, and gives up range queries in exchange. Range partitioning keeps ordered scans cheap and invites hotspots. Directory-based sharding, a lookup table saying which shard holds which entity, keeps the flexibility to move one noisy tenant on its own and costs a lookup on every query plus a component that must never be unavailable. Each is a real answer for a different read pattern.",
+          "The key has to match how the data is read, not how it is naturally grouped. A query that can be answered from one shard is a normal query; one that spans shards becomes a scatter-gather, where the slowest shard sets the latency and the application does the joining and sorting that the database used to do. Notion sharded Postgres by workspace precisely because almost every query in that product is scoped to one workspace, which turns nearly all reads into single-shard reads.",
+          "Then there is everything you lose that nobody mentions in the design review. Cross-shard transactions are gone unless you build two-phase commit or sagas. Unique constraints across shards are gone, so identifiers have to be globally unique by construction. Auto-increment ids stop working, which is why Snowflake-style ids exist. Aggregate queries over the whole dataset need a separate analytics path. Each of these is solvable and each is work that did not exist the week before.",
+          "Resharding later means moving live data while still serving traffic from it: double writes, backfill, verification, cutover, and a rollback plan for each. It is measured in months for a real system, which is why the honest order is a bigger machine, better indexes, caching and read replicas first. All four are reversible in an afternoon. Sharding is a change to the data model that you will live inside for years.",
         ],
         why: "Shard last. Read replicas, caching, better indexes and a bigger instance all come first, because they are reversible. Sharding changes your data model permanently.",
         inPractice:
@@ -1172,15 +1212,78 @@ export const design: Card[] = [
           correctIndex: 1,
           explain: "Users are not evenly spread across countries. Hashing an identifier distributes evenly regardless of the underlying skew.",
         },
+        checks: [
+          {
+            prompt: "What does sharding by created_at do to a write-heavy table?",
+            options: [
+              "It balances writes, since rows arrive at a steady rate over time",
+              "It concentrates every current write on the newest shard while others idle",
+              "It makes range scans expensive, because rows are spread by timestamp",
+              "It prevents resharding, since timestamps cannot be rehashed later",
+            ],
+            correctIndex: 1,
+            explain:
+              "All new rows share the newest range, so one shard takes the entire write load while the rest hold cold history. You pay for many machines and get the write capacity of one.",
+          },
+          {
+            prompt: "Which capability is lost the moment a table is sharded, unless it is rebuilt by hand?",
+            options: [
+              "Secondary indexes on any column other than the shard key",
+              "The ability to run the same query against more than one row",
+              "Transactions and unique constraints that span more than one shard",
+              "Point lookups by primary key, which now require a routing table",
+            ],
+            correctIndex: 2,
+            explain:
+              "Each shard is an independent database, so atomicity and uniqueness stop at its boundary. Getting them back means two-phase commit or sagas, and globally unique identifiers generated outside the database.",
+          },
+          {
+            prompt: "Why is directory-based sharding chosen despite the extra lookup?",
+            options: [
+              "It allows one noisy tenant to be moved without rehashing everything",
+              "It removes the need for the shard key to appear in every query",
+              "It keeps range scans cheap while distributing writes evenly",
+              "It lets shards be added without any data movement at all",
+            ],
+            correctIndex: 0,
+            explain:
+              "A lookup table means placement is data rather than arithmetic, so a single heavy tenant can be relocated on its own. The price is a component on the path of every query that must never be down.",
+          },
+        ],
+        diagram: {
+          caption: "Two keys, two very different write distributions",
+          columns: [
+            [{ id: "w", label: "Writes", sub: "arriving now", kind: "service" }],
+            [
+              { id: "hash", label: "Hash of tenant id", sub: "even spread", kind: "edge" },
+              { id: "time", label: "Range by created_at", sub: "one hot shard", kind: "edge", alternative: true },
+            ],
+            [
+              { id: "s1", label: "Shard 1", sub: "even share", kind: "data" },
+              { id: "s2", label: "Shard 2", sub: "even share", kind: "data" },
+              { id: "s3", label: "Shard 3", sub: "all of it, or none", kind: "data" },
+            ],
+          ],
+          edges: [
+            { from: "w", to: "hash", label: "chosen key" },
+            { from: "w", to: "time", label: "the tempting key" },
+            { from: "hash", to: "s1", label: "a third" },
+            { from: "hash", to: "s2", label: "a third" },
+            { from: "time", to: "s3", label: "everything current" },
+          ],
+        },
       },
       {
         id: "cap",
         title: "CAP, stated usefully",
         level: "intermediate",
         body: [
-          "When a network partition splits your system, you either refuse requests to stay consistent, or answer them and risk divergence. That is the whole choice.",
-          "Partitions are not optional, so the real question is what to do during one, not whether to sacrifice partition tolerance.",
-          "It is rarely uniform within one company. A core ledger chooses consistency and refuses; the ATM in the lobby chooses availability, dispenses anyway, and reconciles later with an overdraft fee, which is Brewer's own illustration of the trade.",
+          "When a network partition splits your system, you either refuse requests in order to stay consistent, or answer them and risk divergence. That is the whole choice, and everything else written about CAP is commentary on those two sentences.",
+          "Partitions are not optional. Cables are cut, switches fail, a routing change isolates a rack, and a garbage collection pause long enough to miss every heartbeat looks exactly like a partition from outside. So sacrificing partition tolerance is not on the menu, and a system described as CA is a system whose behaviour during a partition has not been decided.",
+          "The choice is rarely uniform within one company, and this is where the theory becomes useful rather than academic. A core ledger chooses consistency and refuses the write. The cash machine in the lobby chooses availability, dispenses the money anyway, and reconciles afterwards with an overdraft fee, which is Brewer's own illustration and a reminder that the resolution rule can be a commercial decision rather than a technical one.",
+          "The extension worth knowing is PACELC: if there is a partition, choose availability or consistency, else, in normal operation, choose latency or consistency. That second half describes the trade you make every day, unlike the first half which describes a bad afternoon once a year. Every synchronous replication decision, every quorum size, every strongly consistent read is the else branch being answered.",
+          "Consistency in CAP is also narrower than the word suggests: it means linearizability, one register behaving as though there is a single copy. It is not the C in ACID, which is about invariants holding within a transaction. Conflating the two is the most common way a CAP discussion goes wrong, and noticing the difference is a reliable signal that someone has read past the triangle diagram.",
+          "So the answer that carries weight is never a letter. It is: during a partition this system refuses writes to these entities and accepts them for those, conflicts on the second group resolve by this rule, and here is what a user sees while it happens. Anything shorter has left the interesting part out.",
         ],
         why: "'We chose AP' is meaningless without saying what happens to conflicting writes afterwards. The interesting engineering is the reconciliation, not the letter.",
         inPractice:
@@ -1197,14 +1300,56 @@ export const design: Card[] = [
           explain:
             "Choosing availability means accepting divergence, so you owe a resolution rule. Last-write-wins by timestamp is one such rule, not an alternative to having one, and it is the lossiest, since it silently discards the losing write and depends on clocks you do not control. A quorum is the other branch entirely: it is what you choose when you would rather refuse the write than reconcile it.",
         },
+        checks: [
+          {
+            prompt: "What does the else half of PACELC describe?",
+            options: [
+              "The behaviour of a system that has no partition tolerance at all",
+              "The latency and consistency trade made during normal operation",
+              "The fallback applied once a partition has finished healing",
+              "The consistency level chosen for reads rather than for writes",
+            ],
+            correctIndex: 1,
+            explain:
+              "Partitions are rare; the daily decision is whether to wait for other replicas before answering. PACELC names that trade explicitly, which is why it describes real systems better than CAP alone.",
+          },
+          {
+            prompt: "Consistency in CAP means something narrower than the word usually implies. What?",
+            options: [
+              "Linearizability: the system behaves as though there is one copy",
+              "That invariants declared in the schema hold after every transaction",
+              "That all replicas hold identical bytes at every instant in time",
+              "That reads always return the value written by the same client",
+            ],
+            correctIndex: 0,
+            explain:
+              "It is the C of a single register behaving atomically, not the C of ACID, which is about invariants inside a transaction. Conflating the two derails most CAP conversations.",
+          },
+          {
+            prompt: "Why is describing a system as CA a warning sign?",
+            options: [
+              "Partitions happen regardless, so its behaviour during one is undefined",
+              "It means the system has no replicas, so it cannot be highly available",
+              "CA systems cannot be deployed across more than one availability zone",
+              "It implies synchronous replication, which is too slow to be practical",
+            ],
+            correctIndex: 0,
+            explain:
+              "You do not get to opt out of partitions; you only get to decide what happens during one. A CA label usually means nobody has made that decision, and the answer will be improvised during the incident.",
+          },
+        ],
       },
       {
         id: "eventual-consistency",
         title: "Eventual consistency in the interface",
         level: "advanced",
         body: [
-          "Eventual consistency means replicas converge given no new writes. It says nothing about how long that takes, and users notice the gap.",
-          "The engineering work is mostly in the interface: show the pending state, use optimistic updates, and do not pretend an action is complete when it is merely queued. Read-your-own-writes is the guarantee users actually care about, and it is far cheaper than full consistency.",
+          "Eventual consistency means replicas converge given no new writes. Read the definition carefully: it promises convergence and says nothing whatsoever about when, and in a system that is always being written to, the condition it depends on never actually occurs. The guarantee is real and it is weaker than the phrase makes it sound.",
+          "There is a ladder of stronger session guarantees, and each is far cheaper than linearizability. Read-your-own-writes: you see your own changes. Monotonic reads: you never see time run backwards, which is what happens when consecutive reads hit replicas at different lag. Consistent prefix: you see writes in the order they were made, so a reply never appears before the message it answers. Most complaints filed as database inconsistency are one of these three, and each can be bought with routing rather than with consensus.",
+          "The engineering is mostly in the interface. Show the pending state, use an optimistic update so the change appears immediately, and do not pretend an action is complete when it is merely accepted. A spinner that says processing is honest; a green tick for work that is queued is a lie that generates a support ticket when the work later fails.",
+          "Convergence needs a merge rule, and choosing it is a product decision wearing technical clothes. Last write wins is the default in many stores and is the lossiest: it discards a write silently and depends on clocks you do not control. Amazon's shopping basket takes the union of conflicting versions, which can resurrect a removed item but can never lose an added one, because losing a purchase costs more than an unexpected item at checkout.",
+          "CRDTs are the version where the merge is a property of the data type rather than a decision at read time. A grow-only counter, an add-wins set, a sequence for collaborative text: each is defined so that merging in any order gives the same answer, which removes conflict resolution from the application entirely. They are not free, since the metadata to make that work can outgrow the data, and they are the right tool for exactly the cases they fit.",
+          "The practical test for a design is to ask what a user sees during the gap and what happens if two people act in it. If the answer to the first is nothing at all and to the second is one of them silently loses, the consistency model has not been designed, it has been inherited from a default.",
         ],
         why: "Most consistency complaints are interface problems, not database problems. Showing 'processing' honestly costs nothing and removes the perception of a bug.",
         inPractice:
@@ -1220,6 +1365,62 @@ export const design: Card[] = [
           correctIndex: 1,
           explain:
             "Users notice their own actions going missing, and almost never notice someone else's arriving late. Routing every read to the primary does fix it, by throwing away the reason you added replicas, the question asked for the cheapest fix, and honest pending state costs nothing.",
+        },
+        checks: [
+          {
+            prompt: "A user refreshes twice and the second page shows older data than the first. Which guarantee is missing?",
+            options: [
+              "Read-your-own-writes, since the user cannot see their own change",
+              "Monotonic reads, so successive reads never go backwards in time",
+              "Consistent prefix, so writes appear in the order they were made",
+              "Linearizability, so every read reflects the most recent write",
+            ],
+            correctIndex: 1,
+            explain:
+              "Consecutive reads landed on replicas with different lag, so time appeared to run backwards. Sticky routing to one replica per session buys monotonic reads without any consensus protocol.",
+          },
+          {
+            prompt: "Why does Amazon's basket merge conflicting versions by union?",
+            options: [
+              "Union is the only merge that converges regardless of arrival order",
+              "It keeps the basket small, since duplicates collapse into one entry",
+              "Resurrecting a removed item costs less than losing an added one",
+              "It avoids depending on timestamps, which are unreliable across regions",
+            ],
+            correctIndex: 2,
+            explain:
+              "The merge rule encodes a commercial judgement: an unexpected item is noticed at checkout, a missing purchase is lost revenue. Dynamo's paper is explicit that this is a business decision expressed as a merge.",
+          },
+          {
+            prompt: "What do CRDTs change about conflict resolution?",
+            options: [
+              "The merge is defined by the data type, so any order gives one answer",
+              "Conflicts are detected at write time and rejected before they diverge",
+              "A coordinator picks a winner, so applications never see two versions",
+              "Replicas exchange full state, so the newest copy always wins outright",
+            ],
+            correctIndex: 0,
+            explain:
+              "The structure is designed so merging is commutative and associative, which takes the decision out of the application. The cost is metadata that can outgrow the data it describes.",
+          },
+        ],
+        diagram: {
+          caption: "Session guarantees are bought with routing, not consensus",
+          columns: [
+            [{ id: "u", label: "One user", sub: "writes then reads", kind: "client" }],
+            [{ id: "rt", label: "Router", sub: "reads the session", kind: "edge" }],
+            [
+              { id: "pri", label: "Primary", sub: "read-your-own-writes", kind: "data" },
+              { id: "same", label: "One sticky replica", sub: "monotonic reads", kind: "data" },
+              { id: "any", label: "Any replica", sub: "time can go backwards", kind: "data", alternative: true },
+            ],
+          ],
+          edges: [
+            { from: "u", to: "rt", label: "request" },
+            { from: "rt", to: "pri", label: "just wrote" },
+            { from: "rt", to: "same", label: "same session" },
+            { from: "rt", to: "any", label: "no rule at all" },
+          ],
         },
       },
     ],

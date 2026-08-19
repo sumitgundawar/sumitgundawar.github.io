@@ -447,10 +447,12 @@ export const design2: Card[] = [
         title: "Polling, long polling, SSE, WebSockets",
         level: "beginner",
         body: [
-          "Polling asks repeatedly on a timer. Simple, wasteful, and latency is bounded by whatever interval you chose.",
-          "Long polling holds the request open until there is news, which cuts the waste but ties up a connection for the duration.",
-          "Server-sent events are a one-way stream from server to client over plain HTTP, with automatic reconnection built into the browser.",
-          "WebSockets give a persistent two-way channel, which is what you need when the client also sends frequently. Read the four as a cost ladder: each step buys lower latency and charges you in held connections and server-side state.",
+          "Polling asks repeatedly on a timer. It is simple, it works through every proxy ever built, and it is wasteful in a way worth quantifying: a thousand clients polling every five seconds is 17 million requests a day, and if something happens once an hour per client then 99.9 per cent of that traffic exists to learn that nothing happened. Latency is bounded by the interval, so halving the latency doubles the load.",
+          "Long polling holds the request open until there is news or a timeout, which removes the waste and keeps the simplicity, at the cost of a held connection per waiting client and a proxy somewhere that will close it after 30 or 60 seconds regardless of what you intended. It is the pragmatic choice more often than its reputation suggests.",
+          "Server-sent events are a one-way stream from server to client over ordinary HTTP. The browser reconnects automatically, and it will send the last event id it saw so the server can resume rather than restart, which is a feature people reimplement badly on top of WebSockets. Everything in the path treats it as a normal HTTP response, so compression, authentication and proxies all behave.",
+          "WebSockets give a persistent two-way channel after an HTTP upgrade handshake. That is what you want when the client also sends frequently: chat, collaborative editing, games, live cursors. What you have taken on is a protocol of your own design, since the frames carry bytes and nothing above that: message types, acknowledgements, resumption and heartbeats are now yours to define.",
+          "Read the four as a cost ladder rather than as a ranking. Each step buys lower latency and charges you in held connections, server-side state and operational complexity. The right answer for a dashboard that updates every few seconds is often the one at the bottom of the ladder, and choosing WebSockets for it means writing reconnection logic to solve a problem polling never had.",
+          "Two practical notes that decide real implementations. Intermediaries close idle connections, so anything long-lived needs a heartbeat every 30 seconds or so, and both SSE and WebSockets need to tolerate a reconnect at any moment, which in turn means the server must be able to answer what did I miss. And HTTP/2 changed the arithmetic for SSE: the old six-connection-per-host limit that made it awkward applies per connection rather than per stream, so many streams now share one.",
         ],
         why: "SSE is underrated: if data only flows server to client, notifications, live prices, progress, it is far simpler than WebSockets and works through ordinary HTTP infrastructure.",
         check: {
@@ -459,15 +461,72 @@ export const design2: Card[] = [
           correctIndex: 1,
           explain: "One-way server to client is exactly what SSE is for, and it reconnects automatically over standard HTTP. WebSockets add bidirectional capability you would not use.",
         },
+        checks: [
+          {
+            prompt: "What does SSE give you for free that WebSocket implementations usually rebuild?",
+            options: [
+              "Automatic reconnection, and a last event id so the server can resume",
+              "Message framing, so a partial message is never delivered to the client",
+              "Compression of the event stream, which WebSockets cannot negotiate",
+              "Backpressure, since the browser slows the server when it falls behind",
+            ],
+            correctIndex: 0,
+            explain:
+              "The browser reconnects on its own and replays the last id it saw, which is exactly the resumption logic teams write by hand on top of WebSockets and often get subtly wrong.",
+          },
+          {
+            prompt: "Why does any long-lived connection need a heartbeat every 30 seconds or so?",
+            options: [
+              "To measure round-trip latency for the client's own quality reporting",
+              "Because intermediaries close connections they consider idle",
+              "To keep the TLS session key fresh within its rotation window",
+              "Because browsers throttle background tabs with no network activity",
+            ],
+            correctIndex: 1,
+            explain:
+              "Proxies, load balancers and mobile network gateways all reap idle connections, and the client usually finds out only when it tries to send. Periodic traffic keeps them open and detects a dead peer.",
+          },
+          {
+            prompt: "A dashboard updates every few seconds and never sends data upward. Why is polling often still right?",
+            options: [
+              "It is the only option that works reliably through corporate proxies",
+              "Its latency is lower than SSE once the interval is short enough",
+              "It holds no server-side state, and there is no reconnection to design",
+              "It compresses better, since each response is a complete document",
+            ],
+            correctIndex: 2,
+            explain:
+              "The ladder costs held connections and state at every step. When the update interval is measured in seconds, a stateless poll avoids reconnection logic, resumption and heartbeats entirely.",
+          },
+        ],
+        diagram: {
+          caption: "A cost ladder: latency down, held state up",
+          columns: [
+            [{ id: "poll", label: "Polling", sub: "no state held", kind: "client" }],
+            [{ id: "long", label: "Long polling", sub: "one held request", kind: "edge" }],
+            [{ id: "sse", label: "SSE", sub: "stream, auto resume", kind: "edge" }],
+            [{ id: "ws", label: "WebSocket", sub: "two-way, your protocol", kind: "service" }],
+            [{ id: "cost", label: "What you now own", sub: "reconnect, heartbeat, resume", kind: "data" }],
+          ],
+          edges: [
+            { from: "poll", to: "long", label: "less waste" },
+            { from: "long", to: "sse", label: "server pushes" },
+            { from: "sse", to: "ws", label: "client pushes too" },
+            { from: "ws", to: "cost", label: "the bill" },
+          ],
+        },
       },
       {
         id: "scaling-connections",
         title: "Scaling persistent connections",
         level: "advanced",
         body: [
-          "Persistent connections are stateful, which breaks the usual assumption that any server can handle any request. A message for a user must reach the exact server holding that user's socket.",
-          "The standard answer is a pub/sub layer: servers subscribe to channels, and a publish fans out to whichever server holds the connection.",
-          "Deploys become disruptive, because restarting a server drops every connection it holds. Clients need reconnection with backoff, and ideally resume from a last-seen message id.",
+          "Persistent connections are stateful, which breaks the assumption that makes web services easy: that any server can handle any request. A message for a user must reach the exact process holding that user's socket, and nothing in a normal load balancer helps with that, because the message did not arrive as a request from that user.",
+          "The standard answer is a pub/sub layer. Each gateway subscribes to the channels for the connections it holds, and a publish from anywhere fans out to whichever gateway is holding the socket. The sender no longer needs to know where anyone is connected, which is the property that makes the design scale. Slack and Discord both work this way.",
+          "The alternative, a shared map of user to server, looks simpler and ages badly: it needs updating on every connect and disconnect, it is wrong during the seconds after a crash, and every sender must read it before sending. It is a directory that must be perfectly accurate to be useful, which is a hard property to buy.",
+          "Capacity is a memory question rather than a CPU one. Each idle connection costs kernel buffers plus whatever your runtime allocates per connection, so the ceiling per machine is usually measured in tens or hundreds of thousands and is decided by that per-connection overhead. The classic C10K work, and the C10M writing that followed, is entirely about driving that number down: event loops instead of threads, careful buffer sizing, and avoiding per-connection allocations.",
+          "Deploys are the part that surprises people. Restarting a gateway drops every connection it holds, so a rolling deploy across ten nodes is ten thundering herds of reconnections, each one a handshake and an authentication. Reconnect with exponential backoff and jitter on the client, drain connections gradually rather than all at once, and expect the reconnect storm to be the largest load your authentication path ever sees.",
+          "Finally, resumption is what makes reconnection invisible. The client remembers the last message id it processed and asks for what followed; the server keeps a short buffer per channel to answer that. Without it, every reconnect is either a gap in the conversation or a full resynchronisation, and at scale the second one is its own outage.",
         ],
         why: "This is why chat and presence systems are hard. Statelessness is what makes normal web services easy to scale, and holding a socket throws it away.",
         inPractice: "Slack and Discord both route messages through a pub/sub tier so any gateway node can deliver to any connected client.",
@@ -482,14 +541,77 @@ export const design2: Card[] = [
           correctIndex: 3,
           explain: "Stickiness routes a client to a server; it does not help a message originating elsewhere find that server. Pub/sub decouples the sender from the connection's location.",
         },
+        checks: [
+          {
+            prompt: "What limits how many idle WebSocket connections one machine can hold?",
+            options: [
+              "CPU, since each connection is polled by the event loop every cycle",
+              "Memory: kernel buffers plus whatever the runtime allocates per connection",
+              "Network bandwidth, which is consumed by keepalive frames",
+              "The operating system's hard limit of 65,536 connections per interface",
+            ],
+            correctIndex: 1,
+            explain:
+              "Idle connections use almost no CPU and almost no bandwidth. Per-connection memory is the ceiling, which is why the C10K work is mostly about buffer sizes and avoiding per-connection allocation.",
+          },
+          {
+            prompt: "A rolling deploy across ten gateway nodes causes an authentication outage. Why?",
+            options: [
+              "Each restart drops its connections, and they all reconnect at once",
+              "Sessions are invalidated on deploy, forcing every client to sign in again",
+              "The pub/sub layer replays buffered messages to every reconnecting client",
+              "New nodes reject connections until their health checks have passed",
+            ],
+            correctIndex: 0,
+            explain:
+              "Every dropped connection becomes a handshake and an authentication within seconds. Backoff with jitter on the client and gradual draining on the server turn the wall into a slope.",
+          },
+          {
+            prompt: "Why is a shared map of user to server a weaker design than pub/sub?",
+            options: [
+              "It cannot express a user connected from more than one device",
+              "It must be perfectly accurate to be useful, including during a crash",
+              "It requires the sender to hold an open connection to every gateway",
+              "It cannot be sharded, so it becomes a single point of contention",
+            ],
+            correctIndex: 1,
+            explain:
+              "A directory is only as good as its freshness, and it is wrong exactly when things are failing. Publishing to a channel lets whichever gateway currently holds the socket answer, with no directory to keep correct.",
+          },
+        ],
+        diagram: {
+          caption: "The sender does not need to know where anyone is connected",
+          columns: [
+            [{ id: "send", label: "Sender", sub: "any service", kind: "service" }],
+            [{ id: "ps", label: "Pub/sub", sub: "channel per user", kind: "queue" }],
+            [
+              { id: "g1", label: "Gateway 1", sub: "holds Alice", kind: "service" },
+              { id: "g2", label: "Gateway 2", sub: "holds Bob", kind: "service" },
+            ],
+            [
+              { id: "a", label: "Alice", sub: "WebSocket", kind: "client" },
+              { id: "b", label: "Bob", sub: "WebSocket", kind: "client" },
+            ],
+          ],
+          edges: [
+            { from: "send", to: "ps", label: "publish to user:alice" },
+            { from: "ps", to: "g1", label: "subscribed" },
+            { from: "ps", to: "g2", label: "not subscribed" },
+            { from: "g1", to: "a", label: "delivered" },
+            { from: "g2", to: "b", label: "waiting" },
+          ],
+        },
       },
       {
         id: "presence",
         title: "Presence and typing indicators",
         level: "advanced",
         body: [
-          "Presence looks trivial and is one of the most expensive features in a chat product. Every state change potentially notifies everyone who can see that user, which is quadratic in the worst case.",
-          "The data is also worthless within seconds, so it lives in memory behind short TTLs rather than being persisted. Typing indicators get throttled hard and dropped under load, because they are the first thing worth sacrificing.",
+          "Presence looks trivial in a specification and is among the most expensive features in a chat product. Every state change potentially notifies everyone who can see that user, so the cost tracks the social graph rather than the number of events. In a workspace of 10,000 people where everyone can see everyone, one person arriving in the morning is 10,000 notifications, and a morning is 10,000 of those.",
+          "The data is worthless within seconds, which is the property that makes it tractable. It lives in memory behind short expiries rather than in a database: a heartbeat every 30 seconds refreshes a key with a 45-second lifetime, and absence of a heartbeat is absence of a user. Nothing needs to be deleted, nothing needs to be reconciled after a crash, and a lost update corrects itself within one interval.",
+          "Fan-out is reduced by scoping rather than by cleverness. Only notify people who could actually observe the change: those with the conversation open, in the same channel, on the same screen. That turns a graph-sized problem into a viewport-sized one, and it is why presence is usually accurate for the handful of people you are looking at and stale for everyone else, which is exactly the right trade.",
+          "Batching does the rest. Collect changes over a second or two and send one update rather than twenty, coalesce repeated transitions so a flapping connection produces one event, and let the client interpolate. Typing indicators are throttled hardest of all, often to one event every few seconds per conversation, because they are the first thing worth sacrificing under load and nobody notices their absence for a moment.",
+          "The last piece is degradation. Under pressure, presence should stop first, then typing indicators, then read receipts, before anything touches message delivery. Deciding that order in advance is what makes the feature safe to ship, because presence is exactly the kind of feature that will otherwise consume the capacity that messages needed.",
         ],
         why: "Presence is the standard example of a feature whose cost is invisible in the spec. Recognising it as a fan-out problem rather than a storage problem is the insight being tested.",
         check: {
@@ -503,6 +625,44 @@ export const design2: Card[] = [
           correctIndex: 0,
           explain: "The payload is tiny; the fan-out is the cost. A user with many watchers generates many notifications per state change.",
         },
+        checks: [
+          {
+            prompt: "Why is presence stored with a short expiry rather than as a status field?",
+            options: [
+              "A missed heartbeat expires the key, so a crash needs no cleanup",
+              "Expiring keys are cheaper to write than updating an existing row",
+              "It prevents a user appearing online in more than one session",
+              "Short expiries let the store compress presence data more aggressively",
+            ],
+            correctIndex: 0,
+            explain:
+              "Absence of a heartbeat is absence of a user, so a process that dies leaves nothing to reconcile. A status field written on disconnect is wrong the moment a disconnect is not clean, which is most of them.",
+          },
+          {
+            prompt: "What most reduces presence fan-out in a large workspace?",
+            options: [
+              "Compressing the payload, which is repeated across every recipient",
+              "Notifying only the people who can currently observe that user",
+              "Sharding presence state by user id across more cache nodes",
+              "Increasing the heartbeat interval so state changes less often",
+            ],
+            correctIndex: 1,
+            explain:
+              "The cost is the number of recipients, so scoping to whoever has that conversation on screen turns a graph-sized problem into a viewport-sized one. Everything else trims constants.",
+          },
+          {
+            prompt: "Under load, in what order should a chat product shed these features?",
+            options: [
+              "Message delivery last, after presence, typing and read receipts",
+              "Typing first, then message delivery, then presence and receipts",
+              "Read receipts first, then message delivery, then presence",
+              "All of them together, so the degradation is uniform and predictable",
+            ],
+            correctIndex: 0,
+            explain:
+              "Presence and typing are enhancements; delivery is the product. Deciding the order before the incident is what stops an enhancement consuming the capacity the messages needed.",
+          },
+        ],
       },
     ],
   },

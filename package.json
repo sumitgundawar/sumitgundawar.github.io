@@ -25,7 +25,8 @@
     "gen:articles": "npx tsx scripts/gen-worker-articles.mjs",
     "check:email": "npx esbuild worker/src/email.ts --bundle --format=esm --platform=neutral --outfile=/tmp/em.mjs && node scripts/email-compat.mjs /tmp/em.mjs",
     "check:content": "npx tsx scripts/content-check.mjs",
-    "gen:learn": "npx tsx scripts/gen-learn-manifest.mjs"
+    "gen:learn": "npx tsx scripts/gen-learn-manifest.mjs",
+    "gen:og": "node scripts/gen-og.mjs"
   },
   "dependencies": {
     "@fontsource-variable/mona-sans": "^5.2.8",

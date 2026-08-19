@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sumit Gundawar">
+  <!-- A status trace, not a monogram.
+       The site is a status page, and an icon has to survive being drawn at
+       sixteen pixels in a row of twenty tabs, which rules out letterforms and
+       anything with fine detail. A flat line with one blip reads at any size,
+       says uptime, and is not a shape anyone else in a tab strip is using. -->
+  <rect width="64" height="64" rx="14" fill="#14171a"/>
+  <path d="M10 40 H22 L27 40 L31 20 L35 46 L39 40 H54"
+        fill="none" stroke="#3dd68c" stroke-width="5"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

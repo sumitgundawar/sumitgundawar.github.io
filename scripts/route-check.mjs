@@ -197,18 +197,33 @@ check("/build renders", (await page.content()).length > 3000);
    "recommended": that string is in the intro copy and matching it exits the
    loop on question one while reporting success. */
 const body = () => page.evaluate(() => document.body.innerText);
+
+/* The questionnaire is adaptive now: after each answer the page asks the model
+   which question to ask next, and for up to a few seconds it shows neither a
+   question nor a result. A walk that treated "no answer buttons" as the end
+   reported success on question two, which is exactly the failure this check
+   exists to catch, so it waits for the next state rather than sampling once. */
+const nextState = async () => {
+  for (let waited = 0; waited < 12_000; waited += 300) {
+    const text = await body();
+    if (/copy link|start again/i.test(text)) return "done";
+    const answers = page
+      .locator("button")
+      .filter({ hasNotText: /back|skip|start over|start again|change last|profile|ask me those/i });
+    if ((await answers.count()) > 0 && /\d+\s*\/\s*\d+/.test(text)) return answers;
+    await page.waitForTimeout(300);
+  }
+  return "stuck";
+};
+
 for (let i = 0; i < 25; i++) {
-  if (!/\d+\s*\/\s*10/.test(await body())) break;
-  const answers = page
-    .locator("button")
-    .filter({ hasNotText: /back|skip|start over|start again|change last|profile/i });
-  if (!(await answers.count())) break;
-  await answers.first().click();
-  await page.waitForTimeout(400);
+  const state = await nextState();
+  if (state === "done" || state === "stuck") break;
+  await state.first().click();
 }
 
 const result = await body();
-check("questionnaire reaches the end", !/\d+\s*\/\s*10/.test(result));
+check("questionnaire reaches the end", /copy link|start again/i.test(result));
 check(
   "recommendation names real technologies",
   /(Postgres|Redis|Kafka|S3|Cloudflare|Fargate|Cloud Run|SQS|Sentry)/i.test(result),

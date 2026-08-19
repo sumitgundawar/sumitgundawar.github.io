@@ -1,3 +1,10 @@
+# The www to apex redirect is not here, and cannot be.
+#
+# A _redirects source is a path, so it cannot match on hostname; a rule written
+# with an absolute URL on the left is simply inert, which was verified by
+# deploying one and watching www keep answering 200. It lives in
+# functions/_middleware.ts instead, where the hostname is readable.
+
 # Cloudflare Pages SPA routing.
 # This one line is the whole reason for the migration: /learn is served as
 # index.html with a 200, so the client router just works. On GitHub Pages the

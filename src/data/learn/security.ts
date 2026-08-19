@@ -17,9 +17,12 @@ export const security: Card[] = [
         title: "Injection and parameterised queries",
         level: "beginner",
         body: [
-          "Injection happens when input is concatenated into a command, SQL, a shell line, an LDAP filter, so the input can end the data and start being instruction.",
-          "Escaping is the wrong fix, because it requires getting every context right forever. Parameterised queries send the statement and the values on separate channels, so the value can never be parsed as syntax.",
-          "An ORM is not automatic protection. Most expose a raw query escape hatch, and that is where injection reappears.",
+          "Injection happens when input is concatenated into something that will be parsed as a command: SQL, a shell line, an LDAP filter, an XPath expression, a template. The input ends the data and starts being instruction, and the parser cannot tell the difference because by the time it sees the string, there is no difference to see.",
+          "Escaping is the intuitive fix and the wrong one, because it requires getting every context right forever, and the contexts nest. A value escaped for SQL and then interpolated into a LIKE pattern, or into a JSON document, or into a shell argument, needs different escaping at each layer, and one missed call site is enough. The defence has to remove the possibility rather than handle each case.",
+          "Parameterised queries do that by sending the statement and the values on separate channels. The database parses the statement first, then binds values into slots, so a value can never be parsed as syntax no matter what it contains. This is not escaping done well; it is a different mechanism, and it is why the advice is absolute rather than contextual.",
+          "Identifiers are the exception that catches experienced people. Table names, column names and sort directions cannot be bound as parameters, because they are part of the statement rather than values in it. A dynamic ORDER BY built from user input therefore needs an allowlist mapping permitted inputs to known identifiers, and nothing else will do.",
+          "An ORM is not automatic protection. Most expose a raw query escape hatch, and that is where injection reappears, usually in the reporting endpoint written under time pressure. The same applies beyond SQL: a shell command assembled by concatenation, a template rendered from user-supplied source, a NoSQL query built from a request body that arrives as an object rather than a string.",
+          "Defence in depth belongs here even though parameterisation is complete. Least-privilege database accounts so an injection cannot read tables the feature never needed, no dynamic SQL where a static query would do, and monitoring for queries whose shape does not match anything the application should emit.",
         ],
         why: "Parameterisation removes the class of bug rather than the instance. Escaping means every new call site is another chance to get it wrong, and one miss is enough.",
         check: {
@@ -33,15 +36,56 @@ export const security: Card[] = [
           correctIndex: 1,
           explain: "Identifiers such as column names are not bindable as parameters, so dynamic ORDER BY needs an allowlist. Quote-escaping does not help when the injection point is an identifier rather than a string literal.",
         },
+        checks: [
+          {
+            prompt: "Why is parameterisation described as removing the bug class rather than fixing instances?",
+            options: [
+              "The statement is parsed before values are bound, so values cannot be syntax",
+              "The driver escapes each value using rules specific to that database",
+              "Prepared statements are cached, so unexpected input fails to match one",
+              "The database rejects any value containing characters it treats as syntax",
+            ],
+            correctIndex: 0,
+            explain:
+              "It is a different mechanism from escaping, not a better version of it. Once the parse has happened, no content in a bound value can change the meaning of the statement.",
+          },
+          {
+            prompt: "A search endpoint accepts a JSON body and builds a query from its fields. What is the risk?",
+            options: [
+              "Objects can carry operators, so a value may become part of the query",
+              "JSON parsing is slower, which enables denial of service through nesting",
+              "Field names cannot be validated before the query has been constructed",
+              "The body is not logged, so injection attempts leave no trace to review",
+            ],
+            correctIndex: 0,
+            explain:
+              "When input arrives as structure rather than as a string, a field expected to hold a value can hold an operator instead. Injection is not exclusive to SQL; it follows from mixing input with a query language.",
+          },
+          {
+            prompt: "What does a least-privilege database account add when queries are already parameterised?",
+            options: [
+              "It limits the damage of any injection that appears in future code",
+              "It prevents the ORM from generating dynamic SQL at all",
+              "It forces every statement to be prepared before it can execute",
+              "It blocks queries whose shape differs from the application's usual set",
+            ],
+            correctIndex: 0,
+            explain:
+              "Parameterisation is complete for the code that uses it. The account limits what any mistake in the next feature can reach, which is the point of defence in depth.",
+          },
+        ],
       },
       {
         id: "xss",
         title: "Cross-site scripting",
         level: "intermediate",
         body: [
-          "XSS is injection into a page rather than a query: attacker-controlled text is rendered as markup, so their script runs with your origin's privileges, including the user's session.",
-          "React escapes interpolated values by default, which removes most of it. The holes are dangerouslySetInnerHTML, injecting into a href or src, and anything written into a script or style context.",
-          "A Content Security Policy limits the damage when something does slip through, by refusing to execute inline or third-party script.",
+          "Cross-site scripting is injection into a page rather than into a query. Attacker-controlled text is rendered as markup, so their script runs with your origin's privileges: it can read the DOM, call your API as the user, and exfiltrate anything the session can reach. It is not a defacement bug; it is arbitrary code execution in your users' browsers.",
+          "The three shapes are worth naming. Stored XSS is persisted and served to everyone who views it, which is the worst case. Reflected XSS comes back in a response from something in the request, and needs a victim to follow a link. DOM-based XSS never touches the server at all: client-side code takes something from the URL and writes it into the page, so a server-side filter never sees it.",
+          "Modern frameworks close most of it. React escapes interpolated values by default, which means the common path is safe without anyone thinking about it. What remains are the deliberate bypasses, and they are few enough to audit by name: dangerouslySetInnerHTML and its equivalents, values used as a href or src where a javascript: URL executes on click, and anything written into a script, style or event-handler context where HTML escaping is not the right escaping.",
+          "A Content Security Policy is the layer that limits damage when something slips through. Refusing inline script and restricting which origins may execute turns a working injection into a blocked one, and modern policies use a nonce or a hash rather than an origin allowlist, because an allowlisted CDN hosting a vulnerable library is a hole in the policy. Report-only mode exists so a policy can be measured before it is enforced.",
+          "Cookies deserve a mention here because they decide what XSS costs. A session cookie marked HttpOnly cannot be read by script, so an injection cannot simply steal it, and the attacker is reduced to acting through the page while it is open. That does not make XSS acceptable; it makes the difference between a stolen session that outlives the visit and one that does not.",
+          "Sanitisation is a last resort with one correct implementation: a maintained library parsing to a tree and allowlisting elements and attributes, never a regular expression. If a feature needs to accept rich text, that is the tool. If it does not, escaping everything and rendering as text is both simpler and safer.",
         ],
         why: "Framework escaping handles the common path, so the remaining risk concentrates in the few places you deliberately bypass it. Those are worth auditing by name rather than trusting the framework globally.",
         check: {
@@ -55,15 +99,56 @@ export const security: Card[] = [
           correctIndex: 2,
           explain: "Interpolated text is escaped, but a value used as a URL is not validated as one. A javascript: href executes on click, so URL fields need a scheme allowlist.",
         },
+        checks: [
+          {
+            prompt: "Why can a server-side filter miss DOM-based XSS entirely?",
+            options: [
+              "Client code writes the payload into the page, so the server never sees it",
+              "The payload is encoded, so the filter sees an inert string instead of it",
+              "The filter runs after rendering, once the markup has already executed",
+              "Client frameworks re-parse the escaped output again during hydration",
+            ],
+            correctIndex: 0,
+            explain:
+              "Everything after the fragment marker in a URL stays in the browser, and code that reads it and writes it into the DOM completes the injection without a request being made.",
+          },
+          {
+            prompt: "Why do modern CSPs prefer a nonce or hash over an origin allowlist?",
+            options: [
+              "An allowlisted CDN hosting a vulnerable library reopens the hole",
+              "Origins cannot be expressed for scripts loaded over HTTP/3",
+              "Nonces are enforced by more browsers than origin lists are",
+              "Hashes allow inline scripts, which an origin list forbids entirely",
+            ],
+            correctIndex: 0,
+            explain:
+              "Allowlisting a large CDN allowlists everything on it, including framework versions with known gadget chains. A per-response nonce authorises the exact scripts you meant to include.",
+          },
+          {
+            prompt: "What does HttpOnly on a session cookie change about an XSS incident?",
+            options: [
+              "The session cannot be stolen, so the attacker must act through the page",
+              "The injection cannot execute, because script access to cookies is required",
+              "The cookie is not sent cross-site, which prevents the request entirely",
+              "The browser refuses to render attacker-supplied markup in that origin",
+            ],
+            correctIndex: 0,
+            explain:
+              "It does not stop the injection, it limits what the injection is worth. Acting through an open page ends when the tab closes; a stolen cookie does not.",
+          },
+        ],
       },
       {
         id: "csrf",
         title: "CSRF and SameSite",
         level: "intermediate",
         body: [
-          "CSRF abuses the fact that browsers attach cookies automatically. Another site submits a form to yours, the cookie rides along, and the request is authenticated even though the user never intended it.",
-          "SameSite=Lax on session cookies stops the cross-site case for form posts, and is the default in current browsers. A synchroniser token is the belt-and-braces version.",
-          "Authorization headers are not attached automatically, so token-in-header APIs are not exposed to classic CSRF the way cookie sessions are.",
+          "Cross-site request forgery abuses ambient authority: the browser attaches cookies to requests for your origin regardless of which page caused them. Another site submits a form to yours, the session cookie rides along, and the request arrives authenticated even though the user never intended to make it. The attacker cannot read the response, which is why CSRF is about actions rather than about theft.",
+          "SameSite is the mechanism that fixed most of it. Lax, now the default in current browsers, means the cookie is not sent on cross-site requests except top-level navigations that are safe methods, which kills the cross-site form post. Strict withholds it even on ordinary navigation, so a user following a link from elsewhere arrives logged out, which is usually too blunt. None sends it everywhere and requires the Secure attribute.",
+          "A synchroniser token is the explicit defence and remains worth having for sensitive actions: a random value tied to the session, rendered into the form, and required on submission. The attacker's page cannot read it, because the same-origin policy prevents reading your pages, so it cannot construct a valid request. The double-submit variant compares a cookie against a header and avoids server-side state, at the cost of being weaker if any subdomain can set cookies.",
+          "Whether you need any of this follows directly from how the session travels. Cookies are ambient authority and need protection. A bearer token in an Authorization header that your own script sets is not attached by the browser to a third-party form post, so classic CSRF does not apply. Mirror that token into a cookie for convenience and the exposure returns immediately.",
+          "There are two adjacent cases worth remembering. Simple cross-origin requests do not trigger a preflight, so a form post with a plain content type reaches your endpoint before CORS has any say, which is why CORS is not a CSRF defence. And a GET that changes state is exposed to a bare image tag, which is one of several reasons safe methods should be safe.",
+          "The practical setup is short: SameSite=Lax plus Secure and HttpOnly on session cookies, tokens on state-changing forms, no state changes behind GET, and CORS configured as a separate concern that answers a different question.",
         ],
         why: "Whether you need CSRF protection follows directly from how you carry the session. Cookies are ambient authority and need it; an explicit Authorization header is not sent by a third-party page and does not.",
         check: {
@@ -77,6 +162,44 @@ export const security: Card[] = [
           correctIndex: 3,
           explain: "CSRF depends on credentials being sent automatically. A header your own script sets is not, so the cross-site form post arrives unauthenticated. Move the token to a cookie and the exposure returns.",
         },
+        checks: [
+          {
+            prompt: "Why is a permissive CORS policy not the cause of a CSRF vulnerability?",
+            options: [
+              "A simple form post is sent without a preflight and does not need CORS",
+              "CORS applies only to responses, and CSRF is about the request",
+              "CORS headers are ignored when cookies are marked SameSite=Lax",
+              "The attacker's origin is never sent, so CORS cannot evaluate it",
+            ],
+            correctIndex: 0,
+            explain:
+              "CORS decides whether a script may read a response. The forged request is submitted and acted upon before that question arises, which is why the two defences are unrelated.",
+          },
+          {
+            prompt: "What makes a synchroniser token effective against a forged request?",
+            options: [
+              "The attacker's page cannot read your pages, so it cannot obtain the token",
+              "The token is encrypted, so it cannot be reused outside the session",
+              "The token expires quickly enough that a forged request arrives too late",
+              "The browser refuses to submit a form containing an unknown token",
+            ],
+            correctIndex: 0,
+            explain:
+              "The same-origin policy is what does the work. A cross-site page can cause a request but cannot see the value it would need to include for that request to be accepted.",
+          },
+          {
+            prompt: "Why should a GET request never change state?",
+            options: [
+              "It can be triggered by an image tag on any page on the internet",
+              "It cannot carry a synchroniser token in its request body",
+              "Browsers retry GET requests automatically after a network failure",
+              "Search engines would otherwise index the resulting state change",
+            ],
+            correctIndex: 0,
+            explain:
+              "Anything that causes a GET, an image, a prefetch, a link preview in a chat client, becomes a way to trigger the action. Safe methods being safe is what makes the rest of the web's caching and retry behaviour sound.",
+          },
+        ],
       },
       {
         id: "ssrf",
@@ -103,15 +226,56 @@ export const security: Card[] = [
           explain:
             "Every option here describes something real, but only the first survives a complete range list. You validated a string; the connection is made to whatever the name resolves to at connect time, and a 302 moves the target again after that. Validation has to happen on the resolved IP, on every hop.",
         },
+        checks: [
+          {
+            prompt: "Why is the cloud metadata endpoint the classic SSRF target?",
+            options: [
+              "It answers unauthenticated requests from the instance with role credentials",
+              "It is reachable from the public internet on a well-known address",
+              "It accepts writes, so an attacker can change the instance's permissions",
+              "It proxies requests onward, which conceals the attacker's origin",
+            ],
+            correctIndex: 0,
+            explain:
+              "Being on the instance is the authentication, which is exactly the position SSRF grants an attacker. The 2019 Capital One breach followed that path to role credentials.",
+          },
+          {
+            prompt: "Which SSRF defence keeps working when a new URL-fetching feature is added?",
+            options: [
+              "An egress proxy that permits only known destination hosts",
+              "A shared helper that validates URLs before any request is made",
+              "A code review checklist item covering outbound HTTP calls",
+              "A blocklist of internal hostnames maintained centrally",
+            ],
+            correctIndex: 0,
+            explain:
+              "The proxy is enforced by the network rather than by remembering to call something. Every other option depends on the next developer knowing a rule that nothing enforces.",
+          },
+          {
+            prompt: "A URL passes validation, then the response is a 302 to an internal address. What is required?",
+            options: [
+              "Re-validating the resolved address at every redirect hop",
+              "Rejecting all redirects, since a valid endpoint never issues one",
+              "Following redirects only when the scheme remains unchanged",
+              "Limiting the redirect chain to a small maximum number of hops",
+            ],
+            correctIndex: 0,
+            explain:
+              "One validation covers one destination. Redirects and DNS both move the target after the check, so the check has to happen where the connection is actually made.",
+          },
+        ],
       },
       {
         id: "supply-chain",
         title: "Dependencies and supply chain",
         level: "advanced",
         body: [
-          "Most of what ships is code you did not write. A postinstall script in any transitive dependency runs with your build's privileges, which is a direct path to your CI secrets.",
-          "Lockfiles pin versions, which is necessary and not sufficient, a compromised version can be published under a number you have already pinned to, and typosquatted names sit one keystroke from real ones.",
-          "The cheap wins are a lockfile, automated updates so you are never far behind, minimal CI token scope, and treating the dependency count itself as a cost.",
+          "Most of what ships is code nobody on your team wrote, and the threat model follows from one fact: a postinstall script in any transitive dependency runs with your build's privileges. That is a direct path to CI secrets, deploy credentials and the artefact you are about to publish, and it does not require anyone to import the package or call a function in it.",
+          "That reframes the question. It is not whether a library is any good; it is whether you trust its author, and everyone its author trusts, with execution on your build machine. A tree of a thousand packages is a thousand maintainer accounts, several of which will be handed to a new maintainer this year without anyone downstream noticing.",
+          "Lockfiles are necessary and not sufficient. They pin what you resolved, with integrity hashes so the bytes cannot change under a pinned version, which is genuinely valuable. They do not help when a legitimate maintainer publishes a malicious version you then upgrade to, and they do nothing about a typosquatted name that sat one keystroke away from the real one when it was first added.",
+          "The controls that pay for a small team are unglamorous. Fewer dependencies, treated as a cost rather than a convenience. Automated updates so you are never far behind, because staying current is also how you get the fix. CI tokens scoped to exactly what the job needs and expiring quickly. Builds that do not run arbitrary install scripts where the ecosystem allows that to be disabled. And a review step for new dependencies that asks who maintains this rather than does it work.",
+          "Beyond that, provenance is where the ecosystem is going. A software bill of materials records what actually went into a build, so the question after a disclosure is a lookup rather than an investigation. Signed provenance attestations, from npm and from Sigstore, let a consumer verify that a package was built from the repository it claims and by the pipeline it claims, which closes the gap that lockfiles cannot.",
+          "The lesson from the incidents that made the news, the event-stream package, the ua-parser-js compromise, the left-pad removal, is that all three were dependency-of-a-dependency problems. Nobody chose them and everybody shipped them, which is the reason the count itself is the number worth managing.",
         ],
         why: "The threat model is that adding a dependency grants its author execution on your build machine. That reframes 'is this library any good' into 'do I trust this author with my deploy credentials', which is the question that actually matters.",
         check: {
@@ -125,6 +289,44 @@ export const security: Card[] = [
           correctIndex: 2,
           explain: "Auditing everything does not scale and never updating accumulates known vulnerabilities. Reducing count, staying current, and limiting what a compromised build can reach are the levers a small team can actually pull.",
         },
+        checks: [
+          {
+            prompt: "Why does a lockfile with integrity hashes not remove supply chain risk?",
+            options: [
+              "A maintainer can publish a malicious new version that you later upgrade to",
+              "Hashes cover only direct dependencies, not transitive ones",
+              "Lockfiles are regenerated on every install, so pins do not persist",
+              "Integrity hashes are computed after install scripts have already run",
+            ],
+            correctIndex: 0,
+            explain:
+              "The lockfile guarantees you get the bytes you resolved. It says nothing about whether the next version you accept is trustworthy, which is where most real compromises arrive.",
+          },
+          {
+            prompt: "What does a signed provenance attestation let a consumer verify?",
+            options: [
+              "That a package was built from the repository and pipeline it claims",
+              "That the package contains no known vulnerabilities at publish time",
+              "That the maintainer's account was protected by two-factor authentication",
+              "That the package's dependencies were themselves reviewed before release",
+            ],
+            correctIndex: 0,
+            explain:
+              "It links the artefact to its source and its build, which closes the gap where a package on the registry has no verifiable relationship to the code people read on the repository page.",
+          },
+          {
+            prompt: "What do the well-known npm compromises have in common?",
+            options: [
+              "They arrived through a dependency of a dependency nobody chose",
+              "They exploited a flaw in the registry's package resolution logic",
+              "They required the victim to call a specific function to be affected",
+              "They were introduced by attackers who compromised the registry itself",
+            ],
+            correctIndex: 0,
+            explain:
+              "Nobody added them deliberately and everybody shipped them. That is why the total dependency count, rather than the quality of the ones you picked, is the number worth managing.",
+          },
+        ],
       },
     ],
   },

@@ -234,8 +234,12 @@ export const delivery: Card[] = [
         title: "What a pipeline should do",
         level: "beginner",
         body: [
-          "Continuous integration runs the checks, build, tests, lint, type check, on every change, so breakage surfaces in minutes, not at release. Continuous delivery keeps every passing commit deployable; continuous deployment goes further and ships it automatically.",
-          "The value is proportional to speed. A pipeline taking forty minutes has stopped being feedback and become something people work around.",
+          "Continuous integration runs the checks on every change, build, tests, lint, type check, so breakage surfaces in minutes rather than at release. Continuous delivery keeps every passing commit deployable. Continuous deployment goes further and ships it without a human deciding. The three are often used interchangeably and describe different amounts of courage.",
+          "The value is proportional to speed, and the threshold is roughly ten minutes. Past that people stop waiting, start batching changes, and the benefit of small deploys evaporates: each release is larger, the failure is harder to attribute, and the rollback takes more with it. Pipeline duration is a product decision rather than an infrastructure detail.",
+          "Getting there is mostly ordering and caching. Run the cheap checks first so an obvious failure costs seconds, cache dependencies between runs, run independent jobs in parallel, and only run the expensive end-to-end suite where it earns its place. A pipeline that runs everything in sequence because that was the order it was written in is the common case.",
+          "What belongs in the pipeline is anything the project claims to be true. Formatting, types, tests, licence checks, a build that actually produces the artefact you will deploy. Every rule enforced by review and not by a check is a rule that holds until the day someone is in a hurry, and the checks that pay for themselves are usually the ones written after that day.",
+          "Flaky tests deserve a policy rather than a habit. A test that fails randomly trains everyone to press retry, which is the same as having no test, and the cost is not the flake but the credibility of every other failure. Quarantine it, fix it or delete it, and treat a rising flake rate as a defect in the pipeline rather than as weather.",
+          "The build must be reproducible and the artefact must be the one that ships. Building once and promoting the same artefact through environments is what makes staging meaningful; rebuilding per environment means staging tested something adjacent to what production runs, which is a subtle way to make the whole pipeline decorative.",
         ],
         why: "Pipeline duration is a product decision, not an infrastructure detail. Past roughly ten minutes people stop waiting, start batching changes, and the benefit of small deploys disappears.",
         check: {
@@ -249,15 +253,56 @@ export const delivery: Card[] = [
           correctIndex: 1,
           explain: "Slow feedback changes behaviour. Batching produces large, hard-to-debug releases, the opposite of what CI is for.",
         },
+        checks: [
+          {
+            prompt: "Why build one artefact and promote it rather than rebuilding per environment?",
+            options: [
+              "Otherwise staging tested something adjacent to what production runs",
+              "Rebuilding costs compute time that could be spent running more tests",
+              "Registries charge per push, so fewer builds means a lower bill",
+              "Rebuilds invalidate the dependency cache for subsequent pipelines",
+            ],
+            correctIndex: 0,
+            explain:
+              "Two builds of the same commit can differ: a floating dependency, a different base image, a changed toolchain. Promoting one artefact is what makes the earlier environments evidence rather than decoration.",
+          },
+          {
+            prompt: "What is the real cost of a test that fails randomly?",
+            options: [
+              "It teaches everyone to retry, which devalues every other failure",
+              "It consumes runner minutes on reruns that produce no information",
+              "It hides a genuine race condition that would otherwise be visible",
+              "It prevents the pipeline from caching results between related runs",
+            ],
+            correctIndex: 0,
+            explain:
+              "Once retry is the habit, a real failure is retried too. The flake damages the credibility of the suite rather than merely wasting time, which is why it needs a policy rather than tolerance.",
+          },
+          {
+            prompt: "What is the most effective way to shorten a slow pipeline?",
+            options: [
+              "Run cheap checks first, cache dependencies, parallelise independent jobs",
+              "Move the suite to larger runners with more CPU and memory available",
+              "Run the full suite only on the main branch and skip it on pull requests",
+              "Split the repository so each pipeline has fewer files to consider",
+            ],
+            correctIndex: 0,
+            explain:
+              "Most pipelines are slow because of ordering rather than hardware. Failing fast on the cheap checks and running the independent work concurrently costs nothing and usually halves the wait.",
+          },
+        ],
       },
       {
         id: "deploy-strategies",
         title: "Blue-green, canary and rolling",
         level: "intermediate",
         body: [
-          "Rolling replaces instances gradually. Simple and cheap, but both versions run at once, so the change must be backwards compatible.",
-          "Blue-green runs a complete second environment and switches traffic in one step, which makes rollback instant at the cost of double the infrastructure.",
-          "Canary sends a small percentage to the new version and watches error rates before proceeding, which limits blast radius to the sampled traffic.",
+          "Rolling replaces instances gradually: take one out, start the new version, wait for it to be healthy, continue. It is simple, needs no extra capacity beyond one instance, and has one requirement that people forget until it bites, which is that both versions run simultaneously and must therefore be compatible with each other and with the schema.",
+          "Blue-green runs a complete second environment and switches traffic in one step. Rollback is switching back, which is as fast as a change to a load balancer, and that speed is the whole point. The costs are double the infrastructure for the duration and the fact that the database is usually shared, so the schema still has to work for both sides and the instant rollback does not extend to data.",
+          "Canary sends a small share of traffic to the new version and watches before proceeding. It is the strongest default because it fails small: a problem appears on one per cent of requests rather than on all of them. What makes it work is the automated decision, which means metrics good enough to compare the two populations and a rule for aborting that does not need a human awake.",
+          "Progressive delivery is the same idea generalised. Route by user, by region, by internal staff first, and increase in steps with an automatic hold when error rates or latency diverge. Cells make this natural, since a cell is already a hard boundary, and the deploy becomes cell by cell with the blast radius decided in advance.",
+          "Every strategy needs a rollback that has been tried. A rollback path nobody has exercised is a plan rather than a capability, and the moment to discover that the previous image no longer starts, or that the migration cannot be reversed, is not during an incident. Rehearsing it is cheap and the alternative is expensive exactly once.",
+          "Finally, decouple deploy from release with flags where you can. When the code path can be turned on without shipping and off without redeploying, the deployment strategy stops being the only lever you have, and the fastest rollback available becomes a configuration change rather than a pipeline run.",
         ],
         why: "Canary is the strongest default because it fails small: problems surface on one percent of traffic, not on all of it. It requires metrics good enough to make the go or no-go call automatically.",
         check: {
@@ -271,16 +316,56 @@ export const delivery: Card[] = [
           correctIndex: 3,
           explain: "A rolling deploy is a period of mixed versions. Any change that breaks compatibility, a removed API field, an incompatible migration, breaks during the roll.",
         },
+        checks: [
+          {
+            prompt: "What does blue-green not give you an instant rollback of?",
+            options: [
+              "The database, which is usually shared between both environments",
+              "The load balancer configuration, which must be reapplied by hand",
+              "In-flight requests, which are dropped when traffic switches over",
+              "The container images, which have to be rebuilt for the old version",
+            ],
+            correctIndex: 0,
+            explain:
+              "Traffic switches in one step and data does not. The schema still has to work for both versions, and any migration applied for the new one is still there after the switch back.",
+          },
+          {
+            prompt: "What makes a canary deployment actually work?",
+            options: [
+              "An automated decision, driven by metrics comparing the two populations",
+              "A long soak time, so rare failures have a chance to appear",
+              "Routing by user id, so the same people always see the new version",
+              "A separate database, so canary traffic cannot corrupt production data",
+            ],
+            correctIndex: 0,
+            explain:
+              "A canary nobody is watching is a slow rollout. The value comes from aborting quickly on a signal, which needs comparable metrics and a rule that does not depend on someone being awake.",
+          },
+          {
+            prompt: "Why rehearse the rollback path?",
+            options: [
+              "An untried rollback is a plan rather than a capability",
+              "Rehearsal keeps the previous image warm in the registry cache",
+              "It is required before a canary can be promoted automatically",
+              "It measures how long a rollback takes, for the incident report",
+            ],
+            correctIndex: 0,
+            explain:
+              "The previous image may no longer start, the migration may not reverse, the configuration may have drifted. Discovering any of that during an incident is the expensive way to learn it.",
+          },
+        ],
       },
       {
         id: "migrations",
         title: "Database migrations without downtime",
         level: "advanced",
         body: [
-          "Schema changes and code deploys are not atomic, so during any deploy the old code may run against the new schema, or the reverse.",
-          "The expand-and-contract pattern handles this: add the new column, write to both, backfill, switch reads, and drop the old column in a later release.",
-          "Renaming or dropping a column in the same release as the code change guarantees a window where one of the two is broken.",
-          "Watch the lock as well. Adding a nullable column is instant on a modern Postgres; changing a type, or building an index the ordinary way, takes a lock that queues every other query behind it. CREATE INDEX CONCURRENTLY exists precisely because the obvious version takes the table down.",
+          "Schema changes and code deploys are not atomic, and cannot be. There is always a window in which old code runs against the new schema, or new code against the old one, and every migration strategy is a way of making that window harmless rather than avoiding it.",
+          "Expand and contract is the pattern that works. Add the new column, deploy code that writes both old and new, backfill the existing rows, switch reads to the new column, and only then, in a later release, drop the old one. Each step is safe with either version of the code running, which is what makes the sequence longer and the outage shorter.",
+          "The backfill needs its own care on a large table. Update everything in one statement and you hold a lock and generate a write burst that replicas struggle to apply; batch it in chunks with a pause between them and it takes longer and disturbs nothing. That patience is usually the difference between a migration nobody noticed and an incident report.",
+          "Locks are the second failure mode and they are database-specific. Adding a nullable column is instant on a modern Postgres, adding one with a volatile default is not. Changing a type rewrites the table. Building an index the ordinary way takes a lock that queues every query behind it, which is precisely why the concurrent variant exists. Knowing which operation is cheap on your engine is not optional knowledge for anyone deploying to it.",
+          "Lock queues are worse than the lock itself. A migration waiting for a long-running query holds its place in the queue, and everything arriving afterwards waits behind it, so a table that was merely busy becomes unavailable. Setting a short lock timeout means the migration fails quickly instead of taking the table with it, and failing a migration is a much better outcome than an outage.",
+          "The rule that follows: every migration should be reversible, tested against production-sized data, and separated from the code that depends on it. Splitting a rename into three deploys feels slow, and it is the only version that stays up.",
         ],
         why: "This is the most common cause of self-inflicted deploy outages. Splitting a rename into three deploys feels slow and is the only version that stays up.",
         check: {
@@ -294,14 +379,56 @@ export const delivery: Card[] = [
           correctIndex: 2,
           explain: "There is always a window where code and schema disagree. Expand and contract keeps both readable throughout.",
         },
+        checks: [
+          {
+            prompt: "Why set a short lock timeout on a migration?",
+            options: [
+              "So it fails fast rather than queueing every query behind its wait",
+              "So the transaction cannot hold open long enough to block vacuum",
+              "So a failed migration is retried automatically on the next attempt",
+              "So replicas are not forced to apply the change during peak traffic",
+            ],
+            correctIndex: 0,
+            explain:
+              "A migration waiting for a lock holds its place in the queue and everything after it waits too, so a busy table becomes an unavailable one. A failed migration is a far better outcome.",
+          },
+          {
+            prompt: "What is the safe way to backfill a large table?",
+            options: [
+              "Batches with a pause between them, rather than one large statement",
+              "A single transaction, so the backfill is atomic and can be rolled back",
+              "A temporary table populated in parallel, then swapped into place",
+              "A trigger that fills the column as rows happen to be read",
+            ],
+            correctIndex: 0,
+            explain:
+              "One statement means a long lock and a write burst that replicas struggle to apply. Chunking takes longer and disturbs nothing, which is the trade worth making.",
+          },
+          {
+            prompt: "In expand and contract, when is the old column dropped?",
+            options: [
+              "In a later release, once no deployed code reads or writes it",
+              "In the same release that switches reads to the new column",
+              "Immediately after the backfill completes and is verified",
+              "During the same transaction that adds the new column",
+            ],
+            correctIndex: 0,
+            explain:
+              "Dropping it early recreates the window the pattern exists to close, and it also removes the ability to roll back the previous deploy. The wait is the point.",
+          },
+        ],
       },
       {
         id: "feature-flags",
         title: "Feature flags",
         level: "intermediate",
         body: [
-          "A flag separates deploying code from releasing behaviour. Code ships dark, is enabled for a cohort, then for everyone, which turns a rollback into a configuration change, not a redeploy, and that is a great deal faster during an incident.",
-          "Flags accumulate. Every one is a branch in the code, and stale flags become permanent complexity, so removing them has to be part of the process, not something everyone means to get to.",
+          "A feature flag separates deploying code from releasing behaviour. Code ships dark, is enabled for a cohort, then for everyone, and turning it off is a configuration change rather than a redeploy. During an incident that difference is minutes against a pipeline run, which is why flags are how teams deploy on a Friday without pretending it is a normal Tuesday.",
+          "There are several kinds and conflating them causes most flag problems. A release flag is temporary and exists to be deleted. An experiment flag exists to be measured and then decided. An operational flag, a kill switch for an expensive feature, is permanent by design. A permission flag is really entitlement and probably belongs in the authorisation model rather than in a flag system.",
+          "Flags accumulate, and each one is a branch that doubles the number of possible behaviours. Ten live flags is a thousand combinations, of which you test perhaps three. That is why deletion has to be part of the process, with an owner and an expiry date, rather than something everyone intends to get to once the launch settles.",
+          "The flag service becomes a dependency on the request path, so it needs the treatment of one. Cache the values locally, define what happens when the service is unreachable, and make the default the safe path rather than whatever the client library returns for an unknown key. A flag system that takes the product down when it is unavailable has inverted its own purpose.",
+          "Flags are also a testing problem. The combination you ship is the combination someone experiences, so at minimum test the on and off state of anything currently in flight, and be honest that beyond a handful of concurrent flags nobody is testing the matrix. That is another argument for deleting them promptly rather than a reason to avoid them.",
+          "Used well, they change the shape of a release: small, frequent, dark deploys, then a separate decision about exposure, with a rollback that does not need the pipeline. Used badly they are a permanent second configuration language that nobody owns and nobody can safely remove.",
         ],
         why: "Flags are how you deploy on Friday safely. The discipline that makes them work is deleting them: a codebase with two hundred live flags has an untestable number of behaviour combinations.",
         check: {
@@ -315,6 +442,44 @@ export const delivery: Card[] = [
           correctIndex: 1,
           explain: "The runtime cost is trivial. The real cost is combinatorial complexity in code that nobody removes.",
         },
+        checks: [
+          {
+            prompt: "What must be defined for a flag service on the request path?",
+            options: [
+              "The behaviour when it is unreachable, with the safe path as the default",
+              "The number of flags it may evaluate per request, to bound latency",
+              "A schema for flag names, so keys cannot collide between teams",
+              "An audit log of every evaluation, for later incident analysis",
+            ],
+            correctIndex: 0,
+            explain:
+              "Otherwise the system that exists to make releases safer becomes a dependency that can take the product down. Local caching plus a defined fallback keeps it an improvement rather than a risk.",
+          },
+          {
+            prompt: "Which kind of flag is legitimately permanent?",
+            options: [
+              "An operational kill switch for an expensive or risky feature",
+              "A release flag guarding a feature that shipped last quarter",
+              "An experiment flag whose result has already been decided",
+              "A permission flag controlling which customers see a feature",
+            ],
+            correctIndex: 0,
+            explain:
+              "A kill switch is an operational control and belongs in the system indefinitely. Release and experiment flags exist to be removed, and entitlement belongs in the authorisation model.",
+          },
+          {
+            prompt: "Why does the number of live flags matter more than their individual cost?",
+            options: [
+              "Each flag doubles the possible behaviours, and few combinations are tested",
+              "Each flag adds a network call, so latency grows with the count",
+              "Flag services charge per evaluation, so cost grows multiplicatively",
+              "Flags are stored per user, so storage grows with users times flags",
+            ],
+            correctIndex: 0,
+            explain:
+              "Ten flags is a thousand combinations and you test a handful. The complexity is combinatorial and lives in code nobody owns, which is the argument for expiry dates rather than for avoiding flags.",
+          },
+        ],
       },
     ],
   },

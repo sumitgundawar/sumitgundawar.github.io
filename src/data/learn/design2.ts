@@ -1452,8 +1452,12 @@ export const design2: Card[] = [
         title: "Leader election",
         level: "advanced",
         body: [
-          "Many systems need exactly one node doing something, running a scheduled job, accepting writes, coordinating a cluster. Leader election picks that node and replaces it when it dies.",
-          "Doing it correctly is subtle, and two nodes both believing they lead is a split brain that corrupts data quietly. Almost nobody should implement this themselves: use etcd, ZooKeeper, or a database lease with fencing tokens.",
+          "Many systems need exactly one node doing something: running a scheduled job, accepting writes, compacting a table, coordinating a cluster. Leader election is how that one node is chosen and how it is replaced when it dies, and the whole difficulty lies in the second half.",
+          "Two nodes both believing they lead is a split brain, and it corrupts data quietly rather than loudly. Both are behaving correctly by their own reasoning; the system has simply given two nodes the same certainty. That is why the failure is usually discovered later, in inconsistent data, rather than at the moment it happens.",
+          "The naive implementation is a lock row with a timeout, and it fails for a reason worth internalising: there is no bound on how long a process can be paused. Garbage collection, a hypervisor descheduling the VM, a page swapped to disk, a suspended laptop. The lease expires, a new leader is elected, and the old one wakes up with no idea that any time has passed and writes as though it still leads.",
+          "You cannot prevent the pause, so the storage layer has to reject the write. Fencing tokens are the mechanism: the lock service issues a monotonically increasing number with each grant, every write carries it, and the resource refuses anything with a number lower than the highest it has seen. The zombie's write is rejected by the thing being written to, which is the only layer that can know.",
+          "Leases need clocks, and clocks are the other soft spot. A lease based on absolute timestamps depends on clock synchronisation between the holder and the service; one based on elapsed monotonic time does not, and monotonic time is what you want here. Anything comparing wall-clock timestamps across machines to decide who leads is depending on NTP for correctness, which is a dependency nobody chose.",
+          "Almost nobody should implement this from scratch. etcd, ZooKeeper and Consul exist, do it correctly and have had their edge cases found by other people, and a database lease with fencing tokens is a reasonable middle path when adding a coordination service is not worth it. The good outcome is to spend your thinking on what the leader does rather than on how it is chosen.",
         ],
         why: "The naive version, a lock row with a timeout, fails when the leader pauses for garbage collection, wakes up believing it still holds the lock, and writes over the new leader. Fencing tokens exist to reject those late writes.",
         check: {
@@ -1468,15 +1472,72 @@ export const design2: Card[] = [
           explain:
             "A longer lease is the tempting answer and it does not work: there is no bound on how long a process can be paused by GC, a hypervisor, or a swapped-out page, so any lease you pick can be exceeded. You cannot prevent the pause. The storage layer has to reject the write, which is what a fencing token lets it do.",
         },
+        checks: [
+          {
+            prompt: "Why is split brain usually discovered long after it happens?",
+            options: [
+              "Both nodes behave correctly by their own reasoning, so nothing errors",
+              "Monitoring samples leadership too slowly to catch the overlap window",
+              "The second leader takes over silently once the first stops responding",
+              "Election logs are written by the leader, so the loser records nothing",
+            ],
+            correctIndex: 0,
+            explain:
+              "Neither node is malfunctioning; each holds a certainty the system handed it. There is no error to raise, only data that stops agreeing, which surfaces days later as a reconciliation problem.",
+          },
+          {
+            prompt: "Why should a lease use monotonic elapsed time rather than wall-clock timestamps?",
+            options: [
+              "Monotonic clocks have finer resolution on most operating systems",
+              "Wall-clock comparison across machines makes NTP a correctness dependency",
+              "Timestamps cannot be compared once a process has been paused",
+              "Monotonic time survives a restart, which wall-clock time does not",
+            ],
+            correctIndex: 1,
+            explain:
+              "Comparing wall clocks between machines means clock skew decides who leads. Elapsed monotonic time on one machine needs no agreement with anyone, which is the property you want in the failure path.",
+          },
+          {
+            prompt: "When is a database lease a reasonable substitute for etcd or ZooKeeper?",
+            options: [
+              "When the elected work is idempotent, so a double leader is harmless",
+              "When fencing tokens are enforced by the resource being written to",
+              "When the lease duration exceeds the longest observed pause in production",
+              "When there are fewer than five candidate nodes in the election",
+            ],
+            correctIndex: 1,
+            explain:
+              "The lock service is not what makes this safe; the rejection of a stale token is. With that in place a database lease is fine, and without it no lock service saves you either.",
+          },
+        ],
+        diagram: {
+          caption: "You cannot stop the pause, so the resource rejects the write",
+          columns: [
+            [
+              { id: "old", label: "Old leader", sub: "paused 30s", kind: "service", alternative: true },
+              { id: "new", label: "New leader", sub: "token 43", kind: "service" },
+            ],
+            [{ id: "lock", label: "Lock service", sub: "issues rising tokens", kind: "edge" }],
+            [{ id: "store", label: "Storage", sub: "highest seen: 43", kind: "data" }],
+          ],
+          edges: [
+            { from: "lock", to: "new", label: "grant 43" },
+            { from: "new", to: "store", label: "write with 43, accepted" },
+            { from: "old", to: "store", label: "write with 42, rejected" },
+          ],
+        },
       },
       {
         id: "consensus",
         title: "Consensus: Raft and Paxos",
         level: "advanced",
         body: [
-          "Consensus is getting a group of nodes to agree on a value despite failures. Raft and Paxos are the standard algorithms; Raft is deliberately easier to understand.",
-          "They work by majority quorum, which is why clusters are sized 3 or 5. A majority must agree, so the cluster survives losing fewer than half its members.",
-          "Every write costs a round trip to a quorum, so consensus is correctness bought with latency.",
+          "Consensus is getting a group of nodes to agree on a value despite some of them failing or being unreachable. Paxos came first and is famously hard to reason about; Raft was designed for understandability, which is why it is what almost everything built since uses. Both give the same guarantee: one agreed sequence of decisions that survives a minority failing.",
+          "The mechanism is a majority quorum. A value is committed once more than half the members have accepted it, which means two conflicting majorities cannot exist, because any two majorities of the same group overlap in at least one member. That overlap is the whole proof, and it is worth being able to state, because everything else in the algorithm is machinery serving it.",
+          "Cluster sizing follows from arithmetic rather than from tradition. Tolerating f failures needs 2f+1 members, so 3 tolerates one and 5 tolerates two. Four members tolerate exactly one, the same as three, while costing an extra machine and an extra acknowledgement, which is why even sizes are avoided. The common explanation about avoiding tie votes is wrong: a majority of four is three, so a majority cannot tie.",
+          "Raft's structure is worth knowing in outline because it explains the failure modes. One leader takes all writes and replicates them to followers; a term number increases with each election so stale leaders are recognisable; a follower that misses heartbeats becomes a candidate and asks for votes. Randomised election timeouts stop every follower standing at once, which is the same desynchronisation trick as jitter in a retry policy.",
+          "The cost is a round trip to a quorum on every write, so consensus is correctness bought with latency, and the price is set by geography. A cluster inside one data centre pays a millisecond; one spanning continents pays the worst inter-region round trip on every single write, which is why global systems shard so that each shard's consensus group stays local rather than stretching one group across the world.",
+          "Finally, know what it is not for. Consensus is for metadata, membership, leadership, configuration, small critical state. Running your primary data path through a consensus group means every write pays quorum latency, which is why systems that need both usually keep a small consensus group deciding who may write and a fast replication path doing the writing.",
         ],
         why: "This is why you size clusters odd and why cross-region consensus is painful: a quorum spanning continents pays the worst inter-region latency on every write.",
         check: {
@@ -1490,15 +1551,56 @@ export const design2: Card[] = [
           correctIndex: 2,
           explain: "3 and 4 both tolerate one failure, so the fourth node adds cost and no resilience; 5 is the next step that tolerates two. Note the common explanation, that odd sizes avoid ties, is wrong: a majority of 4 is 3, so a majority quorum cannot tie.",
         },
+        checks: [
+          {
+            prompt: "Why can two conflicting values never both be committed by majority quorum?",
+            options: [
+              "Any two majorities of the same group share at least one member",
+              "The leader serialises writes, so a second value is never proposed",
+              "Term numbers increase, so the later value always supersedes the earlier",
+              "Followers reject a second proposal until the first has been applied",
+            ],
+            correctIndex: 0,
+            explain:
+              "The overlap is the proof. A member that accepted the first value will refuse to accept a conflicting one, so no second majority can form, and everything else in the algorithm exists to make that hold under failure.",
+          },
+          {
+            prompt: "Why do Raft implementations randomise the election timeout?",
+            options: [
+              "To spread elections over time, so followers do not all stand at once",
+              "To ensure the node with the freshest log always times out first",
+              "To keep leadership changes rare during periods of high write load",
+              "To make the term number unpredictable to an outside observer",
+            ],
+            correctIndex: 0,
+            explain:
+              "Identical timeouts mean every follower becomes a candidate in the same instant, splitting the vote repeatedly. Randomising is the same desynchronisation trick as jitter in a retry schedule.",
+          },
+          {
+            prompt: "What is the practical consequence of stretching one consensus group across continents?",
+            options: [
+              "Reads become inconsistent, since followers lag the leader by a region hop",
+              "Every write pays the worst inter-region round trip before it commits",
+              "Elections never complete, because heartbeats exceed the timeout",
+              "The cluster loses fault tolerance, since a region is a single failure domain",
+            ],
+            correctIndex: 1,
+            explain:
+              "Quorum means waiting for a majority, and a majority spanning continents includes a far member. This is why global systems shard so each group stays local rather than stretching one group worldwide.",
+          },
+        ],
       },
       {
         id: "saga",
         title: "Distributed transactions and sagas",
         level: "advanced",
         body: [
-          "A transaction across several services cannot use a database transaction. Two-phase commit exists but blocks when the coordinator fails, so it is rare in practice.",
-          "A saga breaks the work into local transactions, each with a compensating action that undoes it. Book the flight, book the hotel, and if the hotel fails, cancel the flight.",
-          "Compensation is not rollback: the intermediate state was visible, and undoing may be impossible for actions like sending an email.",
+          "A transaction across several services cannot use a database transaction, because there is no single database holding the locks. Two-phase commit exists and does provide atomicity, and it is rare in practice for one reason: it blocks. If the coordinator fails after participants have prepared, they hold their locks and wait, and a system where one component's crash freezes several others is a poor trade for a guarantee you can usually work around.",
+          "A saga is the usual alternative: break the work into local transactions, each committing on its own, each paired with a compensating action that undoes its effect. Book the flight, book the hotel, charge the card; if the hotel fails, cancel the flight and refund. Every step commits immediately, so nothing is held, and the price is that partial states are real and visible.",
+          "Compensation is not rollback, and the distinction is the entire design problem. A rollback erases history; a compensation is a new fact that offsets an old one. The flight was booked and then cancelled, and both appear in the record. Some actions have no compensation at all: you cannot unsend an email or unpublish something someone screenshotted, which forces you to order the saga so the irreversible steps come last.",
+          "Sagas are orchestrated or choreographed, and the choice matters more than it sounds. An orchestrator holds the state machine explicitly: one service knows the sequence, which makes the flow readable and the coordinator a component to run. Choreography spreads it across event handlers with no central owner, which couples less and means the actual sequence exists only in the aggregate of everyone's subscriptions, and can be reconstructed only by reading them all.",
+          "Every step needs to be idempotent, because every step will be retried. A saga is a long-running process across unreliable networks, so duplicate deliveries and repeated compensations are normal operation rather than an exception. A compensation that runs twice must leave the same state as one that runs once, which usually means recording that it has run rather than checking whether it needs to.",
+          "The last piece is visibility. A saga in progress is a state machine with a current step, and it needs to be inspectable: which sagas are running, which are stuck, which compensations failed. Without that you have a distributed process nobody can see, and the first sign of trouble is a customer noticing that a booking exists with no payment against it.",
         ],
         why: "The design work is deciding what compensation means for each step. Some actions genuinely cannot be undone, which forces you to order the saga so the irreversible steps come last.",
         check: {
@@ -1513,15 +1615,56 @@ export const design2: Card[] = [
           explain:
             "Each step commits locally, so partial state is observable and compensation is a new action rather than a rollback, and not always a complete one, since you cannot unsend an email. Spanning services is the reason a saga exists, not what makes it different; the difference is what it gives up once it does.",
         },
+        checks: [
+          {
+            prompt: "Why is two-phase commit rare despite providing atomicity?",
+            options: [
+              "It blocks: a coordinator failure leaves participants holding their locks",
+              "It requires every participant to run the same database engine",
+              "It cannot span more than two services without a nested protocol",
+              "It provides atomicity but gives up durability on the participants",
+            ],
+            correctIndex: 0,
+            explain:
+              "Prepared participants wait for a decision that is not coming, holding locks the rest of the system needs. One component's crash freezing several others is usually a worse outcome than a visible partial state.",
+          },
+          {
+            prompt: "How should a saga be ordered when one step cannot be compensated?",
+            options: [
+              "The irreversible step goes last, after everything else has committed",
+              "The irreversible step goes first, so failure is discovered early",
+              "The irreversible step is wrapped in a two-phase commit of its own",
+              "The saga is split in two, with a manual approval between the halves",
+            ],
+            correctIndex: 0,
+            explain:
+              "Once the email is sent there is no undo, so everything that can fail should have failed already. Ordering by reversibility is the main design lever a saga gives you.",
+          },
+          {
+            prompt: "What does orchestration give you that choreography does not?",
+            options: [
+              "Lower coupling between the services taking part in the saga",
+              "One place where the sequence is written down and can be read",
+              "Guaranteed ordering of the events emitted by each participant",
+              "Automatic compensation when any participant reports a failure",
+            ],
+            correctIndex: 1,
+            explain:
+              "With choreography the flow exists only as the sum of everyone's subscriptions, so understanding it means reading every handler. An orchestrator is a component to run and a sequence you can point at.",
+          },
+        ],
       },
       {
         id: "unique-ids",
         title: "Generating unique ids at scale",
         level: "intermediate",
         body: [
-          "Auto-increment ids need a single coordinator, which becomes a bottleneck and does not survive sharding.",
-          "Random UUIDs need no coordination but are large and, being random, scatter B-tree inserts across the index, which hurts write performance badly.",
-          "Snowflake-style ids pack a timestamp, a machine id and a counter into 64 bits: unique without coordination, and roughly time-ordered so inserts stay sequential.",
+          "Auto-increment ids are perfect until they are not. They need a single coordinator to hand out the next value, which is a bottleneck at high write rates and stops working entirely once the table is sharded, because two shards would issue the same numbers. They also leak information: sequential ids in a URL tell a competitor your order volume and let anyone enumerate your records.",
+          "Random UUIDs solve coordination completely and cost you index locality. Version 4 is random by construction, so consecutive inserts land in unrelated parts of the B-tree, which means constant page splits, a much larger working set in memory, and write performance that degrades as the table grows. At 16 bytes they also enlarge every secondary index that references them.",
+          "Snowflake-style ids are the usual answer at scale: a timestamp in the high bits, a machine identifier, and a per-millisecond counter, packed into 64 bits. Unique without coordination, sortable by time, and small enough to be a comfortable primary key. The cost is that each generator needs a distinct machine id, which is a small piece of configuration that must genuinely be unique, and a clock that does not move backwards.",
+          "UUIDv7 is the standardised version of the same idea and is the sensible modern default when a UUID is wanted: a millisecond timestamp in the leading bits followed by randomness, so it is globally unique with no coordination and still inserts near the end of the index. It gives most of Snowflake's benefit with none of the machine id configuration.",
+          "Time-ordered ids have a cost worth naming: they disclose creation time and, with enough samples, creation rate. Where that matters, the fix is a separate opaque public identifier for external use, with the ordered id kept internal. That is also the clean answer to enumeration, since the internal key can stay sequential and useful while nothing outside can walk it.",
+          "The general shape here appears in many places: coordination buys ordering, and avoiding coordination costs locality. The good designs recover the ordering some other way, usually by putting time in the high bits, rather than by reintroducing the coordinator they were trying to remove.",
         ],
         why: "Time ordering is the underrated property. Random UUIDs as a primary key cause page splits across the whole index; UUIDv7 and Snowflake ids keep inserts near the end where they belong.",
         check: {
@@ -1535,6 +1678,44 @@ export const design2: Card[] = [
           correctIndex: 3,
           explain: "Sequential keys append at the end of the index. Random keys write everywhere, fragmenting pages and thrashing cache. Time-sortable ids fix it.",
         },
+        checks: [
+          {
+            prompt: "What does UUIDv7 change compared with UUIDv4?",
+            options: [
+              "A timestamp in the leading bits, so inserts stay near the end of the index",
+              "A shorter representation, which halves the size of every foreign key",
+              "A machine identifier, which removes the need for randomness entirely",
+              "A checksum, so a corrupted identifier can be detected on read",
+            ],
+            correctIndex: 0,
+            explain:
+              "It keeps global uniqueness without coordination and recovers index locality by making the leading bits ordered. That is most of Snowflake's benefit with none of the machine id configuration.",
+          },
+          {
+            prompt: "What does a Snowflake generator need that a random UUID does not?",
+            options: [
+              "A unique machine id, and a clock that does not move backwards",
+              "A coordinator to allocate ranges before each batch of inserts",
+              "A shared counter, so two generators cannot collide in a millisecond",
+              "A registry of issued ids, to detect a collision after the fact",
+            ],
+            correctIndex: 0,
+            explain:
+              "Uniqueness rests on the machine id genuinely differing and on time advancing. Both are small pieces of configuration, and both cause duplicate ids when they are wrong.",
+          },
+          {
+            prompt: "Time-ordered ids in public URLs leak something. What, and what is the fix?",
+            options: [
+              "Creation time and rate, fixed by a separate opaque public identifier",
+              "The shard that holds the row, fixed by hashing the id before display",
+              "The machine that generated it, fixed by rotating machine ids often",
+              "The table it belongs to, fixed by prefixing ids with a type code",
+            ],
+            correctIndex: 0,
+            explain:
+              "Enough samples reveal when things were created and how quickly, which is business information. Keeping the ordered id internal and exposing an opaque one solves both that and enumeration.",
+          },
+        ],
       },
     ],
   },

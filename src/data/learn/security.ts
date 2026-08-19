@@ -140,9 +140,12 @@ export const security: Card[] = [
         title: "The four levels and what each permits",
         level: "intermediate",
         body: [
-          "Read uncommitted allows dirty reads. Read committed prevents those but allows non-repeatable reads: the same query twice in one transaction can return different rows.",
-          "Repeatable read fixes that for rows you have read. Serializable is the only level that guarantees the result matches some serial order of the transactions.",
-          "Postgres defaults to read committed; MySQL InnoDB defaults to repeatable read. Knowing which you are on is the difference between a guarantee and an assumption.",
+          "The four levels are defined by the anomalies they forbid, which is a more useful way to hold them than as a ladder of strength. Read uncommitted allows dirty reads, seeing another transaction's uncommitted work. Read committed forbids that and still allows non-repeatable reads: the same query run twice in one transaction can return different values, because someone committed in between.",
+          "Repeatable read forbids that too for rows already read, and in the classical definition still permits phantoms: rows appearing in a range you queried earlier. Serializable is the only level that guarantees the outcome matches some serial order of the transactions, which is the guarantee people assume they have all along.",
+          "The defaults differ and matter more than the definitions. Postgres defaults to read committed and its repeatable read is really snapshot isolation, which does prevent phantoms in the classical sense while still permitting write skew. MySQL InnoDB defaults to repeatable read and prevents many phantoms with gap locks, which is a different mechanism with different deadlock behaviour. Two engines, the same words, materially different behaviour.",
+          "Serializable is implemented in two very different ways, and knowing which decides how it fails. Two-phase locking makes transactions wait, so contention appears as blocking. Postgres uses serializable snapshot isolation, which lets them run and aborts one when a dangerous pattern is detected, so contention appears as failed transactions your application must retry. Turning on serializable without a retry loop turns a rare anomaly into a visible error rate.",
+          "The practical approach is per transaction rather than per system. Leave the default in place for the majority, and raise the level only on the specific paths where a business rule spans rows, with a retry on the serialisation failures that follow. A blanket serializable default is usually a way of paying for isolation everywhere to protect two code paths.",
+          "The one thing not to do is assume. The letters ACID are a promise about a configuration, the configuration has a default nobody chose, and the anomalies permitted at that default are the shape of the bugs you will eventually be debugging with no error message to guide you.",
         ],
         why: "Every level above read committed costs concurrency, which is why nobody defaults to serializable. The engineering question is which anomalies your specific workload can tolerate, not which level sounds safest.",
         check: {
@@ -156,15 +159,56 @@ export const security: Card[] = [
           correctIndex: 2,
           explain: "Read committed only guarantees you never see uncommitted data. Other transactions committing between your two reads is expected behaviour at that level.",
         },
+        checks: [
+          {
+            prompt: "Postgres and MySQL both offer repeatable read. Why does behaviour still differ?",
+            options: [
+              "Postgres implements it as snapshot isolation; InnoDB uses gap locks",
+              "MySQL applies it per statement, whereas Postgres applies it per transaction",
+              "Postgres upgrades it to serializable when a conflict is detected",
+              "MySQL only honours it for tables with an explicit primary key",
+            ],
+            correctIndex: 0,
+            explain:
+              "The same words describe different mechanisms with different failure modes, one aborting on conflict and one blocking with gap locks. Reading the engine's own documentation is the only way to know what your default gives you.",
+          },
+          {
+            prompt: "What must accompany switching a path to serializable in Postgres?",
+            options: [
+              "A retry loop, because conflicting transactions abort rather than block",
+              "A longer lock timeout, since transactions now wait behind each other",
+              "A read replica, so long queries do not hold the serialisable snapshot",
+              "An explicit lock on every row that the transaction intends to read",
+            ],
+            correctIndex: 0,
+            explain:
+              "Serializable snapshot isolation detects dangerous patterns and aborts one participant. Without a retry, a rare anomaly is replaced by a visible error rate, which is a worse trade than the one you meant to make.",
+          },
+          {
+            prompt: "Why raise the isolation level per transaction rather than for the whole system?",
+            options: [
+              "Most transactions do not need it, and every level above the default costs",
+              "Mixed levels let the planner choose cheaper plans for read-only work",
+              "A system-wide level cannot be changed once the connections are pooled",
+              "Higher levels are available only on the primary, never on a replica",
+            ],
+            correctIndex: 0,
+            explain:
+              "Isolation is bought with concurrency and with aborts. Paying for it on the two paths where a rule spans rows is very different from paying for it on every request the service handles.",
+          },
+        ],
       },
       {
         id: "mvcc",
         title: "MVCC and snapshot isolation",
         level: "advanced",
         body: [
-          "Multi-version concurrency control keeps several versions of each row, so a reader sees a consistent snapshot from when its transaction began while writers carry on. Readers do not block writers and writers do not block readers.",
-          "The cost is that old versions accumulate and must be cleaned up, Postgres calls this vacuum, and a long-running transaction holds back the cleanup for everyone.",
-          "Snapshot isolation is what this buys, and it is not serializable: it permits write skew.",
+          "Multi-version concurrency control keeps several versions of each row rather than updating in place. A reader sees the snapshot that existed when its transaction began, while writers create new versions alongside. Readers do not block writers and writers do not block readers, which is the property that makes a database usable under mixed load and is the reason MVCC won.",
+          "An update is therefore an insert of a new version plus a mark on the old one, not an overwrite. That has consequences people meet later: an update costs roughly what an insert costs, updating one column of a wide row still writes the whole row in Postgres, and every index entry has to be maintained for the new version unless the update qualifies for the in-page optimisation.",
+          "The old versions accumulate and have to be reclaimed, which is what vacuum does. It can only remove a version once no transaction might still need it, so the oldest open transaction sets the horizon for the entire database. That is the mechanism behind the classic production incident: a connection left idle in transaction by a pool or a debugger, holding the horizon still while a busy table bloats and its queries slow down, with write volume completely normal.",
+          "Bloat is the visible symptom and the space is not returned to the operating system by ordinary vacuum, only made reusable, so a table that ballooned stays large until it is rewritten. Autovacuum is tuned per table for a reason: a hot table with a high update rate frequently needs it running more aggressively than the defaults, and the settings that matter are the scale factor and the cost limits.",
+          "What MVCC buys at the isolation level is snapshot isolation, and it is worth being precise that this is not serializable. A snapshot is consistent, so every read in a transaction agrees with every other, and two transactions can still each read a consistent snapshot, each check a rule that holds in it, and each write something that makes the rule false. That is write skew, and it is the subject of the next topic.",
+          "The practical habits follow directly. Keep transactions short, never hold one open across user interaction or an external call, monitor the age of the oldest transaction as a first-class metric, and treat idle in transaction as an alertable state rather than a curiosity in a connection list.",
         ],
         why: "The failure this creates in production is rarely a correctness bug, it is an idle transaction left open by a connection pool, blocking vacuum until the table bloats and queries slow down.",
         check: {
@@ -178,15 +222,56 @@ export const security: Card[] = [
           correctIndex: 1,
           explain: "Old versions can only be removed once no transaction might still need them. One forgotten open transaction pins the horizon for the whole table.",
         },
+        checks: [
+          {
+            prompt: "Under MVCC, what does updating a single column of a wide row cost?",
+            options: [
+              "A new version of the entire row, plus index maintenance for it",
+              "An in-place write of that column, with the old value kept in the log",
+              "A new version of the changed column only, linked to the original row",
+              "A copy of the row into an overflow area, leaving the original intact",
+            ],
+            correctIndex: 0,
+            explain:
+              "There is no partial update: the new version is a whole row. That is why update-heavy wide tables generate far more write volume than the size of the change suggests.",
+          },
+          {
+            prompt: "Which metric best warns of the classic MVCC production problem?",
+            options: [
+              "The age of the oldest open transaction on the database",
+              "The number of rows updated per second on the busiest table",
+              "The ratio of index size to table size across the schema",
+              "The number of connections currently held by the pool",
+            ],
+            correctIndex: 0,
+            explain:
+              "Everything downstream, bloat, slow queries, vacuum falling behind, follows from one transaction holding the horizon still. Alerting on idle in transaction catches it before the table has to be rewritten.",
+          },
+          {
+            prompt: "Why does a bloated table stay large after vacuum has run?",
+            options: [
+              "Ordinary vacuum makes space reusable rather than returning it to the disk",
+              "Vacuum defers reclamation until the table is next written to",
+              "Index entries keep the pages pinned until the indexes are rebuilt",
+              "Statistics are not updated, so the planner still assumes the old size",
+            ],
+            correctIndex: 0,
+            explain:
+              "The space is available for future rows and the file does not shrink. Returning it needs a rewrite, which is why avoiding the bloat is much cheaper than fixing it.",
+          },
+        ],
       },
       {
         id: "write-skew",
         title: "Write skew",
         level: "advanced",
         body: [
-          "Two transactions read an overlapping set, each check a constraint that still holds, and each write a different row. Neither conflicts directly, both commit, and the constraint is now violated.",
-          "The textbook case is on-call: two doctors each check that someone else is on duty and each take themselves off. Both checks passed against the pre-write state.",
-          "Snapshot isolation permits it. Fixes are serializable isolation, materialising the conflict onto a single row both must lock, or an explicit predicate lock.",
+          "Write skew is the anomaly people are most confident their database prevents. Two transactions read an overlapping set of rows, each checks a rule that still holds in its own snapshot, and each writes a different row. Neither touches what the other wrote, so nothing conflicts, both commit, and the rule is now false.",
+          "The textbook case is on-call cover: two doctors each check that at least one other doctor remains on duty, each sees a snapshot where that is true, and each takes themselves off the rota. Both checks passed. Nobody is on call. No database error was raised at any point, because from each transaction's perspective nothing was wrong.",
+          "The shape to recognise is a rule about a set combined with a write to a member of that set. Reserving the last seat, keeping a balance above zero across several accounts, enforcing at most one active subscription, allocating unique meeting rooms, maintaining a minimum staffing level. Every one of those is a constraint that no single row can express, which is exactly why the database cannot enforce it for you.",
+          "There are three fixes and they trade differently. Serializable isolation detects the dangerous read-write pattern and aborts one transaction, which is correct and needs a retry loop. Materialising the conflict gives the rule a row of its own, a rota row or a counter, that every participant must lock, which turns an invisible predicate into a real write conflict the database can see. A predicate lock does the same explicitly where the engine supports it.",
+          "The cheapest fix is often to change the model rather than the isolation level. A unique constraint or an exclusion constraint expresses many of these rules directly, and a constraint is checked by the database on every path, including the script somebody runs by hand at midnight. Where the rule can be made into a constraint, that is a better answer than any transaction setting.",
+          "The reason this stays hidden is that it needs concurrency and a rule spanning rows, which no unit test has and every production system does. It will not appear in review, will not appear in staging, and will appear on the day two people click at the same moment, which is why recognising the shape is worth more than remembering the name.",
         ],
         why: "This is the anomaly people assume their database prevents. It is invisible in testing because it needs concurrency and a constraint spanning rows, which is exactly the shape of most real business rules.",
         check: {

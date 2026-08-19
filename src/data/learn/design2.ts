@@ -935,8 +935,12 @@ export const design2: Card[] = [
         title: "Object storage versus databases and disks",
         level: "beginner",
         body: [
-          "Object storage such as S3 holds immutable blobs addressed by key, with effectively unlimited capacity and a very low cost per gigabyte.",
-          "Putting files in a database instead inflates backups, slows replication, and spends expensive storage on data nothing will ever query. The standard shape is the file in object storage and its metadata, key, size, owner, content type, in the database.",
+          "Object storage holds immutable blobs addressed by key, with effectively unlimited capacity, eleven nines of durability in the major services, and a cost per gigabyte an order of magnitude below block storage. It is not a filesystem: there are no directories, only keys that contain slashes, and there is no partial update, only replacing an object wholesale.",
+          "Putting files in a database instead inflates every backup, slows every replica, and spends expensive storage on bytes that no query will ever filter on. The standard shape is the file in object storage and its metadata in the database: key, size, owner, content type, checksum. That split keeps the database small enough to restore quickly, which is the property you care about on the day it matters.",
+          "Storage classes are where the money is. Hot storage for what is served, infrequent access for what is occasionally read, archival tiers for what is kept because someone must. The archival tiers are dramatically cheaper per gigabyte and charge for retrieval and for a minimum storage duration, so moving the wrong data there costs more than leaving it. Lifecycle rules automate the transition by age, and setting one up is usually the largest single saving on a storage bill.",
+          "The costs that surprise people are not storage at all. Egress is charged per gigabyte leaving the provider and is frequently the largest line, which is why a CDN in front of a bucket pays for itself twice over: it cuts latency and it cuts the number of times the same object leaves the origin. Request charges matter too when the objects are small: a million tiny objects costs more in requests than in bytes.",
+          "Consistency is no longer the trap it was. S3 has offered strong read-after-write consistency since December 2020, so an object is readable immediately after it is written, and the elaborate workarounds built for the old model can be deleted. Versioning is worth enabling deliberately, because it turns an accidental overwrite from a data loss incident into a lookup, and because it is what makes deletion recoverable.",
+          "The rule that survives all of it: store what you query in the database and what you serve in object storage. Blobs in Postgres make every operational task on that database slower forever, and the pain is paid at restore time, when it is least welcome.",
         ],
         why: "The rule is to store what you query in the database and what you serve in object storage. Blobs in Postgres make every operational task on that database slower forever.",
         check: {
@@ -950,14 +954,56 @@ export const design2: Card[] = [
           correctIndex: 3,
           explain: "Blobs bloat backups and replication; local disk is lost when the instance is replaced. Object storage plus metadata is the durable, cheap split.",
         },
+        checks: [
+          {
+            prompt: "Which line on an object storage bill most often surprises teams?",
+            options: [
+              "Storage per gigabyte, which grows faster than anyone forecasts",
+              "Egress, charged every time an object leaves the provider's network",
+              "Replication between availability zones within the same region",
+              "Encryption, which is billed per object rather than per request",
+            ],
+            correctIndex: 1,
+            explain:
+              "Bytes at rest are cheap and bytes leaving are not, which is why a CDN in front of a bucket pays for itself twice: fewer origin fetches and lower latency.",
+          },
+          {
+            prompt: "What is the risk of moving data to an archival storage class too eagerly?",
+            options: [
+              "Retrieval fees and minimum durations can exceed what you saved",
+              "Archived objects lose their versioning history on transition",
+              "Objects become immutable, so metadata can no longer be updated",
+              "Lifecycle rules cannot move data back to a hotter class later",
+            ],
+            correctIndex: 0,
+            explain:
+              "Archival tiers charge to read and charge for a minimum time stored. For anything read more than rarely, the retrieval cost is larger than the saving on storage.",
+          },
+          {
+            prompt: "Why enable versioning on a bucket holding user uploads?",
+            options: [
+              "It turns an accidental overwrite or delete into a recoverable lookup",
+              "It allows partial updates, so only changed bytes are rewritten",
+              "It provides the checksum needed to verify integrity on download",
+              "It is required for lifecycle rules to transition objects by age",
+            ],
+            correctIndex: 0,
+            explain:
+              "Objects are replaced wholesale, so without versions an overwrite is destruction. With them, both a bad deploy and a bad script are undone by reading an earlier version.",
+          },
+        ],
       },
       {
         id: "presigned-uploads",
         title: "Direct uploads with pre-signed URLs",
         level: "intermediate",
         body: [
-          "Routing uploads through your API means large files consume your bandwidth, your memory and your request timeouts, to nobody's benefit.",
-          "A pre-signed URL lets your server authorise the upload and hand the client a time-limited URL to send the bytes straight to object storage. The server hears about completion from an event, and validates type and size before treating the object as real.",
+          "Routing uploads through your API means large files consume your bandwidth, your memory, your request timeouts and your autoscaling budget, to nobody's benefit. A single 2GB upload can occupy a worker for minutes, and a handful of them at once will exhaust a service sized perfectly well for its actual work.",
+          "A pre-signed URL removes the problem rather than solving it. Your server authorises the upload and returns a time-limited URL; the client sends the bytes straight to object storage. The signature encodes what may be uploaded, to which key, until when, so the permission is narrow and expiring rather than a credential handed to a browser.",
+          "The constraints belong in the signature, not in a check afterwards. Sign a specific key so a client cannot choose where the object lands, set a content length range so nobody uploads a hundred gigabytes, pin the content type, and keep the expiry short, minutes rather than hours. Anything you fail to constrain is something the holder of that URL may do.",
+          "Completion has to be discovered rather than trusted. The client telling your API that it finished is a claim, and a malicious or merely buggy client can make it without uploading anything. The reliable signal is an event from the storage service itself, which is also what lets you verify size, type and checksum before treating the object as real.",
+          "Two more things worth building in. Multipart upload splits a large file into parts that upload in parallel and resume individually, which is what makes uploads survive a mobile connection; incomplete multipart uploads then linger and are billed, so a lifecycle rule to abort them after a few days belongs in the same change. And validate the content rather than the extension, because a file named image.png that contains something else is the oldest trick in the list.",
+          "The result is an API that stays small and fast because the large payloads never touch it. That is the general shape worth recognising: the best way to scale a piece of work is often to arrange for it not to arrive.",
         ],
         why: "This removes an entire scaling problem rather than solving it. Your API stays small and fast because the large payloads never touch it.",
         check: {
@@ -971,14 +1017,73 @@ export const design2: Card[] = [
           correctIndex: 0,
           explain: "The server authorises but never carries the bytes, so a 2GB upload costs it one small signing request.",
         },
+        checks: [
+          {
+            prompt: "Which constraint must be inside the signature rather than checked afterwards?",
+            options: [
+              "The maximum content length the client is permitted to upload",
+              "The virus scan applied to the object once it has landed",
+              "The database row recording who owns the uploaded file",
+              "The thumbnail generation triggered when the upload completes",
+            ],
+            correctIndex: 0,
+            explain:
+              "Anything not constrained by the signature is something the URL holder may do. A size range in the signature is enforced by the storage service; a check afterwards happens once the bytes are already paid for.",
+          },
+          {
+            prompt: "Why not trust the client's message that its upload has finished?",
+            options: [
+              "The message can arrive before the storage service has finished writing",
+              "A client can claim completion without having uploaded anything at all",
+              "Clients cannot compute the checksum needed to confirm integrity",
+              "Network retries mean the same completion arrives several times",
+            ],
+            correctIndex: 1,
+            explain:
+              "It is an unverified claim from the least trusted party. An event from the storage service is evidence, and it carries the size and checksum you need to validate before treating the object as real.",
+          },
+          {
+            prompt: "What should accompany enabling multipart uploads?",
+            options: [
+              "A lifecycle rule aborting incomplete uploads, which are billed",
+              "A larger request timeout on the API that issues the signatures",
+              "A queue to serialise parts, since object storage cannot order them",
+              "A second bucket for parts, kept separate from completed objects",
+            ],
+            correctIndex: 0,
+            explain:
+              "Parts of an abandoned upload sit in the bucket, invisible in a normal listing and charged for indefinitely. The abort rule is one line and it is the difference between a tidy bill and a mystery.",
+          },
+        ],
+        diagram: {
+          caption: "The bytes never touch your API",
+          columns: [
+            [{ id: "cl", label: "Client", sub: "2GB file", kind: "client" }],
+            [{ id: "api", label: "API", sub: "signs, does not carry", kind: "service" }],
+            [{ id: "s3", label: "Object storage", sub: "receives the bytes", kind: "data" }],
+            [{ id: "ev", label: "Storage event", sub: "verified completion", kind: "queue" }],
+            [{ id: "db", label: "Database", sub: "metadata row", kind: "data" }],
+          ],
+          edges: [
+            { from: "cl", to: "api", label: "may I upload?" },
+            { from: "api", to: "cl", label: "signed URL, 5 minutes" },
+            { from: "cl", to: "s3", label: "PUT, direct" },
+            { from: "s3", to: "ev", label: "object created", async: true },
+            { from: "ev", to: "db", label: "size and type checked" },
+          ],
+        },
       },
       {
         id: "video-delivery",
         title: "Video: transcoding and adaptive bitrate",
         level: "advanced",
         body: [
-          "An uploaded video is transcoded into several resolutions and bitrates, then split into short segments with a manifest listing what is available.",
-          "The player measures throughput and switches renditions per segment, so a failing connection degrades quality instead of stalling. This is HLS or DASH, and it is why streaming survives a train tunnel when a single MP4 does not.",
+          "An uploaded video is transcoded into a ladder of resolutions and bitrates, then split into segments of a few seconds each, with a manifest listing what exists. The manifest is the whole protocol: the player reads it, decides which rendition to fetch next, and asks for one segment at a time over ordinary HTTP, which is why every CDN can serve video without knowing anything about video.",
+          "The player measures throughput and switches renditions between segments, so a connection that degrades produces lower quality rather than a stall. That is adaptive bitrate, and it is the reason streaming survives a train tunnel when a single progressive MP4 does not. HLS and DASH differ in details and agree on this design.",
+          "Transcoding is expensive and it is paid once per title against a saving on every playback, which is why it is worth doing carefully. A fixed ladder applied to every video is wrong in both directions at once: it wastes bits on an animation with flat colour and starves a grainy night scene. Per-title and per-shot encoding measure the content and choose the ladder for it, and Netflix has published savings in the region of 30 per cent at equal quality from exactly that.",
+          "The startup sequence is what users judge, and it is a specific engineering problem rather than a consequence of good encoding. Start on a low rendition so playback begins quickly, then climb once throughput is known. Keep the first segments short so the first frame arrives sooner. Preload the manifest and the first segment when intent is obvious. Time to first frame is the metric that correlates with abandonment, not average bitrate.",
+          "Live is a different problem wearing the same clothes. Segment duration sets the floor on latency, since a segment cannot be served until it exists, so ordinary HLS sits several seconds behind. Low-latency variants deliver partial segments to cut that, at the cost of more requests and more complexity in the packager, and the question to ask is whether the product needs seconds or needs to be honest that it does not.",
+          "Then storage and rights. Every rendition of every title is another copy, so a ladder of six renditions is six times the storage before any language or subtitle variant. Digital rights management adds licence servers and encrypted segments, and it is a business requirement rather than a technical one, which is worth saying out loud because it is the part that most complicates an otherwise clean pipeline.",
         ],
         why: "Adaptive bitrate exists because bandwidth is variable and unpredictable. Serving one file forces a choice between buffering for slow connections and wasting quality on fast ones.",
         inPractice: "Netflix encodes each title into many renditions and tunes them per title, an animated film and a dark action film need different bitrates for the same perceived quality.",
@@ -993,6 +1098,44 @@ export const design2: Card[] = [
           correctIndex: 2,
           explain: "Per-segment switching turns a bandwidth drop into lower quality rather than a stall, which is what users actually tolerate.",
         },
+        checks: [
+          {
+            prompt: "Why can any ordinary CDN serve adaptive bitrate video without understanding video?",
+            options: [
+              "Segments and manifests are plain HTTP objects fetched one at a time",
+              "The CDN transcodes on demand using the codec named in the manifest",
+              "Players open a streaming protocol connection that the CDN proxies",
+              "Video segments are small enough to be held entirely in edge memory",
+            ],
+            correctIndex: 0,
+            explain:
+              "The intelligence sits in the player, which reads a manifest and requests files. To the CDN it is a sequence of cacheable GETs, which is why streaming rode on infrastructure built for web pages.",
+          },
+          {
+            prompt: "What sets the floor on latency for live HLS?",
+            options: [
+              "The encoder's bitrate, which decides how fast a segment is produced",
+              "Segment duration, since a segment cannot be served until it exists",
+              "The player's buffer size, which is fixed by the specification",
+              "CDN propagation time between the origin and the edge locations",
+            ],
+            correctIndex: 1,
+            explain:
+              "Nothing can be delivered before it has been written, so segment length is a hard floor. Low-latency variants exist precisely to deliver parts of a segment before it is complete.",
+          },
+          {
+            prompt: "Which metric best predicts whether a viewer abandons before watching?",
+            options: [
+              "Average bitrate delivered across the whole session",
+              "The number of rendition switches during the first minute",
+              "Time to first frame after the play button is pressed",
+              "Total rebuffering time measured across the session",
+            ],
+            correctIndex: 2,
+            explain:
+              "People leave before they can judge quality. Starting on a low rendition and climbing is a deliberate trade of early quality for a start that happens, which is why startup is engineered separately.",
+          },
+        ],
       },
     ],
   },

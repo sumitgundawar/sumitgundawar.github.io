@@ -464,8 +464,12 @@ export const practice: Card[] = [
         title: "Coupling and cohesion",
         level: "intermediate",
         body: [
-          "Coupling is how much modules depend on each other. Cohesion is how related the contents of one module are. The target is low coupling and high cohesion.",
-          "Tight coupling means a change in one place forces a change in another, and it is why some codebases resist every modification. Splitting by layer, all controllers together, all models together, usually produces low cohesion, because a single feature ends up spread across every folder you have.",
+          "Coupling is how much modules depend on one another. Cohesion is how related the contents of a single module are. The target is low coupling and high cohesion, and the reason is entirely practical: it decides how far a change spreads, which is the thing that makes a codebase pleasant or exhausting to work in.",
+          "Tight coupling means a change here forces a change there, and the effect compounds. A module depended on by twenty others cannot be changed without twenty conversations, so it stops being changed, and workarounds accumulate around it instead. Codebases that resist every modification are usually not badly written line by line; they are wired together too tightly.",
+          "Cohesion is the same idea from the other side. Organising by technical layer, all controllers here, all models there, all services somewhere else, scatters every feature across the tree, so adding a field means editing six files in six directories. Organising by feature puts what changes together in one place, and the test is simply how many directories a typical change touches.",
+          "Coupling comes in degrees worth naming. Depending on a module's published interface is loose and fine. Depending on its internal structure, its database tables, or its file layout is tight and brittle. Two services sharing a database table is the tightest coupling most systems contain, and it is usually invisible on the architecture diagram, which draws them as separate boxes.",
+          "The useful heuristic is to ask what would have to change together. Things that change for the same reason belong together; things that change for different reasons belong apart. That is the single responsibility principle stated in the form that is actually actionable, since almost anything can be described as one responsibility if the description is vague enough.",
+          "Both are means rather than ends. The goal is that a change is small, local and safe, and if a low-coupling design makes a common change require touching five modules, the design is wrong regardless of how well it scores. Optimise for the changes you actually make, which is a question with an answer in the commit history.",
         ],
         why: "Organising by feature rather than by technical layer usually raises cohesion: everything that changes together lives together, so a change touches one directory.",
         check: {
@@ -479,14 +483,56 @@ export const practice: Card[] = [
           correctIndex: 2,
           explain: "Things that change together should live together. Layer-first structure scatters each feature across the tree.",
         },
+        checks: [
+          {
+            prompt: "Which is the tightest coupling most systems contain?",
+            options: [
+              "Two services sharing a database table between them",
+              "One service calling another's public HTTP API synchronously",
+              "Several modules importing the same shared utility library",
+              "A service subscribing to events published by another service",
+            ],
+            correctIndex: 0,
+            explain:
+              "A shared table couples two services to a physical schema neither owns, so a migration requires coordinated deploys. It is also invisible on a diagram that draws them as separate boxes.",
+          },
+          {
+            prompt: "What is the actionable form of the single responsibility principle?",
+            options: [
+              "Things that change for the same reason belong together",
+              "A module should expose no more than one public function",
+              "A class should be small enough to read on a single screen",
+              "Each module should depend on at most one other module",
+            ],
+            correctIndex: 0,
+            explain:
+              "Almost anything can be called one responsibility if the description is vague enough. Framing it as reasons to change makes it a question about the commit history rather than about wording.",
+          },
+          {
+            prompt: "A design has admirably low coupling, and a common change touches five modules. What now?",
+            options: [
+              "The design is wrong for the changes actually being made",
+              "The change is too large and should be split into five",
+              "Coupling should be reduced further so the modules are independent",
+              "The modules should be merged into one to raise cohesion",
+            ],
+            correctIndex: 0,
+            explain:
+              "Low coupling is a means, and the end is that a change is small, local and safe. A structure that scatters the changes you routinely make has optimised for the wrong thing.",
+          },
+        ],
       },
       {
         id: "premature-abstraction",
         title: "Premature abstraction",
         level: "advanced",
         body: [
-          "Abstracting after one use is a guess at what varies. The guess is usually wrong, and the abstraction then obstructs the very change it was built to accommodate.",
-          "Duplication is cheaper to fix than a wrong abstraction: you can see all the copies, whereas an abstraction hides the differences behind parameters. Wait for the third occurrence, when the actual axis of variation is finally visible.",
+          "Abstracting after one use is a guess at what varies, and the guess is usually wrong. The abstraction then obstructs the very change it was built to accommodate: the second case needs a flag, the third needs another, and within a year the shared function has six parameters, four of which are only used by one caller each.",
+          "Duplication is cheaper to fix than a wrong abstraction, and the asymmetry is the whole argument. Copies are visible: you can find them, compare them and merge them mechanically once you can see what they have in common. A wrong abstraction hides the differences behind parameters and has callers that have adapted to its shape, so unwinding it means untangling every one of them.",
+          "Waiting for the third occurrence is a heuristic rather than a law, and its value is that by then the axis of variation is usually visible. Two examples look identical because you have only seen two; the third tells you which part was incidental. Where the pattern is genuinely obvious from the first, abstract, and where it is not, copy and wait.",
+          "There is a related failure that is harder to see: an abstraction that is correct but adds a layer nobody needed. Indirection has a cost paid by every reader, who must now hold two files in their head to understand one behaviour, and the cost is invisible to the person who wrote it because they already have both files in their head.",
+          "The honest signals that an abstraction has gone wrong are specific. Parameters that only exist to switch behaviour for one caller. A name that had to be vague because the thing does several jobs. Callers passing arguments they do not care about. Anyone finding it easier to bypass than to use. Any of those is a prompt to inline it and start again from what the code actually does.",
+          "Underneath is a rule about the cost of being wrong. Reversible decisions deserve speed and irreversible ones deserve deliberation, and duplication is reversible while a widely adopted abstraction is not. That asymmetry, rather than any aesthetic preference, is why the advice is to wait.",
         ],
         why: "The cost asymmetry is the point. Removing duplication later is mechanical; unwinding a wrong abstraction means untangling every caller that adapted to it.",
         check: {
@@ -500,15 +546,56 @@ export const practice: Card[] = [
           correctIndex: 0,
           explain: "You need enough examples to see what genuinely varies. Guessing early produces parameters that fight the next requirement.",
         },
+        checks: [
+          {
+            prompt: "Which is the clearest sign an abstraction has gone wrong?",
+            options: [
+              "Parameters that exist only to switch behaviour for one caller",
+              "More than three callers depending on the same shared function",
+              "A file longer than the module it was extracted from originally",
+              "Test cases that construct the abstraction rather than the caller",
+            ],
+            correctIndex: 0,
+            explain:
+              "A flag per caller means the cases were never the same thing. The name usually gives it away too, having become vague enough to cover several jobs.",
+          },
+          {
+            prompt: "Why is duplication cheaper to fix than a wrong abstraction?",
+            options: [
+              "Copies are visible and merge mechanically; callers adapt to an abstraction",
+              "Duplicated code is smaller, so there is less of it to change",
+              "Abstractions cannot be removed without a corresponding interface change",
+              "Copies can be updated independently, so the fix can be done gradually",
+            ],
+            correctIndex: 0,
+            explain:
+              "You can see every copy and compare them. An abstraction hides the differences behind parameters and has callers shaped around it, so unwinding it means untangling all of them.",
+          },
+          {
+            prompt: "What is the cost of an abstraction that is correct but unnecessary?",
+            options: [
+              "Readers must hold two files in their head to understand one behaviour",
+              "The extra function call adds measurable latency on a hot code path",
+              "The build takes longer, since more modules now have to be compiled",
+              "It cannot be tested without constructing both of the layers separately",
+            ],
+            correctIndex: 0,
+            explain:
+              "Indirection is paid by readers, and it is invisible to the author because they already have both files in mind. That is why the layer feels free to add and expensive to live with.",
+          },
+        ],
       },
       {
         id: "tech-debt",
         title: "Technical debt as a decision",
         level: "intermediate",
         body: [
-          "Deliberate debt is a shortcut taken knowingly to hit a date, recorded with a plan to repay. That is a legitimate engineering trade.",
-          "Accidental debt is what accumulates from not knowing better, and it is not really debt so much as damage.",
-          "The interest is real: every future change in that area costs more, and the rate compounds as more code depends on the shortcut.",
+          "The metaphor is precise and worth using precisely. Deliberate debt is a shortcut taken knowingly to hit a date, recorded, with an intended repayment: we are hard-coding this for launch and will generalise it in March. That is a legitimate engineering trade, and it is the only kind that can be argued for in a planning meeting.",
+          "Accidental debt is what accumulates from not knowing better at the time, and calling it debt flatters it. Nobody chose it and there is no plan, so it is closer to damage than to a loan. The distinction matters because the conversations are different: one is a decision to revisit and the other is work to schedule.",
+          "The interest is real and compounds. Every change in that area costs more, and the rate rises as more code comes to depend on the shortcut, so the cheapest moment to repay is always now and it gets worse monotonically. That is also why a shortcut in a rarely touched corner may be worth leaving forever, since interest is only paid where change happens.",
+          "Which makes the useful question where the debt is rather than how much there is. Debt in code nobody touches costs nothing. Debt in the module every feature passes through is taxing every piece of work the team does, and the same amount of untidiness produces wildly different costs depending on where it sits. Change frequency is the multiplier.",
+          "Making it visible is what turns it into a decision. A note in the code with a date, an issue linked from the shortcut, a section in the design document listing what was skipped and why. Debt nobody can point at cannot be argued for or against, and it turns into a general sense that the codebase is bad, which persuades nobody and prioritises nothing.",
+          "Repayment works best as continuous rather than as a project. A rewrite proposal competes with features and loses; improving the code you are already touching does not, because it is part of the work rather than an alternative to it. That habit is also why the areas of a codebase that get worked on most tend to be the ones in the best condition, provided the team has the discipline to leave them slightly better each time.",
         ],
         why: "The distinction matters because only deliberate debt can be argued for. 'We chose this and here is the repayment plan' is a decision; 'the code is messy' is a complaint.",
         check: {
@@ -522,6 +609,44 @@ export const practice: Card[] = [
           correctIndex: 3,
           explain: "Deliberate debt is a trade someone can defend. Accidental debt is an accumulation nobody decided on.",
         },
+        checks: [
+          {
+            prompt: "Two modules carry the same amount of untidiness. What decides which costs more?",
+            options: [
+              "How often each is changed, since interest is only paid on change",
+              "How much code each contains, since larger modules degrade faster",
+              "How many engineers understand each, since knowledge limits repair",
+              "How old each is, since older shortcuts have compounded for longer",
+            ],
+            correctIndex: 0,
+            explain:
+              "Debt in code nobody touches costs nothing. Debt on the path every feature crosses taxes all of the team's work, which is why change frequency, not volume, is the multiplier worth looking at.",
+          },
+          {
+            prompt: "Why does continuous repayment beat a rewrite project?",
+            options: [
+              "Improving code you are already touching does not compete with features",
+              "Rewrites cannot be reviewed effectively because the diff is too large",
+              "Incremental changes are easier to revert if they cause a regression",
+              "A rewrite requires freezing the existing code, which blocks the team",
+            ],
+            correctIndex: 0,
+            explain:
+              "A cleanup project has to win an argument against shipping. Work done inside a change someone is making anyway is part of that change, which is why the most-worked areas are often the healthiest.",
+          },
+          {
+            prompt: "What does recording debt explicitly actually buy?",
+            options: [
+              "It can be argued for or against, and prioritised against other work",
+              "It prevents the same shortcut from being taken elsewhere in the code",
+              "It creates a record for auditors of what was knowingly deferred",
+              "It allows the interest to be measured over the following quarters",
+            ],
+            correctIndex: 0,
+            explain:
+              "Unrecorded debt turns into a general feeling that the codebase is bad, which persuades nobody and prioritises nothing. A specific note with a date is something a planning conversation can act on.",
+          },
+        ],
       },
     ],
   },

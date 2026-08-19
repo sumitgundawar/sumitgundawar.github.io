@@ -365,9 +365,12 @@ export const security: Card[] = [
         title: "Quorum reads and writes",
         level: "advanced",
         body: [
-          "In a leaderless system every replica accepts writes. With N replicas, a write waits for W acknowledgements and a read collects R responses.",
-          "When R plus W exceeds N, the read and write sets must overlap, so a read is guaranteed to see at least one copy of the latest write. Versioning decides which of the returned values wins.",
-          "Tuning the numbers tunes the tradeoff: W equal to N gives durable writes and no write availability if any node is down; W of one is the reverse.",
+          "In a leaderless system every replica accepts writes, so there is no failover and no leader election to get wrong. With N replicas, a write waits for W acknowledgements before returning and a read collects R responses before answering. Those three numbers are the entire consistency model, exposed as configuration.",
+          "When R plus W exceeds N the read set and the write set must overlap in at least one replica, so a read is guaranteed to see at least one copy of the latest acknowledged write. That is the whole argument, and it is the same overlap argument that makes consensus work. Versioning then decides which of the returned values is newest, usually with vector clocks or a last-write-wins timestamp.",
+          "Tuning those numbers tunes the trade rather than switching a mode. W equal to N gives maximally durable writes and no write availability if a single node is unreachable. W of one returns quickly and risks losing the write if that node dies before replicating. R of one is a fast possibly-stale read; R equal to N is a slow read that has consulted everyone.",
+          "The guarantee is weaker than it looks in several specific ways worth knowing, because they are how quorum systems surprise people. A write that reaches fewer than W nodes may still have been applied on some of them, so a failed write is not an undone write. Concurrent writes to different replicas produce siblings that the application must reconcile. And with sloppy quorums, where unavailable nodes are substituted by others holding hinted handoffs, R plus W greater than N no longer guarantees overlap at all.",
+          "Repair is the part that makes it work in practice. Read repair fixes stale replicas it notices while answering a read, hinted handoff replays writes to a node that was down when it returns, and anti-entropy compares replicas in the background using Merkle trees so differences are found without transferring everything. Without those, a quorum system converges only where traffic happens to look.",
+          "The reason to know this is that it is the design behind Dynamo, Cassandra and Riak, and it explains why those systems ask you to choose consistency per query rather than per cluster. The dial is genuinely yours, which is a feature when you have workloads with different needs and a hazard when nobody decided.",
         ],
         why: "R plus W greater than N is where consistency becomes a dial rather than a mode. It is also the answer to why Dynamo-style stores can offer both behaviours from one design.",
         check: {
@@ -381,15 +384,56 @@ export const security: Card[] = [
           correctIndex: 2,
           explain: "Overlap needs R + W > N. With N=3, R=2 and W=2 gives 4 > 3. R=1,W=3 also works but sacrifices all write availability; R=2,W=2 tolerates one node down on both paths.",
         },
+        checks: [
+          {
+            prompt: "A quorum write fails to reach W nodes and returns an error. What is the state?",
+            options: [
+              "Nothing was written, since the write is atomic across the quorum",
+              "The write may be applied on some replicas and will be read later",
+              "The write is queued and retried automatically until W is reached",
+              "The coordinator rolls back the replicas that did acknowledge it",
+            ],
+            correctIndex: 1,
+            explain:
+              "There is no rollback in a leaderless system. A failed write is not an undone write, so the client sees an error while a subsequent read may still return that value.",
+          },
+          {
+            prompt: "What does a sloppy quorum give up in exchange for write availability?",
+            options: [
+              "The overlap guarantee, since substitutes are not the intended replicas",
+              "Durability, because hinted handoffs are held only in memory",
+              "Ordering, because substitute nodes apply writes out of sequence",
+              "Read repair, which cannot run while hints remain undelivered",
+            ],
+            correctIndex: 0,
+            explain:
+              "R plus W greater than N only guarantees overlap when both sets are drawn from the same N. Once unavailable nodes are substituted, a read quorum can miss the write entirely.",
+          },
+          {
+            prompt: "Why do quorum systems need anti-entropy as well as read repair?",
+            options: [
+              "Read repair only fixes what traffic happens to touch",
+              "Read repair cannot correct deletes, only stale values",
+              "Anti-entropy is required to establish the version vector ordering",
+              "Read repair runs on the coordinator, which may itself be stale",
+            ],
+            correctIndex: 0,
+            explain:
+              "Rarely read data would stay divergent indefinitely. Background comparison with Merkle trees finds differences without depending on someone asking for them first.",
+          },
+        ],
       },
       {
         id: "pacelc",
         title: "PACELC: the half of CAP nobody quotes",
         level: "advanced",
         body: [
-          "CAP describes behaviour during a partition. PACELC adds the case that actually dominates: else, when the network is fine, you still trade latency against consistency.",
-          "Reading from the nearest replica is fast and possibly stale. Reading through a quorum is consistent and pays the round trips. No partition is required for that choice to exist.",
-          "So a system is described as PA/EL or PC/EC, what it does when partitioned, and what it does the rest of the time.",
+          "CAP describes behaviour during a partition, which is a real but rare event. PACELC adds the branch that dominates every other day: else, when the network is healthy, you still trade latency against consistency on every single request. Both halves are decisions; only one of them is a decision you make thousands of times a second.",
+          "The else branch is concrete. Reading from the nearest replica is fast and possibly stale. Reading through a quorum is consistent and pays the round trips to reach it. Acknowledging a write locally is fast and risks losing it; waiting for a remote replica is durable and slower by the distance between them. No partition is required for any of those choices to exist.",
+          "The notation is worth reading properly, because it says two things. A system described as PA/EL chooses availability when partitioned and latency the rest of the time, which is Dynamo and Cassandra with their default settings. PC/EC chooses consistency in both, which is a system like a single-primary relational database with synchronous replication. Some are PC/EL: strict during a partition, fast when healthy, which is a legitimate and common combination.",
+          "It also explains a class of decision that CAP alone makes look arbitrary. When a database offers strongly consistent reads at higher cost and eventually consistent ones by default, that is the else branch exposed as an API parameter. The same design answering both is not a contradiction; it is a system that declined to make the trade on your behalf.",
+          "The habit worth forming is to state both halves when describing a system. During a partition, this refuses writes to these entities and accepts them for those. In normal operation, reads default to the nearest replica and these three paths pay for quorum. That is a specification. The letter on its own is a slogan.",
+          "And the geography question follows immediately, because latency in the else branch is set by distance. A quorum spanning continents pays the worst inter-region round trip on every write, which is why systems that need both properties shard so that each shard's quorum stays inside one region.",
         ],
         why: "Partitions are rare and the else branch is every single request. Discussing only CAP means discussing the exceptional case and ignoring the one that determines how the system feels in normal operation.",
         check: {
@@ -403,15 +447,56 @@ export const security: Card[] = [
           correctIndex: 2,
           explain: "This is exactly the else branch. The choice exists on every request, which is why it matters more day to day than the partition case CAP describes.",
         },
+        checks: [
+          {
+            prompt: "A store offers eventually consistent reads by default and strong reads for twice the cost. What is that?",
+            options: [
+              "The else branch of PACELC exposed as a per-request parameter",
+              "A CAP choice made per query rather than per cluster deployment",
+              "A pricing decision unrelated to the consistency model itself",
+              "A guarantee that strong reads survive a partition unchanged",
+            ],
+            correctIndex: 0,
+            explain:
+              "It is the latency against consistency trade, handed to the caller instead of decided by the system. A partition is not involved, which is precisely the point PACELC makes.",
+          },
+          {
+            prompt: "What does a PC/EL system do?",
+            options: [
+              "Refuses writes during a partition, and favours latency when healthy",
+              "Accepts writes during a partition, and favours consistency when healthy",
+              "Refuses writes in both cases, prioritising consistency at all times",
+              "Accepts writes in both cases, prioritising availability at all times",
+            ],
+            correctIndex: 0,
+            explain:
+              "The two halves are independent. Being strict about the rare case and fast about the common one is a legitimate and frequently chosen combination.",
+          },
+          {
+            prompt: "Why does the else branch make cross-region quorums expensive?",
+            options: [
+              "Every consistent read or write waits for a round trip across the distance",
+              "Partitions between regions are more frequent than within one region",
+              "Replicas in other regions cannot participate in read repair",
+              "Clock skew between regions forces additional coordination rounds",
+            ],
+            correctIndex: 0,
+            explain:
+              "Consistency is bought with waiting, and distance sets the price. That cost applies on every request in normal operation, not only when something has gone wrong.",
+          },
+        ],
       },
       {
         id: "cells",
         title: "Cells, bulkheads and blast radius",
         level: "advanced",
         body: [
-          "A cell is a complete, independent copy of the stack serving a subset of users. Nothing is shared between cells, so a failure inside one cannot reach the others.",
-          "This bounds the blast radius by construction: a bad deploy or a poison request takes out one cell's users rather than everyone. Deploys go cell by cell for the same reason.",
-          "The cost is real, more infrastructure, and any operation genuinely spanning all users becomes awkward.",
+          "A cell is a complete, independent copy of the stack serving a subset of users: its own compute, its own database, its own cache. Nothing is shared, which is the entire property. A failure inside one cell has no path to the others, not because it is unlikely to spread but because there is no mechanism by which it could.",
+          "That converts availability from a probability into arithmetic. Instead of arguing about how likely a total outage is, you decide in advance that the worst single failure affects one over n of your users. A bad deploy, a poison request, a corrupted cache, a runaway migration: each is contained to the cell it happened in, and the incident is a fraction rather than an event.",
+          "Deploys follow the same structure and become the main day-to-day benefit. Ship to one cell, watch it, then continue, which is a canary with a hard boundary rather than a percentage of traffic that shares a database with the other 95 per cent. Most bad changes are caught with one cell's users affected, and rolling back is a decision about one cell.",
+          "The routing layer is the part that has to be right, because it is shared by definition. It maps a user or tenant to a cell and must be simple enough to be nearly incapable of failing: a lookup, a hash, a static assignment, ideally cached at the edge and statically stable so it keeps working when its own control plane is unavailable. A clever, dynamic router is a single point of failure in front of an architecture built to have none.",
+          "The costs are real and worth stating. More infrastructure, because each cell needs its own everything and cannot pool spare capacity with its neighbours. Anything genuinely global, a report across all users, a search over everything, a migration, becomes a fan-out across cells with its own coordination. Cells also have to be sized, and a tenant that outgrows one is an awkward conversation.",
+          "AWS builds this way and publishes the reasoning, which is that a fault should have a bounded and known set of affected customers. That is the sentence worth keeping: not that failures are prevented, but that their extent is decided in advance rather than discovered during the incident.",
         ],
         why: "It converts availability from a probability into an arithmetic fact. Rather than arguing about how likely total failure is, you decide in advance that the worst single failure affects one over n of your users.",
         inPractice: "AWS builds services from cells within an availability zone specifically so a fault has a bounded, known set of affected customers.",
@@ -426,6 +511,44 @@ export const security: Card[] = [
           correctIndex: 2,
           explain: "It costs more infrastructure and does nothing for latency or consistency. What it gives is containment: the worst case becomes a fraction you chose rather than a number you hope about.",
         },
+        checks: [
+          {
+            prompt: "Which component is the real risk in a cell-based architecture?",
+            options: [
+              "The routing layer, which is shared by every cell by definition",
+              "The database in each cell, since data cannot be replicated between them",
+              "The deploy pipeline, which must apply changes to all cells at once",
+              "The monitoring stack, which has to aggregate across independent cells",
+            ],
+            correctIndex: 0,
+            explain:
+              "Everything else is isolated on purpose; the router is not, so it must be simple, statically stable and nearly incapable of failing. A clever dynamic router undoes the architecture it fronts.",
+          },
+          {
+            prompt: "How does cell-based deployment differ from a percentage canary?",
+            options: [
+              "The blast radius is a hard boundary rather than a share of shared infrastructure",
+              "It requires no monitoring, because failures are contained automatically",
+              "Rollback is unnecessary, since a failed cell is replaced rather than reverted",
+              "It removes the need to test changes before they reach production",
+            ],
+            correctIndex: 0,
+            explain:
+              "A five per cent canary usually still shares a database with the other ninety-five. A cell shares nothing, so a bad change cannot reach beyond the users in it.",
+          },
+          {
+            prompt: "What becomes structurally harder once a system is split into cells?",
+            options: [
+              "Anything genuinely global: cross-user reports, search, migrations",
+              "Deploying a change, which must now be coordinated across cells",
+              "Monitoring, since each cell emits its own independent metrics",
+              "Scaling, because a cell cannot be given additional capacity",
+            ],
+            correctIndex: 0,
+            explain:
+              "Isolation is the feature and the bill. Any operation that spans all users becomes a fan-out with its own coordination, which is the price paid for a bounded blast radius.",
+          },
+        ],
       },
       {
         id: "tail-at-scale",

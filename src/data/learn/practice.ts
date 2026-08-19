@@ -209,9 +209,11 @@ export const practice: Card[] = [
         title: "Waterfall",
         level: "beginner",
         body: [
-          "Waterfall runs in sequence: gather requirements, design, build, test, release. Each stage completes before the next begins, and the client sees the result at the end.",
-          "It works when requirements genuinely cannot change, regulated work, physical manufacturing, fixed-scope contracts, and where the cost of change late is enormous.",
-          "It fails for software because requirements are discovered by using the thing, and waterfall defers that discovery to the point where change is most expensive.",
+          "Waterfall runs in sequence: gather requirements, design, build, test, release. Each stage completes before the next begins, sign-off moves the work along, and the customer sees the result at the end. Described that way it sounds naive, and it is worth knowing that the paper usually blamed for it, Royce in 1970, presented the pure sequence as the thing that does not work and recommended iterating.",
+          "It works where the cost of change late is genuinely enormous and the requirements genuinely cannot move: regulated work with a certification step, anything with manufacturing behind it, fixed-scope contracts where the scope is the contract. In those settings front-loading the decisions is not caution, it is the correct response to the shape of the cost curve.",
+          "It fails for software because requirements are discovered by using the thing. People cannot specify what they want from a product that does not exist yet, so the specification is a hypothesis, and waterfall defers testing that hypothesis until the moment change is most expensive. The defects found in the final phase are the ones introduced in the first.",
+          "The other failure is the handover. Each phase produces a document for the next, so context is repeatedly compressed and reconstructed by people who were not in the room. Most of what an implementer needs is the reasoning behind a requirement, and reasoning is exactly what survives a specification document least well.",
+          "The reason to know it properly is that the argument is about the cost-of-change curve rather than about culture. Where change is cheap and information arrives during construction, iterate. Where change is expensive and information arrives before construction, plan. Most software is the first and some genuinely is the second, and knowing which you are in is more useful than a preference.",
         ],
         why: "The cost-of-change curve is the whole argument. If change is cheap and information arrives during building, front-loading every decision is the wrong bet.",
         check: {
@@ -225,14 +227,56 @@ export const practice: Card[] = [
           correctIndex: 3,
           explain: "Everything downstream depends on the requirements being right at the start. Where that holds it is efficient; in software it usually does not.",
         },
+        checks: [
+          {
+            prompt: "Where is a waterfall sequence genuinely the right choice?",
+            options: [
+              "Where change is expensive late and the requirements truly cannot move",
+              "Where the team is distributed across several time zones",
+              "Where the codebase is large enough that changes are inherently risky",
+              "Where the customer prefers a single delivery to incremental releases",
+            ],
+            correctIndex: 0,
+            explain:
+              "Certification, manufacturing and fixed-scope contracts all have that shape. The argument is about the cost-of-change curve, not about team preference or codebase size.",
+          },
+          {
+            prompt: "What is lost in the handover between phases?",
+            options: [
+              "The reasoning behind each requirement, which documents carry worst",
+              "The estimates, which are recalculated by each successive phase",
+              "The test cases, which are written before the design is complete",
+              "The schedule, which each phase adjusts to its own capacity",
+            ],
+            correctIndex: 0,
+            explain:
+              "An implementer needs to know why a requirement exists in order to make the hundred small decisions the specification does not cover. That reasoning is the first thing a document loses.",
+          },
+          {
+            prompt: "Why are defects found in the final phase usually the most expensive?",
+            options: [
+              "They were introduced in the first phase and everything was built on them",
+              "The test environment differs most from production at that point",
+              "The team responsible has usually moved to the next project by then",
+              "Release pressure means less time is available to fix them properly",
+            ],
+            correctIndex: 0,
+            explain:
+              "A wrong requirement is built upon by the design, the implementation and the tests. Discovering it last means unwinding all of that, which is the cost curve the whole argument is about.",
+          },
+        ],
       },
       {
         id: "agile",
         title: "Agile, scrum and kanban",
         level: "beginner",
         body: [
-          "Agile is a set of preferences: working software over documentation, responding to change over following a plan, short cycles with real feedback.",
-          "Scrum implements that with fixed sprints, defined roles and ceremonies. Kanban drops sprints and limits work in progress instead, pulling the next item as capacity frees. Kanban suits interrupt-driven work such as support; scrum suits planned feature work with a stable team.",
+          "Agile is a set of preferences rather than a process: working software over comprehensive documentation, responding to change over following a plan, collaboration over contract negotiation, individuals and interactions over tools. Each is a preference between two goods, which is the part most often dropped when it is quoted.",
+          "Scrum implements those preferences with structure: fixed sprints, a product owner, a scrum master, a backlog, and ceremonies for planning, review and retrospective. Kanban drops the sprint entirely and limits work in progress instead, pulling the next item when capacity frees. Kanban suits interrupt-driven work such as support or platform; scrum suits planned feature work with a stable team and a plannable period.",
+          "Work in progress limits are the most underrated idea in either. Starting five things at once does not make them arrive sooner; it makes all five arrive later and increases the chance that some are abandoned half-finished. Limiting concurrent work reduces cycle time for the same throughput, which is Little's Law applied to a team rather than to a service.",
+          "The common failure is adopting the ceremonies without the feedback. Standups with no working software to demonstrate, sprints whose plan cannot change, retrospectives with no action taken: that is waterfall with more meetings, and everyone in the room knows it, which is where the reputational damage to the word comes from.",
+          "The retrospective is the meeting that determines whether any of it works, because it is the only one whose output is a change to how the team operates. A retrospective that produces observations and no owned action is a therapy session; one that changes something small every fortnight compounds.",
+          "Estimation deserves less energy than it gets. Story points are a relative measure whose only legitimate use is forecasting from historical throughput, and the moment they become a productivity metric they are inflated and stop forecasting anything. Counting finished items and measuring cycle time is simpler and harder to game.",
         ],
         why: "Both fail the same way: adopting the ceremonies without the feedback. Standups and sprints with no working software to show and no willingness to change the plan is waterfall with extra meetings.",
         check: {
@@ -241,6 +285,44 @@ export const practice: Card[] = [
           correctIndex: 1,
           explain: "Sprint commitments assume a plannable period. Interrupt-driven work breaks that assumption; kanban pulls work as capacity appears.",
         },
+        checks: [
+          {
+            prompt: "Why does limiting work in progress shorten delivery time?",
+            options: [
+              "Fewer concurrent items means each finishes sooner at the same throughput",
+              "It reduces the number of meetings needed to coordinate the work",
+              "It allows the team to estimate more accurately at planning time",
+              "It prevents any single person from being assigned too many tasks",
+            ],
+            correctIndex: 0,
+            explain:
+              "Starting five things at once makes all five arrive later. It is Little's Law applied to a team: with throughput fixed, cycle time follows the amount of work in flight.",
+          },
+          {
+            prompt: "Which ceremony most determines whether an agile process works?",
+            options: [
+              "The retrospective, since it is the only one that changes the process",
+              "Sprint planning, which sets the commitment for the period",
+              "The daily standup, which surfaces blockers while they are small",
+              "The sprint review, which puts working software in front of people",
+            ],
+            correctIndex: 0,
+            explain:
+              "Everything else executes the process; the retrospective changes it. One owned action a fortnight compounds, and a retrospective with no action is where the whole thing quietly stops being agile.",
+          },
+          {
+            prompt: "What happens when story points become a productivity metric?",
+            options: [
+              "They inflate, and stop forecasting anything at all",
+              "They become more accurate, since estimation gets more attention",
+              "They stop correlating with cycle time but still predict capacity",
+              "They shift work toward smaller tasks that are easier to estimate",
+            ],
+            correctIndex: 0,
+            explain:
+              "A relative measure used as a target is gamed immediately and without malice. Counting finished items and measuring cycle time is simpler and much harder to inflate.",
+          },
+        ],
       },
       {
         id: "code-review",
@@ -253,6 +335,8 @@ export const practice: Card[] = [
           "The most useful comment names the case that breaks rather than the preference that was violated. 'This is null when the user has never logged in' can be acted on. 'I would extract this' starts an argument about style with no way to settle it.",
         ],
         why: "PR size is the single biggest lever on review quality. Splitting work into reviewable pieces is a design skill, and the reason large PRs get rubber-stamped is capacity, not laziness.",
+        inPractice:
+          "Google's readability process and its published research on review both land in the same place: smaller changes get faster and better review, and review latency matters as much as review depth, because a change waiting a day costs the author a context switch to return to it.",
         check: {
           prompt: "Why do large pull requests get weaker review?",
           options: [
@@ -264,15 +348,56 @@ export const practice: Card[] = [
           correctIndex: 0,
           explain: "Review quality falls off sharply with size. Small, focused changes are the only reliable way to get genuine scrutiny.",
         },
+        checks: [
+          {
+            prompt: "Which review comment is most useful?",
+            options: [
+              "This is null when the user has never logged in",
+              "I would extract this into a separate helper function",
+              "Consider whether this follows the existing pattern in the module",
+              "This could be simplified, though it works as written",
+            ],
+            correctIndex: 0,
+            explain:
+              "It names a case that breaks, which can be verified and acted on. Preferences start an argument about taste with no way to settle it, and they crowd out the comments that matter.",
+          },
+          {
+            prompt: "Why does review latency matter as much as review depth?",
+            options: [
+              "A change waiting a day costs the author a context switch to return",
+              "Stale branches conflict, so the change must be rebased repeatedly",
+              "Reviewers forget the context of a change they read the day before",
+              "Delayed merges accumulate into a larger release that is riskier",
+            ],
+            correctIndex: 0,
+            explain:
+              "The author has moved on, and coming back is expensive. Slow review also pushes people toward larger batches, which makes the next review worse.",
+          },
+          {
+            prompt: "What should a reviewer separate explicitly in their comments?",
+            options: [
+              "What must be addressed from what is a suggestion or preference",
+              "Comments about tests from comments about implementation code",
+              "Questions for the author from notes intended for future readers",
+              "Issues introduced by this change from ones that already existed",
+            ],
+            correctIndex: 0,
+            explain:
+              "Without that split the author has to guess which comments block the merge, and either over-corrects on taste or misses something that mattered. Saying which is which makes review faster and less adversarial.",
+          },
+        ],
       },
       {
         id: "incidents",
         title: "Incidents and blameless postmortems",
         level: "advanced",
         body: [
-          "During an incident, restore service first and investigate afterwards. Mitigation and diagnosis compete, and users care about the first.",
-          "A postmortem asks what made the failure possible, not who typed the command. Systems that fail when one person errs are the finding.",
-          "Blameless does not mean consequence-free. It means the output is a change to the system rather than a name.",
+          "During an incident, restore service first and investigate afterwards. Mitigation and diagnosis compete for the same people and the same minutes, and users care about the first. Roll back, fail over, disable the feature, and keep the evidence; understanding can wait, and it is easier with a system that is up.",
+          "Incidents run better with roles assigned rather than assumed. One incident commander who coordinates and decides, one person communicating outward so the responders are not answering questions, and the rest investigating. The commander does not have to be the most senior engineer, and often should not be, because coordinating and debugging are different jobs competing for the same attention.",
+          "A postmortem asks what made the failure possible rather than who typed the command. If one person's mistake could take production down, the finding is the system that allowed it: no confirmation, no staged rollout, no way to reverse. Human error is the beginning of the investigation, not its conclusion.",
+          "Blameless does not mean consequence-free. It means the output is a change to the system rather than a name, because the alternative is worse in a specific and measurable way: if reporting a mistake is punished, people stop reporting, near misses go unrecorded, and you lose exactly the information that prevents the next one.",
+          "Actions need owners and dates or the document is a diary. A postmortem that produces twelve suggestions and no assignments has changed nothing, and the same incident recurs with a second document beside the first. Two owned actions beat twelve orphaned ones.",
+          "Two habits are worth adding once the basics hold. Track how long detection took separately from how long the fix took, because a fast fix after a slow detection is still a long outage and points at monitoring rather than at engineering. And read old postmortems periodically: the recurring theme across a year is a finding that no single incident can reveal.",
         ],
         why: "Blame produces hidden incidents. If reporting a mistake is punished, people stop reporting, and you lose the information that prevents recurrence.",
         check: {
@@ -286,6 +411,44 @@ export const practice: Card[] = [
           correctIndex: 1,
           explain: "Honesty is the input to prevention. Blame optimises for hiding incidents, which removes the data you need.",
         },
+        checks: [
+          {
+            prompt: "Why should the incident commander not also be the person debugging?",
+            options: [
+              "Coordinating and debugging compete for the same attention",
+              "The commander needs to be more senior than the responders",
+              "Debugging requires access the commander should not hold",
+              "The commander must remain available to speak to customers",
+            ],
+            correctIndex: 0,
+            explain:
+              "Both jobs are absorbing and neither tolerates interruption. Splitting them is why an incident with roles runs better than one where the best debugger is also answering questions from three directions.",
+          },
+          {
+            prompt: "What makes a postmortem's action items worth writing?",
+            options: [
+              "An owner and a date, so the document changes something",
+              "A complete timeline, so the sequence can be reconstructed later",
+              "A root cause statement agreed by everyone who was involved",
+              "A severity rating, so incidents can be compared over time",
+            ],
+            correctIndex: 0,
+            explain:
+              "Twelve orphaned suggestions change nothing and the incident recurs beside its own document. Two owned actions with dates are worth more than a thorough analysis nobody acts on.",
+          },
+          {
+            prompt: "Why track detection time separately from repair time?",
+            options: [
+              "A fast fix after slow detection points at monitoring, not engineering",
+              "Detection time is easier to measure, so it makes a cleaner metric",
+              "Repair time varies too much between incidents to be comparable",
+              "Detection time determines whether an incident is externally reportable",
+            ],
+            correctIndex: 0,
+            explain:
+              "One long number hides which half is the problem. Splitting it tells you whether to invest in alerting or in the ability to change the system quickly.",
+          },
+        ],
       },
     ],
   },

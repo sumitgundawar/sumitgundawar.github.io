@@ -678,10 +678,12 @@ export const design2: Card[] = [
         title: "The inverted index",
         level: "intermediate",
         body: [
-          "A normal index maps a row to its values. An inverted index maps each term to the list of documents containing it, which is what makes full-text search fast.",
-          "Text is normalised first: lowercased, split into tokens, stemmed so 'running' matches 'run', and stripped of stop words.",
-          "A LIKE '%term%' query cannot use a B-tree index at all, so it scans every row. That is fine at ten thousand rows and hopeless at ten million.",
-          "Postgres will do this for you with a GIN index over a tsvector, which is usually the right first move. A separate search cluster is a second datastore to keep in sync, and that cost only starts paying once you need ranking, faceting, or a scale the database cannot reach.",
+          "A normal index maps a row to its values. An inverted index turns that around: each term points at the list of documents containing it, so a search for shoes reads one posting list rather than examining every row. That inversion is the entire reason full-text search is fast, and it is why the structure has to be different rather than merely bigger.",
+          "Text is normalised before it is indexed, and the same pipeline runs over the query so the two can meet. Lowercasing, tokenisation, stemming so running matches run, stop word removal, and often synonyms. Indexing and querying must use the same analyser: a mismatch produces a search that finds nothing for reasons no error message explains, which is among the more frustrating afternoons available.",
+          "A LIKE query with a leading wildcard cannot use a B-tree at all, because a B-tree is ordered by prefix and a leading wildcard removes the prefix. So it scans every row, which is fine at ten thousand rows and hopeless at ten million. That is not the database being slow; it is the wrong data structure for the question.",
+          "Postgres will do this for you with a GIN index over a tsvector, and that is usually the right first move. It gives stemming, ranking with ts_rank and phrase search inside the database you already run, with no second system to keep in sync. Trigram indexes cover the other common case, fuzzy and substring matching, which full-text search deliberately does not do.",
+          "A dedicated engine starts paying when you need what an engine has and a database does not: faceting and aggregations over results, per-field boosting and tuneable relevance, typo tolerance, suggestions, and a scale where the index outgrows the primary. Those are real features rather than a performance argument, and they are the honest reason to take on a second datastore.",
+          "The cost of that decision is one thing, repeated: the index is a second copy of the data and it can drift. Everything else, the mappings, the analysers, the ranking, is tuning. The copy is the design problem, and it is why the next topic exists.",
         ],
         why: "This is why search moves to a dedicated engine. It is not that the database is slow; it is that the data structure required for text search is a different one.",
         check: {
@@ -695,15 +697,74 @@ export const design2: Card[] = [
           correctIndex: 0,
           explain: "B-trees are sorted by prefix. A leading wildcard removes the starting point, forcing a full scan.",
         },
+        checks: [
+          {
+            prompt: "Search returns nothing for a term that plainly appears in a document. What is the classic cause?",
+            options: [
+              "The query and the index were processed by different analysers",
+              "The posting list for that term exceeded its maximum length",
+              "The document was indexed before the field was added to the mapping",
+              "Stop word removal ran on the index but the term is not a stop word",
+            ],
+            correctIndex: 0,
+            explain:
+              "Both sides have to be normalised the same way for the tokens to match. A mismatch produces silence rather than an error, which is why analyser configuration is the first thing to check.",
+          },
+          {
+            prompt: "When is a dedicated search engine genuinely worth the second datastore?",
+            options: [
+              "When the table has grown past a few million rows and scans are slow",
+              "When you need faceting, tuneable relevance and typo tolerance",
+              "When the text columns are large enough to slow down ordinary queries",
+              "When search traffic would otherwise compete with transactional load",
+            ],
+            correctIndex: 1,
+            explain:
+              "Those are capabilities a relational database does not have. Size alone is usually answered by a GIN index, and the second system brings a copy of the data that can drift.",
+          },
+          {
+            prompt: "Which problem do trigram indexes solve that full-text search does not?",
+            options: [
+              "Ranking results by how often each term appears in the corpus",
+              "Fuzzy and substring matching, including a leading wildcard",
+              "Searching across several columns with a single index",
+              "Keeping the index current as rows are inserted and updated",
+            ],
+            correctIndex: 1,
+            explain:
+              "Full-text search matches tokens after stemming, so it is deliberately not a substring search. Trigrams index overlapping three-character sequences, which is what makes contains and misspelling queries workable.",
+          },
+        ],
+        diagram: {
+          caption: "The same analyser on both sides, or nothing matches",
+          columns: [
+            [
+              { id: "doc", label: "Document", sub: "Running Shoes", kind: "data" },
+              { id: "q", label: "Query", sub: "running shoe", kind: "client" },
+            ],
+            [{ id: "an", label: "Analyser", sub: "lowercase, stem", kind: "service" }],
+            [{ id: "terms", label: "Terms", sub: "run, shoe", kind: "data" }],
+            [{ id: "post", label: "Posting lists", sub: "term to documents", kind: "data" }],
+          ],
+          edges: [
+            { from: "doc", to: "an", label: "at index time" },
+            { from: "q", to: "an", label: "at query time" },
+            { from: "an", to: "terms", label: "same pipeline" },
+            { from: "terms", to: "post", label: "lookup, not scan" },
+          ],
+        },
       },
       {
         id: "relevance",
         title: "Relevance and ranking",
         level: "advanced",
         body: [
-          "Matching is the easy half. Ranking decides which of ten thousand matches appear first, and that is what users judge.",
-          "TF-IDF and BM25 weight terms by how often they appear in a document against how common they are overall, so rare terms count for more.",
-          "Real systems blend text relevance with business signals: recency, popularity, stock, personalisation. Tuning that blend is ongoing work, not a one-off.",
+          "Matching is the easy half and it is the half that gets built. Ranking decides which of ten thousand matches appear in the first five results, and since almost nobody looks past those, ranking is what users experience as the quality of your search.",
+          "The classical scoring is TF-IDF and its better-behaved successor BM25: a term counts for more when it appears often in a document and less when it appears in many documents, so rare words carry the signal and common ones do not. BM25 adds saturation, so the twentieth occurrence of a word adds almost nothing, and length normalisation, so a long document does not win simply by containing more words. That saturation is the practical difference and it is why BM25 is the default in every serious engine.",
+          "Text score alone produces results that are correct and feel wrong, because relevance in a product is not only about words. Real ranking blends the text score with business signals: recency for news, popularity or conversion rate for commerce, stock availability, distance, and whatever personalisation you can justify. Each is a weight, and the weights are a product decision rather than a technical one.",
+          "Two search-specific mechanics are worth knowing. Boosting weights a field or a condition, so a match in the title counts for more than one in the body, which is usually the single highest-value tuning change available. Faceting turns the result set into counts by attribute, which lets people narrow rather than reformulate, and it is often more valuable than any ranking improvement because it changes what the user can do rather than what they are shown.",
+          "Measure it, or the tuning is a matter of taste. Click-through on the top results, the rate of searches that return nothing, the rate that lead to a session ending without a click, and the position of the item people eventually chose. Those numbers tell you whether a change helped, and they are the difference between search as an engineering exercise and search as a product.",
+          "The failure worth naming is the zero-result search. It is the clearest signal you have and it is usually caused by something fixable: no synonym handling, no typo tolerance, or a filter silently applied. Logging those queries and reading them weekly is the cheapest search improvement available, and it needs no model at all.",
         ],
         why: "Treating search as a matching problem produces technically correct results that feel broken. The measurable target is click-through and successful sessions, not recall.",
         check: {
@@ -718,6 +779,44 @@ export const design2: Card[] = [
           explain:
             "The question says the matches are correct, which rules recall out, the documents are being found. What is left is ordering, and since users rarely look past the first few results, ranking is the product rather than a refinement of it.",
         },
+        checks: [
+          {
+            prompt: "What does BM25 add over plain TF-IDF?",
+            options: [
+              "Saturation, so repeated terms stop adding score, plus length normalisation",
+              "Support for phrase queries, which TF-IDF scoring cannot express",
+              "Per-field boosting, so a title match outweighs a body match",
+              "Stemming, which reduces related words to a shared root before scoring",
+            ],
+            correctIndex: 0,
+            explain:
+              "Without saturation, a page repeating a word forty times outranks a better one that says it twice. Length normalisation stops long documents winning by sheer volume of words.",
+          },
+          {
+            prompt: "Which is usually the highest-value tuning change in a product search?",
+            options: [
+              "Increasing the number of results returned on the first page",
+              "Boosting matches in the title over matches in the description",
+              "Lowering the minimum score required for a document to appear",
+              "Adding more index shards so queries are answered in parallel",
+            ],
+            correctIndex: 1,
+            explain:
+              "A title is a human summary of what a thing is, so a match there is far stronger evidence than one buried in a body field. Boosting it is one line and moves the results people notice.",
+          },
+          {
+            prompt: "Why are zero-result searches the most useful thing to log?",
+            options: [
+              "They indicate an index that has fallen behind the source of truth",
+              "They are the clearest failure, and usually have a fixable cause",
+              "They are the only searches that can be replayed safely for testing",
+              "They correlate with slow queries, which is where tuning pays most",
+            ],
+            correctIndex: 1,
+            explain:
+              "Someone asked for something and got nothing, which is unambiguous. The causes are typically missing synonyms, no typo tolerance, or a filter quietly applied, and all three are cheap to fix once you can read the queries.",
+          },
+        ],
       },
       {
         id: "search-sync",
@@ -783,6 +882,44 @@ export const design2: Card[] = [
           correctIndex: 1,
           explain: "Two systems, two commits, no atomicity. Deriving the index from the database's change log gives one authoritative ordering.",
         },
+        checks: [
+          {
+            prompt: "Why does polling an updated_at column miss deletions?",
+            options: [
+              "Deleted rows stop appearing in the query, so nothing signals removal",
+              "The column is not updated on delete, only when a row actually changes",
+              "Polling reads a replica, where the delete may not have arrived yet",
+              "Deletes are applied out of order relative to updates in most engines",
+            ],
+            correctIndex: 0,
+            explain:
+              "A poll can only see what is still there. The document stays in the index indefinitely, which is why a change log, where a delete is an event, is the reliable version.",
+          },
+          {
+            prompt: "Why build a reindex into a new index and swap an alias?",
+            options: [
+              "The swap is atomic, and the old index remains if the new one is worse",
+              "It avoids the write amplification of updating documents in place",
+              "Aliases allow both indexes to serve queries at the same time",
+              "A new index inherits the mappings of the old one automatically",
+            ],
+            correctIndex: 0,
+            explain:
+              "Search never goes down during the rebuild, the cutover is one operation, and rollback is that operation reversed. You will use it more often than expected, because mappings and analysers change.",
+          },
+          {
+            prompt: "What makes index drift particularly hard to notice?",
+            options: [
+              "Each miss is rare and nothing corrects it, so the gap grows silently",
+              "The engine reports success for documents it has rejected internally",
+              "Drift affects only recent documents, which are rarely searched for",
+              "Search latency rises with drift, which masks the missing results",
+            ],
+            correctIndex: 0,
+            explain:
+              "There is no error and no alert, only a user eventually reporting that something visible in the product cannot be found. By then the losses are weeks old with no record of which writes went missing.",
+          },
+        ],
       },
     ],
   },

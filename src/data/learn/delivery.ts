@@ -495,8 +495,12 @@ export const delivery: Card[] = [
         title: "The core services, by concept",
         level: "beginner",
         body: [
-          "The three major clouds offer the same primitives under different names: compute, object storage, managed relational databases, queues, a CDN. AWS has the broadest catalogue and the most third-party support; GCP is strong on data and Kubernetes; Azure wins where an organisation already runs Microsoft identity and licensing.",
-          "Learn the concepts, not the product names. An interviewer asking about object storage does not care whether you say S3, GCS or Blob Storage.",
+          "The three major clouds offer the same primitives under different names: compute, object storage, a managed relational database, a queue, a CDN, a key-value store, a secrets manager. Learn the concepts rather than the catalogue. An interviewer asking about object storage does not care whether you say S3, GCS or Blob Storage, and neither does the design.",
+          "The differences that survive contact with reality are commercial and organisational. AWS has the broadest catalogue and the most third-party support, so whatever you need probably exists and probably has a Terraform provider. GCP is strong on data and on Kubernetes, which it originated. Azure wins where an organisation already runs Microsoft identity and licensing, and that argument is usually decisive on its own.",
+          "There is a hierarchy worth holding: infrastructure where you run the machine, platform where you hand over the artefact, and serverless where you hand over the function and the idle time. Each step upward trades control and portability for less operational work, and each is right for different things at different stages, often in the same system.",
+          "Lock-in deserves a clearer head than it usually gets. Compute and storage are close to commodities and move with effort. Managed databases move with real pain. Proprietary integration services, event buses, identity, and anything where the product is the glue, are where the cost concentrates, because they are the parts with no equivalent anywhere else. The honest question is not whether to be locked in but which lock-in is worth the leverage.",
+          "Multi-cloud as a default is usually a mistake. It means building for the intersection of three platforms, so you get the least capable version of each, plus the operational burden of all of them, in exchange for a portability nobody exercises. Deliberate exceptions exist, DNS and CDN are commonly multi-vendor because outages there are total, and that is a targeted decision rather than a strategy.",
+          "The pragmatic default: use managed services aggressively while the team is small, keep the genuinely portable pieces portable, and spend your architectural allowance on the decisions the cloud does not make for you.",
         ],
         why: "Choosing a cloud is usually decided by existing commitments, team familiarity and pricing agreements, and seldom on technical superiority. The technical differences matter far less than the migration cost of being wrong.",
         check: {
@@ -510,14 +514,56 @@ export const delivery: Card[] = [
           correctIndex: 2,
           explain: "These are commodity primitives everywhere. The decision hinges on cost, existing skills and lock-in, not capability.",
         },
+        checks: [
+          {
+            prompt: "Where does cloud lock-in actually concentrate?",
+            options: [
+              "In proprietary glue: event buses, identity, integration services",
+              "In compute, since instance types differ between the providers",
+              "In object storage, whose APIs are incompatible between clouds",
+              "In networking, because address ranges cannot be reproduced elsewhere",
+            ],
+            correctIndex: 0,
+            explain:
+              "Compute and storage are near-commodities that move with effort. The services whose product is the glue have no equivalent elsewhere, which is where a migration stops being tedious and starts being a rewrite.",
+          },
+          {
+            prompt: "Why is multi-cloud a poor default?",
+            options: [
+              "You build for the intersection and operate the union of three platforms",
+              "Data transfer between providers is charged at the highest egress rate",
+              "Identity cannot be federated between the major cloud providers",
+              "Terraform cannot manage resources across providers in one state file",
+            ],
+            correctIndex: 0,
+            explain:
+              "You get the least capable version of each platform plus all of the operational burden, in exchange for portability nobody exercises. Targeted exceptions such as DNS and CDN are decisions, not a strategy.",
+          },
+          {
+            prompt: "What does each step from infrastructure to platform to serverless trade?",
+            options: [
+              "Control and portability, for less operational work and idle cost",
+              "Reliability, for lower latency at the edge of the network",
+              "Cost predictability, for stronger isolation between workloads",
+              "Feature availability, for a simpler billing relationship",
+            ],
+            correctIndex: 0,
+            explain:
+              "Each level hands over more of the machine and takes back less flexibility. It is not a ladder to climb but a set of choices, and one system often uses all three for different parts.",
+          },
+        ],
       },
       {
         id: "right-sizing",
         title: "Right-sizing: build for the traffic you have",
         level: "intermediate",
         body: [
-          "Ten thousand visitors a month is roughly four requests a minute at peak. A single small server, or a static site on a CDN, handles that without noticing. Multi-region clusters, autoscaling groups and service meshes answer problems that begin several orders of magnitude higher.",
-          "Over-engineering costs money, and the larger cost is complexity, more moving parts to operate, debug and secure, while the product is still unproven.",
+          "Do the arithmetic before choosing anything. Ten thousand visitors a month, with a few pages each, is a handful of requests a minute at peak. A single small server or a static site on a CDN handles that without noticing. Multi-region clusters, autoscaling groups and service meshes answer problems that start several orders of magnitude higher, and the number is easy to compute and rarely computed.",
+          "The habit worth forming is converting everything into requests per second and bytes per second. A million requests a day is about twelve per second averaged, perhaps fifty at peak. A hundred gigabytes of storage is one disk. Those numbers deflate most architecture arguments before they begin, and the ones they do not deflate are the ones worth having.",
+          "Over-engineering costs money and, far more expensively, costs change. Every additional moving part is something to operate, debug, secure, upgrade and explain to the next person, and it is paid for while the product is still unproven. The right architecture for an unvalidated idea is the one that can be replaced quickly, because most of its decisions will turn out to be wrong.",
+          "Modern hardware is also larger than most people's intuition. A single well-configured server with fast storage handles tens of thousands of requests a second for many workloads, and a managed database on a mid-sized instance serves traffic that would have needed a room of machines fifteen years ago. Vertical scaling remains the cheapest scaling available and stops being fashionable long before it stops being effective.",
+          "The exception is anything expensive to change later. Data models, tenancy boundaries, identifiers and the public shape of an API are decisions that get more expensive every month, so they deserve thought now. Instance sizes, autoscaling rules and even the choice of platform are reversible in an afternoon and deserve much less.",
+          "So: build for the traffic you have and design for the traffic you can measure yourself heading towards. Scaling ahead of a forecast is speculating with the only resource an early product genuinely lacks, which is time.",
         ],
         why: "The right architecture for an unvalidated product is the one you can change quickly. Premature scale locks in decisions before you know the access patterns, and those are the expensive ones to reverse.",
         diagram: {
@@ -559,15 +605,56 @@ export const delivery: Card[] = [
           correctIndex: 3,
           explain: "Convert to requests per second before choosing anything. The number is tiny, and the architecture should reflect that.",
         },
+        checks: [
+          {
+            prompt: "Which decision genuinely deserves early attention rather than deferral?",
+            options: [
+              "The data model and tenancy boundaries, which get costlier every month",
+              "The instance size, which sets the ceiling for the first year of growth",
+              "The autoscaling policy, which is hard to tune once traffic is real",
+              "The choice of cloud provider, which is expensive to reverse later",
+            ],
+            correctIndex: 0,
+            explain:
+              "Instance sizes and scaling rules change in an afternoon. A tenancy boundary chosen wrongly is a rewrite, which is why the cheap-to-change decisions deserve the least deliberation.",
+          },
+          {
+            prompt: "A million requests a day. What does that work out at?",
+            options: [
+              "About twelve per second on average, perhaps fifty at peak",
+              "About two hundred per second on average, with peaks far higher",
+              "About one per second, since most arrive during business hours",
+              "About a thousand per second, once retries are accounted for",
+            ],
+            correctIndex: 0,
+            explain:
+              "Eighty-six thousand seconds in a day. Doing this conversion first deflates most architecture arguments, and the ones it does not deflate are the ones worth having.",
+          },
+          {
+            prompt: "Why does vertical scaling stay the cheapest option for longer than expected?",
+            options: [
+              "One well-configured server handles far more than intuition suggests",
+              "Cloud providers discount larger instances more heavily per core",
+              "Horizontal scaling requires a rewrite to remove all shared state",
+              "Larger instances are placed on newer hardware generations by default",
+            ],
+            correctIndex: 0,
+            explain:
+              "Hardware has moved further than most people's mental model. Adding capacity to one machine avoids distribution entirely, and distribution is where the complexity and most of the bugs live.",
+          },
+        ],
       },
       {
         id: "cost-drivers",
         title: "Where cloud bills actually come from",
         level: "advanced",
         body: [
-          "Egress bandwidth is the most commonly underestimated line. Data leaving the cloud is charged, and serving media directly from object storage is expensive compared with a CDN in front.",
-          "Idle provisioned capacity is the next: instances and databases sized for a peak that happens twice a year, running at that size continuously.",
-          "Managed services trade money for operational time. That is usually a good trade for a small team and a bad one at very large scale, which is why big companies eventually build their own.",
+          "Egress is the most commonly underestimated line on a cloud bill. Data leaving the provider is charged per gigabyte while data arriving is usually free, and serving media directly from object storage costs several times what the same traffic costs through a CDN. Cross-zone and cross-region transfer is charged too, so a chatty architecture spread across zones pays for its own internal conversation.",
+          "Idle provisioned capacity is next, and it is the quietest. Instances and databases sized for a peak that happens twice a year run at that size for the other 363 days. Non-production environments running at production size overnight and at weekends are the same waste with fewer excuses, and switching them off on a schedule is usually the fastest saving available.",
+          "Then there is the tax on inattention: unattached volumes, old snapshots, forgotten load balancers, log retention set to forever, data sitting in an expensive storage class years after anyone read it. None of these is architecture; all of them are somebody's afternoon and a recurring charge until someone spends it.",
+          "Managed services trade money for operational time, and that trade is excellent for a small team and increasingly poor at large volume, which is why big companies eventually build their own. Netflix building Open Connect and Dropbox moving off S3 are the same calculation at different points on the same curve: past some volume the provider's margin exceeds the cost of doing it yourself, and below it managed wins comfortably.",
+          "The habits that keep a bill honest are unremarkable. Tag everything so cost can be attributed to a team or a feature, set a budget alert so a surprise is a notification rather than a monthly discovery, and look at unit economics, cost per request or per customer, rather than the total, because the total is supposed to grow.",
+          "The last one is cultural. Engineers cannot economise on a bill they never see, and the single most effective cost control in most organisations is showing the people who create the spend what it costs, at the level of the feature they just shipped.",
         ],
         why: "Netflix building Open Connect and Dropbox moving off S3 are both the same calculation: past a certain volume, the margin a provider charges exceeds the cost of doing it yourself. Below that volume, managed wins easily.",
         check: {
@@ -581,6 +668,44 @@ export const delivery: Card[] = [
           correctIndex: 0,
           explain: "Egress is the cost. A CDN both reduces origin egress and usually charges less per gigabyte for what it does serve.",
         },
+        checks: [
+          {
+            prompt: "Which cost is usually the fastest to remove entirely?",
+            options: [
+              "Non-production environments running at full size overnight and at weekends",
+              "Egress, by moving media delivery behind a content delivery network",
+              "Managed service premiums, by operating the same components yourself",
+              "Storage, by moving older objects into an archival storage class",
+            ],
+            correctIndex: 0,
+            explain:
+              "It is a schedule rather than an architecture change, nobody is inconvenienced, and it removes roughly two thirds of the week for every environment that is not production.",
+          },
+          {
+            prompt: "Why does cross-zone traffic deserve attention in an architecture review?",
+            options: [
+              "It is charged per gigabyte, so a chatty design pays for its own conversation",
+              "It is slower than same-zone traffic by roughly an order of magnitude",
+              "It is not encrypted by default, so it needs an additional TLS hop",
+              "It counts against the account's public egress quota for the month",
+            ],
+            correctIndex: 0,
+            explain:
+              "Services spread across zones for availability exchange data at a price per gigabyte. It rarely dominates a bill and it is the line most often absent from the mental model that produced the design.",
+          },
+          {
+            prompt: "What is the most effective organisational cost control?",
+            options: [
+              "Showing engineers the cost of the feature they just shipped",
+              "A monthly review of the bill by the finance team with engineering",
+              "A committee approving any new service before it is provisioned",
+              "An annual reserved-instance commitment covering the baseline load",
+            ],
+            correctIndex: 0,
+            explain:
+              "Nobody can economise on a number they never see. Attribution by team or feature turns cost into a design input rather than a monthly surprise nobody can act on.",
+          },
+        ],
       },
       {
         id: "serverless",

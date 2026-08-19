@@ -1731,8 +1731,12 @@ export const design2: Card[] = [
         title: "OLTP and OLAP",
         level: "beginner",
         body: [
-          "Transactional databases are tuned for many small reads and writes of individual rows, and store data row by row. Analytical stores are tuned for scanning a few columns across billions of rows, and store it column by column, so the columns you did not ask for cost nothing.",
-          "Running heavy analytics on your production database puts them in competition for the same resources that are serving users. That is how a dashboard causes an outage.",
+          "Transactional databases are tuned for many small reads and writes of individual rows, and they store data row by row, so fetching one complete record is one contiguous read. Analytical stores are tuned for scanning a few columns across billions of rows, and store data column by column, so the columns a query does not name cost nothing at all to skip.",
+          "That layout difference is the whole performance story, and it compounds. Column pruning means a query touching three of sixty columns reads a twentieth of the data. Compression then works far better, because a column holds values of one kind with low variety, so run-length and dictionary encoding do real work where mixed row data resists them. Vectorised execution processes a batch of values per instruction rather than a row at a time.",
+          "Running heavy analytics on the production database puts the two workloads in competition for the same buffer pool, the same disk and the same connection slots. A single analyst running a wide scan can evict the working set that was serving customers, which is how a dashboard causes an outage without anything being obviously wrong.",
+          "The order of remedies is worth knowing, because most teams jump to the last one. A read replica for reporting removes the contention for a small cost and no new technology. Materialised views precompute the expensive aggregates. Only when scans genuinely need to cross billions of rows does a warehouse earn its complexity, and by then the argument makes itself.",
+          "Modelling differs too. Transactional schemas are normalised so a fact lives in one place; analytical schemas are deliberately denormalised into facts and dimensions, the star schema, because a join across billions of rows is expensive and storage is cheap. Bringing normalised thinking to a warehouse produces queries that are correct and slow.",
+          "The two ends have been converging, and it is worth knowing where. Postgres has columnar extensions, DuckDB puts an analytical engine on a laptop, and lakehouse formats such as Iceberg and Delta bring transactions to files in object storage. The distinction that stays true is the physical layout, and that is what to reason about rather than the product names.",
         ],
         why: "Columnar storage is the reason a warehouse scans a billion rows in seconds. It is a different physical layout, not just a bigger machine.",
         check: {
@@ -1747,15 +1751,56 @@ export const design2: Card[] = [
           explain:
             "Row storage forces you to read whole rows to reach three fields; columnar reads only what the query names, which on a wide table is a large multiple less IO. Compression is the honourable second answer and it is real, like values sit together and compress hard, but it multiplies a win that column pruning already delivered.",
         },
+        checks: [
+          {
+            prompt: "An analyst's wide scan slows the customer-facing app. What is happening?",
+            options: [
+              "The scan evicts the working set that was serving user queries",
+              "The analytical query takes a table lock that writers then wait on",
+              "The optimiser rewrites concurrent queries to share the same plan",
+              "Replication lag rises, so reads return stale data more slowly",
+            ],
+            correctIndex: 0,
+            explain:
+              "Both workloads share one buffer pool. A scan of billions of rows pushes out the hot pages the transactional path depended on, and everything gets slower with nothing obviously broken.",
+          },
+          {
+            prompt: "What should be tried before adopting a warehouse?",
+            options: [
+              "A read replica for reporting, then materialised views for aggregates",
+              "Partitioning the production tables by month to shrink each scan",
+              "Adding indexes on every column that appears in analytical filters",
+              "Raising the connection limit so analysts do not compete for slots",
+            ],
+            correctIndex: 0,
+            explain:
+              "A replica removes the contention with no new technology, and precomputed aggregates remove most of the cost. A warehouse is right when scans genuinely span billions of rows, and by then the case is obvious.",
+          },
+          {
+            prompt: "Why are analytical schemas deliberately denormalised?",
+            options: [
+              "Storage is cheap and a join across billions of rows is not",
+              "Column stores cannot express foreign key relationships at all",
+              "Denormalised tables compress better than normalised ones do",
+              "Analysts cannot write joins, so the model must avoid them",
+            ],
+            correctIndex: 0,
+            explain:
+              "The star schema trades duplication for avoided joins, which is the opposite of the transactional trade and correct for the opposite reason. Normalised thinking in a warehouse produces queries that are right and slow.",
+          },
+        ],
       },
       {
         id: "batch-vs-stream",
         title: "Batch and streaming",
         level: "intermediate",
         body: [
-          "Batch processes bounded chunks on a schedule. It is simpler, easy to reason about, cheap to re-run, and results are as old as the last run.",
-          "Streaming processes events as they arrive, giving low latency at the cost of handling late and out-of-order data, and windowing.",
-          "Most organisations need batch and think they need streaming. The question is whether a decision is actually made on fresher data.",
+          "Batch processes a bounded chunk on a schedule. The inputs are fixed, so a run is reproducible; a failure is fixed by re-running it; and reasoning about correctness is tractable because the data stops moving while you look at it. The result is as old as the last run, which for most reporting is entirely acceptable.",
+          "Streaming processes events as they arrive, which buys latency and charges in every dimension that batch made simple. The data never stops, so there is no natural moment at which a result is final, and the hard problems arrive with it: events out of order, events arriving late, and deciding what a window means when both are true.",
+          "Event time and processing time is the distinction that makes streaming difficult. An event happened at one moment and reaches you at another, and grouping by when it arrived produces figures that are wrong in ways nobody notices: a mobile app that was offline for an hour delivers its events at once, and they land in the wrong window. Windowing by event time is correct and requires deciding how long to wait for stragglers, which is what watermarks express.",
+          "So a streaming pipeline needs an explicit answer to what happens to data arriving after its window closed. Discard it, and totals quietly under-report during exactly the incidents you care about. Update the emitted result, and every downstream consumer must handle a figure that changes after publication. Hold windows open longer, and you have traded back the latency you paid for. There is no default that is right, only a decision.",
+          "The pattern that resolves most of this is to keep the log and treat processing as replayable. If events are durable and ordered, a bug in the pipeline is fixed by correcting the code and reprocessing from a position rather than by reconciling by hand, which is the operational property that makes streaming survivable. That is also why the same architecture serves both: batch is a replay over a bounded range.",
+          "Most organisations need batch and believe they need streaming. The honest test is whether a decision changes when the data is minutes old rather than hours: fraud, pricing, alerting and operational routing pass it, and a dashboard read each morning with coffee does not. Streaming for a report nobody reads before nine is complexity bought with no return.",
         ],
         why: "Streaming is meaningfully harder to operate and debug. It is worth it when freshness changes an outcome, fraud, pricing, alerting, and rarely worth it for dashboards read each morning.",
         check: {
@@ -1769,14 +1814,56 @@ export const design2: Card[] = [
           correctIndex: 2,
           explain: "Freshness must change behaviour to justify the complexity. If nobody acts on the data until morning, batch is the correct answer.",
         },
+        checks: [
+          {
+            prompt: "Why group a stream by event time rather than by arrival time?",
+            options: [
+              "Arrival time is cheaper to compute but drifts under clock skew",
+              "A batch of delayed events lands together and falsifies the wrong window",
+              "Event time is monotonic, so windows can be closed without watermarks",
+              "Arrival time cannot be recovered once an event has been persisted",
+            ],
+            correctIndex: 1,
+            explain:
+              "An app that was offline for an hour delivers everything at once, and grouping by arrival attributes all of it to now. The figures look plausible and are wrong exactly when something unusual happened.",
+          },
+          {
+            prompt: "What must a streaming pipeline decide explicitly about late data?",
+            options: [
+              "Whether to discard it, revise the published result, or wait longer",
+              "Whether to store it in the same partition as the on-time events",
+              "Whether to reprocess the whole window or only the missing records",
+              "Whether the producer or the consumer is responsible for buffering it",
+            ],
+            correctIndex: 0,
+            explain:
+              "Each option has a real cost: silent under-reporting, downstream figures that change after publication, or the latency you were buying. There is no correct default, only a decision someone has to make.",
+          },
+          {
+            prompt: "What operational property makes a streaming pipeline survivable?",
+            options: [
+              "Exactly-once delivery guaranteed end to end by the broker",
+              "A durable ordered log, so a fixed bug can be reprocessed from a position",
+              "Autoscaling consumers, so a backlog is always drained within the window",
+              "Schema validation at ingest, so malformed events never enter the stream",
+            ],
+            correctIndex: 1,
+            explain:
+              "Bugs in a pipeline are normal; being able to correct the code and replay is what turns them into a re-run instead of a manual reconciliation. It is also why batch and streaming share an architecture.",
+          },
+        ],
       },
       {
         id: "cdc",
         title: "Change data capture",
         level: "advanced",
         body: [
-          "CDC reads the database's own replication log and turns committed changes into a stream of events. It captures every change, in commit order, without the application doing anything at all.",
-          "Compared with polling for updated rows it misses nothing, it catches deletes, and it adds no query load. That is what makes it the standard way to feed search indexes, caches, warehouses and downstream services from one source of truth.",
+          "Change data capture reads the database's own replication log and turns each committed change into an event. Every insert, update and delete, in commit order, with no cooperation from the application and no query load on the primary. The database is already writing that log for its replicas; CDC is a second reader of it.",
+          "Compared with polling an updated_at column it misses nothing. Polling cannot see deletes, because a deleted row simply stops appearing; it cannot see intermediate states, because two updates between polls look like one; and it adds load to the primary on a schedule forever. The log has all of it, already ordered, already written.",
+          "The structural argument is stronger than the practical one. Dual writes, where the application writes to the database and then publishes an event, have no atomicity: the process can die between the two, and nothing detects the gap. CDC has one commit, and everything downstream is derived from it, so the events cannot disagree with the data by construction. That is the same reasoning as the outbox pattern, and CDC is its lower-maintenance form.",
+          "What you take on is a coupling to the database schema. Log events carry columns, so a rename that would be invisible behind an API breaks every consumer, and a consumer now depends on a physical detail rather than a contract. The usual discipline is a translation layer that maps log events into published domain events, so the schema can move without every downstream service moving with it.",
+          "The operational details that bite are worth knowing in advance. A replication slot that no consumer is reading holds write-ahead log on the primary, and a stalled consumer over a long weekend can fill the disk of the database it was reading. Initial snapshots of a large table are heavy and need a strategy. And delivery is at least once, so consumers must be idempotent regardless of how ordered the source is.",
+          "Used well, this is how one source of truth feeds a search index, a cache, a warehouse and three downstream services without any of them being able to drift, and without the application knowing they exist. That last part is the real prize: adding a consumer requires no change to the system that owns the data.",
         ],
         why: "CDC solves the dual-write problem structurally: there is one commit, and everything downstream derives from it. That is why it beats having the application publish events alongside its writes.",
         inPractice: "Debezium reading Postgres or MySQL logs into Kafka is the common implementation.",
@@ -1792,6 +1879,44 @@ export const design2: Card[] = [
           explain:
             "Polling an updated_at column misses deletes and every intermediate state, and adds query load to the primary. The log has all of it, already in commit order. It does not read uncommitted data, the log is written at commit, and it does not deliver exactly once, so consumers still need to be idempotent.",
         },
+        checks: [
+          {
+            prompt: "A CDC consumer is down for a long weekend. What is the risk to the database?",
+            options: [
+              "Its replication slot retains write-ahead log and can fill the disk",
+              "The log is truncated on schedule, so the consumer loses those changes",
+              "Writes block once the unread log exceeds the configured buffer size",
+              "The primary promotes a replica, assuming the reader has failed over",
+            ],
+            correctIndex: 0,
+            explain:
+              "The slot exists to guarantee the consumer can still catch up, so the primary keeps the log it has not acknowledged. An unmonitored slot is one of the more memorable ways to take a database down.",
+          },
+          {
+            prompt: "What coupling does CDC introduce that publishing domain events does not?",
+            options: [
+              "Consumers depend on the physical schema, so a rename breaks them",
+              "Consumers must run the same database engine as the producer",
+              "Consumers receive events before the transaction has committed",
+              "Consumers must process changes strictly in the producer's order",
+            ],
+            correctIndex: 0,
+            explain:
+              "Log events carry columns rather than a designed contract. The usual remedy is a translation layer that publishes domain events, so the schema can change without every downstream service changing too.",
+          },
+          {
+            prompt: "Why does CDC solve the dual-write problem rather than mitigate it?",
+            options: [
+              "It retries the event publish until the broker acknowledges it",
+              "There is one commit, and the events are derived from it by construction",
+              "It writes both the row and the event inside a single transaction",
+              "It reconciles the two systems on a schedule and repairs differences",
+            ],
+            correctIndex: 1,
+            explain:
+              "Dual writes fail because two commits have no atomicity. With CDC there is nothing to keep in step: the event stream is a function of the committed data, so it cannot disagree with it.",
+          },
+        ],
       },
     ],
   },

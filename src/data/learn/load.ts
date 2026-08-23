@@ -18,6 +18,7 @@ const LOADERS: Record<GroupName, () => Promise<{ default?: Card[] } & Record<str
   languages: () => import("./languages"),
   design: () => import("./design"),
   design2: () => import("./design2"),
+  design3: () => import("./design3"),
   delivery: () => import("./delivery"),
   practice: () => import("./practice"),
   caseStudies: () => import("./caseStudies"),

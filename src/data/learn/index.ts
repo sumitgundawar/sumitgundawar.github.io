@@ -2,6 +2,7 @@ import { foundations } from "./foundations";
 import { languages } from "./languages";
 import { design } from "./design";
 import { design2 } from "./design2";
+import { design3 } from "./design3";
 import { delivery } from "./delivery";
 import { practice } from "./practice";
 import { caseStudies } from "./caseStudies";
@@ -20,6 +21,7 @@ export const cards: Card[] = [
   ...languages,
   ...design,
   ...design2,
+  ...design3,
   ...delivery,
   ...practice,
   ...caseStudies,

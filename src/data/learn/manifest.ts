@@ -735,6 +735,107 @@ export const manifest: CardMeta[] = [
     ]
   },
   {
+    "id": "event-driven",
+    "title": "Event-driven architecture",
+    "summary": "Events against commands, the outbox, choreography and the debugging problem nobody mentions.",
+    "track": "design",
+    "group": "design3",
+    "topics": [
+      {
+        "id": "events-vs-commands",
+        "title": "Events, commands and who decides",
+        "level": "intermediate"
+      },
+      {
+        "id": "outbox",
+        "title": "The outbox, and why dual writes fail",
+        "level": "advanced"
+      },
+      {
+        "id": "event-schema",
+        "title": "Schemas, versioning and the contract nobody owns",
+        "level": "advanced"
+      },
+      {
+        "id": "event-debugging",
+        "title": "Debugging a system with no call stack",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "gateways",
+    "title": "Gateways, proxies and service meshes",
+    "summary": "What belongs at the edge, what belongs beside each service, and what a mesh actually buys.",
+    "track": "design",
+    "group": "design3",
+    "topics": [
+      {
+        "id": "api-gateway",
+        "title": "What an API gateway is for",
+        "level": "intermediate"
+      },
+      {
+        "id": "service-mesh",
+        "title": "Service meshes, and whether you need one",
+        "level": "advanced"
+      },
+      {
+        "id": "north-south-east-west",
+        "title": "The edge and the interior are different problems",
+        "level": "intermediate"
+      }
+    ]
+  },
+  {
+    "id": "ml-systems",
+    "title": "Machine learning systems in production",
+    "summary": "Serving, features, drift and evaluation, treated as an operational problem rather than a modelling one.",
+    "track": "design",
+    "group": "design3",
+    "topics": [
+      {
+        "id": "ml-serving",
+        "title": "Serving a model",
+        "level": "intermediate"
+      },
+      {
+        "id": "ml-features",
+        "title": "Features, and the skew that ruins them",
+        "level": "advanced"
+      },
+      {
+        "id": "ml-drift",
+        "title": "Drift, monitoring and knowing it still works",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "edge",
+    "title": "Computing at the edge",
+    "summary": "What moves to the edge, what cannot, and the constraints that make edge code a different runtime.",
+    "track": "design",
+    "group": "design3",
+    "topics": [
+      {
+        "id": "edge-what-moves",
+        "title": "What actually belongs at the edge",
+        "level": "intermediate"
+      },
+      {
+        "id": "edge-constraints",
+        "title": "A different runtime, with different rules",
+        "level": "advanced"
+      },
+      {
+        "id": "edge-security",
+        "title": "The edge as the security boundary",
+        "level": "intermediate"
+      }
+    ]
+  },
+  {
     "id": "containers",
     "title": "Containers and orchestration",
     "summary": "Docker, Kubernetes, and an honest answer about when you need neither.",
@@ -1362,5 +1463,5 @@ export const manifest: CardMeta[] = [
   }
 ];
 
-export const topicCount = 195;
-export const cardCount = 42;
+export const topicCount = 208;
+export const cardCount = 46;

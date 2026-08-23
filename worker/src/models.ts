@@ -70,8 +70,22 @@ export interface ChainResult {
 }
 
 /** Anything that means "try the next model" rather than "give up". */
+/* Whether the next model in the chain is worth trying.
+ *
+ * The distinction is not transient against permanent, it is per-model against
+ * per-account. A model that is gone, unlisted or not entitled on this key is a
+ * fact about that model, and the other nine are unaffected, so the chain should
+ * step over it. A 400 or a 401 is our request or our credential and will fail
+ * identically everywhere, so walking the chain only wastes ten round trips
+ * before returning the same error.
+ *
+ * 410 was missing from this list and cost four days of silence. The provider
+ * retired the model at the head of the chain, it answered 410 Gone, that was
+ * read as our-fault, and the assistant returned unavailable while eight healthy
+ * models sat untried behind it. */
 function retriable(status: number): boolean {
-  return status === 404 || status === 408 || status === 409 || status === 429 || status >= 500;
+  if (status === 403 || status === 404 || status === 410) return true; // this model, not this key
+  return status === 408 || status === 409 || status === 429 || status >= 500;
 }
 
 /**
@@ -110,8 +124,9 @@ export async function runChain(
       if (!res.ok) {
         attempts.push({ model: spec.id, reason: `http ${res.status}` });
         if (retriable(res.status)) continue;
-        // A 400 or 401 is our bug or our key, and will fail identically on
-        // every other model, so there is nothing to gain by walking the chain.
+        // A 400 or 401 is our request or our credential, and will fail
+        // identically on every other model, so there is nothing to gain by
+        // walking the chain.
         break;
       }
 

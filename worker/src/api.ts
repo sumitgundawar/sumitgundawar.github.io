@@ -333,9 +333,22 @@ export async function handleStatus(req: Request, env: ApiEnv): Promise<Response 
   );
 
   const ranked = Object.entries(totals.answered).sort((a, b) => b[1] - a[1]);
+
+  /* Publish the last chain failure, if there was one.
+   *
+   * The assistant can stop answering without anything on this page changing:
+   * the counts simply stop rising, which reads identically to nobody having
+   * asked anything. Reporting the last exhausted chain, with the reason each
+   * model gave, turns a silence into a symptom. Reasons are model ids and HTTP
+   * statuses, so there is nothing here worth withholding. */
+  const lastFailure = env.RATE
+    ? await env.RATE.get("chain:last-failure", "json").catch(() => null)
+    : null;
+
   return json(
     {
       window: "7 days",
+      lastChainFailure: lastFailure ?? undefined,
       questions: totals.total,
       cacheHitRate: totals.total ? Math.round((totals.cacheHits / totals.total) * 100) : null,
       /* The number this exists for: how many models were tried and refused
@@ -624,8 +637,31 @@ export async function handleApi(req: Request, env: ApiEnv, ctx: ExecutionContext
 
     try {
       result = await runChain(env.NVIDIA_API_KEY, messages);
-    } catch {
-      return json({ error: "unavailable" }, 503, origin);
+    } catch (err) {
+      /* Record why, and return the rate headers anyway.
+       *
+       * The assistant stopped answering for four days and the only external
+       * signal was a 503 with the word unavailable, which says nothing about
+       * whether the credential expired, the provider is refusing, or every
+       * model timed out. The attempts array knows; it was being discarded.
+       * Stored under a fixed key so the status endpoint can report the last
+       * failure without anyone tailing logs at the moment it happens.
+       *
+       * The headers matter too: a 503 is exactly when a client most needs to
+       * know its remaining budget, and omitting them there made the failure
+       * path the one place the documented contract did not hold. */
+      const attempts = (err as { attempts?: { model: string; reason: string }[] }).attempts ?? [];
+      console.log(JSON.stringify({ at: "chain_exhausted", attempts }));
+      if (env.RATE) {
+        ctx.waitUntil(
+          env.RATE.put(
+            "chain:last-failure",
+            JSON.stringify({ at: new Date().toISOString(), attempts }),
+            { expirationTtl: 604_800 },
+          ).catch(() => {}),
+        );
+      }
+      return withRateHeaders(json({ error: "unavailable" }, 503, origin), rate);
     }
 
     /* The system prompt asks for no dashes. A prompt is a request, and a live

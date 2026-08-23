@@ -70,6 +70,26 @@ for (const fn of ["postWeekly", "postAlerts"]) {
    because SLACK_BOT_TOKEN is not set on this deployment. */
 check("postAlerts can deliver by email, not only Slack", /RESEND_API_KEY[\s\S]{0,600}?renderAlertsEmail/.test(apiSrc));
 
+/* A retired model must not take the chain down.
+ *
+ * The provider withdrew the model at the head of the chain, it answered 410
+ * Gone, and the chain treated that as our-credential-is-wrong and stopped,
+ * so the assistant returned unavailable for four days with eight healthy
+ * models untried. The statuses that describe one model rather than the whole
+ * account have to keep the walk going. */
+const modelsSrc = read("worker/src/models.ts");
+for (const status of ["403", "404", "410"]) {
+  check(
+    `a ${status} skips that model rather than ending the chain`,
+    new RegExp(`retriable[\\s\\S]{0,400}?${status}`).test(modelsSrc),
+  );
+}
+const retriableBody = modelsSrc.slice(modelsSrc.indexOf("function retriable"), modelsSrc.indexOf("function retriable") + 400);
+check(
+  "a 401 still stops the chain rather than retrying ten times",
+  !/\b401\b/.test(retriableBody),
+);
+
 for (const p of pass) console.log(`pass  ${p}`);
 for (const f of failures) console.error(`FAIL  ${f}`);
 console.log(`\n${pass.length} passed, ${failures.length} failed`);

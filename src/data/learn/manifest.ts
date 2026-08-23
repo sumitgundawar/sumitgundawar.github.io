@@ -275,6 +275,74 @@ export const manifest: CardMeta[] = [
     ]
   },
   {
+    "id": "java",
+    "title": "Java and the JVM",
+    "summary": "Bytecode and warm-up, collections, garbage collection, virtual threads, and what erasure costs.",
+    "track": "languages",
+    "group": "languages",
+    "topics": [
+      {
+        "id": "jvm-basics",
+        "title": "The JVM: bytecode, JIT and warm-up",
+        "level": "beginner"
+      },
+      {
+        "id": "java-collections",
+        "title": "Collections, equals and hashCode",
+        "level": "intermediate"
+      },
+      {
+        "id": "java-gc",
+        "title": "Garbage collection and pauses",
+        "level": "intermediate"
+      },
+      {
+        "id": "java-concurrency",
+        "title": "Threads, executors and virtual threads",
+        "level": "advanced"
+      },
+      {
+        "id": "java-generics",
+        "title": "Generics, erasure and what survives to run time",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "go",
+    "title": "Go",
+    "summary": "Goroutines and the scheduler, channels, implicit interfaces, errors as values, and context.",
+    "track": "languages",
+    "group": "languages",
+    "topics": [
+      {
+        "id": "go-goroutines",
+        "title": "Goroutines and the scheduler",
+        "level": "beginner"
+      },
+      {
+        "id": "go-channels",
+        "title": "Channels, select and the patterns that work",
+        "level": "intermediate"
+      },
+      {
+        "id": "go-interfaces",
+        "title": "Interfaces, satisfied implicitly",
+        "level": "intermediate"
+      },
+      {
+        "id": "go-errors",
+        "title": "Errors as values",
+        "level": "beginner"
+      },
+      {
+        "id": "go-context",
+        "title": "Context, cancellation and deadlines",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
     "id": "caching",
     "title": "Caching and Redis",
     "summary": "Strategies, invalidation, TTLs, edge caching, and what actually goes wrong at scale.",
@@ -1216,5 +1284,5 @@ export const manifest: CardMeta[] = [
   }
 ];
 
-export const topicCount = 173;
-export const cardCount = 38;
+export const topicCount = 183;
+export const cardCount = 40;

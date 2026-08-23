@@ -56,12 +56,40 @@ function walk(rel, out = []) {
 
 const files = ROOTS.flatMap((r) => walk(r)).filter((f) => !SKIP_FILES.has(f));
 
+/* Anything outside ASCII, with a small allowlist.
+ *
+ * A named-character list only catches the characters somebody thought of. A
+ * Chinese character reached a paragraph of the Go card mid-sentence, survived
+ * the banned list, survived tsc, survived the content checks, and was found by
+ * a grep run for an unrelated reason. Everything this site publishes is written
+ * in English and prices in pounds, so the honest rule is that ASCII plus a
+ * short allowlist is the whole permitted set, and anything else is a mistake
+ * until somebody deliberately adds it here. */
+const ALLOWED_NON_ASCII = new Set([
+  "£", // prices
+  "©",
+  "→", "←", "↗", // navigation and outbound-link affordances
+  "·", "•", // separators in interface text and in Slack messages
+  "…", // ellipsis in truncated strings
+  "▶", "✕", "✓", "×", // play, close and tick glyphs drawn as text
+]);
+
 const hits = [];
 for (const rel of files) {
   const lines = fs.readFileSync(path.join(root, rel), "utf8").split("\n");
   lines.forEach((line, i) => {
     for (const [ch, name] of BANNED) {
       if (line.includes(ch)) hits.push({ rel, line: i + 1, name, text: line.trim().slice(0, 90) });
+    }
+    for (const ch of line) {
+      if (ch.codePointAt(0) < 128 || ALLOWED_NON_ASCII.has(ch)) continue;
+      if (BANNED.some(([banned]) => banned === ch)) continue; // already reported above
+      hits.push({
+        rel,
+        line: i + 1,
+        name: `unexpected character ${JSON.stringify(ch)} (U+${ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")})`,
+        text: line.trim().slice(0, 90),
+      });
     }
   });
 }
@@ -72,4 +100,4 @@ if (hits.length) {
   process.exit(1);
 }
 
-console.log(`prose: clean, ${files.length} files checked for ${BANNED.length} banned characters`);
+console.log(`prose: clean, ${files.length} files checked for ${BANNED.length} banned characters and anything outside ASCII`);

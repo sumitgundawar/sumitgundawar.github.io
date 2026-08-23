@@ -1813,4 +1813,865 @@ export const languages: Card[] = [
       },
     ],
   },
+  {
+    id: "java",
+    title: "Java and the JVM",
+    summary: "Bytecode and warm-up, collections, garbage collection, virtual threads, and what erasure costs.",
+    track: "languages",
+    topics: [
+      {
+        id: "jvm-basics",
+        title: "The JVM: bytecode, JIT and warm-up",
+        level: "beginner",
+        body: [
+          "Java compiles to bytecode rather than to machine code, and the JVM executes that bytecode on whatever hardware it finds. That indirection is the whole design: one artefact runs anywhere there is a JVM, and the machine code is produced at run time by a compiler that can see what the program is actually doing.",
+          "It starts by interpreting, then compiles the parts that run often. Methods and loops that pass a threshold are handed to the just-in-time compiler, first to a fast compiler that produces adequate code quickly, then to an optimising one for the small number of methods that dominate the profile. That is why a Java service is slow for its first few thousand requests and fast afterwards, and why a benchmark that does not warm up measures the interpreter.",
+          "Because the optimiser sees the running program, it can do things an ahead-of-time compiler cannot: inline a virtual call because only one implementation has ever been loaded, unroll a loop whose bounds are known in practice, remove a lock the escape analysis proves is only ever held by one thread. It also has to undo those decisions when a new class arrives and invalidates them, which is called deoptimisation and is why performance can change hours into a run.",
+          "Memory splits into the heap, shared and garbage collected, and per-thread stacks holding frames and local variables. An object lives on the heap and a reference to it lives on a stack, which is the source of the usual confusion about whether Java is pass-by-value. It is: the value being passed is the reference, so a method can mutate the object and cannot repoint the caller's variable.",
+          "The practical consequences are short. Measure after warm-up or do not measure. Expect startup to cost, which is why serverless Java leans on class data sharing and on ahead-of-time compilation with GraalVM. And treat the JVM's flags as a real interface: heap sizing and collector choice are the two settings that change behaviour most, and both have sensible defaults that are worth understanding before overriding.",
+        ],
+        why: "Almost everything surprising about Java performance comes from the code being compiled while it runs. It explains the warm-up, the benchmarks that lie, the optimisations no static compiler could make, and the moment three hours in when the profile shifts because something deoptimised.",
+        inPractice:
+          "GraalVM native images compile ahead of time to remove startup cost, and give up the profile-guided optimisation that makes long-running JVM services fast. That trade, fast start against fast steady state, is the clearest illustration of what the JIT is buying.",
+        diagram: {
+          caption: "Interpreted first, compiled where it matters, undone when assumptions break",
+          columns: [
+            [{ id: "src", label: "Bytecode", sub: "one artefact", kind: "data" }],
+            [{ id: "interp", label: "Interpreter", sub: "first few thousand calls", kind: "service" }],
+            [
+              { id: "c1", label: "Quick compiler", sub: "adequate code, fast", kind: "service" },
+              { id: "c2", label: "Optimising compiler", sub: "the hot few methods", kind: "service" },
+            ],
+            [{ id: "deopt", label: "Deoptimisation", sub: "a new class invalidates it", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "src", to: "interp", label: "runs immediately" },
+            { from: "interp", to: "c1", label: "past a threshold" },
+            { from: "c1", to: "c2", label: "still hot" },
+            { from: "c2", to: "deopt", label: "assumption broken", async: true },
+          ],
+        },
+        check: {
+          prompt: "A Java service is slow for its first few thousand requests. Why?",
+          options: [
+            "The JVM interprets until the hot methods are compiled to machine code",
+            "The heap is still growing toward its configured maximum size",
+            "Class loading dominates until every class has been resolved",
+            "The garbage collector runs more often before the heap stabilises",
+          ],
+          correctIndex: 0,
+          explain:
+            "Compilation happens while the program runs and is driven by how often code executes. Everything about warm-up, and every benchmark that forgets it, follows from that.",
+        },
+        checks: [
+          {
+            prompt: "What can a just-in-time compiler do that an ahead-of-time compiler cannot?",
+            options: [
+              "Optimise on what the program actually does, not what it might do",
+              "Produce machine code specific to the processor it is running on",
+              "Remove code that no call site in the program ever reaches",
+              "Inline calls across compilation units within the same artefact",
+            ],
+            correctIndex: 0,
+            explain:
+              "It sees the live profile: which branch is taken, which implementation is loaded, which loop is hot. That is also why it must be able to undo an optimisation when a new class arrives.",
+          },
+          {
+            prompt: "Is Java pass-by-value or pass-by-reference?",
+            options: [
+              "By value, and for objects the value passed is a reference",
+              "By reference for objects and by value for primitive types",
+              "By reference, which is why a method can mutate its arguments",
+              "By value, and objects are copied when a method is called",
+            ],
+            correctIndex: 0,
+            explain:
+              "The reference is copied, so a method can mutate the object it points at and cannot repoint the caller's variable. Both halves of that sentence follow from the same rule.",
+          },
+          {
+            prompt: "What does a GraalVM native image give up in exchange for fast startup?",
+            options: [
+              "Profile-guided optimisation, which needs the program to be running",
+              "Portability, since bytecode no longer runs on any JVM",
+              "Garbage collection, which is replaced by static allocation",
+              "Access to reflection, which is unavailable in compiled code",
+            ],
+            correctIndex: 0,
+            explain:
+              "Compiling ahead of time removes warm-up and the optimiser's view of what the program does. It is the right trade for short-lived processes and the wrong one for a service that runs for weeks.",
+          },
+        ],
+      },
+      {
+        id: "java-collections",
+        title: "Collections, equals and hashCode",
+        level: "intermediate",
+        body: [
+          "The collections framework is small enough to hold in your head and the choices matter more than the syntax. ArrayList is a growable array: constant-time access by index, linear removal from the middle. LinkedList is almost never the right answer despite what its name suggests, because pointer chasing loses to cache locality on modern hardware. HashMap is the workhorse. TreeMap keeps keys sorted, which is what you want when the question includes everything between two values.",
+          "The contract that catches people is between equals and hashCode. Two objects that are equal must return the same hash code, or a HashMap will look in the wrong bucket and fail to find something it is holding. Override one and you must override the other, which is why records exist: a record generates both from its components and removes the whole category.",
+          "Mutable keys break the same machinery from the other direction. Put an object in a HashSet, change a field that participates in its hash, and the object is now in the wrong bucket: still present, unreachable by lookup, and it will not be found by contains even though iteration will show it. Keys should be immutable, which in practice means records or classes with final fields.",
+          "HashMap's implementation is worth one sentence of knowledge: buckets hold a linked list and convert to a balanced tree once enough entries collide, which turns a degenerate O(n) bucket into O(log n) and defuses the collision attack that this change was introduced to address.",
+          "Two habits save real time. Prefer the interface as the declared type, so List rather than ArrayList, because it keeps the implementation a choice rather than a commitment. And be deliberate about mutability: List.of returns an immutable list, Collections.unmodifiableList wraps a mutable one in a view that still changes underneath you, and confusing the two produces a defensive copy that defends nothing.",
+        ],
+        why: "The equals and hashCode contract is the one piece of Java that will silently lose data in a collection rather than throwing, and mutable keys are the version of it that survives code review. Both are removed by making key types immutable, which is what records were added for.",
+        inPractice:
+          "Records, standard since Java 16, generate equals, hashCode and toString from their components, which is why they are the default choice for a key or a value object. The hand-written versions are where the contract gets broken, usually by adding a field to one and not the other.",
+        diagram: {
+          caption: "The hash chooses the bucket, so changing it strands the entry",
+          columns: [
+            [{ id: "key", label: "Key object", sub: "hashCode = 42", kind: "client" }],
+            [{ id: "bucket", label: "Bucket 42", sub: "entry stored here", kind: "data" }],
+            [
+              { id: "mut", label: "Field mutated", sub: "hashCode is now 87", kind: "service", alternative: true },
+              { id: "imm", label: "Immutable key", sub: "hash cannot move", kind: "service" },
+            ],
+            [
+              { id: "lost", label: "Lookup checks bucket 87", sub: "present, unreachable", kind: "external", alternative: true },
+              { id: "found", label: "Found", kind: "data" },
+            ],
+          ],
+          edges: [
+            { from: "key", to: "bucket", label: "placed on insert" },
+            { from: "key", to: "mut" },
+            { from: "mut", to: "lost", label: "looks in the wrong place" },
+            { from: "key", to: "imm" },
+            { from: "imm", to: "found" },
+          ],
+        },
+        check: {
+          prompt: "Why must equals and hashCode be overridden together?",
+          options: [
+            "Equal objects must hash alike, or a map looks in the wrong bucket",
+            "The compiler rejects a class that overrides only one of the two",
+            "Both are used for sorting, so a mismatch reorders the collection",
+            "hashCode calls equals internally, so an override changes both",
+          ],
+          correctIndex: 0,
+          explain:
+            "The map finds the bucket from the hash and then compares with equals. Break the agreement and a key that is equal to a stored one lands somewhere else, so the lookup fails while the entry is still there.",
+        },
+        checks: [
+          {
+            prompt: "Why is LinkedList rarely the right choice despite its complexity table?",
+            options: [
+              "Pointer chasing misses the cache, and an array scan usually wins",
+              "It cannot be resized, so capacity must be known in advance",
+              "Its removal is linear in practice because the index must be found",
+              "It is not thread safe, unlike the array-backed alternatives",
+            ],
+            correctIndex: 0,
+            explain:
+              "The asymptotics promise cheap insertion in the middle and the constant factors take it back. Complexity counts operations; hardware charges for memory locality.",
+          },
+          {
+            prompt: "What is the difference between List.of and Collections.unmodifiableList?",
+            options: [
+              "One is immutable; the other is a view that can change underneath you",
+              "One is thread safe; the other requires external synchronisation",
+              "One permits null elements; the other rejects them at construction",
+              "One is lazily evaluated; the other copies its argument eagerly",
+            ],
+            correctIndex: 0,
+            explain:
+              "The wrapper forbids changes through itself and does nothing about the list it wraps. Handing it out as a defensive copy defends nothing if anyone still holds the original.",
+          },
+          {
+            prompt: "What happens when many keys collide into one HashMap bucket?",
+            options: [
+              "The bucket becomes a balanced tree past a threshold, so lookups stay fast",
+              "The map resizes immediately regardless of its current load factor",
+              "Lookups fall back to a linear scan of the entire key set",
+              "The map rehashes every key with a new randomised seed",
+            ],
+            correctIndex: 0,
+            explain:
+              "Treeifying turns a degenerate bucket from linear to logarithmic. It was added to defuse deliberate collision attacks, and it also quietly rescues a badly written hashCode.",
+          },
+        ],
+      },
+      {
+        id: "java-gc",
+        title: "Garbage collection and pauses",
+        level: "intermediate",
+        body: [
+          "Garbage collection removes a category of bug rather than a category of work. Nothing is freed by hand, so use-after-free and double-free do not exist, and in exchange the runtime decides when to reclaim memory, which means it sometimes decides during a request you cared about.",
+          "The observation the collectors are built on is that most objects die young. Allocation happens in a small young region, collection there is cheap because it copies the few survivors rather than visiting the many dead, and anything that survives repeatedly is promoted to an older region collected far less often. That generational split is why allocating short-lived objects in Java is much cheaper than intuition suggests.",
+          "The collector you get by default is G1, which divides the heap into regions and collects those with the most garbage first, aiming at a pause time goal you can set rather than a fixed schedule. For workloads that cannot tolerate pauses at all, ZGC and Shenandoah do most of their work concurrently with the application and hold pauses to a small number of milliseconds regardless of heap size, at the cost of some throughput.",
+          "What actually causes trouble is rarely the collector's algorithm. It is a memory leak wearing a different name: a cache with no eviction, a listener never unregistered, a thread-local on a pooled thread, a static map that only grows. The heap fills, the collector runs more and more often to reclaim less and less, and the service spends its time collecting rather than working before it finally fails.",
+          "So the useful skill is reading the evidence rather than tuning flags. Allocation rate, pause time distribution, and the size of the old generation after each full collection: if that last number is rising over hours, you have a leak and no collector setting will help. A heap dump names the objects and what is holding them, which is the answer rather than the symptom.",
+        ],
+        why: "Tuning collector flags is where people start and it is almost never the fix. The two things worth knowing are that short-lived allocation is cheap by design, and that a rising post-collection heap size is a leak, which is a code problem that no amount of configuration will collect around.",
+        inPractice:
+          "G1 has been the default since Java 9, and ZGC exists for the case where pause time matters more than throughput, holding pauses low even on very large heaps. Choosing between them is a workload question; reaching for either before reading an allocation profile is a guess.",
+        diagram: {
+          caption: "Most objects die young, and the exceptions are the problem",
+          columns: [
+            [{ id: "alloc", label: "Allocation", sub: "young region", kind: "client" }],
+            [
+              { id: "die", label: "Dies young", sub: "the overwhelming majority", kind: "data" },
+              { id: "live", label: "Survives", sub: "copied, then promoted", kind: "data" },
+            ],
+            [{ id: "old", label: "Old generation", sub: "collected rarely", kind: "data" }],
+            [
+              { id: "leak", label: "Never released", sub: "cache with no eviction", kind: "external", alternative: true },
+              { id: "ok", label: "Steady after collection", kind: "service" },
+            ],
+          ],
+          edges: [
+            { from: "alloc", to: "die", label: "cheap to reclaim" },
+            { from: "alloc", to: "live" },
+            { from: "live", to: "old", label: "promotion" },
+            { from: "old", to: "ok", label: "size flat over hours" },
+            { from: "old", to: "leak", label: "size rising over hours" },
+          ],
+        },
+        check: {
+          prompt: "The old generation is larger after every full collection, over hours. What does that indicate?",
+          options: [
+            "A leak: something is holding references that should have been released",
+            "An undersized young generation, so objects are promoted too early",
+            "A collector poorly matched to the workload's allocation pattern",
+            "Normal behaviour, since the heap grows toward its configured maximum",
+          ],
+          correctIndex: 0,
+          explain:
+            "A full collection reclaims everything unreachable, so whatever is left is still referenced. Rising over hours means the set of reachable objects is growing, which is a code problem no flag will fix.",
+        },
+        checks: [
+          {
+            prompt: "Why is allocating short-lived objects cheap on the JVM?",
+            options: [
+              "The young collector copies the few survivors and ignores the dead",
+              "Short-lived objects are allocated on the stack rather than the heap",
+              "The collector defers reclamation until the process is idle",
+              "Allocation reuses memory freed by the previous object of that type",
+            ],
+            correctIndex: 0,
+            explain:
+              "The cost is proportional to what survives rather than to what was allocated, which is why the usual advice to avoid creating objects is often wrong on the JVM specifically.",
+          },
+          {
+            prompt: "What do ZGC and Shenandoah trade for their short pauses?",
+            options: [
+              "Throughput, since most of the work happens alongside the application",
+              "Heap size, since concurrent collection needs a smaller live set",
+              "Compaction, so the heap fragments over a long-running process",
+              "Generational collection, so short-lived objects cost more",
+            ],
+            correctIndex: 0,
+            explain:
+              "Doing the work concurrently costs CPU that the application would otherwise have. That is the right trade when a pause is a customer-visible event and the wrong one for a batch job.",
+          },
+          {
+            prompt: "Which is the usual cause of a memory problem in a Java service?",
+            options: [
+              "An unbounded cache, a stale listener, or a growing static map",
+              "A collector unable to keep up with a high allocation rate",
+              "Fragmentation of the old generation after long uptime",
+              "Objects promoted before they have had a chance to die",
+            ],
+            correctIndex: 0,
+            explain:
+              "It is a leak with a different name in each incident report. A heap dump names the objects and the reference chain holding them, which is the answer rather than the symptom.",
+          },
+        ],
+      },
+      {
+        id: "java-concurrency",
+        title: "Threads, executors and virtual threads",
+        level: "advanced",
+        body: [
+          "Java threads are operating system threads, so each carries a stack measured in hundreds of kilobytes or more and a context switch costs the kernel real time. That is why a thread per request stopped scaling, why thread pools exist, and why a generation of frameworks went asynchronous and reactive to avoid blocking a thread on IO.",
+          "An executor separates the work from the thread running it, which is the right abstraction and comes with a decision people leave at its default: the queue. An unbounded queue turns overload into an out-of-memory failure rather than a rejection, which is the backpressure argument in its most concrete form. A bounded queue with a sensible rejection policy converts the same overload into an error the caller can act on.",
+          "Virtual threads, standard since Java 21, change the arithmetic underneath all of this. They are scheduled by the JVM onto a small pool of platform threads and unmount when they block, so a blocking call no longer occupies an operating system thread and a million concurrent tasks becomes reasonable. The point is that ordinary blocking code becomes the scalable style again, which removes most of the reason to write reactive pipelines that were hard to read and harder to debug.",
+          "There is a caveat worth carrying. Before Java 24 a virtual thread blocking inside a synchronized block pinned its carrier, so a small number of pinned threads could stall everything; JEP 491 removed that specific pin. Native calls and a few other cases can still pin, and the JVM emits an event when it happens, so the modern advice is to measure rather than to avoid synchronized on principle.",
+          "The memory model is the part no thread abstraction removes. Without synchronisation there is no guarantee that one thread sees another's write, at all, ever: the compiler and the processor may reorder, and a field read in a loop may be hoisted out of it. volatile, synchronized and the concurrent utilities all establish the happens-before relationships that make visibility defined, and none of them is optional because a test happened to pass.",
+        ],
+        why: "Virtual threads make the simple style the fast style again, which is a rare direction of travel. What they do not change is the memory model: shared mutable state still needs synchronisation for the change to be visible at all, and that is a correctness question rather than a performance one.",
+        inPractice:
+          "Virtual threads arrived as a standard feature in Java 21, and JEP 491 in Java 24 removed the synchronized pinning that was the most common way to lose their benefit. Both are worth knowing by version, because the advice about avoiding synchronized in virtual threads predates the fix.",
+        diagram: {
+          caption: "A blocking call no longer occupies an operating system thread",
+          columns: [
+            [{ id: "tasks", label: "1,000,000 tasks", kind: "client" }],
+            [
+              { id: "plat", label: "Platform threads", sub: "one each, stacks and switches", kind: "service", alternative: true },
+              { id: "virt", label: "Virtual threads", sub: "scheduled by the JVM", kind: "service" },
+            ],
+            [{ id: "carrier", label: "Small carrier pool", sub: "unmounts on blocking", kind: "edge" }],
+            [
+              { id: "oom", label: "Out of memory", kind: "external", alternative: true },
+              { id: "fine", label: "Blocking code, at scale", kind: "data" },
+            ],
+          ],
+          edges: [
+            { from: "tasks", to: "plat" },
+            { from: "tasks", to: "virt" },
+            { from: "plat", to: "oom", label: "a stack each" },
+            { from: "virt", to: "carrier", label: "mounted while running" },
+            { from: "carrier", to: "fine", label: "freed while waiting" },
+          ],
+        },
+        check: {
+          prompt: "What do virtual threads change about blocking IO?",
+          options: [
+            "A blocked task releases its carrier, so blocking code scales again",
+            "Blocking calls are rewritten by the compiler into callbacks",
+            "The operating system schedules them, so context switches are cheaper",
+            "Blocking is prevented, and any blocking call raises at run time",
+          ],
+          correctIndex: 0,
+          explain:
+            "The task unmounts and the platform thread goes and runs something else. That is what makes ordinary blocking code scale, and it is why the reactive style is no longer the only option for high concurrency.",
+        },
+        checks: [
+          {
+            prompt: "What is the consequence of an executor with an unbounded queue?",
+            options: [
+              "Overload accumulates in memory instead of being rejected",
+              "Tasks are executed out of order once the queue grows large",
+              "The pool grows without limit to drain the queue faster",
+              "Rejected tasks are silently discarded rather than reported",
+            ],
+            correctIndex: 0,
+            explain:
+              "It converts a visible rejection into a hidden backlog that fails later and harder, which is the backpressure argument in its most concrete Java form.",
+          },
+          {
+            prompt: "Why is the Java memory model a correctness concern rather than a performance one?",
+            options: [
+              "Without synchronisation, one thread's write may never be seen by another",
+              "Unsynchronised code runs more slowly because caches are invalidated",
+              "The collector cannot reclaim objects shared across threads safely",
+              "Reordering changes the order of side effects but not their visibility",
+            ],
+            correctIndex: 0,
+            explain:
+              "There is no guarantee of visibility at all, not merely a delay, and the compiler may hoist a repeated read out of a loop entirely. A passing test says nothing about a guarantee that was never made.",
+          },
+          {
+            prompt: "How should a team treat synchronized in virtual threads on a modern JDK?",
+            options: [
+              "Measure pinning, since JEP 491 removed the synchronized case",
+              "Avoid it entirely, because it always pins the carrier thread",
+              "Replace every use with a reentrant lock, as a matter of policy",
+              "Ignore it, because virtual threads never block on a monitor",
+            ],
+            correctIndex: 0,
+            explain:
+              "The blanket advice predates the fix. Native frames and a few other paths can still pin, and the JVM emits an event when they do, which makes this a measurement rather than a rule.",
+          },
+        ],
+      },
+      {
+        id: "java-generics",
+        title: "Generics, erasure and what survives to run time",
+        level: "advanced",
+        body: [
+          "Java generics are checked at compile time and erased afterwards. A List of String and a List of Integer are the same class at run time, and the compiler inserts the casts that make it safe. That decision was made for compatibility, so that generic code could interoperate with the collections written before generics existed, and everything odd about them follows from it.",
+          "The visible consequences are a short list worth memorising. You cannot ask whether something is a List of String at run time, because the answer no longer exists. You cannot create an array of a generic type. You cannot overload two methods that differ only in their type parameter, because after erasure they have the same signature. And a cast to a generic type is unchecked, which is the compiler telling you it has stopped being able to help.",
+          "Wildcards are where the syntax earns its reputation and the rule behind them is simple: a producer you read from is declared with extends, a consumer you write to with super. A List of some subtype of Number can be read as Number and cannot be written to, because the compiler does not know which subtype it holds. Once that clicks, the signatures in the standard library stop looking arbitrary.",
+          "The pattern for recovering the erased type is to pass it explicitly, as a Class object or through the trick of subclassing a generic type so the parameter is recorded in the class file. Serialisation libraries do this constantly, which is why deserialising into a generic collection needs a type token rather than a class literal.",
+          "It is worth contrasting this with the alternative, because it explains a real performance gap. C# reifies generics, so a list of integers holds integers rather than boxed objects, while Java boxes every primitive stored in a collection: a list of a million ints is a million objects with headers, pointers and cache misses. Project Valhalla is the long-running effort to close that gap, and until it lands, primitive-heavy code uses arrays or a specialised library rather than the collections framework.",
+        ],
+        why: "Erasure buys compatibility with pre-generic code and charges for it at run time, in reflection that cannot see the type and in boxing that costs memory and locality. Knowing that the type is gone explains every awkward generic signature and every library that asks you to pass a type token.",
+        inPractice:
+          "Jackson and similar libraries take a TypeReference rather than a Class when deserialising into a generic collection, for exactly this reason: the parameter is erased, so it has to be recovered from a subclass that recorded it. That API shape is erasure showing through.",
+        diagram: {
+          caption: "The type is checked, then discarded",
+          columns: [
+            [{ id: "src", label: "List<String>", sub: "compile time", kind: "client" }],
+            [{ id: "check", label: "Compiler", sub: "verifies, inserts casts", kind: "service" }],
+            [{ id: "run", label: "List", sub: "no parameter at run time", kind: "data" }],
+            [
+              { id: "refl", label: "Reflection", sub: "cannot see String", kind: "external", alternative: true },
+              { id: "token", label: "Type token", sub: "passed explicitly", kind: "data" },
+            ],
+          ],
+          edges: [
+            { from: "src", to: "check" },
+            { from: "check", to: "run", label: "erased" },
+            { from: "run", to: "refl", label: "the type is gone" },
+            { from: "run", to: "token", label: "unless you carried it" },
+          ],
+        },
+        check: {
+          prompt: "Why can a library not deserialise into a generic collection from a class literal alone?",
+          options: [
+            "The type parameter is erased, so the class does not carry it",
+            "Class literals cannot be created for interfaces such as List",
+            "Deserialisation runs before generics are resolved by the compiler",
+            "The collection's type is decided by its first element at run time",
+          ],
+          correctIndex: 0,
+          explain:
+            "List.class knows it is a List and nothing about what it holds. A type token recovers the parameter by recording it in a subclass, which is why those APIs look the way they do.",
+        },
+        checks: [
+          {
+            prompt: "What is the rule behind extends and super in wildcards?",
+            options: [
+              "Read from a producer with extends, write to a consumer with super",
+              "Use extends for interfaces and super for concrete classes",
+              "Use extends when the type is known and super when it is inferred",
+              "Use extends for collections and super for single values",
+            ],
+            correctIndex: 0,
+            explain:
+              "A list of some subtype of Number can be read as Number and not written to, because which subtype is unknown. The library signatures stop looking arbitrary once that is clear.",
+          },
+          {
+            prompt: "What does Java boxing cost in a collection of a million integers?",
+            options: [
+              "A million objects, each with a header, a pointer and a cache miss",
+              "Nothing measurable, since small integers are cached and shared",
+              "A conversion on every read, but the storage is still primitive",
+              "Extra collector pressure only, since the values themselves are inline",
+            ],
+            correctIndex: 0,
+            explain:
+              "Erasure means collections hold objects, so primitives are boxed. That is the gap Valhalla exists to close and the reason primitive-heavy code uses arrays instead.",
+          },
+          {
+            prompt: "Which of these does erasure make impossible?",
+            options: [
+              "Overloading two methods that differ only in their type parameter",
+              "Declaring a generic method inside a non-generic class",
+              "Using a generic type as the return type of an interface method",
+              "Nesting one generic type inside another as a parameter",
+            ],
+            correctIndex: 0,
+            explain:
+              "After erasure both have the same signature, so the compiler rejects the pair. The other three are ordinary and unaffected.",
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "go",
+    title: "Go",
+    summary: "Goroutines and the scheduler, channels, implicit interfaces, errors as values, and context.",
+    track: "languages",
+    topics: [
+      {
+        id: "go-goroutines",
+        title: "Goroutines and the scheduler",
+        level: "beginner",
+        body: [
+          "A goroutine is a function running concurrently, started by putting go in front of a call. It begins with a stack of about two kilobytes that grows and shrinks as needed, which is why a program can hold hundreds of thousands of them where the same number of operating system threads would exhaust the machine.",
+          "The runtime multiplexes them onto a small number of operating system threads, one per available core by default. When a goroutine blocks on a channel or on IO the scheduler runs something else on that thread, and when it blocks in a system call the runtime can hand the thread's queue of work to another thread entirely. All of it is invisible from the code, which is the point: you write blocking code and get non-blocking behaviour.",
+          "What is not invisible is that goroutines are not free of responsibility. Starting one without knowing how it ends is the standard Go bug: a goroutine blocked forever on a channel nobody will send to is a leak, holding its stack and whatever it captured, and nothing will report it. Every goroutine wants an answer to how it stops, usually a context or a closed channel.",
+          "There is also no supervision. An unrecovered panic in any goroutine takes the whole process down, not just that goroutine, so a background worker doing risky work needs its own recover at its top level. And a goroutine's result has to be delivered deliberately, through a channel or a WaitGroup, because there is nothing to return to.",
+          "The mental model that keeps this straight is that go is cheap and coordination is not. Starting work concurrently costs almost nothing; knowing when it finished, what it produced and how it stops is the actual design, and it is the part the language deliberately leaves to you.",
+        ],
+        why: "Cheap concurrency changes what is worth doing concurrently, which is the language's central bet. The cost is that lifecycle is now your problem in every case: a goroutine with no defined ending is a leak that nothing detects and nothing reports.",
+        inPractice:
+          "Go's own documentation states the rule plainly, that a goroutine's lifetime should be clear before it is started. The runtime detects the total deadlock where every goroutine is asleep and exits, and it cannot detect the far more common case of one goroutine blocked forever while the rest carry on.",
+        diagram: {
+          caption: "Many goroutines, few threads, and the scheduler in between",
+          columns: [
+            [{ id: "g", label: "100,000 goroutines", sub: "2KB stacks, growable", kind: "client" }],
+            [{ id: "sched", label: "Runtime scheduler", sub: "one queue per processor", kind: "edge" }],
+            [{ id: "m", label: "OS threads", sub: "roughly one per core", kind: "service" }],
+            [
+              { id: "block", label: "Blocked on a channel", sub: "unmounted, costs nothing", kind: "data" },
+              { id: "leak", label: "Blocked forever", sub: "a leak nothing reports", kind: "external", alternative: true },
+            ],
+          ],
+          edges: [
+            { from: "g", to: "sched" },
+            { from: "sched", to: "m", label: "runs what is ready" },
+            { from: "m", to: "block", label: "yields the thread" },
+            { from: "block", to: "leak", label: "if nobody ever sends" },
+          ],
+        },
+        check: {
+          prompt: "What makes a goroutine cheap enough to start hundreds of thousands of?",
+          options: [
+            "A small growable stack, scheduled by the runtime rather than the kernel",
+            "They share one stack, which is allocated once when the program starts",
+            "The compiler converts them into callbacks on a single event loop",
+            "They run only when the process is otherwise idle, so they cost nothing",
+          ],
+          correctIndex: 0,
+          explain:
+            "Around two kilobytes each that grows on demand, multiplexed onto a handful of operating system threads. Both halves matter: small stacks make the count possible and user-space scheduling makes switching cheap.",
+        },
+        checks: [
+          {
+            prompt: "What happens when a goroutine panics without recovering?",
+            options: [
+              "The whole process exits, not just that goroutine",
+              "That goroutine ends and the others continue running",
+              "The panic is returned to whoever started the goroutine",
+              "The scheduler restarts the goroutine from its entry point",
+            ],
+            correctIndex: 0,
+            explain:
+              "There is no supervision tree. A background worker doing anything risky needs its own recover at the top of the goroutine, or one bad input takes the service with it.",
+          },
+          {
+            prompt: "What is the standard goroutine leak?",
+            options: [
+              "One blocked forever on a channel nobody will send to",
+              "One that allocates memory the collector cannot reclaim",
+              "One started inside a loop, so the count grows with iterations",
+              "One that captures a large variable, keeping it alive",
+            ],
+            correctIndex: 0,
+            explain:
+              "It holds its stack and everything it captured, silently, for the life of the process. The runtime only detects the case where every goroutine is asleep at once.",
+          },
+          {
+            prompt: "How does a goroutine return its result?",
+            options: [
+              "Through a channel or a shared structure, as there is nowhere to return",
+              "Through the value returned by the go statement that started it",
+              "By setting a package-level variable that the caller then reads",
+              "By panicking with the value, which the caller then recovers",
+            ],
+            correctIndex: 0,
+            explain:
+              "go starts a call and discards its return value. Delivering a result is a deliberate act, which is why WaitGroup and channels appear in nearly every concurrent Go program.",
+          },
+        ],
+      },
+      {
+        id: "go-channels",
+        title: "Channels, select and the patterns that work",
+        level: "intermediate",
+        body: [
+          "A channel is a typed conduit with a rule attached: send and receive block until the other side is ready. An unbuffered channel is a rendezvous, so the send completes at the moment a receive happens, which makes it a synchronisation primitive as much as a data one. A buffered channel decouples them up to its capacity and then behaves like the unbuffered one, which is bounded backpressure by construction.",
+          "select waits on several channel operations and proceeds with whichever is ready, choosing at random between several that are. Combined with a case on a context's done channel, it is how nearly every cancellable Go loop is written, and combined with a default case it is how a non-blocking attempt is expressed.",
+          "The conventions around closing are worth learning exactly, because breaking them panics. The sender closes, never the receiver, since only the sender knows there is nothing more coming. Closing twice panics. Sending on a closed channel panics. Receiving from a closed channel returns the zero value immediately and forever, which is why the two-value receive exists to distinguish a real value from a closed channel.",
+          "Three patterns cover most real use. A worker pool: several goroutines receiving from one channel of jobs and sending to one of results. Fan-in: several producers writing to a channel a single consumer drains. And done-channel cancellation: a channel closed to broadcast to every listener at once, which works because a closed channel is permanently readable and is the reason cancellation is a close rather than a send.",
+          "The advice the community repeats, share memory by communicating, is not a prohibition on mutexes. A mutex around a struct is the right answer for protecting shared state, and a channel is the right answer for handing ownership of a value from one goroutine to another. Reaching for a channel where a mutex would do produces the most convoluted Go code there is.",
+        ],
+        why: "Channels are a synchronisation mechanism that happens to carry data, which is why an unbuffered one is a rendezvous rather than a queue. Buffered channels are the language's bounded queue, and that bound is what turns overload into blocking rather than into unbounded memory growth.",
+        inPractice:
+          "The done-channel pattern works because a closed channel is readable by every receiver at once, which makes close the natural broadcast. That is also why context cancellation is implemented as a channel that gets closed rather than as a value that gets sent.",
+        diagram: {
+          caption: "Unbuffered is a rendezvous; buffered is a bounded queue",
+          columns: [
+            [{ id: "snd", label: "Sender", kind: "client" }],
+            [
+              { id: "unbuf", label: "Unbuffered", sub: "blocks until received", kind: "queue" },
+              { id: "buf", label: "Buffered, cap 10", sub: "blocks when full", kind: "queue" },
+            ],
+            [{ id: "rcv", label: "Receiver", kind: "service" }],
+            [{ id: "sel", label: "select", sub: "plus ctx.Done()", kind: "edge" }],
+          ],
+          edges: [
+            { from: "snd", to: "unbuf", label: "hands over directly" },
+            { from: "snd", to: "buf", label: "returns until full" },
+            { from: "unbuf", to: "rcv" },
+            { from: "buf", to: "rcv" },
+            { from: "rcv", to: "sel", label: "or give up on cancel" },
+          ],
+        },
+        check: {
+          prompt: "Who should close a channel?",
+          options: [
+            "The sender, because only it knows nothing more is coming",
+            "The receiver, once it has read every value it needs",
+            "Whichever finishes first, since closing twice is harmless",
+            "Neither: channels are closed by the garbage collector",
+          ],
+          correctIndex: 0,
+          explain:
+            "Sending on a closed channel panics, so a receiver that closes can crash a sender that is still working. Closing twice panics too, which is why ownership of the close has to be unambiguous.",
+        },
+        checks: [
+          {
+            prompt: "What does an unbuffered channel provide beyond data transfer?",
+            options: [
+              "Synchronisation: the send completes only when a receive happens",
+              "Ordering, which a buffered channel does not guarantee",
+              "Backpressure, which a buffered channel removes entirely",
+              "Type safety, since buffered channels hold interface values",
+            ],
+            correctIndex: 0,
+            explain:
+              "It is a rendezvous. That property is used deliberately as a handshake, and it is why replacing an unbuffered channel with a buffered one can change a program's correctness rather than its speed.",
+          },
+          {
+            prompt: "Why is cancellation broadcast by closing a channel rather than sending on it?",
+            options: [
+              "A closed channel is readable by every receiver, once and forever",
+              "Sending is slower than closing when there are many receivers",
+              "A send requires knowing how many goroutines are listening",
+              "Closed channels cannot be reopened, which prevents a repeat",
+            ],
+            correctIndex: 0,
+            explain:
+              "One close reaches everyone; a send reaches one receiver. That is exactly why context cancellation is implemented as a close, and why the pattern generalises to any fan-out shutdown.",
+          },
+          {
+            prompt: "When is a mutex the better choice than a channel?",
+            options: [
+              "Protecting shared state that several goroutines read and update",
+              "Passing ownership of a value from one goroutine to another",
+              "Signalling that a long-running operation has finished",
+              "Limiting how many goroutines may run a section concurrently",
+            ],
+            correctIndex: 0,
+            explain:
+              "Share memory by communicating is advice about ownership transfer, not a prohibition. A mutex around a struct is simpler and clearer than routing every read through a goroutine.",
+          },
+        ],
+      },
+      {
+        id: "go-interfaces",
+        title: "Interfaces, satisfied implicitly",
+        level: "intermediate",
+        body: [
+          "A Go type satisfies an interface by having the methods, with no declaration that it intends to. That means an interface can be defined after the types that satisfy it, and by the package that consumes them rather than the one that provides them, which inverts the usual dependency direction and is the single most distinctive thing about designing in Go.",
+          "The convention that follows is to keep interfaces small and to define them where they are used. A consumer that needs one method declares a one-method interface and accepts anything with it, so the provider package does not have to know the consumer exists. The standard library sets the tone: io.Reader and io.Writer are one method each and compose into most of the ecosystem.",
+          "The trap is the typed nil. An interface value holds a type and a value, so an interface holding a nil pointer of a concrete type is itself not nil, and the classic version is a function returning a concrete error type as an error interface: the pointer is nil, the interface is not, and the caller's check for nil is false. Return the interface type, and return a literal nil for the no-error case.",
+          "Type assertions and type switches recover the concrete type when it is genuinely needed, and the two-value form is the safe one, because the single-value assertion panics on a mismatch. Reaching for them constantly is usually a sign that the interface is the wrong shape rather than that the language is in the way.",
+          "Generics, added in Go 1.18, cover the cases interfaces never could: a function that works over any ordered type without boxing, a container parameterised by element type. They did not replace interfaces, which remain the mechanism for behaviour, and the useful split is that generics abstract over types while interfaces abstract over behaviour.",
+        ],
+        why: "Implicit satisfaction lets the consumer define the contract, which is a genuinely different way to arrange a dependency: the package that needs the behaviour owns the interface, and the package that provides it never imports the one that uses it.",
+        inPractice:
+          "io.Reader is one method, and it is the reason a file, a network connection, a buffer and a decompressor are interchangeable throughout the standard library. Nothing was declared to be a Reader; each simply has the method.",
+        diagram: {
+          caption: "The consumer declares the interface, so the provider need not know it exists",
+          columns: [
+            [{ id: "prov", label: "Provider package", sub: "has the method", kind: "data" }],
+            [{ id: "iface", label: "Interface", sub: "declared by the consumer", kind: "edge" }],
+            [{ id: "cons", label: "Consumer package", sub: "needs the behaviour", kind: "service" }],
+            [{ id: "nil", label: "Typed nil", sub: "non-nil interface, nil pointer", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "prov", to: "iface", label: "satisfies it, silently" },
+            { from: "iface", to: "cons", label: "no import of the provider" },
+            { from: "prov", to: "nil", label: "returning a concrete error type", async: true },
+          ],
+        },
+        check: {
+          prompt: "A function returns a nil pointer as an error interface. Why does the caller's nil check fail?",
+          options: [
+            "An interface holds a type and a value, so it is not nil when the type is set",
+            "The compiler converts nil to a zero value of the concrete type",
+            "Error interfaces are compared by value rather than by identity",
+            "The pointer is copied on return, so the caller sees a different address",
+          ],
+          correctIndex: 0,
+          explain:
+            "The interface is non-nil because it knows which concrete type it holds, even though the pointer inside it is nil. Returning the interface type and a literal nil avoids the whole class.",
+        },
+        checks: [
+          {
+            prompt: "Where should an interface be defined in Go?",
+            options: [
+              "In the package that consumes the behaviour, not the one providing it",
+              "In a shared package both sides import, to avoid duplication",
+              "In the package providing the implementation, next to the type",
+              "In whichever package was written first, for stability",
+            ],
+            correctIndex: 0,
+            explain:
+              "Implicit satisfaction means the provider need not know the interface exists, so the consumer can declare exactly what it needs. That inverts the usual dependency direction and is the point.",
+          },
+          {
+            prompt: "What is the safe form of a type assertion?",
+            options: [
+              "The two-value form, which reports failure instead of panicking",
+              "The single-value form, wrapped in a recover at the call site",
+              "A type switch, which is required whenever the type is uncertain",
+              "Reflection, which reports the concrete type without asserting",
+            ],
+            correctIndex: 0,
+            explain:
+              "The single-value assertion panics on a mismatch. Needing either constantly usually means the interface is the wrong shape rather than that the language is being awkward.",
+          },
+          {
+            prompt: "What did generics add that interfaces could not express?",
+            options: [
+              "Abstraction over types without boxing, such as any ordered type",
+              "Abstraction over behaviour, which interfaces only partly covered",
+              "Compile-time checks, which interfaces defer to run time",
+              "Method sets that vary depending on the receiver's type",
+            ],
+            correctIndex: 0,
+            explain:
+              "Interfaces abstract over behaviour and generics over types. A max function for any ordered type is the canonical example of what needed a type parameter rather than a method.",
+          },
+        ],
+      },
+      {
+        id: "go-errors",
+        title: "Errors as values",
+        level: "beginner",
+        body: [
+          "Go has no exceptions for ordinary failure. A function that can fail returns an error alongside its result, and the caller deals with both. The consequence is visible immediately in the code: the failure path is written out rather than implied, which is verbose and is the point, because the alternative is a failure path nobody looked at.",
+          "Errors are values satisfying a one-method interface, so they can be compared, wrapped, inspected and defined by any package. Wrapping with the percent-w verb records the cause, and errors.Is walks that chain to answer whether a particular sentinel is anywhere inside it, while errors.As finds a specific error type and gives you access to its fields. Those three together replaced a decade of string matching on error messages.",
+          "The habit that makes the verbosity pay is adding context at each layer. Returning an error unchanged from five levels of call stack produces a message with no idea where it came from; wrapping it with what this layer was attempting produces a sentence that reads like a trace, which is what somebody wants at three in the morning.",
+          "panic is for programmer error and for situations where continuing is meaningless, not for a file that is missing or a request that failed. recover exists mainly to stop a panic in one request taking down a server, which is what an HTTP framework does at the top of each handler, and it should not be used as a general error mechanism because it hides the failure path the language deliberately exposes.",
+          "The thing to watch for is the ignored error, written as an underscore or simply omitted. It is the same swallowing that an empty catch block does in another language, with the difference that Go's linters can see it, which is why vetting for unchecked errors is standard in any serious pipeline.",
+        ],
+        why: "Failure is in the signature, so a caller cannot be unaware of it and a reader can see every path. The cost is verbosity, and the payment for it is context: wrapping at each layer is what turns a bare message into something that identifies where and why.",
+        inPractice:
+          "errors.Is and errors.As, with the percent-w wrapping verb, arrived in Go 1.13 and ended the practice of matching on error strings. Any codebase still comparing message text is carrying a habit the standard library removed the need for.",
+        diagram: {
+          caption: "Wrap on the way up, and the message becomes a trace",
+          columns: [
+            [{ id: "db", label: "Database", sub: "connection refused", kind: "data" }],
+            [{ id: "repo", label: "Repository", sub: "wraps: loading order 42", kind: "service" }],
+            [{ id: "svc", label: "Service", sub: "wraps: completing checkout", kind: "service" }],
+            [
+              { id: "msg", label: "One readable sentence", sub: "with errors.Is intact", kind: "data" },
+              { id: "bare", label: "connection refused", sub: "returned unchanged", kind: "external", alternative: true },
+            ],
+          ],
+          edges: [
+            { from: "db", to: "repo" },
+            { from: "repo", to: "svc", label: "%w keeps the cause" },
+            { from: "svc", to: "msg" },
+            { from: "db", to: "bare", label: "returned five levels unchanged", async: true },
+          ],
+        },
+        check: {
+          prompt: "What does wrapping an error with the %w verb preserve?",
+          options: [
+            "The cause, so errors.Is and errors.As can still find it",
+            "The stack trace at the point the error was created",
+            "The original error's type, replacing the wrapper's type",
+            "The line number, which is added to the formatted message",
+          ],
+          correctIndex: 0,
+          explain:
+            "The chain stays intact, so a caller can add context without destroying the ability to test what actually went wrong. That combination is what replaced matching on message strings.",
+        },
+        checks: [
+          {
+            prompt: "When is panic the right tool in Go?",
+            options: [
+              "Programmer error, or a state where continuing is meaningless",
+              "Any failure that the immediate caller cannot handle usefully",
+              "Errors crossing a package boundary, where returning is awkward",
+              "Failures in a goroutine, since it has nowhere to return to",
+            ],
+            correctIndex: 0,
+            explain:
+              "Missing files and failed requests are values. recover exists chiefly so one request's panic does not take down a server, which is why frameworks place it at the top of a handler.",
+          },
+          {
+            prompt: "What is the Go equivalent of an empty catch block?",
+            options: [
+              "Assigning the error to an underscore, or omitting the check",
+              "Returning the error unchanged without adding any context",
+              "Wrapping the error and then logging it at every layer",
+              "Using panic where a returned error would have been enough",
+            ],
+            correctIndex: 0,
+            explain:
+              "The program continues with a value nobody verified. Unlike the catch block, a linter can see it, which is why unchecked-error vetting belongs in the pipeline.",
+          },
+          {
+            prompt: "Why add context at each layer rather than returning the error unchanged?",
+            options: [
+              "Otherwise the message says what failed and not what was being attempted",
+              "Otherwise errors.Is cannot match the sentinel at the top",
+              "Otherwise the error escapes to the heap and costs an allocation",
+              "Otherwise the compiler warns about an unused return value",
+            ],
+            correctIndex: 0,
+            explain:
+              "Connection refused, arriving five levels up with no idea which operation caused it, is exactly the message nobody can act on during an incident.",
+          },
+        ],
+      },
+      {
+        id: "go-context",
+        title: "Context, cancellation and deadlines",
+        level: "advanced",
+        body: [
+          "A context carries a deadline, a cancellation signal and request-scoped values across API boundaries. By convention it is the first parameter of any function that does IO or can block, which is why almost every signature in a Go service starts with it, and the convention exists so that cancellation can reach anywhere without every layer inventing its own mechanism.",
+          "Cancellation propagates down a tree. Deriving a context gives a child that is cancelled when its parent is, so cancelling at the top reaches every operation started beneath it, and a deadline set at the edge becomes the budget for the whole call rather than a fresh timeout at each hop. That is the propagating deadline that other ecosystems build by hand, available as a language convention.",
+          "Using it correctly is a short list. Select on ctx.Done in any loop that might run long. Pass the context to every call that takes one, including the database driver and the HTTP client, since a cancellation that stops at your code and not at the query has cancelled nothing expensive. Call the cancel function returned when deriving a context, always with defer, because failing to do so leaks the context and its timer.",
+          "Values in a context are the part most often misused. They are for request-scoped data that genuinely crosses layers, a trace id, a request id, an authenticated principal, not for passing dependencies that a function could have been given as parameters. Because the map is untyped, anything hidden in it is invisible to the compiler and to the next reader, which is why the practice is to keep it to a handful of well-known keys.",
+          "The most common bug is a cancelled context reaching only part of the work. A handler returns, the context is cancelled, and a goroutine started with the request context finds its context already dead, or worse, a background task was given the request context and dies when the request completes. Background work needs its own context with its own lifetime, and saying so explicitly is cheaper than diagnosing it.",
+        ],
+        why: "Context is how a deadline set at the edge becomes a budget the whole call tree respects, which is the property that stops a service working on results nobody is waiting for. It only holds if every layer passes it on: one call that ignores it becomes the place where cancellation stops.",
+        inPractice:
+          "The standard library takes a context in the database and HTTP interfaces precisely so a cancelled request stops the query it started. A codebase that passes context.Background into those calls has kept the shape of cancellation without any of the effect.",
+        diagram: {
+          caption: "One deadline at the edge, respected by everything beneath it",
+          columns: [
+            [{ id: "req", label: "Request", sub: "deadline 2s", kind: "client" }],
+            [{ id: "h", label: "Handler", sub: "ctx first parameter", kind: "service" }],
+            [
+              { id: "db", label: "Query", sub: "ctx passed, cancelled", kind: "data" },
+              { id: "bad", label: "Query", sub: "context.Background()", kind: "data", alternative: true },
+            ],
+            [
+              { id: "stop", label: "Work stops", sub: "budget respected", kind: "service" },
+              { id: "orphan", label: "Query continues", sub: "nobody waiting", kind: "external", alternative: true },
+            ],
+          ],
+          edges: [
+            { from: "req", to: "h" },
+            { from: "h", to: "db", label: "passed on" },
+            { from: "h", to: "bad", label: "not passed on" },
+            { from: "db", to: "stop" },
+            { from: "bad", to: "orphan" },
+          ],
+        },
+        check: {
+          prompt: "A handler cancels its context but the database query keeps running. Why?",
+          options: [
+            "The query was issued with a different context, so nothing reached it",
+            "Cancellation applies to goroutines but never to network calls",
+            "The driver cancels only after its own timeout has elapsed",
+            "Cancellation propagates upward to parents, not down to children",
+          ],
+          correctIndex: 0,
+          explain:
+            "Cancellation reaches exactly as far as the context is passed. One call that substitutes context.Background is the point where the budget stops applying, and it is usually the expensive one.",
+        },
+        checks: [
+          {
+            prompt: "What belongs in a context value?",
+            options: [
+              "Request-scoped data crossing layers: a trace id or a principal",
+              "Dependencies such as a database handle or a configured client",
+              "Options that change how the called function behaves",
+              "Anything that would otherwise need a package-level variable",
+            ],
+            correctIndex: 0,
+            explain:
+              "The map is untyped, so anything in it is invisible to the compiler and to the next reader. Dependencies are parameters; contexts carry what genuinely travels with the request.",
+          },
+          {
+            prompt: "Why must the cancel function from a derived context always be called?",
+            options: [
+              "Otherwise the context and its timer are leaked until the parent ends",
+              "Otherwise the parent context cannot be cancelled by its own caller",
+              "Otherwise the deadline is inherited by unrelated sibling contexts",
+              "Otherwise the child context cannot be passed to another goroutine",
+            ],
+            correctIndex: 0,
+            explain:
+              "Deriving registers the child with its parent, and cancel is what removes it. defer cancel on the line after deriving is the habit that makes this a non-issue.",
+          },
+          {
+            prompt: "A background task is given the request's context. What happens?",
+            options: [
+              "It is cancelled when the request completes, mid-work",
+              "It keeps running, since background tasks ignore cancellation",
+              "It inherits the deadline but not the cancellation signal",
+              "It runs to completion and then reports the cancellation",
+            ],
+            correctIndex: 0,
+            explain:
+              "The request context dies with the request, which is correct for work the requester is waiting on and wrong for work that outlives them. Background work needs its own context with its own lifetime.",
+          },
+        ],
+      },
+    ],
+  },
+
 ];

@@ -9,7 +9,7 @@
  * forgetting this list is a build error rather than a page that will not open.
  */
 export const GROUPS = {
-  languages: ["programming-foundations", "python", "javascript", "sql"],
+  languages: ["programming-foundations", "python", "javascript", "sql", "java", "go"],
   foundations: ["data-structures", "networking", "databases-basics", "concurrency"],
   design: ["caching", "load-balancing", "queues", "scaling-data", "resilience", "observability"],
   design2: ["api-design", "realtime", "search", "storage-media", "identity", "coordination", "data-pipelines"],

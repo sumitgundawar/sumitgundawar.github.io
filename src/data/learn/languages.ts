@@ -315,6 +315,23 @@ export const languages: Card[] = [
           "Async and await do not add threads. They mark the points where a function may pause and let the loop run something else, then resume. That is why an await inside a loop serialises the whole loop, and why Promise.all is the difference between ten sequential requests and ten concurrent ones. The work is still on one thread; only the waiting overlaps.",
         ],
         why: "One thread means the cost of any slow synchronous operation is paid by everything else in the program. Knowing what yields and what does not is the difference between a page that stays responsive and one that freezes for reasons nobody can see in the code.",
+        inPractice:
+          "Node's own documentation describes the loop's phases explicitly, which is why blocking it is treated as a bug rather than as slowness. The browser equivalent shows up in Chrome's long task reporting: anything holding the main thread past 50ms is flagged, because that is where interaction starts to feel broken.",
+        diagram: {
+          caption: "One thread, two queues, and everything else waiting",
+          columns: [
+            [{ id: "task", label: "Current task", sub: "runs to completion", kind: "service" }],
+            [{ id: "micro", label: "Microtasks", sub: "promise callbacks", kind: "queue" }],
+            [{ id: "macro", label: "Macrotasks", sub: "timers, IO", kind: "queue" }],
+            [{ id: "render", label: "Render", sub: "blocked until the loop is free", kind: "edge" }],
+          ],
+          edges: [
+            { from: "task", to: "micro", label: "drained first, completely" },
+            { from: "micro", to: "macro", label: "then one macrotask" },
+            { from: "macro", to: "render", label: "then the browser paints" },
+            { from: "task", to: "render", label: "a long task blocks all of it", async: true },
+          ],
+        },
         check: {
           prompt: "setTimeout(fn, 0) is called, and a resolved promise's then is queued. Which runs first?",
           options: [
@@ -339,6 +356,8 @@ export const languages: Card[] = [
           "The practical rules: use arrow functions for callbacks, use regular functions or classes for methods that need this, and prefer passing values explicitly over relying on binding. Most this-related bugs disappear when the code stops depending on how a function will be called later.",
         ],
         why: "Closures and prototypes are the two mechanisms the whole language is built from, and this is the one piece of it decided at the call site rather than at the definition. Every framework pattern that looks like magic is one of the three.",
+        inPractice:
+          "React hooks are closures by construction, which is why the dependency array exists: it decides which values a callback captured are allowed to go stale. Most confusing hook bugs are a closure holding a value from a previous render.",
         check: {
           prompt: "A method is extracted from an object and passed as a callback, and this becomes undefined. Why?",
           options: [
@@ -363,6 +382,8 @@ export const languages: Card[] = [
           "Modern syntax removes most of the remaining traps. Optional chaining reads a nested property without throwing when something in the middle is missing, and nullish coalescing supplies a default only for null and undefined rather than for every falsy value, so a legitimate zero or empty string is no longer replaced by a fallback. That last distinction fixes a whole category of quiet bugs in configuration handling.",
         ],
         why: "The language guesses when you let it, and the guesses are consistent rather than sensible. Strict equality, explicit conversion and nullish coalescing remove the guessing, which is why every serious style guide requires them.",
+        inPractice:
+          "Every mainstream style guide requires strict equality, and TypeScript flags comparisons between incompatible types outright. Nullish coalescing was added to the language specifically because defaulting with logical or kept discarding legitimate zeroes and empty strings.",
         check: {
           prompt: "A config value of 0 keeps being replaced by its default. Which operator is responsible?",
           options: [
@@ -387,6 +408,8 @@ export const languages: Card[] = [
           "Beyond that, the type system is expressive enough to encode real rules: unions to make invalid states unrepresentable, generics to keep containers honest, mapped and conditional types to derive one shape from another so they cannot drift apart. It is also expressive enough to write types nobody can read, and the point at which a type needs a comment to explain it is usually the point to simplify it.",
         ],
         why: "Structural typing makes TypeScript pleasant to adopt gradually, and erasure means it protects the inside of the program and nothing at its edges. Validating external data and preferring unknown over any is what turns compile-time confidence into runtime safety.",
+        inPractice:
+          "Zod and its equivalents exist precisely because types are erased: they validate at run time and derive the static type from the same schema, so the compiler's view and the program's view of external data finally agree.",
         check: {
           prompt: "An API response is cast to a User type and a field is missing at run time. What went wrong?",
           options: [
@@ -420,6 +443,8 @@ export const languages: Card[] = [
           "The mental model that keeps this straight is set-based rather than procedural. A query is not a loop over rows; it is a description of a set. Once that clicks, GROUP BY becomes partitioning a set rather than accumulating a variable, and HAVING becomes filtering the groups after aggregation rather than the rows before it, which is the distinction that trips people in interviews.",
         ],
         why: "Thinking in sets rather than in loops is what separates SQL that works from SQL that works on the test data. The two failure modes to recognise are a left join demoted to an inner join by a WHERE clause, and totals inflated by a one-to-many join.",
+        inPractice:
+          "Every relational engine exposes its plan through EXPLAIN, which is the tool that turns arguments about query style into evidence. Reading one is the fastest way to learn what the optimiser actually does with a join, as opposed to what the syntax implies.",
         check: {
           prompt: "A LEFT JOIN stops returning unmatched rows after a filter is added. Why?",
           options: [
@@ -444,6 +469,26 @@ export const languages: Card[] = [
           "The way to know rather than guess is EXPLAIN, ideally with ANALYZE so the numbers are measured rather than estimated. What to look for is short: a sequential scan on a large table, an estimated row count far from the actual one, which means the statistics are stale, and a nested loop over many rows where a hash join would be cheaper. A covering index, one that contains every column the query needs, lets the database answer without touching the table at all, which is the largest single win available on a hot read path.",
         ],
         why: "Indexes are the difference between a query that scales and one that works until the table grows. The ordering rule for composite indexes and the three ways to accidentally disable one cover most of what goes wrong in practice.",
+        inPractice:
+          "Postgres records how often each index is scanned, so identifying the ones that have never been used is a query rather than an opinion. Dropping those speeds up every write and risks nothing that was being read.",
+        diagram: {
+          caption: "A composite index serves a prefix of its columns, not any subset",
+          columns: [
+            [{ id: "idx", label: "Index", sub: "(customer_id, created_at)", kind: "data" }],
+            [
+              { id: "q1", label: "customer_id = 7", sub: "seeks", kind: "service" },
+              { id: "q2", label: "customer + date", sub: "seeks", kind: "service" },
+              { id: "q3", label: "created_at only", sub: "scans", kind: "service", alternative: true },
+            ],
+            [{ id: "tbl", label: "Table", sub: "read only where needed", kind: "data" }],
+          ],
+          edges: [
+            { from: "idx", to: "q1", label: "leading column" },
+            { from: "idx", to: "q2", label: "full prefix" },
+            { from: "idx", to: "q3", label: "no usable prefix" },
+            { from: "q3", to: "tbl", label: "every row" },
+          ],
+        },
         check: {
           prompt: "An index on (customer_id, created_at) exists. Which query cannot use it?",
           options: [
@@ -468,6 +513,8 @@ export const languages: Card[] = [
           "That top-N-per-group pattern is the one to remember, because it appears constantly: number the rows within each partition by the ordering you care about, then keep those numbered at or below N. It replaces a correlated subquery that gets slower with every group, and it reads as what it does.",
         ],
         why: "Window functions cover the space between one row per row and one row per group, which is where most reporting questions live. Knowing them turns queries that would need application code into a single statement the database can plan.",
+        inPractice:
+          "Window functions have been in the SQL standard since 2003 and are now in every major engine including SQLite. The top-N-per-group pattern built on ROW_NUMBER is the one worth memorising, because it replaces a correlated subquery that degrades with every group added.",
         check: {
           prompt: "You need the three most recent orders per customer in one query. What fits best?",
           options: [
@@ -492,6 +539,8 @@ export const languages: Card[] = [
           "Two more things that catch people. Deadlocks are normal under concurrency and are resolved by the database aborting one transaction, so application code has to be prepared to retry, which means the work must be safe to repeat. And a transaction rolling back does not undo side effects outside the database: emails sent, files written and messages published are gone regardless, which is why those belong after the commit or behind an outbox.",
         ],
         why: "The default isolation level is a decision made for you, and it is right often enough that nobody notices until a report double-counts. Short transactions, an explicit choice of level for the paths that need it, and a retry for deadlocks cover almost every case.",
+        inPractice:
+          "Postgres defaults to read committed and MySQL InnoDB to repeatable read, so the same application code has different concurrency behaviour on each. Checking which one you are running is a one-line query and is worth doing before the first strange report.",
         check: {
           prompt: "A transaction holds a row lock while calling a payment provider. What is the consequence?",
           options: [

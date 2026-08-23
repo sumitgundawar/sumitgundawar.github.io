@@ -452,6 +452,8 @@ export const design2: Card[] = [
           "Two practical notes that decide real implementations. Intermediaries close idle connections, so anything long-lived needs a heartbeat every 30 seconds or so, and both SSE and WebSockets need to tolerate a reconnect at any moment, which in turn means the server must be able to answer what did I miss. And HTTP/2 changed the arithmetic for SSE: the old six-connection-per-host limit that made it awkward applies per connection rather than per stream, so many streams now share one.",
         ],
         why: "SSE is underrated: if data only flows server to client, notifications, live prices, progress, it is far simpler than WebSockets and works through ordinary HTTP infrastructure.",
+        inPractice:
+          "Server-sent events carry most of the streaming responses on this site, including the assistant's answers, for the reason given above: the browser reconnects and resumes on its own, and nothing in the path needed to learn a new protocol.",
         check: {
           prompt: "A dashboard receives live updates but never sends anything back. Simplest fit?",
           options: ["WebSockets", "Server-sent events", "Long polling", "gRPC streaming"],
@@ -611,6 +613,8 @@ export const design2: Card[] = [
           "The last piece is degradation. Under pressure, presence should stop first, then typing indicators, then read receipts, before anything touches message delivery. Deciding that order in advance is what makes the feature safe to ship, because presence is exactly the kind of feature that will otherwise consume the capacity that messages needed.",
         ],
         why: "Presence is the standard example of a feature whose cost is invisible in the spec. Recognising it as a fan-out problem rather than a storage problem is the insight being tested.",
+        inPractice:
+          "Slack and Discord both throttle typing indicators hard and treat presence as expendable under load, which is the design decision rather than an implementation detail: the feature is defined as one that may be dropped.",
         check: {
           prompt: "Why is presence expensive at scale?",
           options: [
@@ -682,6 +686,8 @@ export const design2: Card[] = [
           "A dedicated engine starts paying when you need what an engine has and a database does not: faceting and aggregations over results, per-field boosting and tuneable relevance, typo tolerance, suggestions, and a scale where the index outgrows the primary. Those are real features rather than a performance argument, and they are the honest reason to take on a second datastore. The cost of that decision is one thing, repeated: the index is a second copy of the data and it can drift. Everything else, the mappings, the analysers, the ranking, is tuning. The copy is the design problem, and it is why the next topic exists.",
         ],
         why: "This is why search moves to a dedicated engine. It is not that the database is slow; it is that the data structure required for text search is a different one.",
+        inPractice:
+          "Postgres ships full-text search with GIN indexes over tsvector, and trigram indexes for fuzzy and substring matching, which between them cover most product search without a second datastore to keep in sync.",
         check: {
           prompt: "Why can't a B-tree index serve LIKE '%shoes%'?",
           options: [
@@ -763,6 +769,8 @@ export const design2: Card[] = [
           "The failure worth naming is the zero-result search. It is the clearest signal you have and it is usually caused by something fixable: no synonym handling, no typo tolerance, or a filter silently applied. Logging those queries and reading them weekly is the cheapest search improvement available, and it needs no model at all.",
         ],
         why: "Treating search as a matching problem produces technically correct results that feel broken. The measurable target is click-through and successful sessions, not recall.",
+        inPractice:
+          "Elasticsearch and OpenSearch both use BM25 as the default scoring function, having moved off TF-IDF, and both expose per-field boosting as a query parameter because it is the tuning knob that changes results most for the least effort.",
         check: {
           prompt: "Search returns correct matches but users complain. Most likely cause?",
           options: [
@@ -867,6 +875,8 @@ export const design2: Card[] = [
             }
           ]
         },
+        inPractice:
+          "Debezium reading a database's replication log into Kafka is the common implementation, and the alias swap on reindex is standard practice in Elasticsearch for exactly the reason above: the cutover is one atomic operation with a way back.",
         check: {
           prompt: "Why are dual writes to database and search index fragile?",
           options: [
@@ -914,6 +924,88 @@ export const design2: Card[] = [
             correctIndex: 0,
             explain:
               "There is no error and no alert, only a user eventually reporting that something visible in the product cannot be found. By then the losses are weeks old with no record of which writes went missing.",
+          },
+        ],
+      },
+      {
+        id: "autocomplete",
+        title: "Autocomplete and suggestions",
+        level: "advanced",
+        body: [
+          "Autocomplete looks like a smaller version of search and is a different problem. The latency budget is a keystroke, so under about a hundred milliseconds end to end, and every character typed is a request, which means a search box generates an order of magnitude more traffic than the search itself.",
+          "The data structure follows from the prefix requirement. A trie holds strings by shared prefix so a lookup walks the typed characters and returns the subtree, and the practical version precomputes the top few completions at each node so the answer is a read rather than a traversal plus a sort. Where a trie is inconvenient to operate, an inverted index with an edge n-gram analyser gets close enough by indexing every prefix as a term.",
+          "Ranking matters more than matching here, because a prefix of three characters matches thousands of things and the box shows five. Popularity is the usual backbone, weighted toward recency so that what people searched for this week outranks last year, with personal history above both because someone's own previous searches are the strongest signal available about what they mean.",
+          "The client is half the system. Debounce so a fast typist produces a handful of requests rather than one per character, cancel in-flight requests when a newer keystroke arrives, and be careful about out-of-order responses: the reply for a three-letter prefix arriving after the four-letter one will replace correct suggestions with stale ones unless each response is checked against the current input.",
+          "Everything about this favours caching. Prefixes are short, popular ones are extremely popular, and results change slowly, so an edge cache with a short expiry absorbs most of the traffic. The remaining engineering is mostly about what not to suggest: profanity, other people's private data, and the long tail of queries that returned nothing, which should not be offered to the next person.",
+        ],
+        why:
+          "The constraint that shapes the design is the latency budget rather than the corpus size, because a suggestion that arrives after the next keystroke is worse than no suggestion at all. That is why the answers are precomputed and cached rather than searched, and why ranking is decided before the request rather than during it.",
+        inPractice:
+          "Elasticsearch ships a dedicated completion suggester backed by a finite state transducer rather than reusing the normal search path, precisely because prefix lookup and relevance search are different problems with different latency budgets.",
+        diagram: {
+          caption: "Precompute the answer, cache the prefix, cancel the stale reply",
+          columns: [
+            [{ id: "k", label: "Keystroke", sub: "debounced", kind: "client" }],
+            [{ id: "edge", label: "Edge cache", sub: "short expiry, hot prefixes", kind: "edge" }],
+            [{ id: "trie", label: "Prefix store", sub: "top completions per node", kind: "data" }],
+            [{ id: "rank", label: "Ranking", sub: "popularity, recency, history", kind: "service" }],
+            [{ id: "stale", label: "Late response", sub: "discarded, input moved on", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "k", to: "edge", label: "3 characters" },
+            { from: "edge", to: "trie", label: "on miss" },
+            { from: "rank", to: "trie", label: "precomputed offline", async: true },
+            { from: "edge", to: "stale", label: "arrives after the next keystroke" },
+          ],
+        },
+        check: {
+          prompt: "Why is autocomplete usually served from precomputed results rather than from a search query?",
+          options: [
+            "The latency budget is a keystroke, so the answer must be a read",
+            "Prefix queries cannot be expressed in a normal search index",
+            "Search relevance scoring is unavailable for partial words",
+            "Precomputing is the only way to keep suggestions consistent",
+          ],
+          correctIndex: 0,
+          explain:
+            "Under about a hundred milliseconds, with a request per keystroke, there is no room to search and rank on the fly. The ranking is decided in advance and the request becomes a lookup.",
+        },
+        checks: [
+          {
+            prompt: "A four-character prefix returns results, then the three-character reply arrives and replaces them. What is missing?",
+            options: [
+              "A check that each response still matches the current input",
+              "A debounce interval long enough to serialise the requests",
+              "A cache, which would have returned both replies in order",
+              "A sequence number on the request, which the server must echo",
+            ],
+            correctIndex: 0,
+            explain:
+              "Responses race. Cancelling in-flight requests helps and does not guarantee ordering, so the client has to discard anything that no longer matches what is in the box.",
+          },
+          {
+            prompt: "Which ranking signal is strongest for an individual user?",
+            options: [
+              "Their own previous searches, above popularity and recency",
+              "Global popularity, since it reflects the largest sample available",
+              "Recency, because intent shifts faster than popularity does",
+              "Alphabetical order, which is predictable and needs no data",
+            ],
+            correctIndex: 0,
+            explain:
+              "Personal history is the best available evidence of what this person means by three ambiguous characters. Popularity and recency are the backbone underneath it for everyone else.",
+          },
+          {
+            prompt: "Which suggestions should be deliberately excluded?",
+            options: [
+              "Queries that returned nothing, and anything private or offensive",
+              "Queries shorter than the prefix currently typed by the user",
+              "Queries made by a single user, since they cannot be popular",
+              "Queries whose results have changed since they were last run",
+            ],
+            correctIndex: 0,
+            explain:
+              "Offering a query that leads nowhere wastes the interaction, and suggestion boxes have repeatedly leaked private or embarrassing strings typed by other people. What not to suggest is most of the remaining work.",
           },
         ],
       },

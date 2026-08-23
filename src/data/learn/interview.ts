@@ -37,6 +37,8 @@ export const interview: Card[] = [
             { from: "deep", to: "req", label: "revisit if scope shifts", async: true },
           ],
         },
+        inPractice:
+          "Every published system design rubric weights requirements and tradeoffs above component knowledge, which is why the five minutes spent on constraints is not preamble: it is the part the rest of the answer is scored against.",
         check: {
           prompt: "What is the most common way strong engineers fail a system design interview?",
           options: [
@@ -99,6 +101,22 @@ export const interview: Card[] = [
           "The point is not accuracy but the class of system. Twelve requests a second is one server and no discussion. Twelve thousand is a fleet, a cache and a real conversation about the data layer. Being twenty per cent out changes nothing; being out by a factor of a thousand invalidates every design decision that follows, which is the failure the exercise exists to prevent. Sanity-check the answer against something you know. If your estimate implies more storage than a large public dataset, or more traffic than a well-known service, one of the inputs is wrong. That instinct, checking a result against the world rather than against the sum, is what people mean by engineering judgement in this context.",
         ],
         why: "The point is not precision, it is knowing whether you are designing for 10 requests per second or 100,000, because those are entirely different systems. Being off by 20 percent is fine; being off by a factor of a thousand is the failure.",
+        inPractice:
+          "Jeff Dean's latency numbers every programmer should know is the canonical list, and the ratios in it, memory in nanoseconds against a cross-continental round trip in a hundred milliseconds, are what most caching and placement arguments reduce to.",
+        diagram: {
+          caption: "Seven orders of magnitude, and every caching argument sits inside them",
+          columns: [
+            [{ id: "mem", label: "Memory", sub: "tens of nanoseconds", kind: "data" }],
+            [{ id: "ssd", label: "SSD read", sub: "tens of microseconds", kind: "data" }],
+            [{ id: "dc", label: "Same data centre", sub: "half a millisecond", kind: "edge" }],
+            [{ id: "cross", label: "Cross continent", sub: "over 100 milliseconds", kind: "external" }],
+          ],
+          edges: [
+            { from: "mem", to: "ssd", label: "about 1,000x" },
+            { from: "ssd", to: "dc", label: "about 20x" },
+            { from: "dc", to: "cross", label: "about 200x" },
+          ],
+        },
         check: {
           prompt: "One million requests a day is roughly what average rate?",
           options: ["1,000 per second", "12 per second", "120 per second", "1 per second"],
@@ -157,6 +175,8 @@ export const interview: Card[] = [
           "Finally, be willing to change your mind when the interviewer pushes, and say what changed it. Defending a position past the point of evidence is a stronger negative signal than the original choice, and updating cleanly in front of someone is the behaviour they are hoping to see in a design review next quarter.",
         ],
         why: "Interviewers are testing judgement, not recall. Anyone can name Redis; the differentiator is knowing when it is wrong and saying so unprompted.",
+        inPractice:
+          "Amazon's writing culture, where a proposal is a document listing what was considered and rejected, is the same discipline in another format: a decision without its alternatives and its costs is not yet a decision.",
         check: {
           prompt: "Which answer signals seniority?",
           options: [
@@ -229,6 +249,26 @@ export const interview: Card[] = [
           "The uncomfortable part is that staff work is often unglamorous: writing the document that stops a project, sitting in the meeting that aligns two teams, deleting a service. If your best examples are all projects you personally built, that is a senior portfolio, and the gap is worth knowing about before someone else names it.",
         ],
         why: "Promotion to staff is rarely earned by writing more code. It comes from multiplying other people's output and choosing the right problem, which is why the interview probes influence and judgement more than depth alone.",
+        inPractice:
+          "Will Larson's Staff Engineer describes the four archetypes, tech lead, architect, solver and right hand, and the observation that they are different jobs sharing a title is the single most useful thing to know before interviewing for one.",
+        diagram: {
+          caption: "The difference is the shape of the leverage",
+          columns: [
+            [{ id: "eng", label: "Engineer", sub: "own output", kind: "service" }],
+            [{ id: "sen", label: "Senior", sub: "a system, end to end", kind: "service" }],
+            [
+              { id: "staff", label: "Staff", sub: "other people's output", kind: "service" },
+              { id: "trap", label: "Bigger projects", sub: "still senior evidence", kind: "external", alternative: true },
+            ],
+            [{ id: "out", label: "Often nothing was built", sub: "a decision, a document", kind: "data" }],
+          ],
+          edges: [
+            { from: "eng", to: "sen", label: "scope grows" },
+            { from: "sen", to: "staff", label: "leverage changes shape" },
+            { from: "sen", to: "trap", label: "scale alone is not the step" },
+            { from: "staff", to: "out", label: "the cited contribution" },
+          ],
+        },
         check: {
           prompt: "Which is the clearest staff-level signal?",
           options: [
@@ -292,6 +332,8 @@ export const interview: Card[] = [
           "Finally, prepare questions of your own and make them real. What does the on-call rota look like, what happened in the last incident, how does a decision like this one get made here. Those answers are the ones you will live with, and asking them signals someone evaluating the job rather than hoping to be chosen.",
         ],
         why: "The failure story is the one that separates candidates. Everyone has one; the ones who can describe it precisely, without deflecting, are demonstrating exactly the self-assessment senior work requires.",
+        inPractice:
+          "Amazon's behavioural loop is explicitly scored against its leadership principles, which is why answers there work best as specific stories with numbers rather than as general descriptions of how you like to work.",
         check: {
           prompt: "Why do interviewers ask about a project that went badly?",
           options: [
@@ -354,6 +396,8 @@ export const interview: Card[] = [
           "Write code you would accept in review. Real names, small functions, no cleverness that needs explaining. Under time pressure people produce single-letter variables and one dense line, and it reads as exactly what it is, which is a habit the reviewer would rather not inherit. If you get stuck, say so and say what you are stuck on. Interviewers can offer a hint to someone who has articulated the obstacle and cannot help someone staring silently at a screen. Being stuck is normal; being stuck without communicating it is the part that scores badly.",
         ],
         why: "The interview is a proxy for working with you. Silent brilliance scores worse than narrated competence, because collaboration is the thing actually being sampled.",
+        inPractice:
+          "Google's published interviewing guidance asks its interviewers to assess problem-solving out loud rather than the final answer, which is the formal version of the advice to narrate: silence removes the evidence they are told to score.",
         check: {
           prompt: "You see the optimal solution immediately. What is the best move?",
           options: [
@@ -402,6 +446,72 @@ export const interview: Card[] = [
             explain:
               "Dense one-liners and single-letter names under pressure read as a habit rather than as haste, and the reviewer is imagining inheriting it.",
           },
+        ],
+      },
+      {
+        id: "the-loop",
+        title: "What each stage of the loop is for",
+        level: "intermediate",
+        body: [
+          "A hiring loop is not one assessment repeated. Each stage is scored against something different, and knowing which is which changes how to spend the time in it. The recruiter screen checks the basics and the story: level, availability, salary band, and whether your background matches what the role says. Precision here saves everyone a fortnight.",
+          "The technical screen is a filter, so the objective is to pass it cleanly rather than to impress. Finish the problem, communicate while you work, and treat it as a lower-variance version of the onsite. Nobody has been hired on a screen and plenty have been eliminated on one.",
+          "The onsite rounds are the real assessment and they are usually split deliberately: coding for whether you can build, system design for judgement at scale, behavioural for how you work with people, and often a domain round for the specific thing the team does. They are scored separately by people who then meet, which is why an outstanding design round does not compensate for a coding round nobody could follow.",
+          "The debrief is where the decision is actually made, and understanding it explains a lot about what to optimise for. Interviewers write feedback separately, then argue it. Specific evidence travels between people, and impressions do not, so an interviewer who can quote something concrete you said is far more useful to you than one who thought it went well. Give people evidence they can repeat.",
+          "The offer conversation is a separate skill from all of it and worth preparing with the same seriousness. Ask about the level and the band before discussing numbers, because the level determines the range and is much harder to change afterwards. And ask the questions that decide whether you would stay: what the on-call rota looks like, what happened in the last incident, how a technical disagreement got resolved recently.",
+        ],
+        why:
+          "Each stage answers a different question, so the same performance is scored differently depending on where it happens. The most useful shift is realising that the debrief is a conversation between people who were not in your other rounds, which makes concrete, quotable evidence worth more than a general good impression.",
+        inPractice:
+          "Structured interviewing, where every candidate gets the same questions scored against a written rubric, is standard at large technology companies and is well supported by hiring research. It is also why preparing for the format is legitimate rather than gaming it: the format is published and the rubric is the point.",
+        check: {
+          prompt: "Why does specific evidence matter more than a good general impression?",
+          options: [
+            "Interviewers must argue your case to people who never met you",
+            "Rubrics award points for the specificity of a candidate's examples",
+            "Impressions are discarded by most structured hiring processes",
+            "Specific claims can be verified with references after the loop",
+          ],
+          correctIndex: 0,
+          explain:
+            "The decision happens in a debrief between people who saw different rounds. Something quotable travels; a feeling that it went well does not survive the first sceptical question.",
+        },
+        checks: [
+          {
+            prompt: "What is the right objective in a technical screen?",
+            options: [
+              "Pass cleanly, since nobody is hired on a screen and many are cut",
+              "Impress enough to shorten or skip parts of the onsite loop",
+              "Explore the problem broadly to show the range of your knowledge",
+              "Ask about the team, since the screener is usually a future colleague",
+            ],
+            correctIndex: 0,
+            explain:
+              "It is a filter with a different threshold from the onsite. Finishing the problem while communicating clearly is the whole objective, and treating it as an audition adds variance for no gain.",
+          },
+          {
+            prompt: "Why ask about level and band before discussing a number?",
+            options: [
+              "The level sets the range and is much harder to change later",
+              "Bands are confidential, so the number will not be shared first",
+              "It signals seniority, which improves the initial offer made",
+              "Recruiters cannot negotiate a number without a stated level",
+            ],
+            correctIndex: 0,
+            explain:
+              "Negotiating inside the wrong band is a small win with a ceiling. The level decision is made during the debrief, which is why it belongs in the conversation before the number does.",
+          },
+          {
+            prompt: "Which question is most worth asking the interviewers?",
+            options: [
+              "What happened in the last incident, and how it was handled",
+              "How many engineers are on the team and how it is structured",
+              "Which technologies the team plans to adopt in the coming year",
+              "How performance is reviewed and when promotions are decided",
+            ],
+            correctIndex: 0,
+            explain:
+              "It reveals the on-call reality, the blame culture and the engineering maturity in one answer, and it is difficult to give a rehearsed reply to. All three are things you will live with daily.",
+        },
         ],
       },
     ],

@@ -19,6 +19,8 @@ export const delivery: Card[] = [
           "What containers do not solve is worth stating plainly. They are not a security boundary strong enough to run untrusted code, they do not make a stateful service stateless, and they do not remove the need to think about how data outlives the process. A database in a container is a database with a storage question, not a solved problem. So the argument is reproducibility first and density second. If the deployment already produces one identical artefact, a static binary, a zip for a serverless runtime, the reproducibility case is weaker and containers buy less, which is worth acknowledging before adopting the ecosystem that comes with them.",
         ],
         why: "Containers are about reproducibility first and density second. If your deployment already produces an identical artefact, a single Go binary, a Lambda zip, the reproducibility argument is weaker and containers buy you less.",
+        inPractice:
+          "AWS Lambda and Fly.io both run workloads in Firecracker microVMs rather than in shared-kernel containers, which is the isolation argument made in production: multi-tenant untrusted code gets a kernel of its own.",
         check: {
           prompt: "Why does a container start far faster than a VM?",
           options: [
@@ -106,6 +108,8 @@ export const delivery: Card[] = [
             { from: "k8s", to: "lots" },
           ],
         },
+        inPractice:
+          "Google runs Borg internally and open-sourced the ideas as Kubernetes, and it is worth noticing that the scale which produced it is several orders of magnitude above most products that adopt it.",
         check: {
           prompt: "You run three services with modest, similar traffic. What is the strongest argument against Kubernetes?",
           options: [
@@ -168,6 +172,8 @@ export const delivery: Card[] = [
           "Two habits complete the picture: run as a non-root user, because the default is root and a container escape from root is a much better day for an attacker, and scan images in the pipeline so a known vulnerability is a build result rather than a discovery.",
         ],
         why: "Layer ordering is the highest-leverage build optimisation available and costs nothing. Copying source before installing dependencies invalidates the dependency cache on every commit.",
+        inPractice:
+          "Google's distroless images ship an application and its runtime with no shell and no package manager, and Docker's build secrets exist because copying a credential into a layer was common enough to need a first-class fix.",
         check: {
           prompt: "Why install dependencies before copying source in a Dockerfile?",
           options: [

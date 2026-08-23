@@ -324,6 +324,11 @@ export const manifest: CardMeta[] = [
         "id": "health-checks",
         "title": "Health checks and draining",
         "level": "intermediate"
+      },
+      {
+        "id": "global-routing",
+        "title": "Getting traffic to the right region",
+        "level": "advanced"
       }
     ]
   },
@@ -536,6 +541,11 @@ export const manifest: CardMeta[] = [
       {
         "id": "search-sync",
         "title": "Keeping the index in sync",
+        "level": "advanced"
+      },
+      {
+        "id": "autocomplete",
+        "title": "Autocomplete and suggestions",
         "level": "advanced"
       }
     ]
@@ -1065,6 +1075,11 @@ export const manifest: CardMeta[] = [
         "id": "coding-round",
         "title": "The coding round",
         "level": "intermediate"
+      },
+      {
+        "id": "the-loop",
+        "title": "What each stage of the loop is for",
+        "level": "intermediate"
       }
     ]
   },
@@ -1191,5 +1206,5 @@ export const manifest: CardMeta[] = [
   }
 ];
 
-export const topicCount = 168;
+export const topicCount = 171;
 export const cardCount = 38;

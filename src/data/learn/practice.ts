@@ -19,6 +19,23 @@ export const practice: Card[] = [
           "One test type deserves a mention because it finds what examples cannot: property-based testing, where the framework generates inputs and checks an invariant. It is unreasonably effective on parsers, serialisers, date handling and anything with a round trip, because it explores the space you did not think of, which is precisely where the bugs are.",
         ],
         why: "The shape follows from feedback speed. A failing unit test names the broken function; a failing end-to-end test tells you something in the system is wrong, and you still have to find it.",
+        inPractice:
+          "Testcontainers made the integration layer cheap by starting a real database per test run in a container, which removed most of the historical argument for mocking the database in the first place.",
+        diagram: {
+          caption: "Cost and diagnostic precision move in opposite directions",
+          columns: [
+            [{ id: "unit", label: "Unit", sub: "many, milliseconds", kind: "data" }],
+            [{ id: "int", label: "Integration", sub: "some, real database", kind: "service" }],
+            [{ id: "e2e", label: "End to end", sub: "few, whole system", kind: "external" }],
+            [{ id: "diag", label: "What a failure tells you", sub: "which function, or just something", kind: "edge" }],
+          ],
+          edges: [
+            { from: "unit", to: "int", label: "slower, broader" },
+            { from: "int", to: "e2e", label: "slower, broader" },
+            { from: "unit", to: "diag", label: "names the function" },
+            { from: "e2e", to: "diag", label: "names the system", async: true },
+          ],
+        },
         check: {
           prompt: "Why prefer many unit tests over many end-to-end tests?",
           options: [
@@ -81,6 +98,8 @@ export const practice: Card[] = [
           "The honest measures of a suite are elsewhere. Does it catch the regressions you actually have, does it fail for one reason rather than five, does it run fast enough that people wait for it, and does a failure name the problem. None of those has a percentage, which is exactly why coverage gets used instead.",
         ],
         why: "Coverage is useful as a discovery tool, finding untested areas, and harmful as a target, because it is trivially gameable and becomes the goal instead of correctness.",
+        inPractice:
+          "Mutation testing tools such as Stryker and PIT are the practical way to check whether a suite asserts anything, and teams that run one usually find that a comfortable coverage number was hiding tests that could not fail.",
         check: {
           prompt: "A module has 100% coverage and a regression ships. How?",
           options: [
@@ -144,6 +163,8 @@ export const practice: Card[] = [
           "The uncomfortable case is a test that is flaky because the system is. A race condition in the code will present as an intermittent test, and quarantining it hides a real defect. The distinction is worth making before reaching for the quarantine label: is the test unreliable, or is it reporting accurately on something that is.",
         ],
         why: "Tolerating flakiness destroys the value of the entire suite, not just the flaky test. The correct response is urgent, because trust does not degrade gracefully.",
+        inPractice:
+          "Google published its work on flaky tests after finding that a significant share of its own failures were flakes, and the response was infrastructural: detect them automatically, quarantine them, and track the rate rather than relying on anyone's discipline.",
         check: {
           prompt: "Why is a flaky test worse than a missing one?",
           options: [
@@ -215,6 +236,8 @@ export const practice: Card[] = [
           "The reason to know it properly is that the argument is about the cost-of-change curve rather than about culture. Where change is cheap and information arrives during construction, iterate. Where change is expensive and information arrives before construction, plan. Most software is the first and some genuinely is the second, and knowing which you are in is more useful than a preference.",
         ],
         why: "The cost-of-change curve is the whole argument. If change is cheap and information arrives during building, front-loading every decision is the wrong bet.",
+        inPractice:
+          "Royce's 1970 paper, routinely cited as the origin of waterfall, presents the pure sequence as the version that fails and recommends building it twice. The model spread anyway, which is a useful lesson about how ideas travel.",
         check: {
           prompt: "What is waterfall's core assumption?",
           options: [
@@ -277,6 +300,8 @@ export const practice: Card[] = [
           "The retrospective is the meeting that determines whether any of it works, because it is the only one whose output is a change to how the team operates. A retrospective that produces observations and no owned action is a therapy session; one that changes something small every fortnight compounds. Estimation deserves less energy than it gets. Story points are a relative measure whose only legitimate use is forecasting from historical throughput, and the moment they become a productivity metric they are inflated and stop forecasting anything. Counting finished items and measuring cycle time is simpler and harder to game.",
         ],
         why: "Both fail the same way: adopting the ceremonies without the feedback. Standups and sprints with no working software to show and no willingness to change the plan is waterfall with extra meetings.",
+        inPractice:
+          "The DORA research programme measures four outcomes, deployment frequency, lead time, change failure rate and time to restore, and finds they correlate with performance far better than any process choice does. It is the closest thing to evidence in this area.",
         check: {
           prompt: "Which fits a support team with unpredictable incoming work?",
           options: ["Scrum with two-week sprints", "Kanban with WIP limits", "Waterfall", "Scrum with one-week sprints"],
@@ -398,6 +423,28 @@ export const practice: Card[] = [
           "Two habits are worth adding once the basics hold. Track how long detection took separately from how long the fix took, because a fast fix after a slow detection is still a long outage and points at monitoring rather than at engineering. And read old postmortems periodically: the recurring theme across a year is a finding that no single incident can reveal.",
         ],
         why: "Blame produces hidden incidents. If reporting a mistake is punished, people stop reporting, and you lose the information that prevents recurrence.",
+        inPractice:
+          "Google's SRE book made the blameless postmortem standard practice, and the argument it makes is not moral but informational: punishing reports produces fewer reports, and fewer reports means less of the data that prevents the next incident.",
+        diagram: {
+          caption: "Mitigate first, and split the roles that compete for attention",
+          columns: [
+            [{ id: "alert", label: "Alert", sub: "symptom, not cause", kind: "edge" }],
+            [
+              { id: "cmd", label: "Commander", sub: "coordinates, decides", kind: "service" },
+              { id: "comms", label: "Communications", sub: "answers outward", kind: "service" },
+            ],
+            [{ id: "mit", label: "Mitigate", sub: "roll back, fail over, disable", kind: "data" }],
+            [{ id: "diag", label: "Diagnose", sub: "afterwards, with evidence kept", kind: "data" }],
+            [{ id: "pm", label: "Postmortem", sub: "owners and dates", kind: "queue" }],
+          ],
+          edges: [
+            { from: "alert", to: "cmd", label: "someone is in charge" },
+            { from: "cmd", to: "comms", label: "so responders are not answering" },
+            { from: "cmd", to: "mit", label: "restore service first" },
+            { from: "mit", to: "diag", label: "then understand it" },
+            { from: "diag", to: "pm", label: "changes to the system", async: true },
+          ],
+        },
         check: {
           prompt: "What is the point of a blameless postmortem?",
           options: [
@@ -469,6 +516,28 @@ export const practice: Card[] = [
           "Both are means rather than ends. The goal is that a change is small, local and safe, and if a low-coupling design makes a common change require touching five modules, the design is wrong regardless of how well it scores. Optimise for the changes you actually make, which is a question with an answer in the commit history.",
         ],
         why: "Organising by feature rather than by technical layer usually raises cohesion: everything that changes together lives together, so a change touches one directory.",
+        inPractice:
+          "The rule that things which change together belong together is the argument behind organising by feature rather than by layer, and it is testable against your own repository: count the directories a typical change touches.",
+        diagram: {
+          caption: "Organising by layer scatters a feature; organising by feature contains it",
+          columns: [
+            [{ id: "chg", label: "One change", sub: "add a field", kind: "client" }],
+            [
+              { id: "layer", label: "By layer", sub: "six directories", kind: "service", alternative: true },
+              { id: "feat", label: "By feature", sub: "one directory", kind: "service" },
+            ],
+            [
+              { id: "spread", label: "Six files, six folders", sub: "low cohesion", kind: "data", alternative: true },
+              { id: "local", label: "Six files, one folder", sub: "high cohesion", kind: "data" },
+            ],
+          ],
+          edges: [
+            { from: "chg", to: "layer", label: "controllers, models, services" },
+            { from: "chg", to: "feat", label: "everything for this feature" },
+            { from: "layer", to: "spread", label: "the change travels" },
+            { from: "feat", to: "local", label: "the change stays put" },
+          ],
+        },
         check: {
           prompt: "Adding a field means editing six files across six folders. What is the likely problem?",
           options: [
@@ -532,6 +601,8 @@ export const practice: Card[] = [
           "Underneath is a rule about the cost of being wrong. Reversible decisions deserve speed and irreversible ones deserve deliberation, and duplication is reversible while a widely adopted abstraction is not. That asymmetry, rather than any aesthetic preference, is why the advice is to wait.",
         ],
         why: "The cost asymmetry is the point. Removing duplication later is mechanical; unwinding a wrong abstraction means untangling every caller that adapted to it.",
+        inPractice:
+          "Sandi Metz's line that duplication is far cheaper than the wrong abstraction is the compressed version of this topic, and it is quoted so often because most engineers have personally paid for the alternative.",
         check: {
           prompt: "Why wait for the third occurrence before abstracting?",
           options: [
@@ -594,6 +665,8 @@ export const practice: Card[] = [
           "Making it visible is what turns it into a decision. A note in the code with a date, an issue linked from the shortcut, a section in the design document listing what was skipped and why. Debt nobody can point at cannot be argued for or against, and it turns into a general sense that the codebase is bad, which persuades nobody and prioritises nothing. Repayment works best as continuous rather than as a project. A rewrite proposal competes with features and loses; improving the code you are already touching does not, because it is part of the work rather than an alternative to it. That habit is also why the areas of a codebase that get worked on most tend to be the ones in the best condition, provided the team has the discipline to leave them slightly better each time.",
         ],
         why: "The distinction matters because only deliberate debt can be argued for. 'We chose this and here is the repayment plan' is a decision; 'the code is messy' is a complaint.",
+        inPractice:
+          "Ward Cunningham coined the metaphor to describe a deliberate trade with an intended repayment, not a synonym for bad code. The original meaning is the useful one, because only a deliberate trade can be argued for in a planning conversation.",
         check: {
           prompt: "What makes technical debt deliberate rather than accidental?",
           options: [

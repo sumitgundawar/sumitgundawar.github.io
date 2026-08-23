@@ -23,6 +23,37 @@ export const companies: Card[] = [
           "The practical consequence is to prepare a small number of designs properly rather than a long list superficially. Six or seven done to the depth where you can defend every component under pressure covers more ground than twenty you have read about, because the components repeat and the defending is the part being scored.",
         ],
         why: "This is why breadth beats memorising one company's list. Each question exercises two or three underlying decisions, fan-out, geospatial indexing, consistency under contention, and those decisions repeat across all of them.",
+        inPractice:
+          "The rate limiter question alone has been reported at Amazon, Microsoft, Stripe, Uber, Atlassian and Patreon, which is the clearest illustration of the overlap: one small problem exercising algorithms, distributed state and failure behaviour at once.",
+        diagram: {
+          caption: "Twelve questions, a handful of decisions underneath them",
+          columns: [
+            [
+              { id: "feed", label: "News feed", kind: "client" },
+              { id: "chat", label: "Chat system", kind: "client" },
+              { id: "ride", label: "Ride matching", kind: "client" },
+            ],
+            [
+              { id: "fan", label: "Fan-out", sub: "write or read", kind: "service" },
+              { id: "geo", label: "Geospatial index", kind: "service" },
+              { id: "idem", label: "Idempotent writes", kind: "service" },
+              { id: "order", label: "Ordering", sub: "per entity", kind: "service" },
+            ],
+            [{ id: "prep", label: "Learn these", sub: "and the questions transfer", kind: "data" }],
+          ],
+          edges: [
+            { from: "feed", to: "fan" },
+            { from: "feed", to: "order" },
+            { from: "chat", to: "order" },
+            { from: "chat", to: "fan" },
+            { from: "ride", to: "geo" },
+            { from: "ride", to: "idem" },
+            { from: "fan", to: "prep" },
+            { from: "geo", to: "prep" },
+            { from: "idem", to: "prep" },
+            { from: "order", to: "prep" },
+          ],
+        },
         check: {
           prompt: "You have limited preparation time before loops at four different companies. Best approach?",
           options: [
@@ -148,6 +179,8 @@ export const companies: Card[] = [
           "None of this replaces the technical core. It is the layer that turns a correct answer into a credible one, and it is the layer most candidates leave out, which makes it the cheapest available way to be memorable for the right reason.",
         ],
         why: "A technically correct design with no cost estimate and no failure story now reads as incomplete. Saying 'this runs about two hundred a month, and if the cache tier fails we serve stale for up to five minutes rather than going down' is the differentiator.",
+        inPractice:
+          "Amazon's leadership principles include ownership and frugality explicitly, so cost and operations are not extra credit in that loop, they are two of the things being scored.",
         check: {
           prompt: "Your design is technically sound but you never mention cost or failure handling. How does that read at senior level?",
           options: [
@@ -208,6 +241,8 @@ export const companies: Card[] = [
           "Then redo one of them with a changed constraint, ten times the traffic, or a hard consistency requirement, and see whether your design bends or breaks.",
         ],
         why: "Redoing a problem under a changed constraint is the highest-value drill available. It rehearses the thing interviewers actually do, which is push on your design until something gives.",
+        inPractice:
+          "Mock interviews are the part people skip and the part that transfers, because designing aloud under time pressure is a separate skill from knowing the material, and it is the only one of the two that cannot be practised silently.",
         check: {
           prompt: "What is the most valuable single drill?",
           options: [

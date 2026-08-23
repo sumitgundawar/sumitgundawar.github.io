@@ -512,6 +512,8 @@ export const design: Card[] = [
           "The choice, then, follows from the traffic rather than from a preference. Uniform and stateless: round robin. Wildly variable durations: least connections or two random choices. Anything cached or held per server: hashing, with the hot key risk accepted deliberately. Long-lived connections: layer 7, or client-side balancing that knows the backend set.",
         ],
         why: "Round robin is the default and is wrong whenever request cost varies wildly, one slow endpoint drags a server down while the balancer keeps feeding it work.",
+        inPractice:
+          "Envoy and most modern proxies default to a variant of power of two random choices rather than to strict round robin, because it approximates least connections without maintaining shared state across every node in the fleet.",
         check: {
           prompt: "Requests range from 5ms to 30s. Which algorithm distributes load best?",
           options: ["Round robin", "Least connections", "Random", "IP hash"],
@@ -725,6 +727,96 @@ export const design: Card[] = [
             correctIndex: 1,
             explain:
               "Draining stops new work while letting existing requests finish, so a rolling deploy does not turn into a small burst of errors for whoever was mid-request.",
+          },
+        ],
+      },
+      {
+        id: "global-routing",
+        title: "Getting traffic to the right region",
+        level: "advanced",
+        body: [
+          "Load balancing inside a region is a solved problem with well-understood algorithms. Getting a request to the right region in the first place is a different question with three common answers, and they differ in how quickly they can change their mind.",
+          "DNS-based routing hands out different addresses by geography or by health, which is simple and works everywhere. Its weakness is the one every DNS topic returns to: the answer is cached by resolvers and clients for a duration you request and do not control, so failing over means waiting for other people's caches to expire.",
+          "Anycast advertises the same address from many locations and lets the network choose, so a client reaches whichever site is closest in routing terms. Failover happens in the routing layer within seconds, no cache is involved, and the address never changes. This is how large CDNs and public DNS resolvers work, and it is why they can lose a location without anybody noticing.",
+          "The third option is a global load balancer at the provider: one address, health-checked backends in several regions, traffic steered by latency or by policy. It is the least work and it puts the provider's control plane on the critical path, which is a dependency worth naming rather than assuming.",
+          "Whichever routes the traffic, the harder problem sits underneath: data. Serving reads from a nearby region is straightforward; accepting writes in several is a consistency design, not a routing one. Most systems that describe themselves as multi-region are read-local and write-to-one, and being explicit about that is more honest than the label.",
+        ],
+        why:
+          "The routing choice is really a choice about how fast you can change your mind. DNS is minutes to hours because caches decide; anycast and provider load balancers are seconds because the network or the control plane decides. Everything else about them is secondary to that.",
+        inPractice:
+          "Cloudflare and Google Public DNS both run anycast from hundreds of locations, which is why a site can be withdrawn for maintenance without a DNS change. The equivalent lesson in the other direction is any migration that planned around a 60 second TTL and was still receiving traffic on the old address hours later.",
+        diagram: {
+          caption: "Three ways to reach a region, and how fast each fails over",
+          columns: [
+            [{ id: "u", label: "User", kind: "client" }],
+            [
+              { id: "dns", label: "DNS routing", sub: "caches decide, minutes", kind: "edge", alternative: true },
+              { id: "any", label: "Anycast", sub: "routing decides, seconds", kind: "edge" },
+              { id: "glb", label: "Global balancer", sub: "control plane decides", kind: "edge" },
+            ],
+            [
+              { id: "r1", label: "Region A", sub: "healthy", kind: "service" },
+              { id: "r2", label: "Region B", sub: "degraded", kind: "service" },
+            ],
+            [{ id: "data", label: "The real problem", sub: "where writes go", kind: "data" }],
+          ],
+          edges: [
+            { from: "u", to: "dns", label: "resolve" },
+            { from: "u", to: "any", label: "one address" },
+            { from: "u", to: "glb", label: "one address" },
+            { from: "any", to: "r1", label: "withdrawn in seconds" },
+            { from: "dns", to: "r2", label: "still cached" },
+            { from: "r1", to: "data", label: "reads local, writes central" },
+          ],
+        },
+        check: {
+          prompt: "Why is anycast failover faster than DNS failover?",
+          options: [
+            "Routes are withdrawn in the network, with no cached answer to expire",
+            "Anycast health checks run more frequently than DNS health checks do",
+            "Clients reconnect immediately when an anycast address stops responding",
+            "The address is shorter, so resolution completes in fewer round trips",
+          ],
+          correctIndex: 0,
+          explain:
+            "DNS failover waits for every resolver and client cache to expire, and those honour your TTL only approximately. Anycast changes which location advertises the route, and the address the client holds never changes.",
+        },
+        checks: [
+          {
+            prompt: "What does a provider's global load balancer add to the critical path?",
+            options: [
+              "The provider's control plane, which is now a dependency of routing",
+              "An extra network hop, which adds latency to every single request",
+              "A second DNS lookup, since the balancer resolves backends by name",
+              "A shared address space, which limits how many regions can be used",
+            ],
+            correctIndex: 0,
+            explain:
+              "It is the least work and it moves a decision into somebody else's system. Worth naming explicitly, because a control plane incident there becomes a routing incident here.",
+          },
+          {
+            prompt: "A system is described as multi-region. What is usually true underneath?",
+            options: [
+              "Reads are served locally and writes go to one region",
+              "Every region accepts writes and conflicts are resolved automatically",
+              "Each region holds a complete independent copy with no coordination",
+              "Regions are active in turn, with traffic switched on a schedule",
+            ],
+            correctIndex: 0,
+            explain:
+              "Routing traffic to a nearby region is straightforward. Accepting writes in several is a consistency design with conflict resolution attached, and most systems that use the label have not done it.",
+          },
+          {
+            prompt: "What actually determines how quickly a routing strategy can change its mind?",
+            options: [
+              "Who holds the decision: caches, the network, or a control plane",
+              "How many locations are advertising the service at that moment",
+              "Whether health checks are shallow or deep at each location",
+              "The geographic distance between the failing and the healthy region",
+            ],
+            correctIndex: 0,
+            explain:
+              "That is the whole comparison. DNS puts the decision in caches you do not control, anycast puts it in the routing layer, and a global balancer puts it in the provider's control plane.",
           },
         ],
       },

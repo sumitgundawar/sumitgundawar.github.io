@@ -232,6 +232,11 @@ export const manifest: CardMeta[] = [
         "id": "ts-structural",
         "title": "TypeScript is structural, and it disappears",
         "level": "advanced"
+      },
+      {
+        "id": "js-modules",
+        "title": "Modules, bundling and what you ship",
+        "level": "intermediate"
       }
     ]
   },
@@ -261,6 +266,11 @@ export const manifest: CardMeta[] = [
         "id": "sql-transactions",
         "title": "Transactions in practice",
         "level": "advanced"
+      },
+      {
+        "id": "sql-schema",
+        "title": "Schema design and constraints",
+        "level": "intermediate"
       }
     ]
   },
@@ -1206,5 +1216,5 @@ export const manifest: CardMeta[] = [
   }
 ];
 
-export const topicCount = 171;
+export const topicCount = 173;
 export const cardCount = 38;

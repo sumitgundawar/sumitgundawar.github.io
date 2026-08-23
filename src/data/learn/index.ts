@@ -5,6 +5,7 @@ import { design2 } from "./design2";
 import { delivery } from "./delivery";
 import { practice } from "./practice";
 import { caseStudies } from "./caseStudies";
+import { caseStudies2 } from "./caseStudies2";
 import { interview } from "./interview";
 import { companies } from "./companies";
 import { security } from "./security";
@@ -22,6 +23,7 @@ export const cards: Card[] = [
   ...delivery,
   ...practice,
   ...caseStudies,
+  ...caseStudies2,
   ...interview,
   ...companies,
   ...security,

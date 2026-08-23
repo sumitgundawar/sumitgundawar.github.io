@@ -16,6 +16,7 @@ export const GROUPS = {
   delivery: ["containers", "cicd", "cloud"],
   practice: ["testing", "code-quality", "engineering-models"],
   caseStudies: ["netflix", "uber", "twitter-feed", "whatsapp", "classic-designs"],
+  caseStudies2: ["payments", "web-search"],
   interview: ["sd-interview", "seniority"],
   companies: ["company-questions"],
   security: ["appsec", "isolation", "replication-depth"],

@@ -1109,6 +1109,84 @@ export const manifest: CardMeta[] = [
     ]
   },
   {
+    "id": "payments",
+    "title": "Payments: charging a card without charging it twice",
+    "summary": "Authorisation and capture, idempotency under retries, a ledger that must balance, and outcomes that arrive later.",
+    "track": "case-study",
+    "group": "caseStudies2",
+    "topics": [
+      {
+        "id": "payments-flow",
+        "title": "Authorisation, capture and settlement",
+        "level": "beginner"
+      },
+      {
+        "id": "payments-idempotency",
+        "title": "Idempotency when the retry is inevitable",
+        "level": "intermediate"
+      },
+      {
+        "id": "payments-ledger",
+        "title": "The ledger, and why it is double entry",
+        "level": "advanced"
+      },
+      {
+        "id": "payments-async",
+        "title": "Outcomes that arrive later",
+        "level": "intermediate"
+      },
+      {
+        "id": "payments-failures",
+        "title": "Declines, retries and the cost of trying again",
+        "level": "advanced"
+      },
+      {
+        "id": "payments-reconciliation",
+        "title": "Reconciliation, and the money that does not match",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "web-search",
+    "title": "Web search: crawl, index, rank",
+    "summary": "Crawling a web nobody controls, an index too large for one machine, and a query that is as slow as its slowest shard.",
+    "track": "case-study",
+    "group": "caseStudies2",
+    "topics": [
+      {
+        "id": "search-crawl",
+        "title": "Crawling a web nobody controls",
+        "level": "intermediate"
+      },
+      {
+        "id": "search-dedup",
+        "title": "Duplicates, canonicals and near-identical pages",
+        "level": "advanced"
+      },
+      {
+        "id": "search-index",
+        "title": "An index too large for one machine",
+        "level": "advanced"
+      },
+      {
+        "id": "search-serving",
+        "title": "Serving a query in under a second",
+        "level": "advanced"
+      },
+      {
+        "id": "search-freshness",
+        "title": "Freshness: from batch to incremental",
+        "level": "advanced"
+      },
+      {
+        "id": "search-ranking",
+        "title": "Ranking, and knowing whether it improved",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
     "id": "sd-interview",
     "title": "The system design interview",
     "summary": "A structure that works, and what is actually being assessed.",
@@ -1284,5 +1362,5 @@ export const manifest: CardMeta[] = [
   }
 ];
 
-export const topicCount = 183;
-export const cardCount = 40;
+export const topicCount = 195;
+export const cardCount = 42;

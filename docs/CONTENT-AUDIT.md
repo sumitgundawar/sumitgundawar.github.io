@@ -277,3 +277,79 @@ label in the gap below its source rather than at the midpoint of its curve, and
 offset multiple edges leaving one node within that gap. That is renderer work
 with layout consequences for all 49 pages and it wants doing on its own, not
 appended to a content pass.
+
+## K. Why pages were not being indexed.
+
+Prompted by a Search Console report of many unindexed pages. Search Console
+itself could not be read from here: its API rejects an API key outright
+(`API keys are not supported by this API`) because the data is per-user private
+and needs OAuth or a service account granted access to the property. The cause
+was diagnosable from the built output and the live site without it.
+
+### K1. Every page declared the home page as its canonical. Fixed.
+
+`index.html` carried one hard-coded `<link rel="canonical">` pointing at
+`https://sumitgundawar.com/`, and the prerenderer copies that template into
+every route. So all 53 pages told Google that the canonical version of them was
+the home page, and `og:url` carried the same single value.
+
+Google honours a canonical. The documented consequence is that the other 52
+pages are reported as **"Alternative page with proper canonical tag"**, which
+sits in the not-indexed bucket. A sitemap of 53 URLs against almost nothing in
+the index is exactly the expected symptom.
+
+Fixed: the canonical is set per route from one place mounted at the top of the
+app, so it is correct for prerendered HTML and for client-side navigation alike.
+Query strings are dropped, so `/learn?level=advanced` consolidates into `/learn`
+rather than competing with it. `check:seo` now runs in the build and asserts
+every page is canonical to itself, no two share one, each is present in the
+sitemap, `og:url` agrees, a title exists and no stray `noindex` does. Verified
+live: 53 of 53.
+
+### K2. Unknown URLs return 200 with the home page. Not fixed, and now mostly harmless.
+
+`public/_redirects` ends with `/* /index.html 200`, so any URL that does not
+exist answers 200 with the home page's HTML. That is a soft 404, and at any
+scale of stale links or crawler-invented URLs it fills a coverage report.
+
+The catch-all is deliberate and hard-won: the comments in that file record two
+measured attempts at making it honest, and note that merely adding a
+`public/404.html` takes over routing and 404s every client-side route, verified
+on a preview deployment. So it is not a line to change casually.
+
+It is also much less harmful now. Because the fallback serves the home page,
+and the home page's canonical is `https://sumitgundawar.com/`, an unknown URL
+now points Google at the home page rather than presenting itself as a distinct
+page. Google consolidates it instead of indexing it.
+
+The clean fix, if it is worth doing: `functions/_middleware.ts` already runs on
+every request and already handles the www redirect, and it can see the response.
+Given a generated list of the valid routes, which the sitemap generator already
+computes, it can return the shell with a genuine 404 status for anything not on
+it. That keeps client-side routing working for a person and tells a crawler the
+truth. It wants a preview deployment and a check that all 53 routes still answer
+200, which is how the author verified the previous attempts.
+
+### K3. Ruled out, with the evidence.
+
+| Suspected | Finding |
+|---|---|
+| robots.txt blocking | Googlebot and Bingbot were never in the Cloudflare managed block; `Allow: /` and the sitemap is declared |
+| `noindex` | none on any page, and no `X-Robots-Tag` |
+| www serving duplicates | `www` 301s to the apex, correctly, via the middleware |
+| duplicate titles or descriptions | none across the 53 pages |
+| sitemap and canonical disagreeing | exact match, 53 for 53 |
+| pages not prerendered | all 53 carry real text; the smallest is 674 characters |
+| article pages missing | the seven articles are published on external sites by design, so there are no internal pages to index |
+
+### K4. The mundane contributor.
+
+Seven card pages went live for the first time today. The 74 commits ahead of
+`origin/main` had never been deployed, and production is a Cloudflare Pages
+project that is not connected to Git, so it was serving a two-week-old build.
+Those pages could not have been indexed because they did not exist.
+
+Worth knowing about this project's shape: the GitHub Actions workflow publishes
+to GitHub Pages, which is **not** the live site. Production is
+`wrangler pages deploy dist --project-name sumitgundawar`, as the README states.
+Pushing to main does not publish.

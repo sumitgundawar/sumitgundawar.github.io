@@ -2,7 +2,7 @@ import { lazy, Suspense, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { StatusPage } from "@/components/StatusPage";
-import { useAnalyticsPageview } from "@/lib/hooks";
+import { useAnalyticsPageview, useCanonical } from "@/lib/hooks";
 
 /* The profile page is the entry point and stays in the main bundle. Every other
    page is fetched when it is first visited, and the learn material is split
@@ -26,6 +26,17 @@ const WritingPage = lazy(() =>
 
 function AnalyticsListener() {
   useAnalyticsPageview();
+  return null;
+}
+
+/** Points every route's canonical at itself.
+ *
+ *  Here rather than in each page, because the tag used to be a single static
+ *  line in index.html naming the home page, which the prerenderer then copied
+ *  into all 53 routes. A page that forgets to set it is a page claiming to be
+ *  the home page, and Google acts on that by not indexing it. */
+function Canonical() {
+  useCanonical();
   return null;
 }
 
@@ -83,6 +94,7 @@ export default function App() {
     <BrowserRouter>
       <SkipLink />
       <AnalyticsListener />
+      <Canonical />
       <ScrollReset />
       <ExitPrompt />
       {/* One wrapper, keyed by path, so a route change replays the enter

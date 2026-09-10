@@ -228,6 +228,52 @@ export function setSocialMeta(title: string, description?: string): void {
   }
 }
 
+const ORIGIN = "https://sumitgundawar.com";
+
+/** The canonical URL of the page being viewed, and og:url to match.
+ *
+ *  These were a single hard-coded tag in index.html pointing at the home page,
+ *  and the prerenderer copies that template into all 53 routes, so every page
+ *  on the site told Google that the canonical version of it was the home page.
+ *  Google honours that: the other 52 were filed as "alternative page with
+ *  proper canonical tag", which is a synonym for not indexed. That is the whole
+ *  explanation for a sitemap of 53 URLs and almost nothing in the index.
+ *
+ *  Query is deliberately dropped. /learn?level=advanced is a filtered view of
+ *  /learn rather than a page of its own, so it should consolidate into the bare
+ *  path rather than compete with it.
+ *
+ *  The path is normalised to match the sitemap exactly, because a canonical and
+ *  a sitemap entry that differ by a trailing slash are two URLs as far as a
+ *  crawler is concerned. */
+export function setCanonical(pathname: string): void {
+  const path = pathname !== "/" && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+  const href = ORIGIN + path;
+
+  let link = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.setAttribute("rel", "canonical");
+    document.head.appendChild(link);
+  }
+  link.setAttribute("href", href);
+
+  setMeta("property", "og:url", href);
+}
+
+/** Keep the canonical correct on every route, including client-side navigation.
+ *
+ *  Called once at the top of the app rather than from each page, because a page
+ *  that forgets is a page that claims to be the home page, and that failure is
+ *  invisible: it looks fine to a reader and only shows up weeks later in a
+ *  coverage report. */
+export function useCanonical(): void {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    setCanonical(pathname);
+  }, [pathname]);
+}
+
 const SITE_NAME = "Sumit Gundawar";
 
 function setMeta(attr: "name" | "property", key: string, value: string) {

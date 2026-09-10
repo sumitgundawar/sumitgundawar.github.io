@@ -1430,9 +1430,14 @@ export const design2: Card[] = [
           "Broken access control has sat at the top of the OWASP Top Ten since the 2021 edition, and the sub-category that dominates it is the one described here: the user is correctly identified and nothing checks whether they may touch this particular record. Row-level security in Postgres is the strongest available fix because it holds for a query somebody writes by hand during an incident, not only for the code paths that remembered.",
         sources: [
           {
-            label: "OWASP Top Ten: A01 Broken Access Control",
-            url: "https://owasp.org/Top10/A01_2021-Broken_Access_Control/",
+            label: "OWASP Top Ten 2021: A01 Broken Access Control",
+            url: "https://owasp.org/Top10/2021/A01_2021-Broken_Access_Control/",
             supports: "That authorisation failures, including changing an identifier to reach another user's record, rank first by prevalence rather than being an exotic attack.",
+          },
+          {
+            label: "MITRE CWE-1345: OWASP Top Ten 2021 category A01",
+            url: "https://cwe.mitre.org/data/definitions/1345.html",
+            supports: "The same ranking, from a second independent index, along with the specific weaknesses OWASP grouped under it.",
           },
         ],
         title: "Authentication and authorisation",

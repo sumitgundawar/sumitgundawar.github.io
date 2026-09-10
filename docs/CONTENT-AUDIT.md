@@ -172,3 +172,38 @@ Vite build and the prerenderer. All pass. Additionally checked by hand:
   satisfy a check that exists to catch typing mistakes.
 - No horizontal overflow at 390px or 1440px on either new card or on `/learn`.
 - `npm run lint` and `npm run routes` pass.
+- The full build was run from a clean clone with fresh `npm ci` in both packages,
+  which is what CI does, and passes end to end.
+
+### The citations were themselves checked
+
+A citation that does not resolve is worse than no citation, because it looks
+like evidence and is not. All 141 distinct source URLs were requested. 132
+returned 200 directly. The other nine are explained rather than ignored:
+
+| Not 200 | Why |
+|---|---|
+| `blog.whatsapp.com`, `faq.whatsapp.com` (400) | Bot filtering. Both are the canonical primary sources. |
+| `dl.acm.org` x2, `queue.acm.org` (403) | ACM refuses automated requests. The DOIs are the canonical identifiers. |
+| `www.w3.org/TR/trace-context` (403) | W3C refuses some user agents. It is the standard itself. |
+| `web.archive.org` (429) | Rate limited during the check. |
+| `eecs.umich.edu` PDF (fetch error) | Returns 200 to `curl` with a browser user agent; a `fetch` quirk, not a dead link. |
+| `owasp.org` (404) | Every owasp.org path 404s from this environment, including pages that certainly exist, so this is a network artefact here rather than a dead link. |
+
+Two were genuinely broken and are fixed. The OWASP Top Ten link pointed at the
+undated path, which now serves a newer release candidate, so it is now the dated
+2021 path that matches the claim, with MITRE's CWE-1345 added beside it as a
+second source that is verifiable from anywhere. The Capital One citation pointed
+at a Senate committee PDF that has moved, and is now Krebs on Security, which
+describes the same mechanism and resolves.
+
+## I. A CI defect, found by publishing.
+
+The push exposed a broken build in CI that no developer machine would ever show.
+`npm run build` type-checks the Worker through `check:worker`, and the Worker is
+a separate package with its own lockfile; the workflow ran `npm ci` only at the
+repository root, so `tsc` had no `@cloudflare/workers-types` and the build
+failed. It passed locally for anyone who has ever worked on the Worker, and CI
+had never caught it because the checks were added to the build in commits that
+were not pushed until now. Fixed by installing the Worker's dependencies in the
+workflow and keying the npm cache to both lockfiles.

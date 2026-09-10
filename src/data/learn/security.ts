@@ -297,9 +297,9 @@ export const security: Card[] = [
             supports: "That version two of the metadata service requires a PUT to obtain a session token and applies a hop limit, which defeats the ordinary SSRF path that version one permits.",
           },
           {
-            label: "US Senate Committee report on the Capital One breach",
-            url: "https://www.hsgac.senate.gov/wp-content/uploads/imo/media/doc/2020-02-27%20PSI%20Staff%20Report%20-%20Capital%20One%20&%20AWS.pdf",
-            supports: "That the 2019 breach used a server-side request forgery to reach the instance metadata service and retrieve role credentials.",
+            label: "Krebs on Security, What we can learn from the Capital One hack (2019)",
+            url: "https://krebsonsecurity.com/2019/08/what-we-can-learn-from-the-capital-one-hack/",
+            supports: "That the 2019 breach used a server-side request forgery, through a misconfigured web application firewall, to reach the instance metadata service and obtain role credentials with more permission than the task needed.",
           },
         ],
         title: "SSRF and the metadata endpoint",

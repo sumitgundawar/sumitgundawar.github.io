@@ -26,9 +26,24 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
+          # Both lockfiles, or the cache key ignores the Worker's dependencies
+          # and its install is uncached on every run.
+          cache-dependency-path: |
+            package-lock.json
+            worker/package-lock.json
 
       - name: Install dependencies
         run: npm ci
+
+      # The Worker is a separate package with its own lockfile, and the build
+      # type-checks it as part of check:worker. Without this step tsc cannot
+      # find @cloudflare/workers-types and the build fails here while passing on
+      # any machine where the Worker has ever been worked on, which is how this
+      # went unnoticed: the checks were added to the build in commits that were
+      # never pushed, so CI had not run them until now.
+      - name: Install Worker dependencies
+        run: npm ci
+        working-directory: worker
 
       - name: Build
         run: npm run build

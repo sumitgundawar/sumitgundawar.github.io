@@ -10,6 +10,7 @@ import { caseStudies2 } from "./caseStudies2";
 import { interview } from "./interview";
 import { companies } from "./companies";
 import { security } from "./security";
+import { dissections } from "./dissections";
 import type { Card, Level, Topic } from "./types";
 
 export * from "./types";
@@ -29,6 +30,7 @@ export const cards: Card[] = [
   ...interview,
   ...companies,
   ...security,
+  ...dissections,
 ];
 
 export const allTopics: Topic[] = cards.flatMap((c) => c.topics);

@@ -72,6 +72,16 @@ const ALLOWED_NON_ASCII = new Set([
   "·", "•", // separators in interface text and in Slack messages
   "…", // ellipsis in truncated strings
   "▶", "✕", "✓", "×", // play, close and tick glyphs drawn as text
+  /* Diacritics in the names of real people.
+   *
+   * The rule above is that anything outside ASCII is a mistake until somebody
+   * deliberately adds it, and this is the deliberate addition. The dissection
+   * of OpenAI's Navier-Stokes announcement names Levent Alpoge, whose name
+   * carries an umlaut, and the alternative to allowing the character is
+   * spelling a real person's name wrong in order to satisfy a check that exists
+   * to catch typing mistakes. Extend this list when a name needs it, and not
+   * for prose. */
+  "ö",
 ]);
 
 const hits = [];

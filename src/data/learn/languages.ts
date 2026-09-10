@@ -276,8 +276,8 @@ export const languages: Card[] = [
         level: "intermediate",
         body: [
           "Recursion expresses a problem in terms of a smaller version of itself, and it is the natural shape for anything tree-like: directory trees, nested JSON, parsers, divide and conquer sorts. Iteration expresses the same thing as a loop with explicit state. Every recursion can be rewritten as iteration with a stack, and the choice is about which one reads more clearly for the shape of the data.",
-          "The practical constraint is the call stack. Each recursive call consumes a frame, and stacks are finite: a few thousand frames in Python by default, more in most compiled languages but never unlimited. Recursing over a list of a million elements will exhaust it. Some languages optimise tail calls, where the recursive call is the last thing the function does, into a loop; many, including Python and most JavaScript engines in practice, do not.",
-          "Memoisation is where recursion becomes practical for overlapping subproblems. The naive recursive Fibonacci recomputes the same values exponentially often, roughly 2 to the power of n calls; caching each result makes it linear. That single change is also the entire idea behind dynamic programming, which sounds like a separate topic and is mostly this observation applied deliberately.",
+          "The practical constraint is the call stack. Each recursive call consumes a frame, and stacks are finite: CPython's default recursion limit is 1,000, and while most compiled languages allow far more, none allow unlimited. Recursing over a list of a million elements will exhaust it. Some languages optimise tail calls, where the recursive call is the last thing the function does, into a loop; many, including Python and most JavaScript engines in practice, do not.",
+          "Memoisation is where recursion becomes practical for overlapping subproblems. The naive recursive Fibonacci recomputes the same values exponentially often: the call count is exactly two times the next Fibonacci number minus one, so it grows as roughly 1.6 to the power of n rather than the 2 to the n that gets quoted. Caching each result makes it linear. That single change is also the entire idea behind dynamic programming, which sounds like a separate topic and is mostly this observation applied deliberately.",
           "The state question sits underneath both. A loop that mutates variables is easy to write and easy to get subtly wrong when it grows; a recursive or functional version passes state explicitly, which is more verbose and harder to break. Neither is a rule, but when a loop body reaches thirty lines and four mutable variables, the bug you cannot find is usually one of them being updated in the wrong order.",
         ],
         why: "Recursion is the right tool for recursive data and the wrong tool for long flat sequences, and the stack is what decides which is which. Memoisation turns the classic exponential recursion into a linear one, which is the whole trick behind most dynamic programming problems.",
@@ -535,6 +535,15 @@ export const languages: Card[] = [
     topics: [
       {
         id: "python-data-model",
+        inPractice:
+          "Dataclasses are the standard-library demonstration of the protocols paying off: a decorator generates the initialiser, the representation and the equality method from the annotated fields, so a value type behaves like a built-in one without any of it being written by hand. It is the same argument records make in Java, arrived at from the other direction.",
+        sources: [
+          {
+            label: "Python language reference: the data model",
+            url: "https://docs.python.org/3/reference/datamodel.html",
+            supports: "That operators and built-in functions are defined in terms of special methods, so implementing the protocol methods is the whole contract for a user-defined type.",
+          },
+        ],
         title: "Everything is an object",
         level: "beginner",
         body: [
@@ -621,6 +630,8 @@ export const languages: Card[] = [
       },
       {
         id: "python-mutable-defaults",
+        inPractice:
+          "This is exactly why the standard library's dataclasses refuse a mutable default outright and require a default_factory instead: the language's evaluation rule cannot be changed, so the library makes the mistake impossible to express rather than documenting it. Ruff and the older flake8 bugbear rules flag the bare version in ordinary functions for the same reason.",
         title: "Mutability and the default argument trap",
         level: "intermediate",
         body: [
@@ -701,6 +712,8 @@ export const languages: Card[] = [
       },
       {
         id: "python-comprehensions",
+        inPractice:
+          "itertools is where the lazy patterns already exist, and reaching for it is usually better than writing the loop: chain to concatenate without materialising, islice to take a window from something infinite, groupby over a sorted stream, tee to fork one iterator. Each keeps the constant-memory property that a generator gives, which a list comprehension in the middle of a pipeline quietly discards.",
         title: "Comprehensions, generators and laziness",
         level: "intermediate",
         body: [
@@ -783,6 +796,18 @@ export const languages: Card[] = [
       },
       {
         id: "python-gil",
+        sources: [
+          {
+            label: "PEP 703: making the global interpreter lock optional in CPython",
+            url: "https://peps.python.org/pep-0703/",
+            supports: "That a free-threaded build removing the interpreter lock was accepted and shipped as experimental in Python 3.13.",
+          },
+          {
+            label: "PEP 779: criteria for supported status for free-threaded Python",
+            url: "https://peps.python.org/pep-0779/",
+            supports: "That free-threaded Python moved to officially supported in Python 3.14, while remaining a separate build rather than the default.",
+          },
+        ],
         title: "The GIL and how to work with it",
         level: "advanced",
         body: [
@@ -873,6 +898,15 @@ export const languages: Card[] = [
       },
       {
         id: "python-typing",
+        inPractice:
+          "Pydantic is the usual answer to the boundary problem, and its shape is the point rather than the library: one declaration produces both the static type a checker sees and the run-time validation the network needs, so the two cannot drift. It is the same move Zod makes in TypeScript, for the same reason, which is that annotations describe an intention and validation establishes a fact.",
+        sources: [
+          {
+            label: "Python documentation: typing",
+            url: "https://docs.python.org/3/library/typing.html",
+            supports: "That annotations are recorded and not enforced at run time, so their value comes entirely from checkers and editors rather than from the interpreter.",
+          },
+        ],
         title: "Type hints, and what they do not do",
         level: "advanced",
         body: [
@@ -964,6 +998,18 @@ export const languages: Card[] = [
     topics: [
       {
         id: "js-event-loop",
+        sources: [
+          {
+            label: "Node.js: the event loop, timers and process.nextTick",
+            url: "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick",
+            supports: "The loop phases and the ordering of microtasks against timers, which is why a resolved promise's callback runs before a zero-delay timeout.",
+          },
+          {
+            label: "MDN: Long Tasks API",
+            url: "https://developer.mozilla.org/en-US/docs/Web/API/PerformanceLongTaskTiming",
+            supports: "That work holding the main thread for more than 50ms is reported as a long task, which is the threshold at which interaction starts to feel broken.",
+          },
+        ],
         title: "The event loop",
         level: "beginner",
         body: [
@@ -1127,12 +1173,24 @@ export const languages: Card[] = [
       },
       {
         id: "js-coercion",
+        sources: [
+          {
+            label: "MDN: falsy",
+            url: "https://developer.mozilla.org/en-US/docs/Glossary/Falsy",
+            supports: "The complete falsy set quoted here, false, 0, minus 0, 0n, the empty string, null, undefined and NaN, which is what establishes that an empty array is truthy.",
+          },
+          {
+            label: "MDN: nullish coalescing operator",
+            url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing",
+            supports: "That it supplies a default only for null and undefined rather than for every falsy value, which is why a legitimate zero or empty string is no longer replaced.",
+          },
+        ],
         title: "Equality, coercion and the sharp edges",
         level: "intermediate",
         body: [
           "JavaScript will convert types to make a comparison work, and the rules are more elaborate than anyone can hold in their head. The practical answer is to use strict equality, which compares without converting, and to convert deliberately when you mean to. Almost every surprising comparison in the language comes from the loose operator being allowed to guess.",
-          "The specific facts worth memorising are short. NaN is not equal to itself, which is why isNaN and Number.isNaN exist. typeof null returns object, a bug preserved since 1995 for compatibility. An empty array is falsy in a boolean context but equal to false and to zero under loose comparison. Adding a number to a string concatenates, and subtracting converts, so the same two values produce a string with one operator and a number with another.",
-          "Falsy values are a fixed set worth knowing exactly: false, 0, minus 0, empty string, null, undefined and NaN. Everything else is truthy, including empty arrays and empty objects, which is why checking a response by truthiness rather than by a property is a reliable way to accept something empty as success.",
+          "The specific facts worth memorising are short. NaN is not equal to itself, which is why isNaN and Number.isNaN exist. typeof null returns object, a bug preserved since 1995 for compatibility. An empty array is truthy on its own and still equal to false and to zero under loose comparison, because the loose operator converts it to an empty string and then to a number, so the same value answers yes and no depending on how it is asked. Adding a number to a string concatenates, and subtracting converts, so the same two values produce a string with one operator and a number with another.",
+          "Falsy values are a fixed set worth knowing exactly: false, 0, minus 0, 0n, the empty string, null, undefined and NaN. Everything else is truthy, including empty arrays and empty objects, which is why checking a response by truthiness rather than by a property is a reliable way to accept something empty as success. That is also why the previous paragraph is not a contradiction: an empty array is truthy under if, and equal to false under the loose operator, because those are two different questions with two different conversion rules.",
           "Modern syntax removes most of the remaining traps. Optional chaining reads a nested property without throwing when something in the middle is missing, and nullish coalescing supplies a default only for null and undefined rather than for every falsy value, so a legitimate zero or empty string is no longer replaced by a fallback. That last distinction fixes a whole category of quiet bugs in configuration handling.",
         ],
         why: "The language guesses when you let it, and the guesses are consistent rather than sensible. Strict equality, explicit conversion and nullish coalescing remove the guessing, which is why every serious style guide requires them.",
@@ -1211,6 +1269,13 @@ export const languages: Card[] = [
       },
       {
         id: "ts-structural",
+        sources: [
+          {
+            label: "TypeScript handbook: type compatibility",
+            url: "https://www.typescriptlang.org/docs/handbook/type-compatibility.html",
+            supports: "That compatibility is structural rather than nominal, so identically shaped types from different libraries are interchangeable without any declared relationship.",
+          },
+        ],
         title: "TypeScript is structural, and it disappears",
         level: "advanced",
         body: [
@@ -1293,6 +1358,13 @@ export const languages: Card[] = [
       },
       {
         id: "js-modules",
+        sources: [
+          {
+            label: "Node.js: packages and the exports field",
+            url: "https://nodejs.org/api/packages.html",
+            supports: "That a package declares its entry points through the standard exports map, which is what points a bundler at an ES build so that unused exports can be dropped.",
+          },
+        ],
         title: "Modules, bundling and what you ship",
         level: "intermediate",
         body: [
@@ -1559,6 +1631,13 @@ export const languages: Card[] = [
       },
       {
         id: "sql-aggregation",
+        sources: [
+          {
+            label: "SQLite: window functions",
+            url: "https://sqlite.org/windowfunctions.html",
+            supports: "That window functions are in the SQL standard and are now implemented even by SQLite, and the three parts of the OVER clause described here.",
+          },
+        ],
         title: "Aggregation and window functions",
         level: "intermediate",
         body: [
@@ -1643,6 +1722,18 @@ export const languages: Card[] = [
       },
       {
         id: "sql-transactions",
+        sources: [
+          {
+            label: "PostgreSQL: transaction isolation",
+            url: "https://www.postgresql.org/docs/current/transaction-iso.html",
+            supports: "That Postgres defaults to read committed, and which anomalies each level permits.",
+          },
+          {
+            label: "MySQL: InnoDB transaction isolation levels",
+            url: "https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html",
+            supports: "That InnoDB defaults to repeatable read, so identical application code has different concurrency behaviour on the two engines.",
+          },
+        ],
         title: "Transactions in practice",
         level: "advanced",
         body: [
@@ -1821,6 +1912,13 @@ export const languages: Card[] = [
     topics: [
       {
         id: "jvm-basics",
+        sources: [
+          {
+            label: "GraalVM: native image",
+            url: "https://www.graalvm.org/latest/reference-manual/native-image/",
+            supports: "That ahead-of-time compilation removes startup cost, and gives up the profile-guided optimisation a long-running JVM accumulates, which is the trade described here.",
+          },
+        ],
         title: "The JVM: bytecode, JIT and warm-up",
         level: "beginner",
         body: [
@@ -1904,6 +2002,13 @@ export const languages: Card[] = [
       },
       {
         id: "java-collections",
+        sources: [
+          {
+            label: "JEP 395: records",
+            url: "https://openjdk.org/jeps/395",
+            supports: "That records became a standard feature in Java 16 and generate equals, hashCode and toString from their components, which is what removes the hand-written contract bug.",
+          },
+        ],
         title: "Collections, equals and hashCode",
         level: "intermediate",
         body: [
@@ -1991,6 +2096,18 @@ export const languages: Card[] = [
       },
       {
         id: "java-gc",
+        sources: [
+          {
+            label: "JEP 248: make G1 the default garbage collector",
+            url: "https://openjdk.org/jeps/248",
+            supports: "That G1 became the default collector in Java 9, replacing the parallel collector.",
+          },
+          {
+            label: "JEP 377: ZGC, a scalable low-latency garbage collector",
+            url: "https://openjdk.org/jeps/377",
+            supports: "That ZGC does most of its work concurrently and holds pauses low largely independently of heap size, at some cost in throughput.",
+          },
+        ],
         title: "Garbage collection and pauses",
         level: "intermediate",
         body: [
@@ -2078,6 +2195,18 @@ export const languages: Card[] = [
       },
       {
         id: "java-concurrency",
+        sources: [
+          {
+            label: "JEP 444: virtual threads",
+            url: "https://openjdk.org/jeps/444",
+            supports: "That virtual threads became a standard feature in Java 21, are scheduled by the JVM onto a small pool of platform threads, and unmount when they block.",
+          },
+          {
+            label: "JEP 491: synchronize virtual threads without pinning",
+            url: "https://openjdk.org/jeps/491",
+            supports: "That blocking inside a synchronized block pinned the carrier thread before Java 24, and that this specific pin was removed in Java 24.",
+          },
+        ],
         title: "Threads, executors and virtual threads",
         level: "advanced",
         body: [
@@ -2165,6 +2294,13 @@ export const languages: Card[] = [
       },
       {
         id: "java-generics",
+        sources: [
+          {
+            label: "Java tutorials: type erasure and its restrictions",
+            url: "https://docs.oracle.com/javase/tutorial/java/generics/erasure.html",
+            supports: "That generic type parameters are erased after compilation, which is why the type cannot be recovered at run time and why a type token is needed to deserialise into a generic collection.",
+          },
+        ],
         title: "Generics, erasure and what survives to run time",
         level: "advanced",
         body: [
@@ -2257,6 +2393,13 @@ export const languages: Card[] = [
     topics: [
       {
         id: "go-goroutines",
+        sources: [
+          {
+            label: "Go blog: Go concurrency patterns, context",
+            url: "https://go.dev/blog/context",
+            supports: "The rule that a goroutine's lifetime should be clear before it is started, and that a context is the usual mechanism for saying how it stops.",
+          },
+        ],
         title: "Goroutines and the scheduler",
         level: "beginner",
         body: [
@@ -2424,6 +2567,13 @@ export const languages: Card[] = [
       },
       {
         id: "go-interfaces",
+        sources: [
+          {
+            label: "Go: type parameters proposal",
+            url: "https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md",
+            supports: "That generics were added in Go 1.18 to abstract over types, alongside interfaces which abstract over behaviour.",
+          },
+        ],
         title: "Interfaces, satisfied implicitly",
         level: "intermediate",
         body: [
@@ -2503,6 +2653,13 @@ export const languages: Card[] = [
       },
       {
         id: "go-errors",
+        sources: [
+          {
+            label: "Go blog: working with errors in Go 1.13",
+            url: "https://go.dev/blog/go1.13-errors",
+            supports: "That the percent-w wrapping verb, errors.Is and errors.As arrived in Go 1.13, which ended the practice of matching on error message text.",
+          },
+        ],
         title: "Errors as values",
         level: "beginner",
         body: [

@@ -16,7 +16,7 @@ import { usePageDwell, setSocialMeta, useStagger } from "@/lib/hooks";
  * fetched as its own chunk. */
 import { manifest, topicCount } from "@/data/learn/manifest";
 import { loadCard } from "@/data/learn/load";
-import { TRACKS, LEVELS, type Card, type CardMeta, type Level, type Topic, type Check } from "@/data/learn/types";
+import { TRACKS, LEVELS, type Card, type CardMeta, type Level, type Topic, type Check, type Source } from "@/data/learn/types";
 
 /** Cards that still have something to show once a level filter is applied. */
 function metaForLevel(level: Level | "all"): CardMeta[] {
@@ -37,6 +37,106 @@ function StaggerGrid({ className, children }: { className?: string; children: Re
   return (
     <div ref={ref} className={className}>
       {children}
+    </div>
+  );
+}
+
+/** Where a claim came from.
+ *
+ *  The material makes several hundred checkable claims, and for a long time it
+ *  cited none of them, so a reader who wanted to know whether SQS really
+ *  defaults to a thirty second visibility timeout had to go and find out. Each
+ *  entry says what it supports as well as where it is, because a list of links
+ *  with no statement of what they are for is an appeal to authority rather than
+ *  evidence.
+ *
+ *  Deliberately below the diagram and above the assistant: it is reference
+ *  material, not part of the argument, and nobody reads it first. */
+function Sources({ sources }: { sources: Source[] }) {
+  return (
+    <details className="mt-7 max-w-[36em] group">
+      <summary
+        className="mono text-[length:var(--fs-label)] uppercase tracking-[0.09em] cursor-pointer inline-flex items-center gap-2 min-h-[44px]"
+        style={{ color: "var(--c-text-dim)" }}
+      >
+        <span className="tnum">
+          evidence · {sources.length} {sources.length === 1 ? "source" : "sources"}
+        </span>
+        <span aria-hidden className="group-open:hidden">
+          +
+        </span>
+        {/* An ASCII hyphen rather than a minus sign entity. The prose check reads
+            source files, so &minus; would have passed it and still shipped a
+            non-ASCII glyph to the reader, which is the rule being dodged rather
+            than kept. The outbound arrows are entities because that arrow is on
+            the allowlist already. */}
+        <span aria-hidden className="hidden group-open:inline">
+          -
+        </span>
+      </summary>
+      <ol className="mt-2 flex flex-col gap-3.5 pl-0">
+        {sources.map((s, i) => (
+          <li key={i} className="flex gap-3">
+            <span className="mono tnum text-[length:var(--fs-micro)] pt-1 shrink-0" style={{ color: "var(--c-text-dim)", opacity: 0.6 }}>
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <div className="min-w-0">
+              <a
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[length:var(--fs-body)] leading-snug link-underline"
+                style={{ color: "var(--c-text)" }}
+              >
+                {s.label} <span aria-hidden>&#8599;</span>
+              </a>
+              <p className="mt-1 text-[length:var(--fs-label)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+                {s.supports}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
+
+/** The piece of writing a dissection is about.
+ *
+ *  At the top of the card, before any of the explanation, because a dissection
+ *  that buries its source is a summary passing itself off as analysis. The
+ *  reader should be able to go and read the real thing first if they would
+ *  rather, and the note says why it was worth taking apart. */
+function Subject({ subject }: { subject: NonNullable<Card["subject"]> }) {
+  const when = new Date(subject.published + "T00:00:00Z").toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return (
+    <div
+      className="mt-6 rounded-lg border p-4 sm:p-5 max-w-[42em]"
+      style={{ borderColor: "var(--hair-strong)", background: "var(--surface-2)" }}
+    >
+      <div className="mono text-[length:var(--fs-label)] uppercase tracking-[0.09em] mb-2" style={{ color: "var(--accent)" }}>
+        dissecting
+      </div>
+      <a
+        href={subject.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[length:var(--fs-item)] font-medium leading-snug link-underline"
+        style={{ color: "var(--c-text)" }}
+      >
+        {subject.title} <span aria-hidden>&#8599;</span>
+      </a>
+      <div className="mono text-[length:var(--fs-label)] mt-1.5" style={{ color: "var(--c-text-dim)" }}>
+        {subject.publisher} · {when}
+      </div>
+      <p className="mt-3 text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+        {subject.note}
+      </p>
     </div>
   );
 }
@@ -159,9 +259,20 @@ function TopicView({
      * So the width goes to the layout instead. Prose keeps its measure on the
      * left, the quiz moves up beside it rather than a screen further down, and
      * the diagram spans both because a diagram is the one thing here that gets
-     * better with more room. */
+     * better with more room.
+     *
+     * The breakpoint is a container query rather than a viewport one, and that
+     * is a correction rather than a preference. Keyed to the viewport at xl,
+     * the second column turned on at 1280px while the column it lives in had
+     * already given 230px to the contents rail and 56px to the gap, so the quiz
+     * got 198px and every answer option wrapped to five or seven lines. It was
+     * worst from 1280px to 1535px, which includes 1440px, and it was invisible
+     * to anyone developing at 1920px. What decides whether two columns fit is
+     * the width of this column, so that is what is now measured: 36em of prose
+     * plus a gap plus roughly 20em of quiz is about 936px, and below that the
+     * honest answer is one column. */
     <div className="pb-8 pt-1">
-      <div className="grid xl:grid-cols-[minmax(0,36em)_minmax(0,1fr)] gap-x-10 2xl:gap-x-14 items-start">
+      <div className="grid @min-[936px]:grid-cols-[minmax(0,36em)_minmax(0,1fr)] gap-x-10 @min-[1180px]:gap-x-14 items-start">
       <div className="min-w-0">
       <div className="flex flex-col gap-3 max-w-[36em]">
         {topic.body.map((p, i) => (
@@ -203,7 +314,7 @@ function TopicView({
       </div>
 
       <div
-        className="mt-6 xl:mt-0 rounded-lg border p-4 sm:p-5 max-w-[36em] xl:max-w-none min-w-0"
+        className="mt-6 @min-[936px]:mt-0 rounded-lg border p-4 sm:p-5 max-w-[36em] @min-[936px]:max-w-none min-w-0"
         style={{ borderColor: "var(--hair)", background: "var(--surface-2)" }}
       >
         <div className="mono text-[length:var(--fs-label)] uppercase tracking-[0.09em] mb-2.5" style={{ color: "var(--c-text-dim)" }}>
@@ -267,6 +378,8 @@ function TopicView({
       {/* Spans both columns: a diagram is the one thing on this page that gets
           better with more room, so it is not confined to the reading column. */}
       {topic.diagram && <DiagramViews diagram={topic.diagram} id={`${cardId}-${topic.id}`} />}
+
+      {topic.sources && <Sources sources={topic.sources} />}
 
       {/* After the check, not before: the question is worth attempting before
           the assistant is on hand to answer it for you. */}
@@ -345,6 +458,8 @@ function CardDetail({
         {card.summary}
       </p>
 
+      {card.subject && <Subject subject={card.subject} />}
+
       <div className="mt-9 grid lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)] gap-x-10 xl:gap-x-14 items-start">
         {/* The rail. Sticky from lg up, and simply the first thing on the page
             below that, where a fixed column would eat half a phone screen. */}
@@ -391,7 +506,11 @@ function CardDetail({
           </div>
         </nav>
 
-        <div className="min-w-0">
+        {/* The container the topic layout's queries resolve against. It is this
+            column rather than the viewport that decides whether the quiz fits
+            beside the prose, because the rail and the gap have already been
+            taken out of it. */}
+        <div className="min-w-0 @container">
           {card.topics.map((t, i) => (
             <section
               key={t.id}

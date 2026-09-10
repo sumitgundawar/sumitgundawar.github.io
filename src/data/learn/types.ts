@@ -54,6 +54,29 @@ export interface Diagram {
   edges: DiagramEdge[];
 }
 
+/** A citation for a claim in the material.
+ *
+ *  The corpus makes a lot of specific claims: that Netflix reported 28.04 per
+ *  cent BD-rate savings on x264, that SQS defaults to a thirty second
+ *  visibility timeout, that Google's retry budget is around ten per cent. Every
+ *  one of those is checkable, and until this field existed none of them was
+ *  checkable by a reader, who had to take the number on trust or go and find it
+ *  themselves.
+ *
+ *  Prefer the primary source: the paper, the RFC, the vendor's own
+ *  documentation or engineering blog. A secondary summary is acceptable only
+ *  where the primary is paywalled or gone. */
+export interface Source {
+  /** How the source would be cited in a sentence, e.g. "Netflix TechBlog,
+   *  Dynamic optimizer (2018)". Includes the year, because a claim about a
+   *  moving target is only true as of a date. */
+  label: string;
+  url: string;
+  /** Which claim in this topic the source is being offered for. Without it a
+   *  list of links is an appeal to authority rather than evidence. */
+  supports: string;
+}
+
 export interface Topic {
   id: string;
   title: string;
@@ -81,6 +104,12 @@ export interface Topic {
    *  a wrong answer here teaches the wrong thing, and the explanation has to be
    *  correct rather than merely plausible. */
   checks?: Check[];
+  /** Evidence for the specific claims this topic makes.
+   *
+   *  Held per topic rather than per card because the claims are per topic, and
+   *  a reader checking one number should not have to guess which of a card's
+   *  twenty links covers it. */
+  sources?: Source[];
 }
 
 export type Track =
@@ -90,6 +119,7 @@ export type Track =
   | "delivery"
   | "practice"
   | "case-study"
+  | "dissection"
   | "interview";
 
 export interface Card {
@@ -98,6 +128,21 @@ export interface Card {
   summary: string;
   track: Track;
   topics: Topic[];
+  /** For a dissection: the piece of writing being taken apart.
+   *
+   *  A dissection that does not link prominently to the original is a summary
+   *  passing itself off as analysis. The link belongs at the top of the card,
+   *  before any of the explanation, so a reader can go and read the real thing
+   *  first if they would rather. */
+  subject?: {
+    title: string;
+    url: string;
+    publisher: string;
+    /** ISO date of publication, rendered as a readable date. */
+    published: string;
+    /** Why this piece was worth dissecting, in one sentence. */
+    note: string;
+  };
 }
 
 export const TRACKS: { id: Track; label: string; blurb: string }[] = [
@@ -107,6 +152,7 @@ export const TRACKS: { id: Track; label: string; blurb: string }[] = [
   { id: "delivery", label: "Delivery and infrastructure", blurb: "Getting it running, and keeping it running." },
   { id: "practice", label: "Engineering practice", blurb: "Testing, security, code quality, and how teams actually work." },
   { id: "case-study", label: "Case studies", blurb: "How Netflix, Uber and others actually built it." },
+  { id: "dissection", label: "Blog dissections", blurb: "Deeply technical engineering writing, taken apart and redrawn in plainer language." },
   { id: "interview", label: "Interview preparation", blurb: "Senior and staff level: what is being assessed, and how to show it." },
 ];
 

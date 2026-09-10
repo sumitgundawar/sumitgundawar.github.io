@@ -1460,8 +1460,91 @@ export const manifest: CardMeta[] = [
         "level": "advanced"
       }
     ]
+  },
+  {
+    "id": "cursor-git",
+    "title": "Cursor: Git at any scale",
+    "summary": "Why Git repositories resist being distributed, what GitHub's Spokes did about it, and how a write-ahead log in an object store replaces three-phase commit.",
+    "track": "dissection",
+    "group": "dissections",
+    "topics": [
+      {
+        "id": "cursor-packfiles",
+        "title": "Why a Git repository resists being distributed",
+        "level": "intermediate"
+      },
+      {
+        "id": "cursor-spokes",
+        "title": "GitHub's answer, and the wall it reaches",
+        "level": "advanced"
+      },
+      {
+        "id": "cursor-continuity",
+        "title": "Continuity: a write-ahead log in a bucket",
+        "level": "advanced"
+      },
+      {
+        "id": "cursor-warm-cache",
+        "title": "The repository on disk is a cache",
+        "level": "advanced"
+      },
+      {
+        "id": "cursor-read-path",
+        "title": "How a read proves it is current",
+        "level": "intermediate"
+      },
+      {
+        "id": "cursor-gossip",
+        "title": "Replication that is allowed to fail",
+        "level": "advanced"
+      },
+      {
+        "id": "cursor-numbers",
+        "title": "The numbers, and where the bottleneck moved",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "openai-agents",
+    "title": "OpenAI: ten thousand agents on a Navier-Stokes result",
+    "summary": "What was actually claimed and what was not, the shape of a ten thousand agent run, the message and token economics, and why a Lean proof settles less than it appears to.",
+    "track": "dissection",
+    "group": "dissections",
+    "topics": [
+      {
+        "id": "oai-what-was-claimed",
+        "title": "What was claimed, and what was not",
+        "level": "intermediate"
+      },
+      {
+        "id": "oai-topology",
+        "title": "The shape of a ten thousand agent run",
+        "level": "advanced"
+      },
+      {
+        "id": "oai-economics",
+        "title": "2.7 million messages and 130 billion tokens",
+        "level": "advanced"
+      },
+      {
+        "id": "oai-tools",
+        "title": "Tools: running code, and a cached internet",
+        "level": "intermediate"
+      },
+      {
+        "id": "oai-lean",
+        "title": "Lean as the referee, and what it does not settle",
+        "level": "advanced"
+      },
+      {
+        "id": "oai-disputes",
+        "title": "The disputes, and why provenance is an engineering problem",
+        "level": "advanced"
+      }
+    ]
   }
 ];
 
-export const topicCount = 208;
-export const cardCount = 46;
+export const topicCount = 221;
+export const cardCount = 48;

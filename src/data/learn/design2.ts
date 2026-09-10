@@ -12,6 +12,18 @@ export const design2: Card[] = [
     topics: [
       {
         id: "rest",
+        sources: [
+          {
+            label: "RFC 9110: HTTP semantics",
+            url: "https://www.rfc-editor.org/rfc/rfc9110.html",
+            supports: "The division of methods into safe ones that do not change state, GET, HEAD, OPTIONS and TRACE, and idempotent ones, those four plus PUT and DELETE, with POST in neither category.",
+          },
+          {
+            label: "Fielding, Architectural styles and the design of network-based software architectures (2000)",
+            url: "https://ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm",
+            supports: "The origin of REST as an architectural style with a set of constraints, of which the uniform interface is the one that pays for itself in practice.",
+          },
+        ],
         title: "REST and resource modelling",
         level: "beginner",
         body: [
@@ -95,6 +107,13 @@ export const design2: Card[] = [
       },
       {
         id: "graphql",
+        sources: [
+          {
+            label: "GitHub, resource limitations on the GraphQL API",
+            url: "https://docs.github.com/en/graphql/overview/rate-limits-and-node-limits-for-the-graphql-api",
+            supports: "That a call cannot request more than 500,000 nodes and that a token has a budget of 5,000 points an hour, scored per query, rather than a count of requests.",
+          },
+        ],
         title: "GraphQL and its costs",
         level: "intermediate",
         body: [
@@ -180,6 +199,18 @@ export const design2: Card[] = [
       },
       {
         id: "grpc",
+        sources: [
+          {
+            label: "Protocol Buffers: encoding",
+            url: "https://protobuf.dev/programming-guides/encoding/",
+            supports: "That a field is written as a numeric tag plus a value, and that tags 1 to 15 occupy a single byte, which is why they are spent on the most frequent fields.",
+          },
+          {
+            label: "Protocol Buffers: proto best practices",
+            url: "https://protobuf.dev/programming-guides/dos-donts/",
+            supports: "That field numbers are the wire identity and must never be reused, and that a removed field's number is reserved so it cannot be taken by accident.",
+          },
+        ],
         title: "gRPC and binary protocols",
         level: "intermediate",
         body: [
@@ -266,6 +297,18 @@ export const design2: Card[] = [
       },
       {
         id: "webhooks",
+        sources: [
+          {
+            label: "Stripe: webhook signatures",
+            url: "https://docs.stripe.com/webhooks/signature",
+            supports: "That the signature is an HMAC over the raw body with a timestamp in the signed payload, and that the raw bytes must be used rather than a re-serialised object.",
+          },
+          {
+            label: "Stripe: webhook builder and delivery behaviour",
+            url: "https://docs.stripe.com/webhooks",
+            supports: "That failed deliveries are retried with exponential backoff for up to three days, and that each attempt and response is visible to the integrator.",
+          },
+        ],
         title: "Webhooks and delivery",
         level: "advanced",
         body: [
@@ -348,6 +391,23 @@ export const design2: Card[] = [
       },
       {
         id: "versioning",
+        sources: [
+          {
+            label: "RFC 8594: the Sunset HTTP header field",
+            url: "https://www.rfc-editor.org/rfc/rfc8594.html",
+            supports: "That a resource's forthcoming removal can be advertised in the response itself, so tooling can see a deprecation rather than only a mailing list.",
+          },
+          {
+            label: "RFC 9745: the Deprecation HTTP header field",
+            url: "https://www.rfc-editor.org/rfc/rfc9745.html",
+            supports: "The standardised header for signalling that a resource is deprecated, alongside Sunset for when it will stop working.",
+          },
+          {
+            label: "Stripe: API upgrades and versioning",
+            url: "https://docs.stripe.com/upgrades",
+            supports: "That an account is pinned to the API version current when it integrated, and that requests and responses are transformed between that version and the current internal one.",
+          },
+        ],
         title: "Versioning and breaking changes",
         level: "advanced",
         body: [
@@ -442,6 +502,13 @@ export const design2: Card[] = [
     topics: [
       {
         id: "push-options",
+        sources: [
+          {
+            label: "MDN: using server-sent events",
+            url: "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events",
+            supports: "That the browser reconnects automatically and sends the last event id it saw, so the server can resume rather than restart, which is the feature commonly reimplemented on top of WebSockets.",
+          },
+        ],
         title: "Polling, long polling, SSE, WebSockets",
         level: "beginner",
         body: [
@@ -603,6 +670,24 @@ export const design2: Card[] = [
       },
       {
         id: "presence",
+        diagram: {
+          caption: "Scope the fan-out to who can see it, and let absence expire",
+          columns: [
+            [{ id: "user", label: "One user arrives", sub: "in a 10,000 person workspace", kind: "client" }],
+            [{ id: "hb", label: "Heartbeat", sub: "every 30s, key lives 45s", kind: "service" }],
+            [{ id: "all", label: "Notify everyone", sub: "10,000 messages per arrival", kind: "data", alternative: true },
+             { id: "view", label: "Notify the viewport", sub: "who has this open now", kind: "data" }],
+            [{ id: "batch", label: "Batched and coalesced", sub: "one update per second or two", kind: "external" },
+             { id: "shed", label: "Shed first under load", sub: "before typing, before delivery", kind: "external" }],
+          ],
+          edges: [
+            { from: "user", to: "hb", label: "refreshes a key" },
+            { from: "hb", to: "all", label: "graph-sized" },
+            { from: "hb", to: "view", label: "viewport-sized" },
+            { from: "view", to: "batch", label: "coalesce flapping" },
+            { from: "batch", to: "shed", label: "defined as expendable", async: true },
+          ],
+        },
         title: "Presence and typing indicators",
         level: "advanced",
         body: [
@@ -676,6 +761,13 @@ export const design2: Card[] = [
     topics: [
       {
         id: "inverted-index",
+        sources: [
+          {
+            label: "PostgreSQL: full text search",
+            url: "https://www.postgresql.org/docs/current/textsearch.html",
+            supports: "That Postgres provides stemming, ranking and phrase search over a tsvector with a GIN index, and that trigram indexes cover the fuzzy and substring cases full-text search deliberately does not.",
+          },
+        ],
         title: "The inverted index",
         level: "intermediate",
         body: [
@@ -758,6 +850,32 @@ export const design2: Card[] = [
       },
       {
         id: "relevance",
+        diagram: {
+          caption: "Match, score, then blend the signals that are not about words",
+          columns: [
+            [{ id: "q", label: "Query", sub: "10,000 documents match", kind: "client" }],
+            [{ id: "bm", label: "BM25", sub: "saturation and length norm", kind: "service" }],
+            [{ id: "biz", label: "Business signals", sub: "recency, popularity, stock, distance", kind: "service" },
+             { id: "boost", label: "Field boosting", sub: "title over body", kind: "service" }],
+            [{ id: "ten", label: "Ten results", sub: "and facets to narrow with", kind: "data" }],
+            [{ id: "measure", label: "Measured", sub: "zero-result rate, click position", kind: "external" }],
+          ],
+          edges: [
+            { from: "q", to: "bm", label: "text score" },
+            { from: "bm", to: "biz", label: "blend, with weights" },
+            { from: "bm", to: "boost", label: "cheapest large win" },
+            { from: "biz", to: "ten", label: "ranked" },
+            { from: "boost", to: "ten", label: "ranked" },
+            { from: "ten", to: "measure", label: "or it is taste", async: true },
+          ],
+        },
+        sources: [
+          {
+            label: "Elasticsearch: theory behind relevance scoring",
+            url: "https://www.elastic.co/guide/en/elasticsearch/guide/current/scoring-theory.html",
+            supports: "That BM25 replaced TF-IDF as the default scoring function, and what saturation and length normalisation change about the result.",
+          },
+        ],
         title: "Relevance and ranking",
         level: "advanced",
         body: [
@@ -824,6 +942,13 @@ export const design2: Card[] = [
       },
       {
         id: "search-sync",
+        sources: [
+          {
+            label: "Debezium documentation",
+            url: "https://debezium.io/documentation/reference/stable/index.html",
+            supports: "The implementation described here: reading a database's replication log and publishing each committed change, so the index is derived from the database rather than written alongside it.",
+          },
+        ],
         title: "Keeping the index in sync",
         level: "advanced",
         body: [
@@ -929,6 +1054,13 @@ export const design2: Card[] = [
       },
       {
         id: "autocomplete",
+        sources: [
+          {
+            label: "Elasticsearch: suggesters",
+            url: "https://www.elastic.co/guide/en/elasticsearch/reference/current/search-suggesters.html",
+            supports: "That the completion suggester is backed by a finite state transducer held in memory rather than reusing the normal search path, because prefix lookup and relevance search have different latency budgets.",
+          },
+        ],
         title: "Autocomplete and suggestions",
         level: "advanced",
         body: [
@@ -1020,6 +1152,33 @@ export const design2: Card[] = [
     topics: [
       {
         id: "object-storage",
+        inPractice:
+          "S3 has offered strong read-after-write consistency for all operations since December 2020, so an object is readable immediately after it is written and the elaborate workarounds built for the old eventually consistent model can be deleted. The durability figure quoted for the standard classes is eleven nines, which is a statement about object loss and not about your ability to overwrite something by accident, which is what versioning is for.",
+        diagram: {
+          caption: "What you query in the database, what you serve from the bucket",
+          columns: [
+            [{ id: "up", label: "Upload", sub: "a large immutable blob", kind: "client" }],
+            [{ id: "db", label: "Database", sub: "key, size, owner, checksum", kind: "data" },
+             { id: "bucket", label: "Object storage", sub: "the bytes, addressed by key", kind: "data" }],
+            [{ id: "cdn", label: "CDN", sub: "cuts egress and latency", kind: "edge" },
+             { id: "life", label: "Lifecycle rules", sub: "hot to infrequent to archive", kind: "service" }],
+            [{ id: "bill", label: "The bill", sub: "egress, then requests, then bytes", kind: "external" }],
+          ],
+          edges: [
+            { from: "up", to: "db", label: "metadata only" },
+            { from: "up", to: "bucket", label: "the payload" },
+            { from: "bucket", to: "cdn", label: "serve through it" },
+            { from: "bucket", to: "life", label: "age it out", async: true },
+            { from: "cdn", to: "bill", label: "egress paid once" },
+          ],
+        },
+        sources: [
+          {
+            label: "AWS: Amazon S3 strong consistency",
+            url: "https://aws.amazon.com/s3/consistency/",
+            supports: "That S3 provides strong read-after-write consistency for all requests, delivered in December 2020.",
+          },
+        ],
         title: "Object storage versus databases and disks",
         level: "beginner",
         body: [
@@ -1082,6 +1241,15 @@ export const design2: Card[] = [
       },
       {
         id: "presigned-uploads",
+        inPractice:
+          "The completion signal is the part people get wrong: the client saying it finished is a claim, and the reliable version is an event from the storage service itself, which is also what lets you verify size, type and checksum before treating the object as real. S3 event notifications exist for exactly that, and the matching lifecycle rule to abort incomplete multipart uploads belongs in the same change, because incomplete parts linger and are billed.",
+        sources: [
+          {
+            label: "AWS: uploading objects with presigned URLs",
+            url: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/PresignedUrlUploadObject.html",
+            supports: "That the signature encodes the key, expiry and conditions, so the permission is narrow and expiring rather than a credential handed to a browser.",
+          },
+        ],
         title: "Direct uploads with pre-signed URLs",
         level: "intermediate",
         body: [
@@ -1162,6 +1330,30 @@ export const design2: Card[] = [
       },
       {
         id: "video-delivery",
+        diagram: {
+          caption: "A ladder, cut into segments, chosen by the player between them",
+          columns: [
+            [{ id: "mez", label: "Mezzanine", sub: "one very large master", kind: "client" }],
+            [{ id: "enc", label: "Per-title encode", sub: "measure the content first", kind: "service" }],
+            [{ id: "ladder", label: "Ladder of renditions", sub: "each cut into segments", kind: "data" },
+             { id: "man", label: "Manifest", sub: "lists what exists", kind: "data" }],
+            [{ id: "player", label: "Player", sub: "buffer occupancy decides", kind: "external" }],
+          ],
+          edges: [
+            { from: "mez", to: "enc", label: "paid once per title" },
+            { from: "enc", to: "ladder", label: "bits where they are needed" },
+            { from: "ladder", to: "man", label: "described" },
+            { from: "man", to: "player", label: "plain HTTP, any CDN" },
+            { from: "player", to: "ladder", label: "next segment, next rung" },
+          ],
+        },
+        sources: [
+          {
+            label: "Netflix TechBlog, Dynamic optimizer (2018)",
+            url: "https://netflixtechblog.com/dynamic-optimizer-a-perceptual-video-encoding-optimization-framework-e19f1e3a277f",
+            supports: "The reported bitrate reductions at equal VMAF from measuring the content rather than applying a fixed ladder: 28.04 per cent for x264, 37.61 for libvpx VP9 and 33.51 for x265.",
+          },
+        ],
         title: "Video: transcoding and adaptive bitrate",
         level: "advanced",
         body: [
@@ -1234,6 +1426,15 @@ export const design2: Card[] = [
     topics: [
       {
         id: "authn-authz",
+        inPractice:
+          "Broken access control has sat at the top of the OWASP Top Ten since the 2021 edition, and the sub-category that dominates it is the one described here: the user is correctly identified and nothing checks whether they may touch this particular record. Row-level security in Postgres is the strongest available fix because it holds for a query somebody writes by hand during an incident, not only for the code paths that remembered.",
+        sources: [
+          {
+            label: "OWASP Top Ten: A01 Broken Access Control",
+            url: "https://owasp.org/Top10/A01_2021-Broken_Access_Control/",
+            supports: "That authorisation failures, including changing an identifier to reach another user's record, rank first by prevalence rather than being an exotic attack.",
+          },
+        ],
         title: "Authentication and authorisation",
         level: "beginner",
         body: [
@@ -1316,6 +1517,28 @@ export const design2: Card[] = [
       },
       {
         id: "sessions-vs-jwt",
+        inPractice:
+          "The pattern that gives the game away is a JWT chosen for statelessness and then paired with a revocation list, which reintroduces the lookup the design removed and keeps the inability to revoke instantly. If a shared store is reachable, a session is simpler and strictly better. JWTs earn their place when the validator cannot reach your store: across companies, or at an edge with no database.",
+        diagram: {
+          caption: "A reference the server can revoke, or a claim it cannot",
+          columns: [
+            [{ id: "req", label: "Request", sub: "carries one or the other", kind: "client" }],
+            [{ id: "sid", label: "Session id", sub: "opaque, means nothing alone", kind: "service" },
+             { id: "jwt", label: "JWT", sub: "signed claims, self-contained", kind: "service" }],
+            [{ id: "store", label: "Session store", sub: "a sub-millisecond lookup", kind: "data" },
+             { id: "local", label: "Verified locally", sub: "no lookup, no revocation", kind: "data" }],
+            [{ id: "rev", label: "Logout is instant", sub: "delete the record", kind: "external" },
+             { id: "wait", label: "Valid until expiry", sub: "the window is the lifetime", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "req", to: "sid", label: "reference" },
+            { from: "req", to: "jwt", label: "value" },
+            { from: "sid", to: "store", label: "one lookup" },
+            { from: "jwt", to: "local", label: "any holder of the key" },
+            { from: "store", to: "rev", label: "revocable" },
+            { from: "local", to: "wait", label: "not revocable" },
+          ],
+        },
         title: "Sessions or JWTs",
         level: "intermediate",
         body: [
@@ -1379,6 +1602,15 @@ export const design2: Card[] = [
       },
       {
         id: "oauth",
+        inPractice:
+          "The OAuth 2.0 security best current practice, published as RFC 9700, is now explicit on both of the points that matter here: authorisation code with PKCE for every client type, and the implicit flow no longer to be used. Finding implicit in an existing integration is a finding rather than a style preference, and it is the reason tokens ended up in browser history and referrer headers.",
+        sources: [
+          {
+            label: "RFC 9700: best current practice for OAuth 2.0 security",
+            url: "https://www.rfc-editor.org/rfc/rfc9700.html",
+            supports: "That PKCE is recommended for all clients including confidential ones, that the implicit grant should not be used, and that redirect URIs must be compared by exact string match.",
+          },
+        ],
         title: "OAuth and OpenID Connect",
         level: "advanced",
         body: [
@@ -1461,6 +1693,31 @@ export const design2: Card[] = [
       },
       {
         id: "secrets",
+        inPractice:
+          "OWASP's password storage guidance names Argon2id first, with scrypt and bcrypt as the fallbacks where it is unavailable, and rules out fast general-purpose hashes outright. The reasoning is the whole topic in one line: the property you want from a password hash is slowness, which is precisely the property that makes SHA-256 a good checksum and a poor password hash.",
+        diagram: {
+          caption: "Envelope encryption, and the channels a secret leaks through anyway",
+          columns: [
+            [{ id: "kms", label: "Key management service", sub: "holds the master key", kind: "service" }],
+            [{ id: "dek", label: "Data key", sub: "encrypted by the master", kind: "data" }],
+            [{ id: "field", label: "Encrypted field", sub: "stored beside the data", kind: "data" },
+             { id: "same", label: "Key beside the data", sub: "decoration, not a control", kind: "data", alternative: true }],
+            [{ id: "leak", label: "Where it actually leaks", sub: "logs, URLs, error trackers", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "kms", to: "dek", label: "wraps it" },
+            { from: "dek", to: "field", label: "encrypts the value" },
+            { from: "dek", to: "same", label: "if stored together" },
+            { from: "field", to: "leak", label: "redact at the boundary" },
+          ],
+        },
+        sources: [
+          {
+            label: "OWASP password storage cheat sheet",
+            url: "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
+            supports: "That Argon2id is the first recommendation, with scrypt and bcrypt as alternatives, and that fast general-purpose hashes are unsuitable.",
+          },
+        ],
         title: "Secrets and encryption",
         level: "intermediate",
         body: [
@@ -1533,6 +1790,15 @@ export const design2: Card[] = [
     topics: [
       {
         id: "leader-election",
+        inPractice:
+          "etcd, ZooKeeper and Consul exist, do this correctly and have had their edge cases found by other people, which is the main argument against implementing it. etcd's own lease and election primitives are what Kubernetes uses to decide which controller manager is active, and that is the shape to copy: a coordination service decides who leads, and the resource being written to enforces it with a fencing token.",
+        sources: [
+          {
+            label: "Kleppmann, How to do distributed locking",
+            url: "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html",
+            supports: "That a process pause invalidates a lease-based lock without the holder knowing, and that fencing tokens checked by the resource are the mitigation.",
+          },
+        ],
         title: "Leader election",
         level: "advanced",
         body: [
@@ -1613,6 +1879,34 @@ export const design2: Card[] = [
       },
       {
         id: "consensus",
+        inPractice:
+          "Raft is what almost everything built since uses, and the list is worth knowing because it tells you where consensus actually sits in a real system: etcd, Consul and CockroachDB all run it, and in each case it decides metadata, membership and leadership rather than carrying the primary data path. Kubernetes stores its entire cluster state in etcd for that reason, and the state is small precisely because every write pays a quorum round trip.",
+        diagram: {
+          caption: "Any two majorities overlap, which is the entire proof",
+          columns: [
+            [{ id: "w", label: "Write", sub: "proposed by the leader", kind: "client" }],
+            [{ id: "n1", label: "Node 1", sub: "accepts", kind: "data" },
+             { id: "n2", label: "Node 2", sub: "accepts", kind: "data" },
+             { id: "n3", label: "Node 3", sub: "unreachable", kind: "data", alternative: true }],
+            [{ id: "maj", label: "Majority of 3", sub: "2 is enough, tolerates 1 loss", kind: "service" }],
+            [{ id: "cost", label: "A quorum round trip", sub: "per write, priced by distance", kind: "external" }],
+          ],
+          edges: [
+            { from: "w", to: "n1", label: "replicate" },
+            { from: "w", to: "n2", label: "replicate" },
+            { from: "w", to: "n3", label: "no answer" },
+            { from: "n1", to: "maj", label: "committed" },
+            { from: "n2", to: "maj", label: "committed" },
+            { from: "maj", to: "cost", label: "correctness bought with latency" },
+          ],
+        },
+        sources: [
+          {
+            label: "Ongaro and Ousterhout, In search of an understandable consensus algorithm (USENIX ATC 2014)",
+            url: "https://raft.github.io/raft.pdf",
+            supports: "That Raft was designed for understandability rather than novelty, the 2f+1 sizing, term numbers, and randomised election timeouts.",
+          },
+        ],
         title: "Consensus: Raft and Paxos",
         level: "advanced",
         body: [
@@ -1675,6 +1969,26 @@ export const design2: Card[] = [
       },
       {
         id: "saga",
+        inPractice:
+          "Two-phase commit is not unavailable, it is unattractive: it does provide atomicity, and it blocks, so a coordinator failure after the prepare leaves participants holding locks and waiting. That is the trade sagas decline. The orchestrated variant is what durable workflow engines such as Temporal exist to run, which is the honest answer to the visibility problem, since the state machine and its current step become queryable rather than implied.",
+        diagram: {
+          caption: "Each step commits, so each step needs an offsetting action",
+          columns: [
+            [{ id: "start", label: "Book a trip", sub: "three services, no shared lock", kind: "client" }],
+            [{ id: "f", label: "Flight booked", sub: "committed locally", kind: "service" },
+             { id: "h", label: "Hotel fails", sub: "committed nothing", kind: "service", alternative: true },
+             { id: "c", label: "Card charged", sub: "irreversible, so it goes last", kind: "service" }],
+            [{ id: "comp", label: "Compensate", sub: "cancel the flight, refund", kind: "data" }],
+            [{ id: "hist", label: "Both facts remain", sub: "booked, then cancelled", kind: "external" }],
+          ],
+          edges: [
+            { from: "start", to: "f", label: "step one" },
+            { from: "f", to: "h", label: "step two" },
+            { from: "h", to: "comp", label: "run backwards" },
+            { from: "comp", to: "hist", label: "not a rollback" },
+            { from: "f", to: "c", label: "only if all else held" },
+          ],
+        },
         title: "Distributed transactions and sagas",
         level: "advanced",
         body: [
@@ -1739,6 +2053,37 @@ export const design2: Card[] = [
       },
       {
         id: "unique-ids",
+        inPractice:
+          "UUIDv7 was standardised in RFC 9562 in May 2024 and is the sensible modern default when a UUID is wanted: a millisecond timestamp in the leading bits followed by randomness, so it is unique without coordination and still inserts near the end of the index. It gives most of what a Snowflake id gives with none of the machine identifier configuration, and it is why the old advice to avoid UUID primary keys needs qualifying by version.",
+        diagram: {
+          caption: "Coordination buys ordering; putting time in the high bits buys it back",
+          columns: [
+            [{ id: "need", label: "An id per row", sub: "at high write rates, sharded", kind: "client" }],
+            [{ id: "seq", label: "Auto-increment", sub: "one coordinator, enumerable", kind: "service", alternative: true },
+             { id: "v4", label: "UUIDv4", sub: "random, no coordination", kind: "service", alternative: true },
+             { id: "v7", label: "UUIDv7 or Snowflake", sub: "time in the high bits", kind: "service" }],
+            [{ id: "bott", label: "Bottleneck and leak", sub: "reveals volume, walkable", kind: "data", alternative: true },
+             { id: "split", label: "Page splits", sub: "inserts land everywhere", kind: "data", alternative: true },
+             { id: "end", label: "Inserts at the end", sub: "locality kept, no coordinator", kind: "data" }],
+            [{ id: "pub", label: "Separate public id", sub: "opaque, for external use", kind: "external" }],
+          ],
+          edges: [
+            { from: "need", to: "seq", label: "simplest" },
+            { from: "need", to: "v4", label: "no coordination" },
+            { from: "need", to: "v7", label: "both properties" },
+            { from: "seq", to: "bott", label: "the cost" },
+            { from: "v4", to: "split", label: "the cost" },
+            { from: "v7", to: "end", label: "sortable and unique" },
+            { from: "end", to: "pub", label: "still discloses time", async: true },
+          ],
+        },
+        sources: [
+          {
+            label: "RFC 9562: universally unique identifiers",
+            url: "https://www.rfc-editor.org/rfc/rfc9562.html",
+            supports: "That UUIDv7 is standardised, that it places a millisecond timestamp in the leading bits, and that it is intended to give time-ordered locality without a coordinator.",
+          },
+        ],
         title: "Generating unique ids at scale",
         level: "intermediate",
         body: [
@@ -1810,6 +2155,27 @@ export const design2: Card[] = [
     topics: [
       {
         id: "oltp-olap",
+        inPractice:
+          "The two ends have converged enough that the product names are a poor guide and the physical layout is the reliable one. Postgres has columnar extensions, DuckDB puts a vectorised analytical engine in a single process on a laptop, and lakehouse formats such as Iceberg and Delta bring transactions to files sitting in object storage. What stays true is that row layout serves fetching whole records and column layout serves scanning a few fields across very many of them.",
+        diagram: {
+          caption: "The physical layout is the whole performance story",
+          columns: [
+            [{ id: "q1", label: "Fetch one order", sub: "every column of one row", kind: "client" },
+             { id: "q2", label: "Sum revenue by month", sub: "3 columns of a billion rows", kind: "client" }],
+            [{ id: "row", label: "Row store", sub: "one record, one read", kind: "data" },
+             { id: "col", label: "Column store", sub: "unnamed columns cost nothing", kind: "data" }],
+            [{ id: "compress", label: "Compression works", sub: "one kind of value per column", kind: "service" },
+             { id: "contend", label: "Same buffer pool", sub: "a scan evicts the working set", kind: "service", alternative: true }],
+            [{ id: "order", label: "Replica, then view, then warehouse", sub: "in that order", kind: "external" }],
+          ],
+          edges: [
+            { from: "q1", to: "row", label: "contiguous" },
+            { from: "q2", to: "col", label: "pruned" },
+            { from: "col", to: "compress", label: "then vectorised" },
+            { from: "q2", to: "contend", label: "if run on the primary" },
+            { from: "contend", to: "order", label: "the remedies, cheapest first" },
+          ],
+        },
         title: "OLTP and OLAP",
         level: "beginner",
         body: [
@@ -1874,6 +2240,33 @@ export const design2: Card[] = [
       },
       {
         id: "batch-vs-stream",
+        inPractice:
+          "The Dataflow model is the standard reference for the part that makes streaming hard, and its framing is the useful one: what results are computed, where in event time, when in processing time they are emitted, and how later refinements relate to earlier ones. Those four questions are exactly the decisions a streaming pipeline cannot avoid, and watermarks are the mechanism for the third.",
+        diagram: {
+          caption: "Event time is when it happened; processing time is when it arrived",
+          columns: [
+            [{ id: "phone", label: "Offline for an hour", sub: "events buffered on the device", kind: "client" }],
+            [{ id: "proc", label: "Group by arrival", sub: "an hour lands in one window", kind: "service", alternative: true },
+             { id: "ev", label: "Group by event time", sub: "each lands where it happened", kind: "service" }],
+            [{ id: "wm", label: "Watermark", sub: "how long to wait for stragglers", kind: "data" }],
+            [{ id: "late", label: "Arrives after close", sub: "discard, restate, or hold longer", kind: "external" },
+             { id: "replay", label: "Keep the log", sub: "a bug becomes a re-run", kind: "external" }],
+          ],
+          edges: [
+            { from: "phone", to: "proc", label: "silently wrong" },
+            { from: "phone", to: "ev", label: "correct" },
+            { from: "ev", to: "wm", label: "needs a decision" },
+            { from: "wm", to: "late", label: "no default is right" },
+            { from: "ev", to: "replay", label: "what makes it survivable", async: true },
+          ],
+        },
+        sources: [
+          {
+            label: "Akidau et al., The Dataflow model (VLDB 2015)",
+            url: "https://research.google/pubs/the-dataflow-model-a-practical-approach-to-balancing-correctness-latency-and-cost-in-massive-scale-unbounded-out-of-order-data-processing/",
+            supports: "The event time against processing time distinction, watermarks as the mechanism for deciding how long to wait, and the framing of late data as a choice between discarding, restating and waiting.",
+          },
+        ],
         title: "Batch and streaming",
         level: "intermediate",
         body: [
@@ -1936,6 +2329,26 @@ export const design2: Card[] = [
       },
       {
         id: "cdc",
+        diagram: {
+          caption: "One commit, and everything downstream derived from its log",
+          columns: [
+            [{ id: "app", label: "Application", sub: "one write, one commit", kind: "client" }],
+            [{ id: "db", label: "Database", sub: "already writing a WAL", kind: "data" },
+             { id: "dual", label: "Dual write", sub: "commit, then publish", kind: "data", alternative: true }],
+            [{ id: "cdc", label: "Log reader", sub: "a second consumer of the WAL", kind: "service" },
+             { id: "gap", label: "The gap", sub: "die in between, nothing detects it", kind: "service", alternative: true }],
+            [{ id: "sinks", label: "Index, cache, warehouse", sub: "cannot disagree with the data", kind: "external" },
+             { id: "slot", label: "Unread replication slot", sub: "holds WAL, fills the disk", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "app", to: "db", label: "the only write" },
+            { from: "app", to: "dual", label: "two operations" },
+            { from: "dual", to: "gap", label: "no atomicity" },
+            { from: "db", to: "cdc", label: "no query load" },
+            { from: "cdc", to: "sinks", label: "ordered, includes deletes" },
+            { from: "cdc", to: "slot", label: "if a consumer stalls", async: true },
+          ],
+        },
         title: "Change data capture",
         level: "advanced",
         body: [

@@ -9,6 +9,13 @@ export const design: Card[] = [
     topics: [
       {
         id: "cache-strategies",
+        sources: [
+          {
+            label: "Nishtala et al., Scaling Memcache at Facebook (NSDI 2013)",
+            url: "https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170_update.pdf",
+            supports: "That the deployment is cache-aside, and that the published account is mostly about failure modes rather than about the hit path.",
+          },
+        ],
         title: "Cache-aside, write-through, write-behind",
         level: "beginner",
         body: [
@@ -82,6 +89,13 @@ export const design: Card[] = [
       },
       {
         id: "invalidation",
+        sources: [
+          {
+            label: "Nishtala et al., Scaling Memcache at Facebook (NSDI 2013)",
+            url: "https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170_update.pdf",
+            supports: "The stale set failure and the lease token issued at read time that lets the cache reject a late write.",
+          },
+        ],
         title: "Invalidation: TTL, explicit, and versioned keys",
         level: "intermediate",
         body: [
@@ -164,6 +178,18 @@ export const design: Card[] = [
       },
       {
         id: "redis-structures",
+        sources: [
+          {
+            label: "Redis: cluster specification",
+            url: "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+            supports: "The 16,384 hash slots, and that a multi-key operation requires its keys in one slot, which is what hash tags exist to force.",
+          },
+          {
+            label: "Redis: key eviction",
+            url: "https://redis.io/docs/latest/develop/reference/eviction/",
+            supports: "That the default policy is noeviction, which returns errors on writes at maxmemory rather than making room, and that LRU and LFU are both sampled approximations.",
+          },
+        ],
         title: "Redis beyond get and set",
         level: "intermediate",
         body: [
@@ -246,6 +272,13 @@ export const design: Card[] = [
       },
       {
         id: "cache-failures",
+        sources: [
+          {
+            label: "Nishtala et al., Scaling Memcache at Facebook (NSDI 2013)",
+            url: "https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170_update.pdf",
+            supports: "The lease mechanism described here, which addresses both the stampede and the stale set with one token, alongside the regional pools and the gutter tier.",
+          },
+        ],
         title: "Stampedes, avalanches and hot keys",
         level: "advanced",
         body: [
@@ -329,6 +362,18 @@ export const design: Card[] = [
       },
       {
         id: "http-caching",
+        sources: [
+          {
+            label: "RFC 5861: HTTP Cache-Control extensions for stale content",
+            url: "https://www.rfc-editor.org/rfc/rfc5861.html",
+            supports: "The stale-while-revalidate and stale-if-error directives described here.",
+          },
+          {
+            label: "GitHub REST API, conditional requests and rate limits",
+            url: "https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api",
+            supports: "That a conditional request returning 304 Not Modified does not count against the primary rate limit, which is a limit designed to reward correct caching.",
+          },
+        ],
         title: "Caching at the edge",
         level: "intermediate",
         body: [
@@ -411,6 +456,13 @@ export const design: Card[] = [
       },
       {
         id: "what-not-to-cache",
+        sources: [
+          {
+            label: "AWS IAM, changes that I make are not always immediately visible",
+            url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/troubleshoot_general.html#troubleshoot_general_eventual-consistency",
+            supports: "That IAM is eventually consistent by design and documents the propagation delay, which is the honest form of caching a permission decision.",
+          },
+        ],
         title: "What not to cache",
         level: "advanced",
         body: [
@@ -501,6 +553,18 @@ export const design: Card[] = [
     topics: [
       {
         id: "lb-algorithms",
+        sources: [
+          {
+            label: "Envoy, supported load balancers",
+            url: "https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers",
+            supports: "That Envoy's default policy is round robin, and that two random choices is the algorithm used by its least-request policy, where the number of hosts sampled defaults to two.",
+          },
+          {
+            label: "Mitzenmacher, The power of two choices in randomized load balancing",
+            url: "https://www.eecs.harvard.edu/~michaelm/postscripts/mythesis.pdf",
+            supports: "The result that sampling two servers at random and choosing the less loaded gets close to the best possible balance without any global state.",
+          },
+        ],
         title: "Round robin, least connections, hashing",
         level: "beginner",
         body: [
@@ -513,7 +577,7 @@ export const design: Card[] = [
         ],
         why: "Round robin is the default and is wrong whenever request cost varies wildly, one slow endpoint drags a server down while the balancer keeps feeding it work.",
         inPractice:
-          "Envoy and most modern proxies default to a variant of power of two random choices rather than to strict round robin, because it approximates least connections without maintaining shared state across every node in the fleet.",
+          "Two random choices is what large proxies reach for when exact counts are impractical, and it is worth being precise about who does what. Envoy's default policy is round robin; two random choices is the algorithm behind its least-request policy, where the number of hosts sampled defaults to two. Linkerd's proxy goes further and makes it the default, combining it with an exponentially weighted moving average of observed latency so the less busy of the two is also the historically faster one.",
         check: {
           prompt: "Requests range from 5ms to 30s. Which algorithm distributes load best?",
           options: ["Round robin", "Least connections", "Random", "IP hash"],
@@ -581,6 +645,36 @@ export const design: Card[] = [
       },
       {
         id: "consistent-hashing",
+        diagram: {
+          caption: "Adding a node moves one node's worth of keys, not nearly all of them",
+          columns: [
+            [{ id: "keys", label: "Keys", sub: "hashed onto a ring", kind: "client" }],
+            [{ id: "mod", label: "hash mod N", sub: "N changes, everything moves", kind: "service", alternative: true },
+             { id: "ring", label: "Ring, clockwise", sub: "with ~100 virtual nodes each", kind: "service" }],
+            [{ id: "empty", label: "Cache empties", sub: "4 keys in 5 relocate", kind: "data", alternative: true },
+             { id: "slice", label: "One slice moves", sub: "roughly 1/N of keys", kind: "data" }],
+            [{ id: "hot", label: "A single hot key", sub: "still lands on one node", kind: "external" }],
+          ],
+          edges: [
+            { from: "keys", to: "mod", label: "add a fifth node" },
+            { from: "mod", to: "empty", label: "cold reads at origin" },
+            { from: "keys", to: "ring", label: "add a fifth node" },
+            { from: "ring", to: "slice", label: "the rest undisturbed" },
+            { from: "slice", to: "hot", label: "different problem", async: true },
+          ],
+        },
+        sources: [
+          {
+            label: "Karger et al., Consistent hashing and random trees (STOC 1997)",
+            url: "https://dl.acm.org/doi/10.1145/258533.258660",
+            supports: "The original construction, and the property that a membership change relocates only a 1/N share of keys.",
+          },
+          {
+            label: "Google Research, Consistent hashing with bounded loads",
+            url: "https://research.google/blog/consistent-hashing-with-bounded-loads/",
+            supports: "The bounded-load refinement, where a node at its capacity share passes a key onward rather than accepting it.",
+          },
+        ],
         title: "Consistent hashing",
         level: "advanced",
         body: [
@@ -648,10 +742,11 @@ export const design: Card[] = [
         title: "Health checks and draining",
         level: "intermediate",
         body: [
-          "A shallow health check confirms the process is alive. A deep one confirms it can reach its dependencies.",
-          "Deep checks catch more, and can take an entire fleet out when a shared dependency wobbles. The failure is correlated by construction: every node checks the same database, so every node fails the check in the same second.",
-          "The usual compromise is a deep check that degrades instead of failing. Report unhealthy only after several consecutive failures, and never let a dependency the request path does not need mark you down.",
-          "Connection draining then lets a server finish its in-flight requests before it leaves the pool, so a deploy does not drop live traffic. Keep readiness and liveness separate while you are there, not ready yet and needs restarting call for very different responses.",
+          "A health check answers a question the load balancer is about to act on, so what it asks decides what happens during a failure. A shallow check confirms the process is alive and listening, which is cheap and catches a crashed or hung process. A deep check confirms the instance can reach the dependencies it needs to serve a request, which catches far more and is where the danger is.",
+          "The danger is correlation, and it is a property of the design rather than bad luck. Every instance checks the same database, so when that database wobbles every instance fails its check in the same second, the balancer removes all of them, and a dependency that was merely slow becomes a total outage with no healthy targets left to receive traffic. The failure path amplified the failure, which is worse than having no failure path at all, because at least some requests would have succeeded.",
+          "The compromise that works is a deep check that degrades rather than fails. Require several consecutive failures before reporting unhealthy, so a single slow response does not remove an instance. Give the check its own short timeout, well inside the interval, so a hanging dependency does not make the check itself hang. Never let a dependency the request path does not need mark you down, which sounds obvious and is routinely violated by a check that pings six services because six were available to ping. And where the balancer supports it, use the setting that stops removing instances once too few remain healthy, which converts the correlated failure into degraded service rather than none.",
+          "Keep readiness and liveness separate, because they answer different questions and conflating them is how a slow dependency becomes a restart loop. Liveness asks whether to restart this process, so it should be shallow and almost never fail: a process that is running should say yes even while a dependency is down, because restarting it will not fix the database. Readiness asks whether to send it traffic, so it may legitimately say no while a cache warms or a migration finishes. Point liveness at a deep check and a database blip restarts the fleet, which loses the warm caches and the in-flight requests as well.",
+          "Connection draining is the other half and it is what makes deploys invisible. When an instance is removed, in-flight requests need time to finish before the process exits, so the balancer stops sending new work, waits for a grace period longer than a normal request, and only then lets it go. Without it a rolling deploy drops live traffic on every step, which shows up as a small error spike at each deploy that everybody eventually stops noticing. The sequence that works is to fail readiness first, keep serving for a few seconds while the balancer notices, then stop accepting and finish what is open.",
         ],
         why: "Making the health check depend on the database means a brief database blip marks every server unhealthy simultaneously, turning a degraded system into a total outage. The check is part of the failure path, and a failure path that amplifies is worse than no failure path at all.",
         inPractice:
@@ -831,6 +926,26 @@ export const design: Card[] = [
     topics: [
       {
         id: "why-queues",
+        diagram: {
+          caption: "A queue decouples the arrival rate from the processing rate, and nothing more",
+          columns: [
+            [{ id: "spike", label: "Spike", sub: "4x average arrivals", kind: "client" }],
+            [{ id: "sync", label: "Synchronous", sub: "a worker per arrival", kind: "service", alternative: true },
+             { id: "q", label: "Queue", sub: "bounded, monitored by age", kind: "queue" }],
+            [{ id: "fail", label: "Errors at the door", sub: "sized for average, not peak", kind: "data", alternative: true },
+             { id: "workers", label: "Workers", sub: "steady rate, drains the backlog", kind: "service" }],
+            [{ id: "owed", label: "What you now owe", sub: "a status, and a notification", kind: "external" },
+             { id: "runaway", label: "Sustained overload", sub: "backlog grows without bound", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "spike", to: "sync", label: "needs a worker now" },
+            { from: "sync", to: "fail", label: "falls over" },
+            { from: "spike", to: "q", label: "accepted immediately" },
+            { from: "q", to: "workers", label: "drains over minutes" },
+            { from: "workers", to: "owed", label: "eventual consistency" },
+            { from: "q", to: "runaway", label: "a queue adds no throughput", async: true },
+          ],
+        },
         title: "What a queue actually buys you",
         level: "beginner",
         body: [
@@ -895,12 +1010,21 @@ export const design: Card[] = [
       },
       {
         id: "delivery-guarantees",
+        inPractice:
+          "Kafka's exactly-once semantics are real and are worth knowing the boundary of: they cover reading from a topic, writing to a topic and committing the offset as one atomic unit inside Kafka, using an idempotent producer and transactions. The moment a handler calls a payment provider or writes to another database, the guarantee has left the building, which is why the durable answer is still at-least-once delivery plus an idempotent consumer.",
+        sources: [
+          {
+            label: "Apache Kafka: transactions and exactly-once semantics",
+            url: "https://kafka.apache.org/documentation/#semantics",
+            supports: "That Kafka's exactly-once guarantee is scoped to a read, process and write cycle within Kafka rather than end to end across external systems.",
+          },
+        ],
         title: "At-most-once, at-least-once, exactly-once",
         level: "intermediate",
         body: [
           "At-most-once may drop messages. At-least-once may deliver twice. Exactly-once is what everyone wants, and end to end in a distributed system it is not achievable, because the acknowledgement itself can be lost and the sender cannot tell a lost ack from a lost message.",
           "What gets sold as exactly-once is at-least-once delivery plus idempotent processing, so a duplicate has no additional effect. Kafka's exactly-once semantics are real but scoped: they cover reading from a topic, writing to a topic, and committing the offset, as one atomic unit inside Kafka. The moment your handler calls Stripe, that guarantee has left the building.",
-          "The rate matters for how much you care. Duplicates are rare, in the region of one in ten thousand under normal operation, and then arrive in a cluster during a rebalance or a network partition, which is exactly when you are least able to reason about them. Designing for the average rate is how you get a bad afternoon during an incident.",
+          "The rate is the part worth understanding, and it is not a single number anyone can quote across brokers. In steady state duplicates are rare enough that a system can run for weeks without one being noticed. They do not arrive uniformly: they cluster during a consumer group rebalance, a partition, a failover or a deploy that restarts a worker mid-batch, which is precisely when everything else is also going wrong and nobody has the attention to reason about them. So the number to design against is not the average rate but the burst, and the only design that survives a burst is a handler where a repeat costs nothing.",
           "Idempotency in practice is a table of processed message ids with a unique constraint, checked inside the same transaction as the work. Insert the id, do the work, commit. A duplicate hits the constraint and rolls back having done nothing. Keep the ids for longer than your broker's maximum redelivery window, and remember that a natural key from the payload, an order id, is often better than the broker's message id, which changes on republish.",
         ],
         why:
@@ -997,6 +1121,13 @@ export const design: Card[] = [
       },
       {
         id: "ordering",
+        sources: [
+          {
+            label: "Apache Kafka: design and guarantees",
+            url: "https://kafka.apache.org/documentation/#design",
+            supports: "That order is guaranteed within a partition and not across partitions, and that a partition is the unit of consumer parallelism, so the partition count caps the consumers in a group.",
+          },
+        ],
         title: "Ordering and partitions",
         level: "advanced",
         body: [
@@ -1109,6 +1240,13 @@ export const design: Card[] = [
       },
       {
         id: "dead-letter",
+        sources: [
+          {
+            label: "Amazon SQS: dead-letter queues and redrive",
+            url: "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html",
+            supports: "The redrive policy described here: a maximum receive count after which a message moves automatically, and a redrive action to send messages back once the bug is fixed.",
+          },
+        ],
         title: "Retries and dead letter queues",
         level: "intermediate",
         body: [
@@ -1228,6 +1366,18 @@ export const design: Card[] = [
       },
       {
         id: "broker-choice",
+        sources: [
+          {
+            label: "Amazon SQS: visibility timeout",
+            url: "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html",
+            supports: "That the default visibility timeout is 30 seconds and the maximum is 12 hours, and that a handler overrunning it without extending will see the message delivered again.",
+          },
+          {
+            label: "Redis: Streams",
+            url: "https://redis.io/docs/latest/develop/data-types/streams/",
+            supports: "That consumer groups, acknowledgements and a pending entries list give real queue semantics, with durability bounded by the append-only file's fsync policy.",
+          },
+        ],
         title: "Choosing a broker",
         level: "advanced",
         body: [
@@ -1326,6 +1476,13 @@ export const design: Card[] = [
     topics: [
       {
         id: "read-replicas",
+        sources: [
+          {
+            label: "GitHub, October 21 post-incident analysis (2018)",
+            url: "https://github.blog/news-insights/company-news/oct21-post-incident-analysis/",
+            supports: "The incident described here: a network partition left replicas behind the primary, and the decision to serve stale data rather than fail.",
+          },
+        ],
         title: "Read replicas and replication lag",
         level: "intermediate",
         body: [
@@ -1446,6 +1603,13 @@ export const design: Card[] = [
       },
       {
         id: "sharding",
+        sources: [
+          {
+            label: "Notion, Herding elephants: lessons learned from sharding Postgres at Notion (2021)",
+            url: "https://www.notion.com/blog/sharding-postgres-at-notion",
+            supports: "That the shard key was chosen as the workspace because almost every query in the product is scoped to one, and that the migration was measured in months.",
+          },
+        ],
         title: "Sharding and choosing a key",
         level: "advanced",
         body: [
@@ -1527,6 +1691,35 @@ export const design: Card[] = [
       },
       {
         id: "cap",
+        diagram: {
+          caption: "A partition forces one answer, and the else branch is every other request",
+          columns: [
+            [{ id: "part", label: "Network partition", sub: "or a GC pause that looks like one", kind: "external" }],
+            [{ id: "refuse", label: "Refuse the write", sub: "consistent, unavailable", kind: "service" },
+             { id: "accept", label: "Accept the write", sub: "available, may diverge", kind: "service" }],
+            [{ id: "merge", label: "The merge rule", sub: "the interesting engineering", kind: "data" }],
+            [{ id: "els", label: "No partition", sub: "latency against consistency", kind: "data" }],
+          ],
+          edges: [
+            { from: "part", to: "refuse", label: "ledger" },
+            { from: "part", to: "accept", label: "cash machine" },
+            { from: "accept", to: "merge", label: "reconcile afterwards" },
+            { from: "refuse", to: "els", label: "and the rest of the year" },
+            { from: "accept", to: "els", label: "and the rest of the year" },
+          ],
+        },
+        sources: [
+          {
+            label: "Brewer, CAP twelve years later: how the rules have changed (IEEE, 2012)",
+            url: "https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/",
+            supports: "That the choice is not a one-off classification, the cash machine illustration, and that consistency in CAP means linearizability rather than the C in ACID.",
+          },
+          {
+            label: "Amazon DynamoDB: read consistency",
+            url: "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html",
+            supports: "That the trade is exposed per read as a parameter, eventually consistent by default and strongly consistent on request at twice the capacity cost.",
+          },
+        ],
         title: "CAP, stated usefully",
         level: "intermediate",
         body: [
@@ -1593,6 +1786,13 @@ export const design: Card[] = [
       },
       {
         id: "eventual-consistency",
+        sources: [
+          {
+            label: "DeCandia et al., Dynamo: Amazon's highly available key-value store (SOSP 2007)",
+            url: "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf",
+            supports: "That conflicting shopping basket versions are merged by taking the union, so a partition can lose a removal but never a purchase, and that this is stated as a business decision expressed as a merge rule.",
+          },
+        ],
         title: "Eventual consistency in the interface",
         level: "advanced",
         body: [
@@ -1685,11 +1885,23 @@ export const design: Card[] = [
     topics: [
       {
         id: "rate-limiting",
+        sources: [
+          {
+            label: "Stripe, Scaling your API with rate limiters",
+            url: "https://stripe.com/blog/rate-limiters",
+            supports: "That Stripe runs four limiters side by side, a request rate limiter, a concurrent request limiter and two load shedders reserving capacity for critical traffic.",
+          },
+          {
+            label: "Cloudflare, How we built rate limiting capable of scaling to millions of domains",
+            url: "https://blog.cloudflare.com/counting-things-a-lot-of-different-things/",
+            supports: "The counting method quoted here, current window plus previous window weighted by the fraction not yet elapsed, and the reported 0.003 per cent divergence from a true sliding window across 400 million requests.",
+          },
+        ],
         title: "Token bucket and sliding window",
         level: "intermediate",
         body: [
           "A fixed window counter is simple, and it allows double the limit across a boundary: a full quota at the end of one window, another full quota at the start of the next. A limit of 100 a minute permits 200 in the two seconds either side of the boundary, which is exactly the burst you were trying to prevent, and it arrives at the least convenient moment because every client with a cron job fires on the minute.",
-          "A sliding window fixes that by weighting the previous window: twenty seconds into the current one, it counts a third of the current window plus two thirds of the last. It is an approximation, and it is cheap, one counter per window per key rather than a timestamp per request, which is why it is what large edge platforms actually run. A true sliding log, keeping every request timestamp, is exact and costs memory proportional to traffic, which is the wrong trade at the edge and the right one for a small number of very expensive operations.",
+          "A sliding window fixes that by weighting the previous window and counting the current one in full: the estimate is the current count plus the previous count times one minus the fraction elapsed. Twenty seconds into a sixty second window that is everything counted so far plus two thirds of the last window, and the previous window's contribution fades linearly to nothing as the current one fills. It is an approximation, and it is cheap, two counters per key rather than a timestamp per request, which is why it is what large edge platforms actually run. Cloudflare reported that across 400 million requests only 0.003 per cent were allowed or rejected differently from a true sliding window, which is the number that justifies the approximation. A true sliding log, keeping every request timestamp, is exact and costs memory proportional to traffic, which is the wrong trade at the edge and the right one for a small number of very expensive operations.",
           "A token bucket takes a different approach: refill at a steady rate up to a maximum, spend one token per request. It usually fits an API best, because real traffic is bursty and a strictly even rate feels broken to whoever is using it. A bucket of 100 refilling at 10 a second lets a client that has idled for ten seconds fire 100 requests immediately, then settle to 10 a second, which is what a paginating script or a page loading twelve resources actually does. The leaky bucket is the same shape with the burst removed: a queue that drains at a fixed rate, right when the thing you are protecting cannot absorb a spike at all.",
           "Where you count matters as much as how you count. Per-IP catches obvious abuse and punishes an office behind one NAT, or every user of a mobile carrier's gateway. Per-key is right for an authenticated API and useless before login, which is where the credential stuffing happens. Per-user-per-endpoint is the most correct and carries the most state. Most real systems run several limiters at once, on different keys, for different reasons.",
           "Stripe published theirs, and the shape is worth copying: a request rate limiter for sustained traffic, a concurrency limiter for calls in flight at once because a slow endpoint can starve a fleet without ever breaching a rate, and two load shedders that reserve capacity for critical traffic when the fleet is under pressure, so a runaway batch job cannot stop a card being charged.",
@@ -1767,6 +1979,18 @@ export const design: Card[] = [
       },
       {
         id: "timeouts",
+        sources: [
+          {
+            label: "Amazon Builders' Library, Timeouts, retries and backoff with jitter",
+            url: "https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/",
+            supports: "The recommendation to choose timeouts from the observed latency distribution rather than from round numbers, on the grounds that a timeout chosen without data either never fires or fires constantly.",
+          },
+          {
+            label: "gRPC: deadlines",
+            url: "https://grpc.io/docs/guides/deadlines/",
+            supports: "That a gRPC call carries a deadline as part of the call and propagates the remaining time to downstream calls, rather than each hop starting a fresh clock.",
+          },
+        ],
         title: "Timeouts and deadlines",
         level: "intermediate",
         body: [
@@ -1849,6 +2073,18 @@ export const design: Card[] = [
       },
       {
         id: "retries-backoff",
+        sources: [
+          {
+            label: "AWS Architecture Blog, Exponential backoff and jitter (2015)",
+            url: "https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/",
+            supports: "That full jitter, a random wait between zero and the capped exponential interval, produced substantially less contention and less total work than plain exponential backoff.",
+          },
+          {
+            label: "Google SRE Book, Handling overload",
+            url: "https://sre.google/sre-book/handling-overload/",
+            supports: "The client-side retry budget of around ten per cent of requests, and the practice of servers signalling explicitly when a request should not be retried.",
+          },
+        ],
         title: "Retries, backoff and jitter",
         level: "intermediate",
         body: [
@@ -1936,6 +2172,13 @@ export const design: Card[] = [
       },
       {
         id: "circuit-breakers",
+        sources: [
+          {
+            label: "Netflix TechBlog, Hystrix is no longer in active development",
+            url: "https://github.com/Netflix/Hystrix/blob/master/README.md",
+            supports: "That Netflix retired Hystrix in favour of adaptive concurrency limits, which infer the safe level of in-flight work from observed latency rather than from hand-chosen thresholds.",
+          },
+        ],
         title: "Circuit breakers and bulkheads",
         level: "intermediate",
         body: [
@@ -2019,6 +2262,18 @@ export const design: Card[] = [
       },
       {
         id: "graceful-degradation",
+        sources: [
+          {
+            label: "Facebook, Fail at scale (ACM Queue, 2015)",
+            url: "https://queue.acm.org/detail.cfm?id=2839461",
+            supports: "That request queues were switched to last-in-first-out with a controlled-delay controller under overload, on the reasoning that an old queued request has probably already been abandoned.",
+          },
+          {
+            label: "Amazon Builders' Library, Static stability using availability zones",
+            url: "https://aws.amazon.com/builders-library/static-stability-using-availability-zones/",
+            supports: "The static stability property described here: a system keeps working with the data it already has while its control plane is unavailable, so only changes stop.",
+          },
+        ],
         title: "Graceful degradation and load shedding",
         level: "advanced",
         body: [
@@ -2114,6 +2369,18 @@ export const design: Card[] = [
     topics: [
       {
         id: "logs-metrics-traces",
+        sources: [
+          {
+            label: "Sigelman et al., Dapper, a large-scale distributed systems tracing infrastructure (Google, 2010)",
+            url: "https://research.google/pubs/dapper-a-large-scale-distributed-systems-tracing-infrastructure/",
+            supports: "The span and trace model most tracing systems still follow, and the aggressive sampling described for high-throughput services, as low as one request in 1,024.",
+          },
+          {
+            label: "W3C Trace Context",
+            url: "https://www.w3.org/TR/trace-context/",
+            supports: "That the traceparent header is a standard, which is what allows a trace to survive crossing between systems written by different people.",
+          },
+        ],
         title: "Logs, metrics and traces",
         level: "beginner",
         body: [
@@ -2193,6 +2460,13 @@ export const design: Card[] = [
       },
       {
         id: "percentiles",
+        sources: [
+          {
+            label: "Dean and Barroso, The Tail at Scale (CACM, 2013)",
+            url: "https://research.google/pubs/the-tail-at-scale/",
+            supports: "That with 100 servers per request, a one-in-a-hundred slow response at a component becomes a roughly two-in-three chance at the request.",
+          },
+        ],
         title: "Percentiles, not averages",
         level: "intermediate",
         body: [
@@ -2276,6 +2550,13 @@ export const design: Card[] = [
       },
       {
         id: "slo",
+        sources: [
+          {
+            label: "Google SRE Book, Service level objectives",
+            url: "https://sre.google/sre-book/service-level-objectives/",
+            supports: "The SLI, SLO and error budget formulation, and the policy that an exhausted budget stops feature launches until reliability work restores it.",
+          },
+        ],
         title: "SLIs, SLOs and error budgets",
         level: "advanced",
         body: [
@@ -2358,6 +2639,18 @@ export const design: Card[] = [
       },
       {
         id: "alerting",
+        sources: [
+          {
+            label: "Google SRE Workbook, Alerting on SLOs",
+            url: "https://sre.google/workbook/alerting-on-slos/",
+            supports: "The multi-window multi-burn-rate approach, including that a 14.4 times burn rate over one hour consumes two per cent of a 30-day budget and is worth paging on, while a slower burn over six hours is a ticket.",
+          },
+          {
+            label: "Google SRE Book, Monitoring distributed systems",
+            url: "https://sre.google/sre-book/monitoring-distributed-systems/",
+            supports: "The four golden signals of latency, traffic, errors and saturation, and the argument for alerting on symptoms rather than causes.",
+          },
+        ],
         title: "Alerts worth waking up for",
         level: "advanced",
         body: [
@@ -2443,6 +2736,13 @@ export const design: Card[] = [
       },
       {
         id: "cardinality",
+        sources: [
+          {
+            label: "Prometheus documentation, Cautions on cardinality",
+            url: "https://prometheus.io/docs/practices/naming/#labels",
+            supports: "That every distinct label combination is a separate time series, so an unbounded label such as a user identifier can take the monitoring system down while the service it monitors stays healthy.",
+          },
+        ],
         title: "Cardinality, sampling and the bill",
         level: "advanced",
         body: [

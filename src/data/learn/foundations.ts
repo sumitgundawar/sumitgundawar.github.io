@@ -102,6 +102,36 @@ export const foundations: Card[] = [
       },
       {
         id: "tcp-vs-udp",
+        inPractice:
+          "QUIC is the demonstration that the choice is not binary. It runs on UDP and rebuilds ordering, reliability and congestion control in user space, per stream, which is why HTTP/3 gets TCP's guarantees without TCP's head-of-line blocking. It is also why the work happens in user space at all: TCP lives in the kernel and changes at the speed of operating system upgrades, while QUIC ships with the browser.",
+        diagram: {
+          caption: "The guarantee is worth paying for, unless stale data is worthless",
+          columns: [
+            [{ id: "file", label: "File transfer", sub: "byte 400 needs byte 399", kind: "client" },
+             { id: "call", label: "Live call", sub: "a late frame is worthless", kind: "client" }],
+            [{ id: "tcp", label: "TCP", sub: "ordered, retransmitted", kind: "edge" },
+             { id: "udp", label: "UDP", sub: "no order, no retries", kind: "edge" },
+             { id: "quic", label: "QUIC", sub: "ordered per stream", kind: "edge" }],
+            [{ id: "hol", label: "Head-of-line blocking", sub: "one loss stalls the rest", kind: "data" },
+             { id: "drop", label: "Loss is dropped", sub: "playback continues", kind: "data" },
+             { id: "own", label: "You write reliability", sub: "and congestion control", kind: "data", alternative: true }],
+          ],
+          edges: [
+            { from: "file", to: "tcp", label: "take the guarantee" },
+            { from: "call", to: "udp", label: "skip it" },
+            { from: "tcp", to: "hol", label: "the price" },
+            { from: "udp", to: "drop", label: "the point" },
+            { from: "udp", to: "own", label: "the hidden bill" },
+            { from: "call", to: "quic", label: "or both, per stream" },
+          ],
+        },
+        sources: [
+          {
+            label: "RFC 9000: QUIC, a UDP-based multiplexed and secure transport",
+            url: "https://www.rfc-editor.org/rfc/rfc9000.html",
+            supports: "That QUIC provides per-stream ordering over UDP, folds in the TLS handshake, and identifies connections by a connection id rather than the address tuple.",
+          },
+        ],
         title: "TCP and UDP",
         level: "beginner",
         body: [
@@ -164,6 +194,40 @@ export const foundations: Card[] = [
       },
       {
         id: "http-versions",
+        diagram: {
+          caption: "Each version removes the previous version's workaround",
+          columns: [
+            [{ id: "page", label: "One page", sub: "40 resources", kind: "client" }],
+            [{ id: "h1", label: "HTTP/1.1", sub: "6 connections per host", kind: "edge" },
+             { id: "h2", label: "HTTP/2", sub: "multiplexed, HPACK", kind: "edge" },
+             { id: "h3", label: "HTTP/3", sub: "QUIC over UDP", kind: "edge" }],
+            [{ id: "hacks", label: "Sprites and sharding", sub: "now actively harmful", kind: "data", alternative: true },
+             { id: "tcphol", label: "One TCP byte stream", sub: "a loss stalls every stream", kind: "data" },
+             { id: "perstream", label: "Independent streams", sub: "a loss stalls one", kind: "data" }],
+            [{ id: "mobile", label: "Wifi to mobile data", sub: "connection id survives it", kind: "external" }],
+          ],
+          edges: [
+            { from: "page", to: "h1", label: "bundle to fit" },
+            { from: "h1", to: "hacks", label: "the workarounds" },
+            { from: "page", to: "h2", label: "one connection" },
+            { from: "h2", to: "tcphol", label: "still on TCP" },
+            { from: "page", to: "h3", label: "one connection" },
+            { from: "h3", to: "perstream", label: "loss isolated" },
+            { from: "h3", to: "mobile", label: "and it migrates" },
+          ],
+        },
+        sources: [
+          {
+            label: "Chrome Platform Status: HTTP/2 and gQUIC server push removal",
+            url: "https://chromestatus.com/feature/6302414934114304",
+            supports: "That Chrome removed support for HTTP/2 server push, which is the evidence that a feature nobody could use correctly was not a feature.",
+          },
+          {
+            label: "RFC 9114: HTTP/3",
+            url: "https://www.rfc-editor.org/rfc/rfc9114.html",
+            supports: "That HTTP/3 runs over QUIC, giving per-stream ordering and a connection identifier independent of the address and port.",
+          },
+        ],
         title: "HTTP/1.1, HTTP/2 and HTTP/3",
         level: "intermediate",
         body: [
@@ -229,6 +293,28 @@ export const foundations: Card[] = [
       },
       {
         id: "dns",
+        inPractice:
+          "The rule that TTL is a request rather than an instruction is why large systems point their public names at something stable, a load balancer or an anycast address, and move traffic behind it. Cloudflare and Google Public DNS both answer from hundreds of anycast locations for the same reason: a location can be withdrawn without any record changing, so failover does not wait on anybody's cache.",
+        diagram: {
+          caption: "Nothing propagates: caches expire, and they expire when they choose",
+          columns: [
+            [{ id: "client", label: "Client", sub: "asks once", kind: "client" }],
+            [{ id: "browser", label: "Browser cache", sub: "own lifetime", kind: "edge" },
+             { id: "os", label: "OS cache", sub: "own lifetime", kind: "edge" },
+             { id: "resolver", label: "ISP resolver", sub: "may clamp your TTL", kind: "edge" }],
+            [{ id: "auth", label: "Authoritative", sub: "updated instantly", kind: "data" }],
+            [{ id: "stable", label: "Stable address", sub: "load balancer or anycast", kind: "service" },
+             { id: "cutover", label: "DNS cutover", sub: "completes when caches do", kind: "service", alternative: true }],
+          ],
+          edges: [
+            { from: "client", to: "browser", label: "hit" },
+            { from: "browser", to: "os", label: "miss" },
+            { from: "os", to: "resolver", label: "miss" },
+            { from: "resolver", to: "auth", label: "miss" },
+            { from: "auth", to: "stable", label: "one name, never changes" },
+            { from: "auth", to: "cutover", label: "hours of long tail" },
+          ],
+        },
         title: "DNS and why it hurts you",
         level: "intermediate",
         body: [
@@ -383,6 +469,8 @@ export const foundations: Card[] = [
     topics: [
       {
         id: "big-o",
+        inPractice:
+          "Real sort implementations are the standard demonstration that the asymptotic class is not the whole answer. Both the GNU C++ and the OpenJDK sorts switch to insertion sort below a small threshold, because the constant factors that Big-O discards are exactly what decides the comparison at that size, and Timsort exploits the runs that already exist in real data rather than treating every input as adversarial.",
         title: "Big-O without the ritual",
         level: "beginner",
         body: [
@@ -446,6 +534,26 @@ export const foundations: Card[] = [
       },
       {
         id: "hash-maps",
+        inPractice:
+          "The collision denial of service was a real, widely exploited class, demonstrated across most major language runtimes in 2011, and the response was the same everywhere: seed the hash per process so an attacker cannot precompute a colliding key set. Java went a different way as well, converting a bucket to a balanced tree once enough entries collide, so the degenerate case is logarithmic rather than linear.",
+        diagram: {
+          caption: "The hash chooses the bucket, and everything follows from that",
+          columns: [
+            [{ id: "key", label: "Key", sub: "hashed per process seed", kind: "client" },
+             { id: "evil", label: "Chosen keys", sub: "all hash to one bucket", kind: "client", alternative: true }],
+            [{ id: "hash", label: "Hash function", sub: "seeded at startup", kind: "service" }],
+            [{ id: "bucket", label: "Bucket", sub: "chain or open address", kind: "data" },
+             { id: "one", label: "One bucket", sub: "linear on every lookup", kind: "data", alternative: true }],
+            [{ id: "resize", label: "Resize at ~0.75", sub: "rehash everything, linear pause", kind: "external" }],
+          ],
+          edges: [
+            { from: "key", to: "hash", label: "spread evenly" },
+            { from: "evil", to: "hash", label: "precomputed collisions" },
+            { from: "hash", to: "bucket", label: "constant on average" },
+            { from: "hash", to: "one", label: "the degenerate case" },
+            { from: "bucket", to: "resize", label: "load factor reached", async: true },
+          ],
+        },
         title: "Hash maps and their worst case",
         level: "beginner",
         body: [
@@ -508,10 +616,33 @@ export const foundations: Card[] = [
       },
       {
         id: "trees-indexes",
+        inPractice:
+          "Almost every relational index you will meet is a B+ tree, and almost every modern key-value store is an LSM tree: Postgres and MySQL on one side, RocksDB, Cassandra and LevelDB on the other. Knowing which is underneath a database explains a surprising amount of its behaviour, including why one degrades gently on reads as a table grows and the other needs background compaction operated and tuned.",
+        diagram: {
+          caption: "Two structures, two cost models, one medium each suits",
+          columns: [
+            [{ id: "read", label: "Read-heavy", sub: "point and range lookups", kind: "client" },
+             { id: "write", label: "Write-heavy", sub: "sustained ingest", kind: "client" }],
+            [{ id: "btree", label: "B+ tree", sub: "fanout in the hundreds", kind: "service" },
+             { id: "lsm", label: "LSM tree", sub: "memtable, then sorted files", kind: "service" }],
+            [{ id: "depth", label: "3 or 4 levels", sub: "100M rows, top levels cached", kind: "data" },
+             { id: "seq", label: "Sequential writes", sub: "read may consult many files", kind: "data" }],
+            [{ id: "leaves", label: "Linked leaves", sub: "range scan walks sideways", kind: "external" },
+             { id: "compact", label: "Compaction", sub: "disk bandwidth, later", kind: "external" }],
+          ],
+          edges: [
+            { from: "read", to: "btree", label: "in-place updates" },
+            { from: "write", to: "lsm", label: "append only" },
+            { from: "btree", to: "depth", label: "few reads per lookup" },
+            { from: "lsm", to: "seq", label: "fast to write" },
+            { from: "depth", to: "leaves", label: "BETWEEN is cheap" },
+            { from: "seq", to: "compact", label: "pay for it in background", async: true },
+          ],
+        },
         title: "B-trees and why databases use them",
         level: "intermediate",
         body: [
-          "A balanced binary tree is a fine in-memory structure and a poor on-disk one, because every level is a separate read and a disk read costs roughly a hundred thousand times what a memory access costs. A tree of depth thirty is thirty reads, and the shape of the structure, not the algorithm, is what makes it slow.",
+          "A balanced binary tree is a fine in-memory structure and a poor on-disk one, because every level is a separate read and a read from storage costs orders of magnitude more than a memory access. Be honest about which storage: a seek on a spinning disk is around ten milliseconds against roughly a hundred nanoseconds for main memory, a ratio near a hundred thousand, while an NVMe read is tens of microseconds and the ratio is closer to a thousand. Either way a tree of depth thirty is thirty of them, and the shape of the structure, not the algorithm, is what makes it slow. The B-tree's argument survives the faster medium because a thousandfold is still a thousandfold.",
           "A B-tree fixes it by storing many keys per node, sized to match a disk page, usually a few kilobytes. Fanout of several hundred means depth stays tiny: a table of a hundred million rows is typically three or four levels deep, so a lookup is three or four reads, and the top levels are cached in memory anyway. That is why index depth barely grows as tables get large, which is the property that makes relational databases scale gracefully on reads.",
           "Almost every relational index is a B-tree, and the variant in use is nearly always a B+ tree, where only the leaves hold values and the leaves are linked to each other. That linking is what makes range scans cheap: find the start, then walk sideways, without returning to the root for each subsequent key. Ordered results and BETWEEN queries both come from that one detail.",
           "LSM trees are the other family and they make the opposite trade. Writes go to an in-memory table and are flushed as sorted files, so writes are sequential and fast, and reads may have to consult several files, which is why they lean on Bloom filters to skip the ones that cannot contain a key. Compaction merges those files in the background, spending disk bandwidth later to keep reads from degrading. Cassandra, RocksDB and most modern key-value stores are built this way.",
@@ -572,6 +703,31 @@ export const foundations: Card[] = [
       },
       {
         id: "bloom-filters",
+        diagram: {
+          caption: "A definite no is cheap; a maybe has to be confirmed",
+          columns: [
+            [{ id: "key", label: "Is this key present?", sub: "asked before an expensive read", kind: "client" }],
+            [{ id: "bits", label: "Bit array", sub: "~10 bits per item, k hashes", kind: "data" }],
+            [{ id: "no", label: "Any bit is zero", sub: "definitely absent, certain", kind: "service" },
+             { id: "maybe", label: "All bits set", sub: "probably present, ~1 per cent wrong", kind: "service" }],
+            [{ id: "skip", label: "Skip the read", sub: "the entire saving", kind: "external" },
+             { id: "check", label: "Do the read", sub: "confirm or find nothing", kind: "external" }],
+          ],
+          edges: [
+            { from: "key", to: "bits", label: "hash it k times" },
+            { from: "bits", to: "no", label: "never added" },
+            { from: "bits", to: "maybe", label: "or a coincidence" },
+            { from: "no", to: "skip", label: "no false negatives" },
+            { from: "maybe", to: "check", label: "false positives only" },
+          ],
+        },
+        sources: [
+          {
+            label: "Apache Cassandra: Bloom filters",
+            url: "https://cassandra.apache.org/doc/latest/cassandra/managing/operating/bloom_filters.html",
+            supports: "That an LSM storage engine keeps a filter per data file to avoid reading files that cannot contain a key, and that the false positive rate is a configurable space trade.",
+          },
+        ],
         title: "Bloom filters",
         level: "advanced",
         body: [
@@ -644,6 +800,38 @@ export const foundations: Card[] = [
     topics: [
       {
         id: "acid",
+        inPractice:
+          "The defaults are not the same and the difference is observable: Postgres runs read committed, MySQL InnoDB runs repeatable read, so identical application code has different concurrency behaviour on each. Postgres also exposes the durability dial as synchronous_commit, which can be relaxed per transaction, which is the honest way to run analytics ingestion and orders against one database.",
+        diagram: {
+          caption: "The gap between reading and writing is where the bug lives",
+          columns: [
+            [{ id: "a", label: "Transaction A", sub: "reads balance 100", kind: "client" },
+             { id: "b", label: "Transaction B", sub: "reads balance 100", kind: "client" }],
+            [{ id: "app", label: "Computed in the app", sub: "two statements", kind: "service", alternative: true },
+             { id: "sql", label: "One update statement", sub: "balance = balance - 60", kind: "service" }],
+            [{ id: "lost", label: "Lost update", sub: "second write overwrites", kind: "data", alternative: true },
+             { id: "safe", label: "Serialised by the row lock", sub: "both applied", kind: "data" }],
+          ],
+          edges: [
+            { from: "a", to: "app", label: "write 40" },
+            { from: "b", to: "app", label: "write 40" },
+            { from: "app", to: "lost", label: "read committed permits it" },
+            { from: "a", to: "sql", label: "computed in the database" },
+            { from: "sql", to: "safe", label: "no gap to interleave" },
+          ],
+        },
+        sources: [
+          {
+            label: "PostgreSQL: transaction isolation",
+            url: "https://www.postgresql.org/docs/current/transaction-iso.html",
+            supports: "That read committed is the default level and which anomalies it permits, including the lost update described here.",
+          },
+          {
+            label: "MySQL: InnoDB transaction isolation levels",
+            url: "https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html",
+            supports: "That InnoDB defaults to repeatable read rather than read committed, so the two engines differ on identical code.",
+          },
+        ],
         title: "ACID, stated plainly",
         level: "beginner",
         body: [
@@ -706,6 +894,28 @@ export const foundations: Card[] = [
       },
       {
         id: "indexes",
+        inPractice:
+          "Postgres records a scan count per index in pg_stat_user_indexes, so identifying the ones that have never been used is a query rather than an argument. That makes dropping unused indexes the rare optimisation with evidence on both sides: every write gets cheaper, and nothing that was being read is at risk.",
+        diagram: {
+          caption: "A composite index serves a prefix of its columns, not any subset",
+          columns: [
+            [{ id: "q1", label: "country = UK", sub: "leading column", kind: "client" },
+             { id: "q2", label: "country and city", sub: "full prefix", kind: "client" },
+             { id: "q3", label: "city = London", sub: "no prefix", kind: "client", alternative: true }],
+            [{ id: "idx", label: "Index on (country, city)", sub: "sorted by country, then city", kind: "data" }],
+            [{ id: "seek", label: "Seek", sub: "a handful of pages", kind: "service" },
+             { id: "scan", label: "Scan", sub: "every page in the table", kind: "service", alternative: true }],
+            [{ id: "cover", label: "Covering index", sub: "answered without the table", kind: "external" }],
+          ],
+          edges: [
+            { from: "q1", to: "idx", label: "prefix matches" },
+            { from: "q2", to: "idx", label: "prefix matches" },
+            { from: "q3", to: "idx", label: "nothing to seek on" },
+            { from: "idx", to: "seek", label: "targeted" },
+            { from: "q3", to: "scan", label: "or a skip scan at best" },
+            { from: "seek", to: "cover", label: "if every column is present" },
+          ],
+        },
         title: "Indexes and their cost",
         level: "beginner",
         body: [
@@ -769,6 +979,24 @@ export const foundations: Card[] = [
       },
       {
         id: "normalisation",
+        inPractice:
+          "The shape most mature systems reach is a normalised source of truth with deliberately denormalised read models kept current asynchronously. Where the database offers a materialised view, using it is preferable to hand-rolled duplication, because the refresh path is somebody else's tested code rather than a trigger somebody wrote once and nobody has read since.",
+        diagram: {
+          caption: "One fact stored once, and the copies that are not copies",
+          columns: [
+            [{ id: "src", label: "Normalised tables", sub: "each fact stored once", kind: "data" }],
+            [{ id: "join", label: "Join on read", sub: "cheap on an indexed key", kind: "service" },
+             { id: "view", label: "Read model", sub: "refreshed asynchronously", kind: "service" }],
+            [{ id: "drift", label: "Every copy can drift", sub: "the real cost, not disk", kind: "external", alternative: true },
+             { id: "hist", label: "Price at time of sale", sub: "a different fact, not a copy", kind: "external" }],
+          ],
+          edges: [
+            { from: "src", to: "join", label: "the default" },
+            { from: "src", to: "view", label: "when reads dominate" },
+            { from: "view", to: "drift", label: "needs a refresh path" },
+            { from: "src", to: "hist", label: "must not follow the product" },
+          ],
+        },
         title: "Normalisation and when to break it",
         level: "intermediate",
         body: [
@@ -831,6 +1059,28 @@ export const foundations: Card[] = [
       },
       {
         id: "sql-vs-nosql",
+        inPractice:
+          "Postgres handling JSON with indexable document fields is what removes most of the practical argument for a second store: the semi-structured part of a schema can live in the same database as the relational part, with one thing to back up, monitor and upgrade. The defensible reasons for a second store are access patterns Postgres serves badly, which is a much shorter list than the number of polyglot architectures in the wild.",
+        diagram: {
+          caption: "The access pattern chooses the store, and the schema exists either way",
+          columns: [
+            [{ id: "adhoc", label: "Unanticipated queries", sub: "and multi-row transactions", kind: "client" },
+             { id: "whole", label: "Read whole, by id", sub: "shape varies per record", kind: "client" },
+             { id: "pattern", label: "One known key", sub: "at very high volume", kind: "client" }],
+            [{ id: "rel", label: "Relational", sub: "constraints enforced once", kind: "data" },
+             { id: "doc", label: "Document", sub: "record matches the object", kind: "data" },
+             { id: "kv", label: "Key-value", sub: "lookups and nothing else", kind: "data" }],
+            [{ id: "db", label: "Schema in the database", sub: "checked on every path", kind: "service" },
+             { id: "code", label: "Schema in every reader", sub: "not absent, just unenforced", kind: "service", alternative: true }],
+          ],
+          edges: [
+            { from: "adhoc", to: "rel", label: "the default" },
+            { from: "whole", to: "doc", label: "shape and access fit" },
+            { from: "pattern", to: "kv", label: "volume, one key" },
+            { from: "rel", to: "db", label: "one place to enforce" },
+            { from: "doc", to: "code", label: "the schemaless claim" },
+          ],
+        },
         title: "Relational or document",
         level: "intermediate",
         body: [
@@ -894,13 +1144,45 @@ export const foundations: Card[] = [
       },
       {
         id: "connection-pooling",
+        diagram: {
+          caption: "Many client connections, few real ones, returned at every commit",
+          columns: [
+            [{ id: "inst", label: "Serverless instances", sub: "count follows traffic", kind: "client" }],
+            [{ id: "pooler", label: "Pooler", sub: "transaction mode", kind: "edge" },
+             { id: "direct", label: "Direct connections", sub: "one process each", kind: "edge", alternative: true }],
+            [{ id: "few", label: "A few dozen backends", sub: "throughput peaks near core count", kind: "data" },
+             { id: "wall", label: "Too many connections", sub: "refused, not slowed", kind: "data", alternative: true }],
+            [{ id: "lost", label: "What you give up", sub: "session state, advisory locks", kind: "external" }],
+          ],
+          edges: [
+            { from: "inst", to: "pooler", label: "thousands" },
+            { from: "inst", to: "direct", label: "one each" },
+            { from: "pooler", to: "few", label: "multiplexed" },
+            { from: "direct", to: "wall", label: "slots exhausted" },
+            { from: "few", to: "lost", label: "returned at commit", async: true },
+          ],
+        },
+        sources: [
+          {
+            label: "PgBouncer: pooling modes",
+            url: "https://www.pgbouncer.org/features.html",
+            supports: "The difference between session, transaction and statement pooling, and which server-side features each one breaks.",
+          },
+          {
+            label: "PostgreSQL wiki: number of database connections",
+            url: "https://wiki.postgresql.org/wiki/Number_Of_Database_Connections",
+            supports: "That each connection is a backend process, that raising max_connections buys little, and that throughput peaks at a concurrency near the core count rather than rising with connections.",
+          },
+        ],
         title: "Connection pooling",
         level: "advanced",
         body: [
-          "Each database connection costs memory and, in Postgres, an entire backend process. It struggles well before most people expect, often in the low hundreds.",
-          "Serverless makes this worse. Every instance opens its own connections, and instances scale with traffic, so connections multiply exactly when load is highest.",
-          "A pooler sits in front and multiplexes many client connections onto a small number of real ones.",
-          "Which pooling mode you pick decides how much that buys you. Session pooling holds a real connection for the client's whole session and helps very little. Transaction pooling hands it back at every commit and helps enormously, at the price of losing anything that outlives a transaction: prepared statements, session variables, advisory locks.",
+          "A database connection is not a cheap handle. In Postgres each one is an entire operating system process with its own memory, so the cost is measured in megabytes rather than kilobytes, and the practical ceiling arrives well before most people expect, often in the low hundreds. Past it the failure is not gradual: the database refuses new connections outright while the ones it holds are still being served, so the symptom is a wall rather than a slope.",
+          "The instinct is to raise the limit, and it buys very little. Each additional slot is another process, so the ceiling moves a little and then the machine runs out of memory instead, and along the way every connection makes the shared work more expensive, because the internal bookkeeping the database does across its backends grows with their number. There is a real effect where throughput peaks at a concurrency close to the number of cores and then declines as more connections compete, which means a database with four hundred connections can complete less work per second than the same database with fifty.",
+          "A pooler sits in front and multiplexes many client connections onto a small number of real ones. Clients connect to it, it holds a modest set of server connections, and it hands one to whichever client currently has work. The application sees the connection count it wants and the database sees the one it can serve, which is the whole trick and the reason this is a configuration change rather than an architectural one.",
+          "Which pooling mode you choose decides how much that buys. Session pooling holds a real connection for the duration of a client's session and therefore helps almost not at all, since the ratio is unchanged for any client that stays connected. Transaction pooling returns the connection at every commit, so a hundred idle clients occupy no server connections at all, and that is where the large multiple comes from. Statement pooling goes further still and is rarely usable.",
+          "Transaction pooling has a price, and it is specific: anything whose lifetime exceeds a transaction stops working, because the next statement may arrive on a different server connection. Session variables, temporary tables, advisory locks, LISTEN and NOTIFY, and prepared statements are the usual casualties, and prepared statements are the one that bites hardest because ORMs and drivers often use them silently. Modern poolers can track and replay prepared statements per connection, which removes most of that, and it is worth confirming rather than assuming.",
+          "Serverless makes the whole problem sharper rather than different. Instance count follows traffic and each instance opens its own connections, so demand for slots peaks exactly when the database is busiest, and a function that scales to a thousand concurrent invocations will ask for a thousand connections from something that can serve two hundred. That is why every serverless platform either ships a pooler or expects you to put one in front, and why a data API over HTTP is the other common answer: it removes the connection from the equation entirely.",
         ],
         why: "This is the failure that looks like a database problem and is not. The database is fine; you have exhausted its connection slots. Adding read replicas does not help, and a pooler does.",
         inPractice: "PgBouncer in transaction mode, or a managed equivalent such as Supabase's pooler or RDS Proxy, is the standard fix.",

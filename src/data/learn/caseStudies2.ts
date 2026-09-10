@@ -18,6 +18,13 @@ export const caseStudies2: Card[] = [
     topics: [
       {
         id: "payments-flow",
+        sources: [
+          {
+            label: "Stripe: the payment intents lifecycle",
+            url: "https://docs.stripe.com/payments/paymentintents/lifecycle",
+            supports: "That the flow is modelled as a state machine with an identifier, including a requires-action state, which exists because European strong customer authentication makes authorisation genuinely multi-step.",
+          },
+        ],
         title: "Authorisation, capture and settlement",
         level: "beginner",
         body: [
@@ -103,6 +110,13 @@ export const caseStudies2: Card[] = [
       },
       {
         id: "payments-idempotency",
+        sources: [
+          {
+            label: "Stripe: idempotent requests",
+            url: "https://docs.stripe.com/api/idempotent_requests",
+            supports: "That an idempotency key is required on payment creation, that the stored result is returned for any repeat, and that keys are retained for 24 hours, which is what makes the guarantee finite and explicit.",
+          },
+        ],
         title: "Idempotency when the retry is inevitable",
         level: "intermediate",
         body: [
@@ -550,6 +564,13 @@ export const caseStudies2: Card[] = [
     topics: [
       {
         id: "search-crawl",
+        sources: [
+          {
+            label: "RFC 9309: robots exclusion protocol",
+            url: "https://www.rfc-editor.org/rfc/rfc9309.html",
+            supports: "That the protocol dates from 1994 and was only standardised in 2022, having been honoured by convention for nearly thirty years.",
+          },
+        ],
         title: "Crawling a web nobody controls",
         level: "intermediate",
         body: [
@@ -635,6 +656,13 @@ export const caseStudies2: Card[] = [
       },
       {
         id: "search-dedup",
+        sources: [
+          {
+            label: "Manku, Jain and Das Sarma, Detecting near-duplicates for web crawling (WWW 2007)",
+            url: "https://dl.acm.org/doi/10.1145/1242572.1242592",
+            supports: "That SimHash was described by Google researchers for exactly this problem, finding near-duplicate web pages at crawl scale by looking for fingerprints within a small Hamming distance.",
+          },
+        ],
         title: "Duplicates, canonicals and near-identical pages",
         level: "advanced",
         body: [
@@ -808,6 +836,13 @@ export const caseStudies2: Card[] = [
       },
       {
         id: "search-serving",
+        sources: [
+          {
+            label: "Dean and Barroso, The Tail at Scale (CACM, 2013)",
+            url: "https://research.google/pubs/the-tail-at-scale/",
+            supports: "The fan-out arithmetic and the mitigations described here, including hedged and tied requests, and the result that at 100 servers a one per cent component tail produces a 63 per cent request tail.",
+          },
+        ],
         title: "Serving a query in under a second",
         level: "advanced",
         body: [
@@ -895,6 +930,13 @@ export const caseStudies2: Card[] = [
       },
       {
         id: "search-freshness",
+        sources: [
+          {
+            label: "Peng and Dabek, Large-scale incremental processing using distributed transactions and notifications (OSDI 2010)",
+            url: "https://research.google/pubs/large-scale-incremental-processing-using-distributed-transactions-and-notifications/",
+            supports: "The figures quoted here: the previous pipeline fed documents through roughly a hundred MapReduces over two to three days, and the incremental replacement moved the median document more than a hundred times faster and cut the average age of a document in results by half, at the same daily volume.",
+          },
+        ],
         title: "Freshness: from batch to incremental",
         level: "advanced",
         body: [

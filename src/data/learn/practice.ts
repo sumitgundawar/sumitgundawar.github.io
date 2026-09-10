@@ -88,6 +88,26 @@ export const practice: Card[] = [
       },
       {
         id: "coverage",
+        diagram: {
+          caption: "Three measures, and only one of them looks at assertions",
+          columns: [
+            [{ id: "test", label: "A test that asserts nothing", sub: "calls the function, checks nothing", kind: "client" }],
+            [{ id: "line", label: "Line coverage", sub: "reports it as covered", kind: "service", alternative: true },
+             { id: "branch", label: "Branch coverage", sub: "both sides of a condition ran", kind: "service" },
+             { id: "mut", label: "Mutation testing", sub: "changes the code, expects a failure", kind: "service" }],
+            [{ id: "pass", label: "100 per cent, catches nothing", sub: "the whole problem in one line", kind: "data", alternative: true },
+             { id: "found", label: "Test survives the mutant", sub: "so the suite is decorative", kind: "data" }],
+            [{ id: "use", label: "Useful direction", sub: "least covered first, diff coverage", kind: "external" }],
+          ],
+          edges: [
+            { from: "test", to: "line", label: "executed" },
+            { from: "test", to: "branch", label: "partially" },
+            { from: "test", to: "mut", label: "does it fail?" },
+            { from: "line", to: "pass", label: "gameable as a target" },
+            { from: "mut", to: "found", label: "measures assertions" },
+            { from: "pass", to: "use", label: "use it to discover, not to gate" },
+          ],
+        },
         title: "Coverage and what it does not tell you",
         level: "intermediate",
         body: [
@@ -152,6 +172,24 @@ export const practice: Card[] = [
       },
       {
         id: "flaky-tests",
+        diagram: {
+          caption: "Quarantine immediately, because trust does not degrade gracefully",
+          columns: [
+            [{ id: "flake", label: "Test fails randomly", sub: "timing, shared state, order, clock", kind: "client" }],
+            [{ id: "retry", label: "Everyone presses retry", sub: "applied to real failures too", kind: "service", alternative: true },
+             { id: "quar", label: "Quarantined out of the gate", sub: "with an owner and a deadline", kind: "service" }],
+            [{ id: "det", label: "Remove the nondeterminism", sub: "wait on a condition, inject the clock", kind: "data" },
+             { id: "real", label: "Or the system is racy", sub: "the test is reporting accurately", kind: "data" }],
+            [{ id: "rate", label: "Flake rate, tracked", sub: "a few tests cause most retries", kind: "external" }],
+          ],
+          edges: [
+            { from: "flake", to: "retry", label: "signal destroyed" },
+            { from: "flake", to: "quar", label: "signal preserved" },
+            { from: "quar", to: "det", label: "usually the fix" },
+            { from: "quar", to: "real", label: "check first" },
+            { from: "det", to: "rate", label: "measure it", async: true },
+          ],
+        },
         title: "Flaky tests",
         level: "advanced",
         body: [
@@ -226,6 +264,13 @@ export const practice: Card[] = [
     topics: [
       {
         id: "waterfall",
+        sources: [
+          {
+            label: "Royce, Managing the development of large software systems (1970)",
+            url: "https://web.archive.org/web/20160316031416/http://www.cs.umd.edu/class/spring2003/cmsc838p/Process/waterfall.pdf",
+            supports: "That the paper routinely cited as the origin of waterfall presents the pure sequential model as the version that invites failure, and recommends building the system twice.",
+          },
+        ],
         title: "Waterfall",
         level: "beginner",
         body: [
@@ -290,6 +335,13 @@ export const practice: Card[] = [
       },
       {
         id: "agile",
+        sources: [
+          {
+            label: "DORA: capabilities and the four key metrics",
+            url: "https://dora.dev/guides/dora-metrics-four-keys/",
+            supports: "That measured delivery outcomes correlate with performance far better than the choice between scrum and kanban does.",
+          },
+        ],
         title: "Agile, scrum and kanban",
         level: "beginner",
         body: [
@@ -349,13 +401,43 @@ export const practice: Card[] = [
       },
       {
         id: "code-review",
+        diagram: {
+          caption: "Size decides whether it is read, latency decides what it costs",
+          columns: [
+            [{ id: "big", label: "2,000 lines", sub: "nobody can hold it", kind: "client", alternative: true },
+             { id: "small", label: "200 lines", sub: "readable in one sitting", kind: "client" }],
+            [{ id: "stamp", label: "Approved", sub: "capacity, not laziness", kind: "service", alternative: true },
+             { id: "read", label: "Actually reviewed", sub: "defects found", kind: "service" }],
+            [{ id: "fast", label: "Back within hours", sub: "no context switch to pay", kind: "data" },
+             { id: "slow", label: "Back tomorrow", sub: "author must return to it", kind: "data", alternative: true }],
+            [{ id: "case", label: "Names the broken case", sub: "null when never logged in", kind: "external" },
+             { id: "taste", label: "Names a preference", sub: "belongs in a linter", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "big", to: "stamp", label: "trust by default" },
+            { from: "small", to: "read", label: "genuine review" },
+            { from: "read", to: "fast", label: "and quickly" },
+            { from: "read", to: "slow", label: "or a day later" },
+            { from: "fast", to: "case", label: "actionable" },
+            { from: "fast", to: "taste", label: "unsettleable" },
+          ],
+        },
+        sources: [
+          {
+            label: "Google, Modern code review: a case study (ICSE-SEIP 2018)",
+            url: "https://research.google/pubs/modern-code-review-a-case-study-at-google/",
+            supports: "That changes at Google are small by policy and reviewed quickly, and that review latency and change size are the levers on review quality.",
+          },
+        ],
         title: "Code review",
         level: "intermediate",
         body: [
-          "Review catches defects, but its larger effects are spreading context across the team and keeping the codebase coherent.",
-          "Small pull requests get real review. Large ones get approved, because nobody can hold two thousand lines in their head.",
-          "Separating blocking concerns from suggestions makes review faster and less adversarial. Say which comments must be addressed and which are taste.",
-          "The most useful comment names the case that breaks rather than the preference that was violated. 'This is null when the user has never logged in' can be acted on. 'I would extract this' starts an argument about style with no way to settle it.",
+          "Review catches defects, and if that were the whole benefit it would not be worth what it costs. The larger effects are that context spreads across a team, that a second person can now maintain the thing, and that the codebase stays coherent enough for the next change to be small. A team where every file has exactly one person who understands it has a staffing problem disguised as a productivity advantage.",
+          "Pull request size is the single biggest lever on whether any of that happens. Small changes get read; large ones get approved, because nobody can hold two thousand lines in their head and the honest options are to spend a day on it or to trust the author. Everybody chooses trust. That is not laziness, it is capacity, which is why the fix is upstream: splitting work into reviewable pieces is a design skill, and a change that cannot be split usually has a boundary problem worth finding before it is written.",
+          "Latency matters as much as depth and gets far less attention. A review that arrives in an hour costs the author nothing; one that arrives the next day costs them a context switch to return to work they had finished thinking about, and it costs the change a day of drift against the branch it will merge into. A team that reviews within a few hours and comments less thoroughly generally ships better code than one that reviews perfectly on a two-day delay.",
+          "Separate blocking concerns from suggestions, explicitly, in the comment itself. Reviewers and authors routinely disagree about whether a comment must be addressed, and the disagreement is invisible: the reviewer thought they were musing, the author thought they were blocked, and a day goes past. Saying which comments are required and which are taste removes an entire category of friction, and a convention as crude as a one-word prefix does it.",
+          "The most useful comment names the case that breaks rather than the preference that was violated. This is null when the user has never logged in can be acted on immediately and cannot be argued with. I would extract this starts a conversation about style with no way to settle it, and settles by seniority rather than by reasoning, which is corrosive in a way that is hard to attribute afterwards. Where a preference genuinely matters, it belongs in a linter or a formatter, enforced by a machine that nobody resents.",
+          "Two things are worth taking out of review entirely. Formatting, which a formatter should decide so that no human ever spends attention on it. And architectural direction, which is much cheaper to discuss before the code exists than in a comment thread on a finished implementation. A review is the wrong venue for a design argument, and the tell that it is happening is a pull request with forty comments and no defect among them.",
         ],
         why: "PR size is the single biggest lever on review quality. Splitting work into reviewable pieces is a design skill, and the reason large PRs get rubber-stamped is capacity, not laziness.",
         inPractice:
@@ -590,6 +672,33 @@ export const practice: Card[] = [
       },
       {
         id: "premature-abstraction",
+        diagram: {
+          caption: "Duplication is reversible; a widely adopted abstraction is not",
+          columns: [
+            [{ id: "one", label: "First use", sub: "the axis of variation is a guess", kind: "client" }],
+            [{ id: "early", label: "Abstract now", sub: "one flag per new caller", kind: "service", alternative: true },
+             { id: "copy", label: "Copy and wait", sub: "differences stay visible", kind: "service" }],
+            [{ id: "six", label: "Six parameters", sub: "four used by one caller each", kind: "data", alternative: true },
+             { id: "third", label: "Third occurrence", sub: "now the axis is visible", kind: "data" }],
+            [{ id: "unwind", label: "Unwinding it", sub: "every caller adapted to its shape", kind: "external", alternative: true },
+             { id: "merge", label: "Merging copies", sub: "mechanical", kind: "external" }],
+          ],
+          edges: [
+            { from: "one", to: "early", label: "feels responsible" },
+            { from: "one", to: "copy", label: "feels careless" },
+            { from: "early", to: "six", label: "accumulates flags" },
+            { from: "copy", to: "third", label: "then abstract" },
+            { from: "six", to: "unwind", label: "expensive" },
+            { from: "third", to: "merge", label: "cheap" },
+          ],
+        },
+        sources: [
+          {
+            label: "Sandi Metz, The wrong abstraction",
+            url: "https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction",
+            supports: "The claim that duplication is far cheaper than the wrong abstraction, and the mechanism by which callers adapt to a bad shape until it cannot be removed.",
+          },
+        ],
         title: "Premature abstraction",
         level: "advanced",
         body: [

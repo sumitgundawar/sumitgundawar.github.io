@@ -115,7 +115,7 @@ export const companies: Card[] = [
           "Be careful with how much weight this carries, though. Loops vary by team more than by company, interviewers bring their own preferences, and any published mapping of company to emphasis is indicative rather than sourced. Treat it as a prior to update rather than as a script, and drop it the moment the interviewer indicates otherwise.",
           "The one universally safe move is to ask what they care about. Which part of this would you like me to go deeper on is a question every interviewer is glad to answer, and it replaces guessing about emphasis with knowing it.",
         ],
-        inPractice: "The rate limiter question alone has been reported at Amazon, Microsoft, Stripe, Uber, Atlassian and Patreon, it is close to universal because it exercises algorithms, distributed state and failure behaviour in one small problem.",
+        inPractice: "Treat any published mapping of company to emphasis as a prior rather than a fact, because loops vary by team more than by company and the same company runs different loops for infrastructure and product roles. The reliable signal is the interviewer in front of you: asking which part they would like you to go deeper on replaces the guess with an answer, and no interviewer has ever minded being asked.",
         why: "Knowing the emphasis lets you steer the depth phase toward what that interviewer values. At a payments company, volunteering idempotency early is worth more than describing a CDN.",
         check: {
           prompt: "Interviewing at a payments company. Which topic is most worth volunteering unprompted?",
@@ -236,24 +236,85 @@ export const companies: Card[] = [
         title: "A practice plan that works",
         level: "intermediate",
         body: [
-          "Pick six problems spanning the underlying decisions rather than twenty that repeat the same one: a feed, a chat system, a ride match, a rate limiter, a video service, and a payment flow.",
-          "Do each one out loud against a timer, because the constraint in the real thing is the clock and the talking, not the knowledge.",
-          "Then redo one of them with a changed constraint, ten times the traffic, or a hard consistency requirement, and see whether your design bends or breaks.",
+          "Pick six problems that span the underlying decisions rather than twenty that repeat the same one. A feed, for fan-out on write against fan-out on read. A chat system, for held connections and delivery guarantees. A ride match, for geospatial indexing and assignment. A rate limiter, for algorithms and distributed counter state. A video service, for the pipeline and the cost of precomputation. A payment flow, for idempotency and consistency under an ambiguous timeout. Between them those six exercise almost every decision the common pool draws on, which is why six done properly beats twenty read about.",
+          "Do each one out loud, against a timer, in the format you will actually face. The constraint in the real thing is the clock and the talking, not the knowledge, and both are trainable in a way that reading is not. Forty five minutes, spoken, with a diagram you are producing while you speak, is a genuinely different exercise from thinking the same thoughts silently, and the gap between the two is where most well-prepared candidates lose the round.",
+          "Then redo one with a changed constraint, which is the highest-value drill available because it rehearses the thing interviewers actually do. Ten times the traffic. A hard consistency requirement where you had assumed staleness was fine. A regulatory rule that the data cannot leave a country. A budget a tenth of what you implicitly assumed. Watch whether your design bends or breaks, and notice which decisions you have to unwind: those are the ones that were load-bearing, and knowing which they are is most of what senior judgement looks like from outside.",
+          "Record yourself once, however unpleasant that is, because the recording tells you things no amount of self-assessment will. The usual findings are the same across most people: long silences during the hard part, assumptions stated once and then quietly contradicted, a component named and never justified, and no time left for the failure modes. Each of those is cheap to fix once seen and invisible from the inside.",
+          "Keep a written list of the numbers you keep having to look up, and stop looking them up. Requests per second from a daily total. Storage per year from a row size. The latency ladder from memory to cross-continental. A quorum size for a given failure tolerance. Those are the arithmetic you will do under pressure, and doing it from memory is the difference between a fluent five minutes of estimation and a stalled one.",
+          "Finally, do at least two of the six with another person rather than alone, because the part you cannot rehearse by yourself is being interrupted. Someone pushing on a decision, asking for a number you did not prepare, or steering you away from the part you wanted to talk about is the actual format, and the first time it happens should not be the real thing.",
         ],
-        why: "Redoing a problem under a changed constraint is the highest-value drill available. It rehearses the thing interviewers actually do, which is push on your design until something gives.",
+        why:
+          "Redoing a problem under a changed constraint is the drill that transfers, because it rehearses what interviewers actually do, which is push on a design until something gives. Practising six designs to the depth where every component can be defended covers more of the pool than twenty read once, because the components repeat and the defending is the part being scored.",
         inPractice:
-          "Mock interviews are the part people skip and the part that transfers, because designing aloud under time pressure is a separate skill from knowing the material, and it is the only one of the two that cannot be practised silently.",
-        check: {
-          prompt: "What is the most valuable single drill?",
-          options: [
-            "Reading write-ups from companies whose scale matches the questions asked",
-            "Doing new designs you have never seen, to widen the range you can handle",
-            "Redoing a design you know with a changed constraint, out loud and timed",
-            "Writing your designs up afterwards, so the reasoning is available to revise",
+          "Mock interviews are the part people skip and the part that transfers, because designing aloud under time pressure is a separate skill from knowing the material, and it is the only one of the two that cannot be practised silently. The same is true of the recording: it is the cheapest feedback available and almost nobody does it twice, because once is usually enough to change how you speak.",
+        diagram: {
+          caption: "Six problems, then the drill that makes them transfer",
+          columns: [
+            [{ id: "six", label: "Six problems", sub: "spanning the decisions", kind: "client" }],
+            [{ id: "aloud", label: "Aloud, on a timer", sub: "45 minutes, diagram as you go", kind: "service" },
+             { id: "silent", label: "Read and reason", sub: "trains neither constraint", kind: "service", alternative: true }],
+            [{ id: "bend", label: "Change a constraint", sub: "10x traffic, hard consistency", kind: "data" }],
+            [{ id: "load", label: "Load-bearing decisions", sub: "the ones you had to unwind", kind: "data" },
+             { id: "peer", label: "With a second person", sub: "rehearses being interrupted", kind: "external" }],
           ],
-          correctIndex: 2,
-          explain: "Interviewers change the constraints to see if you understood or memorised. Rehearsing that is closer to the real task than reading is.",
+          edges: [
+            { from: "six", to: "aloud", label: "one at a time" },
+            { from: "six", to: "silent", label: "feels like progress" },
+            { from: "aloud", to: "bend", label: "then redo one" },
+            { from: "bend", to: "load", label: "watch what breaks" },
+            { from: "aloud", to: "peer", label: "at least twice", async: true },
+          ],
         },
+        check: {
+          prompt: "Which drill best rehearses what a system design interviewer actually does?",
+          options: [
+            "Redoing a design you know with one constraint deliberately changed",
+            "Reading two more designs so the breadth of the pool is covered",
+            "Timing yourself drawing the same architecture until it is quicker",
+            "Memorising the components each of the common questions needs",
+          ],
+          correctIndex: 0,
+          explain:
+            "The format is a conversation in which someone pushes until something gives. Changing a constraint on a design you already hold reveals which decisions were load-bearing, which is the thing being assessed and the thing extra breadth does not touch.",
+        },
+        checks: [
+          {
+            prompt: "Why practise out loud rather than by thinking it through?",
+            options: [
+              "The clock and the talking are the constraints, and both are trainable",
+              "Speaking commits you to a design, which stops the endless revising",
+              "Interviewers score fluency of delivery above the design itself",
+              "It is the only way to find out whether you know the material",
+            ],
+            correctIndex: 0,
+            explain:
+              "The knowledge is usually there. What is missing is producing it in order, in forty five minutes, while drawing, which is a separate skill and the one the format actually taxes.",
+          },
+          {
+            prompt: "Which numbers are worth committing to memory before a design round?",
+            options: [
+              "Seconds in a day, the latency ladder, and quorum sizing",
+              "The default port and configuration for each common datastore",
+              "Current instance prices for the two largest cloud providers",
+              "Published throughput figures for Kafka, Redis and Postgres",
+            ],
+            correctIndex: 0,
+            explain:
+              "The arithmetic you do under pressure is converting a daily total into a rate, a row size into annual storage, and a failure tolerance into a cluster size. Product specifics can be reasoned about aloud; the arithmetic cannot be stalled on.",
+          },
+          {
+            prompt: "What does recording one practice session most reliably reveal?",
+            options: [
+              "Silence during the hard part, and assumptions quietly contradicted",
+              "Whether the final architecture matches a published reference design",
+              "That the material needs more revision before the format is worth it",
+              "How much faster the answer could be delivered with less hedging",
+            ],
+            correctIndex: 0,
+            explain:
+              "The recurring findings are long gaps where the thinking went silent, an assumption stated and then broken, and no time left for failure modes. All three are invisible from the inside and cheap to fix once seen.",
+          },
+        ],
       },
     ],
   },

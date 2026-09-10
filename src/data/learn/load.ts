@@ -26,6 +26,7 @@ const LOADERS: Record<GroupName, () => Promise<{ default?: Card[] } & Record<str
   interview: () => import("./interview"),
   companies: () => import("./companies"),
   security: () => import("./security"),
+  dissections: () => import("./dissections"),
 };
 
 /* A module is fetched at most once per session. The browser caches the chunk

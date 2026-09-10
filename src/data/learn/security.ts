@@ -14,6 +14,26 @@ export const security: Card[] = [
     topics: [
       {
         id: "sql-injection",
+        inPractice:
+          "Parameterisation is not escaping done well, it is a different mechanism: the statement and the values travel separately, so a value cannot be parsed as syntax whatever it contains. That is why the advice is absolute rather than contextual, and why the remaining risk concentrates in the two places parameters cannot reach: identifiers, which need an allowlist, and an ORM's raw query escape hatch, which is where injection reappears in the reporting endpoint written under time pressure.",
+        diagram: {
+          caption: "Two channels: the parser sees the statement before it sees any value",
+          columns: [
+            [{ id: "input", label: "User input", sub: "may contain anything", kind: "client" }],
+            [{ id: "concat", label: "Concatenated", sub: "one string, parsed as one", kind: "service", alternative: true },
+             { id: "param", label: "Parameterised", sub: "statement, then values", kind: "service" }],
+            [{ id: "syntax", label: "Data becomes syntax", sub: "the parser cannot tell", kind: "data", alternative: true },
+             { id: "slot", label: "Bound into a slot", sub: "never reparsed", kind: "data" }],
+            [{ id: "ident", label: "Identifiers", sub: "cannot be bound: allowlist them", kind: "external" }],
+          ],
+          edges: [
+            { from: "input", to: "concat", label: "the intuitive way" },
+            { from: "input", to: "param", label: "the only way" },
+            { from: "concat", to: "syntax", label: "injection" },
+            { from: "param", to: "slot", label: "safe by construction" },
+            { from: "param", to: "ident", label: "the exception", async: true },
+          ],
+        },
         title: "Injection and parameterised queries",
         level: "beginner",
         body: [
@@ -77,6 +97,34 @@ export const security: Card[] = [
       },
       {
         id: "xss",
+        inPractice:
+          "Framework escaping closes the common path, so the remaining risk is concentrated in a short list of deliberate bypasses that can be audited by name: dangerouslySetInnerHTML and its equivalents, a value used as href or src where a javascript: URL executes, and anything written into a script, style or event-handler context where HTML escaping is the wrong escaping. A Content Security Policy using a nonce rather than an origin allowlist is what limits the damage when one slips through, and report-only mode exists so the policy can be measured before it is enforced.",
+        diagram: {
+          caption: "Three shapes, and the two layers that decide what an injection costs",
+          columns: [
+            [{ id: "stored", label: "Stored", sub: "served to everyone", kind: "client", alternative: true },
+             { id: "refl", label: "Reflected", sub: "needs a followed link", kind: "client" },
+             { id: "dom", label: "DOM-based", sub: "server never sees it", kind: "client" }],
+            [{ id: "esc", label: "Framework escaping", sub: "the default path is safe", kind: "service" },
+             { id: "bypass", label: "Deliberate bypass", sub: "innerHTML, href, script context", kind: "service", alternative: true }],
+            [{ id: "csp", label: "CSP with a nonce", sub: "inline script refused", kind: "edge" }],
+            [{ id: "cookie", label: "HttpOnly cookie", sub: "session cannot be read", kind: "data" }],
+          ],
+          edges: [
+            { from: "stored", to: "esc", label: "rendered as text" },
+            { from: "refl", to: "esc", label: "rendered as text" },
+            { from: "dom", to: "bypass", label: "client writes it" },
+            { from: "bypass", to: "csp", label: "blocked at execution" },
+            { from: "csp", to: "cookie", label: "and it cannot steal the session" },
+          ],
+        },
+        sources: [
+          {
+            label: "MDN: Content Security Policy",
+            url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP",
+            supports: "That a nonce or hash based policy is preferred over an origin allowlist, and that Content-Security-Policy-Report-Only allows a policy to be measured before enforcement.",
+          },
+        ],
         title: "Cross-site scripting",
         level: "intermediate",
         body: [
@@ -139,6 +187,26 @@ export const security: Card[] = [
       },
       {
         id: "csrf",
+        inPractice:
+          "SameSite=Lax is the default in current browsers, which is what closed most of this class without anyone changing their code, and it is why the remaining exposure is narrow rather than general. The part that still needs deciding is the one that follows from how the session travels: a cookie is ambient authority and needs a token on state-changing forms, while a bearer token your own script attaches is not sent by a third-party page and does not. Mirror that token into a cookie for convenience and the exposure returns.",
+        diagram: {
+          caption: "The browser attaches the cookie; it does not attach a header",
+          columns: [
+            [{ id: "evil", label: "Attacker's page", sub: "submits a form to your origin", kind: "client" }],
+            [{ id: "cookie", label: "Session cookie", sub: "attached automatically", kind: "edge", alternative: true },
+             { id: "bearer", label: "Authorization header", sub: "only your script sets it", kind: "edge" }],
+            [{ id: "lax", label: "SameSite=Lax", sub: "withheld on cross-site posts", kind: "service" },
+             { id: "token", label: "Synchroniser token", sub: "unreadable across origins", kind: "service" }],
+            [{ id: "cors", label: "CORS is not the defence", sub: "a simple post needs no preflight", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "evil", to: "cookie", label: "rides along" },
+            { from: "evil", to: "bearer", label: "cannot be set" },
+            { from: "cookie", to: "lax", label: "the mechanism that fixed it" },
+            { from: "cookie", to: "token", label: "for sensitive actions" },
+            { from: "evil", to: "cors", label: "reaches the endpoint first" },
+          ],
+        },
         title: "CSRF and SameSite",
         level: "intermediate",
         body: [
@@ -202,13 +270,47 @@ export const security: Card[] = [
       },
       {
         id: "ssrf",
+        diagram: {
+          caption: "The string was validated; the socket connects to whatever resolves",
+          columns: [
+            [{ id: "url", label: "Attacker's URL", sub: "webhook, import, preview", kind: "client" }],
+            [{ id: "str", label: "Validate the string", sub: "host not in a private range", kind: "service", alternative: true },
+             { id: "addr", label: "Validate at connect", sub: "the resolved address, every hop", kind: "service" },
+             { id: "proxy", label: "Egress proxy", sub: "known hosts only", kind: "service" }],
+            [{ id: "dns", label: "DNS points inward", sub: "or rebinds after the check", kind: "data", alternative: true },
+             { id: "redir", label: "302 to an internal host", sub: "after validation passed", kind: "data", alternative: true }],
+            [{ id: "meta", label: "Metadata endpoint", sub: "IMDSv2 requires a token", kind: "external" }],
+          ],
+          edges: [
+            { from: "url", to: "str", label: "the intuitive fix" },
+            { from: "str", to: "dns", label: "bypassed" },
+            { from: "str", to: "redir", label: "bypassed" },
+            { from: "url", to: "addr", label: "what works" },
+            { from: "url", to: "proxy", label: "what keeps working" },
+            { from: "dns", to: "meta", label: "role credentials" },
+          ],
+        },
+        sources: [
+          {
+            label: "AWS: use IMDSv2",
+            url: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html",
+            supports: "That version two of the metadata service requires a PUT to obtain a session token and applies a hop limit, which defeats the ordinary SSRF path that version one permits.",
+          },
+          {
+            label: "US Senate Committee report on the Capital One breach",
+            url: "https://www.hsgac.senate.gov/wp-content/uploads/imo/media/doc/2020-02-27%20PSI%20Staff%20Report%20-%20Capital%20One%20&%20AWS.pdf",
+            supports: "That the 2019 breach used a server-side request forgery to reach the instance metadata service and retrieve role credentials.",
+          },
+        ],
         title: "SSRF and the metadata endpoint",
         level: "advanced",
         body: [
-          "SSRF is making your server fetch a URL an attacker chose. Any feature that takes a URL, webhook registration, image import, link preview, is a candidate.",
-          "The damage is that your server sits inside the network. It can reach internal services, admin panels and, on a cloud instance, the metadata endpoint that hands out credentials.",
-          "Blocklisting hostnames fails. DNS can resolve to an internal address, and a redirect moves the target after you have validated it.",
-          "What works is checking the resolved address rather than the string, re-checking it on every redirect hop, or egressing through a proxy that only permits known hosts. The proxy is the only one of the three that stays correct when somebody adds a new URL-fetching feature and never hears about the rule.",
+          "Server-side request forgery is making your server fetch a URL an attacker chose. Any feature that accepts a URL is a candidate, and there are more of them than anyone expects: webhook registration, image import from a link, link preview generation, a PDF renderer fetching stylesheets, an avatar imported from a third party, an XML parser resolving an external entity, a health check whose target is configurable. Each was added for a good reason by somebody who was not thinking about this.",
+          "The damage comes from where your server sits rather than from what it fetches. It is inside the network, past the firewall, holding an identity, and a request it makes on an attacker's behalf inherits all of that. So the reachable surface is internal services with no authentication because they were never exposed, admin panels bound to localhost, a Redis or Elasticsearch instance listening on a private address, and on a cloud instance the metadata endpoint, which hands out role credentials to anything that asks from that machine because being on the machine is the authentication.",
+          "That metadata endpoint deserves naming precisely because the defence is available and often unenabled. The first version of the AWS service answers a plain unauthenticated GET, which is exactly what an SSRF gives an attacker. Version two requires a PUT to obtain a token first, and sets a hop limit so a response cannot be relayed onward, which defeats the ordinary case. Requiring version two is a single instance setting and it closes the specific path the 2019 Capital One breach took.",
+          "Blocklisting is the intuitive defence and it does not hold, for a reason worth understanding rather than memorising: you validate a string, and the connection is made to whatever the name resolves to at the moment it is made. A hostname the attacker controls can resolve to a private address. It can resolve to a public address when you check and a private one when you connect, which is a DNS rebind. A response can be a redirect to an internal address after validation has already passed. And the address space is larger than the obvious ranges, with IPv6 forms, the many spellings of the loopback address, and decimal or octal encodings of the same host.",
+          "What works is checking the address rather than the name, at the point the socket is opened, on every hop of every redirect, against an allowlist where one is possible and a deny list of the whole private space where it is not. Better still, do not make the check the developer's job at all: send outbound fetches through an egress proxy that permits only known destination hosts, so a new URL-fetching feature is covered by the network rather than by whoever wrote it having heard of the rule. The proxy is the only one of these that stays correct as the codebase grows.",
+          "Two habits complete it. Treat the response as hostile too, because an attacker who cannot see the response can still learn from it: distinguishable timings and error messages turn a blind SSRF into a port scanner, so failures should look the same whatever went wrong. And give the fetching component its own network egress rules and its own credentials, so that even a successful request reaches as little as possible, which is the same bulkhead argument applied to the network rather than to a thread pool.",
         ],
         why: "Validating the URL string is the intuitive fix and the one that does not hold, because the string is not what gets connected to. The check has to happen on the resolved address, at connect time, on every hop.",
         inPractice: "The 2019 Capital One breach began with SSRF used to reach the instance metadata service and retrieve role credentials.",
@@ -266,6 +368,31 @@ export const security: Card[] = [
       },
       {
         id: "supply-chain",
+        inPractice:
+          "The controls that matter follow from the threat model rather than from a vendor's product list: fewer dependencies, automated updates so you are never far behind, CI tokens scoped narrowly and expiring quickly, and install scripts disabled where the ecosystem allows it. Beyond that the direction is provenance: npm publishes signed attestations built through Sigstore, so a consumer can verify that a package was built from the repository and by the pipeline it claims, which is the gap a lockfile cannot close.",
+        diagram: {
+          caption: "A postinstall script anywhere in the tree runs with your build's privileges",
+          columns: [
+            [{ id: "add", label: "One dependency added", sub: "for one helper function", kind: "client" }],
+            [{ id: "tree", label: "1,000 transitive packages", sub: "1,000 maintainer accounts", kind: "data" }],
+            [{ id: "script", label: "postinstall", sub: "runs without being imported", kind: "service", alternative: true }],
+            [{ id: "creds", label: "CI secrets and artefact", sub: "deploy credentials, signing keys", kind: "external", alternative: true },
+             { id: "prov", label: "Signed provenance", sub: "built from the claimed repo", kind: "external" }],
+          ],
+          edges: [
+            { from: "add", to: "tree", label: "invisible in the import" },
+            { from: "tree", to: "script", label: "any one of them" },
+            { from: "script", to: "creds", label: "your build's privileges" },
+            { from: "tree", to: "prov", label: "what a lockfile cannot give", async: true },
+          ],
+        },
+        sources: [
+          {
+            label: "npm: generating provenance statements",
+            url: "https://docs.npmjs.com/generating-provenance-statements",
+            supports: "That signed provenance attestations, built on Sigstore, let a consumer verify the source repository and build pipeline a package came from.",
+          },
+        ],
         title: "Dependencies and supply chain",
         level: "advanced",
         body: [
@@ -337,6 +464,34 @@ export const security: Card[] = [
     topics: [
       {
         id: "isolation-levels",
+        inPractice:
+          "Two engines, the same words, materially different behaviour: Postgres defaults to read committed and implements repeatable read as snapshot isolation, while MySQL InnoDB defaults to repeatable read and uses gap locks to prevent many phantoms. Postgres also implements serializable as serializable snapshot isolation, which aborts rather than blocks, so turning it on without a retry loop converts a rare anomaly into a visible error rate.",
+        diagram: {
+          caption: "Each level is defined by the anomaly it forbids, not by a strength rating",
+          columns: [
+            [{ id: "ru", label: "Read uncommitted", sub: "dirty reads permitted", kind: "data", alternative: true },
+             { id: "rc", label: "Read committed", sub: "non-repeatable reads permitted", kind: "data" },
+             { id: "rr", label: "Repeatable read", sub: "write skew still permitted", kind: "data" },
+             { id: "ser", label: "Serializable", sub: "matches some serial order", kind: "data" }],
+            [{ id: "lock", label: "Two-phase locking", sub: "contention appears as blocking", kind: "service" },
+             { id: "ssi", label: "Snapshot isolation", sub: "contention appears as aborts", kind: "service" }],
+            [{ id: "retry", label: "A retry loop", sub: "not optional with SSI", kind: "external" }],
+          ],
+          edges: [
+            { from: "rc", to: "rr", label: "raise per transaction" },
+            { from: "rr", to: "ser", label: "only where a rule spans rows" },
+            { from: "ser", to: "lock", label: "one implementation" },
+            { from: "ser", to: "ssi", label: "the other" },
+            { from: "ssi", to: "retry", label: "or a visible error rate" },
+          ],
+        },
+        sources: [
+          {
+            label: "PostgreSQL: transaction isolation",
+            url: "https://www.postgresql.org/docs/current/transaction-iso.html",
+            supports: "That Postgres defaults to read committed, implements repeatable read as snapshot isolation, and implements serializable by aborting transactions rather than blocking them.",
+          },
+        ],
         title: "The four levels and what each permits",
         level: "intermediate",
         body: [
@@ -400,6 +555,26 @@ export const security: Card[] = [
       },
       {
         id: "mvcc",
+        inPractice:
+          "The production incident this creates is almost never a correctness bug. It is a connection left idle in transaction by a pool or a debugger, which holds the vacuum horizon still for the whole database while a busy table bloats and its queries slow down, with write volume entirely normal. Monitoring the age of the oldest transaction as a first-class metric, and treating idle in transaction as an alertable state, is what catches it before the table has to be rewritten.",
+        diagram: {
+          caption: "The oldest open transaction sets the horizon for the whole database",
+          columns: [
+            [{ id: "upd", label: "Update", sub: "insert a version, mark the old", kind: "client" }],
+            [{ id: "vers", label: "Several row versions", sub: "readers see their snapshot", kind: "data" }],
+            [{ id: "vac", label: "Vacuum", sub: "reclaims what nobody needs", kind: "service" },
+             { id: "idle", label: "Idle in transaction", sub: "holds the horizon still", kind: "service", alternative: true }],
+            [{ id: "reuse", label: "Space reusable", sub: "not returned to the OS", kind: "external" },
+             { id: "bloat", label: "Bloat", sub: "queries slow, writes normal", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "upd", to: "vers", label: "no overwrite" },
+            { from: "vers", to: "vac", label: "once no one needs them" },
+            { from: "vers", to: "idle", label: "one open transaction" },
+            { from: "vac", to: "reuse", label: "made reusable" },
+            { from: "idle", to: "bloat", label: "the classic incident" },
+          ],
+        },
         title: "MVCC and snapshot isolation",
         level: "advanced",
         body: [
@@ -462,6 +637,73 @@ export const security: Card[] = [
       },
       {
         id: "write-skew",
+        inPractice:
+          "The cheapest fix is usually to change the model rather than the isolation level, because a constraint is checked by the database on every path including the script somebody runs by hand at midnight. Postgres exclusion constraints express a surprising number of these rules directly, most usefully non-overlapping ranges for booking and scheduling, which is exactly the shape that write skew otherwise breaks.",
+        diagram: {
+          caption: "Two rows written, no conflict detected, rule now false",
+          columns: [
+            [{ id: "d1", label: "Doctor A", sub: "sees B is on call", kind: "client" },
+             { id: "d2", label: "Doctor B", sub: "sees A is on call", kind: "client" }],
+            [{ id: "snap", label: "Each in its own snapshot", sub: "the rule holds in both", kind: "service" }],
+            [{ id: "w1", label: "A removes A", sub: "writes one row", kind: "data" },
+             { id: "w2", label: "B removes B", sub: "writes a different row", kind: "data" }],
+            [{ id: "none", label: "Nobody on call", sub: "no error was ever raised", kind: "external", alternative: true },
+             { id: "mat", label: "A rota row to lock", sub: "or an exclusion constraint", kind: "external" }],
+          ],
+          edges: [
+            { from: "d1", to: "snap", label: "check passes" },
+            { from: "d2", to: "snap", label: "check passes" },
+            { from: "snap", to: "w1", label: "commit" },
+            { from: "snap", to: "w2", label: "commit" },
+            { from: "w1", to: "none", label: "no rows conflict" },
+            { from: "w2", to: "mat", label: "make the conflict real" },
+          ],
+        },
+        sources: [
+          {
+            label: "PostgreSQL: exclusion constraints",
+            url: "https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-EXCLUSION",
+            supports: "That a class of set-spanning rule, most usefully non-overlapping ranges, can be expressed as a constraint the database enforces on every path.",
+          },
+        ],
+        checks: [
+          {
+            prompt: "Which of these rules is vulnerable to write skew?",
+            options: [
+              "At least one administrator must remain on every account",
+              "An email address must be unique across the whole user table",
+              "A row's status must be one of a fixed set of permitted values",
+              "A quantity column must never be allowed to fall below zero",
+            ],
+            correctIndex: 0,
+            explain:
+              "The vulnerable shape is a rule about a set combined with a write to a member of it: two administrators can each see the other and each remove themselves. The other three are expressible as a constraint on a single row or column, so the database enforces them on every path.",
+          },
+          {
+            prompt: "What does materialising the conflict mean in practice?",
+            options: [
+              "Give the rule a row that every participant has to lock",
+              "Recompute the rule after committing and undo it if broken",
+              "Hold the read locks until the end of the transaction instead",
+              "Store the rule as a trigger so the engine evaluates it once",
+            ],
+            correctIndex: 0,
+            explain:
+              "Write skew happens because the transactions write different rows, so nothing conflicts. Adding a row that stands for the rule itself, a rota row or a counter, turns an invisible predicate into a real write conflict the database can detect.",
+          },
+          {
+            prompt: "Why does serializable isolation need a retry loop to be usable?",
+            options: [
+              "Postgres detects the dangerous pattern and aborts one transaction",
+              "Serialisable transactions time out rather than waiting on a lock",
+              "The engine replays the transaction itself and reports the attempts",
+              "Snapshots expire, so a long transaction has to be restarted anyway",
+            ],
+            correctIndex: 0,
+            explain:
+              "Serializable snapshot isolation lets transactions run and aborts one when it spots a read-write pattern that could not have occurred serially. Without a retry, turning it on converts a rare silent anomaly into a visible error rate.",
+          },
+        ],
         title: "Write skew",
         level: "advanced",
         body: [
@@ -487,6 +729,46 @@ export const security: Card[] = [
       },
       {
         id: "wal-outbox",
+        inPractice:
+          "The relay can poll the table or read the replication log directly, and the choice is a maintenance one rather than a correctness one: polling every second costs a query and a second of latency, while change data capture through the write-ahead log costs neither and adds Debezium or an equivalent to operate. Teams that want the published event to be a designed contract keep the outbox table; teams that want the plumbing to disappear read the log.",
+        checks: [
+          {
+            prompt: "Why does wrapping the database write and the publish in one transaction not help?",
+            options: [
+              "The broker is not a participant, so the transaction cannot cover it",
+              "Transactions cannot span a network call of any kind by definition",
+              "The publish is asynchronous, so it completes after the commit does",
+              "Brokers reject writes that arrive inside an open transaction block",
+            ],
+            correctIndex: 0,
+            explain:
+              "A database transaction is atomic over that database. The broker has no part in it and will not roll back because the transaction did, which is why the gap survives the transaction block and needs the event moved inside the same commit instead.",
+          },
+          {
+            prompt: "The relay publishes an event and dies before marking the row sent. What happens?",
+            options: [
+              "The event is published a second time, so consumers must absorb it",
+              "The event is lost, since the row is no longer eligible for pickup",
+              "The broker deduplicates it, because the payload is byte identical",
+              "The row stays pending forever and requires manual intervention",
+            ],
+            correctIndex: 0,
+            explain:
+              "That crash window is exactly why delivery is at least once. It is the correct trade: a duplicate is survivable with an idempotent consumer and a lost event is not, so the design chooses the recoverable failure.",
+          },
+          {
+            prompt: "What does an outbox table need that is easy to leave out?",
+            options: [
+              "An index on unsent rows, and a job that prunes what has been sent",
+              "A foreign key to the row whose change the event describes",
+              "A unique constraint on the payload to prevent duplicate events",
+              "Its own database, so relay queries do not touch the primary",
+            ],
+            correctIndex: 0,
+            explain:
+              "The relay polls for unsent rows on a hot path, so without a partial index that query scans a growing table, and without pruning the table grows without bound. Both turn the outbox itself into the slowest part of the write path.",
+          },
+        ],
         title: "The write-ahead log and the outbox",
         level: "advanced",
         body: [
@@ -561,6 +843,36 @@ export const security: Card[] = [
     topics: [
       {
         id: "quorums",
+        inPractice:
+          "This is the design behind Dynamo, Cassandra and Riak, which is why those systems ask you to choose consistency per query rather than per cluster: Cassandra exposes the consistency level on each read and write, so ONE, QUORUM and ALL are a parameter rather than a property of the deployment. The dial being genuinely yours is a feature when workloads differ and a hazard when nobody decided.",
+        diagram: {
+          caption: "R plus W greater than N forces the read set to overlap the write set",
+          columns: [
+            [{ id: "w", label: "Write, W=2", sub: "of N=3 replicas", kind: "client" }],
+            [{ id: "r1", label: "Replica 1", sub: "has the write", kind: "data" },
+             { id: "r2", label: "Replica 2", sub: "has the write", kind: "data" },
+             { id: "r3", label: "Replica 3", sub: "stale", kind: "data", alternative: true }],
+            [{ id: "read", label: "Read, R=2", sub: "must touch one that has it", kind: "service" },
+             { id: "sloppy", label: "Sloppy quorum", sub: "overlap no longer guaranteed", kind: "service", alternative: true }],
+            [{ id: "repair", label: "Repair", sub: "read repair, handoff, Merkle trees", kind: "external" }],
+          ],
+          edges: [
+            { from: "w", to: "r1", label: "acknowledged" },
+            { from: "w", to: "r2", label: "acknowledged" },
+            { from: "w", to: "r3", label: "not yet" },
+            { from: "read", to: "r1", label: "sees the latest" },
+            { from: "read", to: "r3", label: "and a stale copy" },
+            { from: "read", to: "sloppy", label: "if nodes were substituted" },
+            { from: "r3", to: "repair", label: "converges anyway", async: true },
+          ],
+        },
+        sources: [
+          {
+            label: "DeCandia et al., Dynamo: Amazon's highly available key-value store (SOSP 2007)",
+            url: "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf",
+            supports: "The N, R and W formulation, sloppy quorums with hinted handoff, and anti-entropy using Merkle trees.",
+          },
+        ],
         title: "Quorum reads and writes",
         level: "advanced",
         body: [
@@ -623,6 +935,35 @@ export const security: Card[] = [
       },
       {
         id: "pacelc",
+        inPractice:
+          "The notation says two things and it is worth reading both. Cassandra and Dynamo-style stores with their default settings are PA/EL: available when partitioned, latency-favouring the rest of the time. A single-primary relational database with synchronous replication is PC/EC. Spanner is the interesting case, PC/EC by design, and it pays for it in the else branch with a commit-wait that geography prices, which is exactly what the second half of the acronym exists to make visible.",
+        diagram: {
+          caption: "Two branches, and only one of them happens every second",
+          columns: [
+            [{ id: "state", label: "Network state", sub: "partitioned, or healthy", kind: "client" }],
+            [{ id: "pa", label: "P: availability", sub: "answer, risk divergence", kind: "service" },
+             { id: "pc", label: "P: consistency", sub: "refuse the write", kind: "service" }],
+            [{ id: "el", label: "E: latency", sub: "nearest replica, possibly stale", kind: "data" },
+             { id: "ec", label: "E: consistency", sub: "quorum round trips", kind: "data" }],
+            [{ id: "rare", label: "A bad afternoon a year", sub: "what CAP describes", kind: "external", alternative: true },
+             { id: "every", label: "Every single request", sub: "what actually shapes the system", kind: "external" }],
+          ],
+          edges: [
+            { from: "state", to: "pa", label: "partitioned" },
+            { from: "state", to: "pc", label: "partitioned" },
+            { from: "state", to: "el", label: "healthy" },
+            { from: "state", to: "ec", label: "healthy" },
+            { from: "pa", to: "rare", label: "the famous half" },
+            { from: "el", to: "every", label: "the half nobody quotes" },
+          ],
+        },
+        sources: [
+          {
+            label: "Abadi, Consistency tradeoffs in modern distributed database system design (IEEE Computer, 2012)",
+            url: "https://www.cs.umd.edu/~abadi/papers/abadi-pacelc.pdf",
+            supports: "The PACELC formulation itself, and the argument that the else branch describes the trade made on every request rather than only during a partition.",
+          },
+        ],
         title: "PACELC: the half of CAP nobody quotes",
         level: "advanced",
         body: [
@@ -686,6 +1027,31 @@ export const security: Card[] = [
       },
       {
         id: "cells",
+        diagram: {
+          caption: "Nothing shared, so a fault has nowhere to spread",
+          columns: [
+            [{ id: "route", label: "Router", sub: "a lookup, statically stable", kind: "edge" }],
+            [{ id: "c1", label: "Cell 1", sub: "own compute, database, cache", kind: "service" },
+             { id: "c2", label: "Cell 2", sub: "own compute, database, cache", kind: "service" },
+             { id: "c3", label: "Cell 3", sub: "bad deploy lands here", kind: "service", alternative: true }],
+            [{ id: "blast", label: "One over n affected", sub: "decided in advance", kind: "data" }],
+            [{ id: "global", label: "Anything global", sub: "fans out across cells", kind: "external", alternative: true }],
+          ],
+          edges: [
+            { from: "route", to: "c1", label: "tenant to cell" },
+            { from: "route", to: "c2", label: "tenant to cell" },
+            { from: "route", to: "c3", label: "tenant to cell" },
+            { from: "c3", to: "blast", label: "contained by construction" },
+            { from: "c1", to: "global", label: "reports, search, migrations" },
+          ],
+        },
+        sources: [
+          {
+            label: "Amazon Builders' Library, Reducing the scope of impact with cell-based architecture",
+            url: "https://docs.aws.amazon.com/wellarchitected/latest/reducing-scope-of-impact-with-cell-based-architecture/reducing-scope-of-impact-with-cell-based-architecture.html",
+            supports: "That AWS builds services from cells so a fault has a bounded and known set of affected customers, and that the routing layer has to be simple enough to be nearly incapable of failing.",
+          },
+        ],
         title: "Cells, bulkheads and blast radius",
         level: "advanced",
         body: [
@@ -752,11 +1118,36 @@ export const security: Card[] = [
         title: "Tail latency: hedged requests and Little's Law",
         level: "advanced",
         body: [
-          "In a request that fans out to many services, the slowest response decides the total. Fan out to a hundred and your p99 per service becomes roughly your median overall.",
-          "A hedged request sends a duplicate to another replica once the first exceeds some threshold, and takes whichever answers. A small percentage of extra load buys a large cut in the tail.",
-          "Little's Law connects the three numbers you actually control: concurrency equals arrival rate multiplied by latency. If latency doubles under load, in-flight work doubles with it, which is how queues run away.",
+          "In a request that fans out to many servers, the slowest response decides the total, so the distribution you care about is not each server's but the maximum across all of them. That maximum behaves very badly as the fan-out grows, and the arithmetic is the whole topic. Fan out to a hundred servers, each independently exceeding a second on one per cent of requests, and the chance that at least one does is one minus 0.99 to the hundredth, about 63 per cent. A one-in-a-hundred event at the component has become a two-in-three event at the request, which means each component's 99th percentile is roughly the request's median.",
+          "That reframes what to work on. Tuning the median of a dependency changes almost nothing for a fan-out request, because the median was never what you were waiting for. Cutting a dependency's 99.9th percentile changes a great deal. It is also why large systems set latency targets on their internal services at percentiles that look absurd in isolation: the caller's fan-out is what makes them reasonable.",
+          "The causes of a component tail are mostly not the component's code, which is why they resist the usual profiling. Shared resources contended by a neighbour on the same machine. A background task, compaction, garbage collection, log rotation, taking the CPU for a moment. Queueing behind a request that arrived first. Power and thermal management changing clock speed. A retry underneath you. Each is brief, uncorrelated with your request, and unavoidable, which is why the strategy is to tolerate the tail rather than to eliminate it.",
+          "Hedging tolerates it directly and cheaply. Send the request to one replica, and if it has not answered within a threshold set near the 95th percentile, send a duplicate to a second replica and take whichever returns first. Because only the slowest few per cent are ever duplicated, the extra load is a few per cent while the tail improvement is large. Dean and Barroso reported a case where hedging after a 10ms delay cut the 99.9th percentile of a thousand-server read from 1,800ms to 74ms for around two per cent more requests, which is the clearest available demonstration that the tail is a distribution problem rather than a capacity problem.",
+          "Tied requests are the refinement worth knowing. Send to two replicas immediately, and tell each which other replica has the request, so whichever dequeues it first cancels the other. That removes the waiting threshold entirely and costs less duplicated work than hedging, at the price of needing the replicas to talk to each other. The other mitigations are structural: many small partitions rather than few large ones, so a slow server's share can be moved elsewhere; and returning early with whatever has arrived, because a slightly incomplete answer inside the budget beats a complete one outside it.",
+          "Little's Law is the other half, and it connects the numbers you actually control: concurrency equals arrival rate multiplied by latency. It is the reason a tail is not merely a latency problem but a capacity problem in disguise. A service taking 100 requests a second at 50ms holds 5 in flight; the same service at 5 seconds holds 500, with nothing about the traffic or the code having changed. So when a dependency's tail lengthens, the in-flight work grows in proportion, the pool fills with requests that are waiting rather than working, and the queue runs away. That is why failing fast frees capacity and raising a timeout during an incident makes it worse, and it is why a concurrency limit is often a better control than a rate limit: it bounds the product rather than one of its terms.",
         ],
-        why: "Tail latency is a structural property of fan-out, not a slow service you can find and fix. Hedging attacks the distribution directly, which is why it works when tuning individual services has stopped helping.",
+        why:
+          "Tail latency is a structural property of fan-out rather than a slow service you can find and fix, because the causes are shared resources, background work and queueing rather than your code. Hedging attacks the distribution directly, which is why it keeps working after tuning individual services has stopped helping. Little's Law is the reason it matters beyond latency: concurrency is arrival rate times latency, so a longer tail is more in-flight work, and more in-flight work is how a queue runs away.",
+        inPractice:
+          "Dean and Barroso's The Tail at Scale is the canonical treatment and reports the hedging result directly: a thousand-server read whose 99.9th percentile fell from 1,800ms to 74ms when a duplicate was sent after 10ms, for about two per cent additional requests. gRPC and Envoy both ship hedging as a configurable retry policy, which is the same idea available without implementing it.",
+        diagram: {
+          caption: "One slow replica sets the total, so duplicate only the slow few",
+          columns: [
+            [{ id: "req", label: "Request", sub: "fans out to 100", kind: "client" }],
+            [{ id: "fast", label: "99 fast replicas", sub: "inside the budget", kind: "service" },
+             { id: "slow", label: "1 slow replica", sub: "GC, contention, queueing", kind: "service" }],
+            [{ id: "wait", label: "Wait for all", sub: "63% exceed the budget", kind: "data", alternative: true },
+             { id: "hedge", label: "Hedge after p95", sub: "duplicate to a second replica", kind: "data" }],
+            [{ id: "out", label: "Answered", sub: "whichever returns first", kind: "external" }],
+          ],
+          edges: [
+            { from: "req", to: "fast", label: "parallel" },
+            { from: "req", to: "slow", label: "parallel" },
+            { from: "slow", to: "wait", label: "the max decides" },
+            { from: "slow", to: "hedge", label: "only the slow few" },
+            { from: "hedge", to: "out", label: "+2% load, tail cut" },
+            { from: "fast", to: "out", label: "already back" },
+          ],
+        },
         check: {
           prompt: "A request fans out to 100 services, each with p99 of 100ms. What is the rough expectation for the overall request?",
           options: [
@@ -766,8 +1157,59 @@ export const security: Card[] = [
             "Roughly unchanged, since an event at p99 is by definition uncommon",
           ],
           correctIndex: 1,
-          explain: "With 100 calls, the chance that all land inside p99 is 0.99^100, about 37 percent. So roughly two thirds of requests hit at least one slow call, the tail becomes the norm.",
+          explain:
+            "With 100 calls, the chance that all land inside p99 is 0.99^100, about 37 percent. So roughly two thirds of requests hit at least one slow call, the tail becomes the norm.",
         },
+        checks: [
+          {
+            prompt: "Why does hedging buy a large tail improvement for a small increase in load?",
+            options: [
+              "Only the requests that already exceeded the threshold are duplicated",
+              "The duplicate is sent to a replica that is known to be less loaded",
+              "The first request is cancelled, so the work is moved rather than added",
+              "Duplicates are served from cache, so the second copy is nearly free",
+            ],
+            correctIndex: 0,
+            explain:
+              "The threshold sits near the 95th percentile, so at most a few per cent of requests are ever sent twice. You pay a few per cent more work and remove most of the tail, which is why it is one of the best trades available.",
+          },
+          {
+            prompt: "A dependency's latency rises tenfold under load and the worker pool fills. Which law explains it?",
+            options: [
+              "Little's Law: concurrency is arrival rate multiplied by latency",
+              "Amdahl's Law: the serial fraction bounds the achievable speedup",
+              "The birthday paradox, applied to requests colliding on one worker",
+              "The CAP theorem, since availability is being traded for latency",
+            ],
+            correctIndex: 0,
+            explain:
+              "Arrival rate did not change and latency did, so in-flight work rose with it. A pool that comfortably held five requests now needs fifty, which is why a slow dependency is more dangerous than a dead one.",
+          },
+          {
+            prompt: "What do tied requests add over ordinary hedging?",
+            options: [
+              "Each replica knows the other has it, so the loser cancels its copy",
+              "The duplicate is sent to three replicas rather than to one more",
+              "The threshold adapts, so no percentile has to be chosen up front",
+              "Responses are merged, so a partial answer from each still counts",
+            ],
+            correctIndex: 0,
+            explain:
+              "Both copies are sent immediately and each carries the identity of the other, so whichever dequeues first cancels its twin. No waiting threshold is needed and less duplicated work is done, at the cost of the replicas having to communicate.",
+          },
+        ],
+        sources: [
+          {
+            label: "Dean and Barroso, The Tail at Scale (CACM, 2013)",
+            url: "https://research.google/pubs/the-tail-at-scale/",
+            supports: "The 1-in-100 component tail becoming a 63 per cent request tail at 100 servers, and the hedging result of 1,800ms to 74ms at p99.9 for about 2 per cent extra requests.",
+          },
+          {
+            label: "gRPC request hedging policy",
+            url: "https://grpc.io/docs/guides/request-hedging/",
+            supports: "That hedging is available as configuration rather than something a team has to implement itself.",
+          },
+        ],
       },
     ],
   },

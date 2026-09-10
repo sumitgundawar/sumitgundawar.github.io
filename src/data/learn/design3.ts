@@ -191,6 +191,13 @@ export const design3: Card[] = [
       },
       {
         id: "event-schema",
+        sources: [
+          {
+            label: "Confluent Schema Registry: compatibility types",
+            url: "https://docs.confluent.io/platform/current/schema-registry/fundamentals/schema-evolution.html",
+            supports: "That the registry refuses a producer schema change that would break existing consumers, which is what converts the compatibility rules from an intention into a failing deployment.",
+          },
+        ],
         title: "Schemas, versioning and the contract nobody owns",
         level: "advanced",
         body: [
@@ -276,6 +283,13 @@ export const design3: Card[] = [
       },
       {
         id: "event-debugging",
+        sources: [
+          {
+            label: "OpenTelemetry: messaging semantic conventions",
+            url: "https://opentelemetry.io/docs/specs/semconv/messaging/messaging-spans/",
+            supports: "That context propagation is defined for messaging as well as HTTP, which is what allows a single trace to span a publish and its consumers.",
+          },
+        ],
         title: "Debugging a system with no call stack",
         level: "advanced",
         body: [
@@ -463,6 +477,13 @@ export const design3: Card[] = [
       },
       {
         id: "service-mesh",
+        sources: [
+          {
+            label: "Istio: ambient mode",
+            url: "https://istio.io/latest/docs/ambient/overview/",
+            supports: "The sidecar-free direction described here, which exists because the per-pod proxy cost was the main objection to running a mesh.",
+          },
+        ],
         title: "Service meshes, and whether you need one",
         level: "advanced",
         body: [
@@ -551,6 +572,13 @@ export const design3: Card[] = [
       },
       {
         id: "north-south-east-west",
+        sources: [
+          {
+            label: "NIST SP 800-207: zero trust architecture",
+            url: "https://csrc.nist.gov/pubs/sp/800/207/final",
+            supports: "The argument that a request should be authenticated regardless of its network position, because a flat trusted interior turns one compromised component into access to everything on it.",
+          },
+        ],
         title: "The edge and the interior are different problems",
         level: "intermediate",
         body: [

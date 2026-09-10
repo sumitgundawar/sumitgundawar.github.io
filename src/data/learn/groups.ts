@@ -21,6 +21,7 @@ export const GROUPS = {
   interview: ["sd-interview", "seniority"],
   companies: ["company-questions"],
   security: ["appsec", "isolation", "replication-depth"],
+  dissections: ["cursor-git", "openai-agents"],
 } as const;
 
 export type GroupName = keyof typeof GROUPS;

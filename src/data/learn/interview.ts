@@ -9,6 +9,13 @@ export const interview: Card[] = [
     topics: [
       {
         id: "framework",
+        sources: [
+          {
+            label: "Jeff Dean, Latency numbers every programmer should know",
+            url: "https://colin-scott.github.io/personal_website/research/interactive_latency.html",
+            supports: "The latency ladder the estimation step depends on, from a memory reference in tens of nanoseconds to a cross-continental round trip in over a hundred milliseconds.",
+          },
+        ],
         title: "A structure for the 45 minutes",
         level: "beginner",
         body: [
@@ -91,6 +98,13 @@ export const interview: Card[] = [
       },
       {
         id: "estimation",
+        sources: [
+          {
+            label: "Jeff Dean, Latency numbers every programmer should know",
+            url: "https://colin-scott.github.io/personal_website/research/interactive_latency.html",
+            supports: "The specific figures quoted here: memory access in tens of nanoseconds, an SSD read in tens of microseconds, a data centre round trip around half a millisecond, and a cross-continental round trip well over a hundred milliseconds.",
+          },
+        ],
         title: "Back-of-envelope estimation",
         level: "intermediate",
         body: [
@@ -239,6 +253,13 @@ export const interview: Card[] = [
     topics: [
       {
         id: "senior-vs-staff",
+        sources: [
+          {
+            label: "Will Larson, Staff Engineer",
+            url: "https://staffeng.com/guides/staff-archetypes/",
+            supports: "The four archetypes named here, tech lead, architect, solver and right hand, and the observation that they are different jobs sharing a title.",
+          },
+        ],
         title: "Senior versus staff",
         level: "advanced",
         body: [
@@ -450,6 +471,26 @@ export const interview: Card[] = [
       },
       {
         id: "the-loop",
+        diagram: {
+          caption: "Each stage is scored against something different, and the debrief decides",
+          columns: [
+            [{ id: "rec", label: "Recruiter screen", sub: "level, band, availability", kind: "client" }],
+            [{ id: "screen", label: "Technical screen", sub: "a filter: pass it cleanly", kind: "service" }],
+            [{ id: "coding", label: "Coding", sub: "can you build", kind: "data" },
+             { id: "design", label: "System design", sub: "judgement at scale", kind: "data" },
+             { id: "behav", label: "Behavioural", sub: "how you work with people", kind: "data" }],
+            [{ id: "debrief", label: "Debrief", sub: "people who were not in your rounds", kind: "external" }],
+          ],
+          edges: [
+            { from: "rec", to: "screen", label: "basics agreed" },
+            { from: "screen", to: "coding", label: "scored separately" },
+            { from: "screen", to: "design", label: "scored separately" },
+            { from: "screen", to: "behav", label: "scored separately" },
+            { from: "coding", to: "debrief", label: "quotable evidence travels" },
+            { from: "design", to: "debrief", label: "impressions do not" },
+            { from: "behav", to: "debrief", label: "impressions do not" },
+          ],
+        },
         title: "What each stage of the loop is for",
         level: "intermediate",
         body: [

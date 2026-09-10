@@ -9,6 +9,33 @@ export const delivery: Card[] = [
     topics: [
       {
         id: "what-docker-solves",
+        diagram: {
+          caption: "A restricted view of one kernel, not a second kernel",
+          columns: [
+            [{ id: "host", label: "Host kernel", sub: "one, shared", kind: "data" }],
+            [{ id: "ns", label: "Namespaces", sub: "what a process can see", kind: "service" },
+             { id: "cg", label: "cgroups", sub: "what it can use", kind: "service" }],
+            [{ id: "ctr", label: "Container", sub: "starts in milliseconds", kind: "edge" },
+             { id: "vm", label: "MicroVM", sub: "its own kernel, stronger", kind: "edge" }],
+            [{ id: "repro", label: "Same artefact everywhere", sub: "laptop, CI, production", kind: "external" },
+             { id: "untrusted", label: "Untrusted code", sub: "wants the microVM", kind: "external" }],
+          ],
+          edges: [
+            { from: "host", to: "ns", label: "isolation" },
+            { from: "host", to: "cg", label: "limits" },
+            { from: "ns", to: "ctr", label: "no second kernel" },
+            { from: "cg", to: "ctr", label: "no second kernel" },
+            { from: "ctr", to: "repro", label: "the actual value" },
+            { from: "vm", to: "untrusted", label: "a kernel of its own" },
+          ],
+        },
+        sources: [
+          {
+            label: "Firecracker: lightweight virtualisation for serverless applications (NSDI 2020)",
+            url: "https://www.usenix.org/conference/nsdi20/presentation/agache",
+            supports: "That multi-tenant untrusted workloads on Lambda and similar platforms run in microVMs rather than shared-kernel containers, because a container escape is a kernel exploit away.",
+          },
+        ],
         title: "What Docker actually solves",
         level: "beginner",
         body: [
@@ -162,6 +189,22 @@ export const delivery: Card[] = [
       },
       {
         id: "image-hygiene",
+        diagram: {
+          caption: "Order the layers so a code change rebuilds one of them",
+          columns: [
+            [{ id: "src", label: "One line changed", sub: "in application source", kind: "client" }],
+            [{ id: "bad", label: "COPY . then install", sub: "cache invalidated", kind: "service", alternative: true },
+             { id: "good", label: "Install, then COPY", sub: "dependency layer cached", kind: "service" }],
+            [{ id: "build", label: "Build stage", sub: "full toolchain", kind: "data" }],
+            [{ id: "run", label: "Runtime stage", sub: "distroless, no shell, non-root", kind: "external" }],
+          ],
+          edges: [
+            { from: "src", to: "bad", label: "reinstalls everything" },
+            { from: "src", to: "good", label: "rebuilds one layer" },
+            { from: "good", to: "build", label: "compile here" },
+            { from: "build", to: "run", label: "copy only the artefact" },
+          ],
+        },
         title: "Image size, layers and security",
         level: "intermediate",
         body: [
@@ -235,6 +278,33 @@ export const delivery: Card[] = [
     topics: [
       {
         id: "pipeline",
+        inPractice:
+          "The DORA research programme is the closest thing to evidence in this area, and it measures outcomes rather than practices: deployment frequency, lead time for changes, change failure rate and time to restore service. Pipeline duration shows up through lead time, which is why treating it as a product number rather than an infrastructure detail is defensible rather than a preference.",
+        diagram: {
+          caption: "Cheap checks first, and the artefact built once",
+          columns: [
+            [{ id: "push", label: "Commit", sub: "every change, every time", kind: "client" }],
+            [{ id: "fast", label: "Lint, types, unit", sub: "seconds, run first", kind: "service" },
+             { id: "slow", label: "Integration, e2e", sub: "only where it earns its place", kind: "service" }],
+            [{ id: "art", label: "One artefact", sub: "built once, promoted", kind: "data" },
+             { id: "rebuild", label: "Rebuilt per environment", sub: "staging tested something adjacent", kind: "data", alternative: true }],
+            [{ id: "ten", label: "Under ten minutes", sub: "past it, people batch changes", kind: "external" }],
+          ],
+          edges: [
+            { from: "push", to: "fast", label: "fail early, cheaply" },
+            { from: "fast", to: "slow", label: "in parallel where possible" },
+            { from: "slow", to: "art", label: "promote the same bytes" },
+            { from: "slow", to: "rebuild", label: "makes staging decorative" },
+            { from: "art", to: "ten", label: "the number that matters" },
+          ],
+        },
+        sources: [
+          {
+            label: "DORA: the four key metrics",
+            url: "https://dora.dev/guides/dora-metrics-four-keys/",
+            supports: "That lead time, deployment frequency, change failure rate and time to restore are the measured outcomes, and that they correlate with performance better than any process choice.",
+          },
+        ],
         title: "What a pipeline should do",
         level: "beginner",
         body: [
@@ -298,6 +368,29 @@ export const delivery: Card[] = [
       },
       {
         id: "deploy-strategies",
+        inPractice:
+          "Canary works only when the go or no-go decision is automated, which means metrics good enough to compare two populations and a rule for aborting that does not need somebody awake. That is what progressive delivery controllers such as Argo Rollouts and Flagger exist to run: they watch the analysis, hold the rollout when the new population diverges, and roll back without a human in the path.",
+        diagram: {
+          caption: "Three ways to have both versions running, and one rollback each",
+          columns: [
+            [{ id: "new", label: "New version", sub: "both versions will coexist", kind: "client" }],
+            [{ id: "roll", label: "Rolling", sub: "one instance at a time", kind: "service" },
+             { id: "bg", label: "Blue-green", sub: "second environment, one switch", kind: "service" },
+             { id: "can", label: "Canary", sub: "1 per cent, then watch", kind: "service" }],
+            [{ id: "compat", label: "Schema must suit both", sub: "true of all three", kind: "data" }],
+            [{ id: "back", label: "Rollback, rehearsed", sub: "or it is a plan, not a capability", kind: "external" },
+             { id: "flag", label: "Flag off", sub: "faster than any pipeline", kind: "external" }],
+          ],
+          edges: [
+            { from: "new", to: "roll", label: "no extra capacity" },
+            { from: "new", to: "bg", label: "double, briefly" },
+            { from: "new", to: "can", label: "fails small" },
+            { from: "roll", to: "compat", label: "versions overlap" },
+            { from: "bg", to: "compat", label: "shared database" },
+            { from: "can", to: "back", label: "automated decision" },
+            { from: "back", to: "flag", label: "decouple deploy from release" },
+          ],
+        },
         title: "Blue-green, canary and rolling",
         level: "intermediate",
         body: [
@@ -360,6 +453,31 @@ export const delivery: Card[] = [
       },
       {
         id: "migrations",
+        inPractice:
+          "Which operations are cheap is engine-specific and not optional knowledge. On modern Postgres adding a nullable column, or one with a constant default, is a catalogue change and effectively instant, while a volatile default rewrites the table; building an index the ordinary way takes a lock that queues every query behind it, which is exactly why CREATE INDEX CONCURRENTLY exists. Setting a short lock_timeout means a migration fails quickly instead of taking the table with it.",
+        diagram: {
+          caption: "Expand, backfill, switch, contract: each step safe with both versions",
+          columns: [
+            [{ id: "add", label: "Add the new column", sub: "nullable, no default rewrite", kind: "service" }],
+            [{ id: "both", label: "Write both", sub: "old code and new both work", kind: "service" }],
+            [{ id: "fill", label: "Backfill in batches", sub: "with a pause between them", kind: "data" }],
+            [{ id: "read", label: "Switch reads", sub: "then, later, drop the old", kind: "data" },
+             { id: "lock", label: "One big statement", sub: "lock plus a write burst", kind: "data", alternative: true }],
+          ],
+          edges: [
+            { from: "add", to: "both", label: "deploy one" },
+            { from: "both", to: "fill", label: "deploy two" },
+            { from: "fill", to: "read", label: "deploy three" },
+            { from: "fill", to: "lock", label: "the impatient version" },
+          ],
+        },
+        sources: [
+          {
+            label: "PostgreSQL: ALTER TABLE notes",
+            url: "https://www.postgresql.org/docs/current/sql-altertable.html",
+            supports: "That adding a column with a constant default avoids a table rewrite, while a volatile default does not, and which lock level each operation takes.",
+          },
+        ],
         title: "Database migrations without downtime",
         level: "advanced",
         body: [
@@ -423,6 +541,28 @@ export const delivery: Card[] = [
       },
       {
         id: "feature-flags",
+        inPractice:
+          "The flag service sits on the request path, so it needs the treatment of a dependency: values cached locally, a defined behaviour when it is unreachable, and a default that is the safe path rather than whatever the client library returns for an unknown key. A flag system that takes the product down when it is unavailable has inverted its own purpose, which is the failure mode worth designing against before the first outage.",
+        diagram: {
+          caption: "Four kinds of flag, and only one of them is meant to survive",
+          columns: [
+            [{ id: "ship", label: "Deployed dark", sub: "code present, path off", kind: "client" }],
+            [{ id: "rel", label: "Release flag", sub: "temporary, delete it", kind: "service" },
+             { id: "exp", label: "Experiment flag", sub: "measure, then decide", kind: "service" },
+             { id: "ops", label: "Kill switch", sub: "permanent by design", kind: "service" },
+             { id: "perm", label: "Permission flag", sub: "belongs in authorisation", kind: "service", alternative: true }],
+            [{ id: "combo", label: "Ten live flags", sub: "1,024 combinations, 3 tested", kind: "data", alternative: true }],
+            [{ id: "off", label: "Off without a deploy", sub: "minutes against a pipeline run", kind: "external" }],
+          ],
+          edges: [
+            { from: "ship", to: "rel", label: "cohort, then everyone" },
+            { from: "ship", to: "exp", label: "split traffic" },
+            { from: "ship", to: "ops", label: "for an expensive feature" },
+            { from: "ship", to: "perm", label: "entitlement in disguise" },
+            { from: "rel", to: "combo", label: "if never deleted" },
+            { from: "ops", to: "off", label: "the point of all of it" },
+          ],
+        },
         title: "Feature flags",
         level: "intermediate",
         body: [
@@ -494,6 +634,8 @@ export const delivery: Card[] = [
     topics: [
       {
         id: "core-services",
+        inPractice:
+          "Where lock-in actually costs is not compute or storage, which move with effort, but the proprietary glue: the event bus, the identity system, the managed workflow engine, anything whose product is the integration. Multi-cloud as a default answer builds for the intersection of three platforms and pays for all three, which is why the common deliberate exceptions are narrow: DNS and CDN, where an outage is total and a second vendor is cheap.",
         title: "The core services, by concept",
         level: "beginner",
         body: [
@@ -557,6 +699,8 @@ export const delivery: Card[] = [
       },
       {
         id: "right-sizing",
+        inPractice:
+          "The arithmetic that deflates most architecture arguments is one division: a million requests a day is about twelve a second, perhaps fifty at peak. A single well-configured server with fast storage handles tens of thousands a second for many workloads, and vertical scaling stops being fashionable long before it stops being effective. The decisions worth deliberating are the ones that get more expensive monthly: the data model, tenancy boundaries, identifiers and the public shape of an API.",
         title: "Right-sizing: build for the traffic you have",
         level: "intermediate",
         body: [
@@ -647,6 +791,35 @@ export const delivery: Card[] = [
       },
       {
         id: "cost-drivers",
+        inPractice:
+          "Netflix building Open Connect and Dropbox moving off S3 are the same calculation at different points on one curve: past some volume the provider's margin exceeds the cost of doing it yourself, and below it managed wins comfortably. Dropbox reported saving around 75 million dollars over two years after moving the majority of its storage onto its own infrastructure, which is the size the volume has to reach before the trade flips.",
+        diagram: {
+          caption: "The bill is mostly movement and idleness, not storage",
+          columns: [
+            [{ id: "bytes", label: "Your data", sub: "cheap to store", kind: "data" }],
+            [{ id: "egress", label: "Egress", sub: "charged per GB leaving", kind: "external", alternative: true },
+             { id: "cdn", label: "Through a CDN", sub: "leaves origin once", kind: "edge" },
+             { id: "zone", label: "Cross-zone chatter", sub: "the internal conversation", kind: "external", alternative: true }],
+            [{ id: "idle", label: "Idle provisioned capacity", sub: "peak sizing for 363 quiet days", kind: "service", alternative: true },
+             { id: "cruft", label: "Unattached volumes", sub: "snapshots, logs kept forever", kind: "service", alternative: true }],
+            [{ id: "unit", label: "Cost per request", sub: "the number that should be flat", kind: "client" }],
+          ],
+          edges: [
+            { from: "bytes", to: "egress", label: "served directly" },
+            { from: "bytes", to: "cdn", label: "served through cache" },
+            { from: "bytes", to: "zone", label: "chatty across zones" },
+            { from: "egress", to: "unit", label: "attribute it" },
+            { from: "idle", to: "unit", label: "attribute it" },
+            { from: "cruft", to: "unit", label: "attribute it" },
+          ],
+        },
+        sources: [
+          {
+            label: "Wired, Dropbox moving off Amazon's cloud",
+            url: "https://www.wired.com/2016/03/epic-story-dropboxs-exodus-amazon-cloud-empire/",
+            supports: "That past a certain volume the provider margin exceeds the cost of running it yourself, with Dropbox as the documented case.",
+          },
+        ],
         title: "Where cloud bills actually come from",
         level: "advanced",
         body: [
@@ -713,23 +886,105 @@ export const delivery: Card[] = [
         title: "Serverless, containers or VMs",
         level: "intermediate",
         body: [
-          "Serverless functions scale to zero and cost nothing when idle, which suits spiky or low-volume workloads. Cold starts add latency, and long-running work does not fit.",
-          "Containers on a managed platform give steady performance and no cold starts, at the cost of paying for idle capacity.",
-          "VMs give the most control and the most operational responsibility, and remain the right answer for anything with unusual system requirements.",
+          "The three options are best understood by what you hand over. With a virtual machine you hand over the hardware and keep the operating system, the runtime, the process supervision and the patching. With a managed container platform you hand over an image and keep the code inside it. With a serverless function you hand over a function and, crucially, you also hand over the idle time, which is the part that changes the bill rather than the architecture.",
+          "Scaling to zero is the property serverless is bought for. A function with no traffic costs nothing, and one with a hundredfold spike gets a hundred instances without anybody having configured a scaling group. That suits work whose shape is spiky or unpredictable: a webhook receiver, a scheduled job, an admin endpoint used twice a week, the long tail of internal tooling that would otherwise each need a home.",
+          "The cold start is the cost of that, and it is worth being specific about where it comes from rather than treating it as a fixed tax. A request arriving with no warm instance waits for a sandbox to be created, the runtime to boot and the application to initialise, and the last of those three is usually the largest and is entirely yours: a framework that scans the classpath, a dependency tree that runs code at import, a client that opens a connection pool at module scope. Interpreted runtimes typically start in tens to low hundreds of milliseconds; a JVM or .NET application doing real initialisation can take seconds. The mitigations are provisioned concurrency or a minimum instance count, which work by keeping instances warm, which is to say by giving up scale to zero and paying for idle after all.",
+          "The cost crossover is a duty cycle rather than a request count, and it is arithmetic anyone can do before choosing. Per-invocation pricing charges memory multiplied by execution time, so a function allocated one gigabyte and busy for a whole month is billed for roughly 2.6 million gigabyte-seconds, which is the same order of magnitude as simply renting a small instance for that month. Below roughly a fifth to a third of full utilisation serverless is comfortably cheaper; well above it, always-on capacity is, and the exact crossover moves with the provider's prices, which is the argument for computing it rather than inheriting an opinion about it.",
+          "Then there are the constraints that decide feasibility rather than cost. Execution has a hard ceiling, fifteen minutes on Lambda, so anything genuinely long-running needs a different home or needs breaking into steps. Nothing survives between invocations, so in-process caching is unreliable and any warm state is a coincidence. And instance count follows traffic, which means database connections follow traffic too, so the same property that makes scaling effortless is what exhausts a relational database's connection slots at peak, which is why a pooler is standard equipment rather than an optimisation.",
+          "So the decision follows the traffic shape and the work, not the fashion. Spiky, short, stateless and event-driven: serverless, and the operational saving is real. Steady, predictable and continuous: a container on a managed platform, where there are no cold starts and always-on capacity is the cheaper way to buy the same compute. Unusual system requirements, a specific kernel, a GPU, licensed software, a process that must not be restarted: a virtual machine, and accept the operational work as the price of the control. Most real systems contain all three, chosen per workload, which is the correct answer rather than a failure to standardise.",
         ],
-        why: "The deciding factor is usually traffic shape, not preference. Spiky and low-volume favours serverless; steady and predictable favours containers, where always-on capacity is cheaper than per-invocation pricing.",
+        why:
+          "The deciding factor is traffic shape, and the two numbers that decide it are duty cycle and initialisation time. Spiky and low-volume favours serverless because idle costs nothing; steady and predictable favours containers because always-on capacity is cheaper than paying per invocation for work that never stops. Reaching for provisioned concurrency to fix cold starts is worth noticing, because it means paying for idle capacity inside a model chosen for not paying for idle capacity.",
+        inPractice:
+          "AWS Lambda runs each function in a Firecracker microVM, which is what makes per-tenant isolation affordable at that granularity, and caps execution at fifteen minutes. Cloud Run and its equivalents sit deliberately in the middle: a container image, request-based autoscaling, and a minimum instance count you can set above zero when cold starts matter more than the idle bill.",
+        diagram: {
+          caption: "What you hand over, and what it costs you",
+          columns: [
+            [{ id: "spiky", label: "Spiky traffic", sub: "idle most of the day", kind: "client" },
+             { id: "steady", label: "Steady traffic", sub: "busy all month", kind: "client" }],
+            [{ id: "fn", label: "Function", sub: "hand over the idle time", kind: "service" },
+             { id: "ctr", label: "Container", sub: "hand over the image", kind: "service" },
+             { id: "vm", label: "Virtual machine", sub: "hand over the hardware", kind: "service", alternative: true }],
+            [{ id: "zero", label: "Scales to zero", sub: "cold start on arrival", kind: "data" },
+             { id: "warm", label: "Always warm", sub: "pay for idle", kind: "data" }],
+            [{ id: "pool", label: "Connection pooler", sub: "instances follow traffic", kind: "data" }],
+          ],
+          edges: [
+            { from: "spiky", to: "fn", label: "idle costs nothing" },
+            { from: "steady", to: "ctr", label: "cheaper per hour" },
+            { from: "steady", to: "vm", label: "if you need the control" },
+            { from: "fn", to: "zero", label: "no warm instance" },
+            { from: "ctr", to: "warm", label: "no cold start" },
+            { from: "zero", to: "pool", label: "slots exhaust at peak", async: true },
+          ],
+        },
         check: {
-          prompt: "A service handles steady, high traffic all day. Why might serverless be the wrong choice?",
+          prompt: "A service handles steady traffic all day, every day. Why is serverless usually the more expensive choice for it?",
           options: [
-            "Per-invocation pricing loses to reserved capacity once there is no idle time to save",
-            "Cold starts on every request add tail latency that steady traffic cannot amortise",
-            "Functions cannot hold a connection pool, so each call reopens the database",
-            "Account concurrency limits cap sustained throughput below a container fleet",
+            "Per-invocation pricing bills continuous work at more than renting the box",
+            "Functions are capped at fifteen minutes, so the work has to be split up",
+            "Each invocation opens its own connection, and pooling is billed separately",
+            "Cold starts recur on every request once traffic becomes fully continuous",
           ],
           correctIndex: 0,
           explain:
-            "Serverless is priced for idle time you do not have. Note that cold starts are the wrong objection here: steady traffic is exactly the case where instances stay warm and you rarely pay one. The pricing argument is the one that survives.",
+            "Scaling to zero is worth nothing to a workload that is never idle, and paying by the gigabyte-second for a month of continuous execution costs the same order as an instance that runs the month. The duration cap and the connection pressure are both real constraints, and neither is the reason the bill is higher.",
         },
+        checks: [
+          {
+            prompt: "Where does most of a cold start usually come from?",
+            options: [
+              "Your own initialisation: imports, framework scanning, pool setup",
+              "The provider's sandbox creation, which dominates the other phases",
+              "The network, because a new instance resolves its dependencies again",
+              "Image download, which is repeated for each new instance created",
+            ],
+            correctIndex: 0,
+            explain:
+              "Sandbox creation and runtime boot are measured in tens of milliseconds and are not yours to change. Application initialisation is the largest term for anything doing real work at import time, and it is the only one you can shorten.",
+          },
+          {
+            prompt: "What does provisioned concurrency actually trade away?",
+            options: [
+              "Scaling to zero, which was the reason for choosing functions",
+              "Burst capacity, since warm instances are capped at the reserved count",
+              "Isolation, because reserved instances are shared between invocations",
+              "Duration limits, which no longer apply once instances stay warm",
+            ],
+            correctIndex: 0,
+            explain:
+              "It keeps instances alive so a request never waits for initialisation, and an instance kept alive is idle capacity you are paying for. That is a reasonable trade, and it is worth noticing that it undoes the property the model was chosen for.",
+          },
+          {
+            prompt: "Why does a serverless API exhaust a relational database's connections?",
+            options: [
+              "Instance count tracks traffic, and each instance opens its own",
+              "Functions cannot close connections, so every invocation leaks one",
+              "The provider caps connections per account rather than per database",
+              "Cold starts open a second connection before the first is released",
+            ],
+            correctIndex: 0,
+            explain:
+              "The property that makes scaling effortless is that instances appear on demand, and connections appear with them, so demand for slots peaks exactly when the database is busiest. A pooler in transaction mode decouples the two.",
+          },
+        ],
+        sources: [
+          {
+            label: "AWS Lambda quotas",
+            url: "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html",
+            supports: "The fifteen minute maximum execution duration and the memory ceiling per function.",
+          },
+          {
+            label: "Firecracker: lightweight virtualisation for serverless (NSDI 2020)",
+            url: "https://www.usenix.org/conference/nsdi20/presentation/agache",
+            supports: "That Lambda isolates each function in a microVM, and why that is what makes per-tenant isolation affordable.",
+          },
+          {
+            label: "Google Cloud Run: minimum instances",
+            url: "https://cloud.google.com/run/docs/configuring/min-instances",
+            supports: "That the managed container option removes cold starts by keeping instances warm, at the cost of paying for idle.",
+          },
+        ],
       },
     ],
   },

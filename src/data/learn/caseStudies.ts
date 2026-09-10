@@ -76,6 +76,23 @@ export const caseStudies: Card[] = [
 
       {
         id: "netflix-encoding",
+        sources: [
+          {
+            label: "Netflix TechBlog, Dynamic optimizer: a perceptual video encoding optimization framework (2018)",
+            url: "https://netflixtechblog.com/dynamic-optimizer-a-perceptual-video-encoding-optimization-framework-e19f1e3a277f",
+            supports: "The reported bitrate reductions at equal quality, measured in BD-rate against fixed-quality encoding: 28.04 per cent for x264, 37.61 per cent for libvpx VP9 and 33.51 per cent for x265.",
+          },
+          {
+            label: "Netflix TechBlog, Optimized shot-based encodes: now streaming",
+            url: "https://netflixtechblog.com/optimized-shot-based-encodes-now-streaming-4b9464204830",
+            supports: "That shot-based encoding shipped for selected titles, and the further saving over per-title encoding at the same VMAF.",
+          },
+          {
+            label: "Netflix, VMAF: perceptual video quality assessment",
+            url: "https://github.com/Netflix/vmaf",
+            supports: "That VMAF is Netflix's own perceptual metric, developed and open-sourced, and is what the ladder is optimised against rather than a mathematical error measure such as PSNR.",
+          },
+        ],
         title: "Per-title and per-shot encoding: the bitrate ladder",
         level: "advanced",
         body: [
@@ -286,12 +303,24 @@ export const caseStudies: Card[] = [
 
       {
         id: "netflix-cdn",
+        sources: [
+          {
+            label: "Netflix Open Connect, appliance hardware",
+            url: "https://openconnect.netflix.com/en/appliances/",
+            supports: "The published specifications quoted here: 2U storage appliances with up to 120TB and around 200Gbps over 6x10Gbps LAG or up to 2x100Gbps, and a global appliance with up to 60TB and around 80Gbps.",
+          },
+          {
+            label: "Netflix, How Netflix works with ISPs around the globe",
+            url: "https://about.netflix.com/en/news/how-netflix-works-with-isps-around-the-globe-to-deliver-a-great-viewing-experience",
+            supports: "That Open Connect delivers 100 per cent of Netflix video traffic, and that close to 90 per cent of that traffic is delivered over direct connections to the residential ISPs members use.",
+          },
+        ],
         title: "Open Connect: building the CDN rather than buying it",
         level: "intermediate",
         body: [
           "Netflix is a large share of internet traffic at peak. Buying that from a commercial CDN would be enormously expensive, and it would still put the bytes on the wrong side of the congested links between networks.",
           "So Netflix builds its own appliances and gives them to ISPs at no cost, installed inside the ISP's own network. The ISP supplies power, space and connectivity. Netflix supplies the hardware and operates it. By the time you press play, the video is already past the peering links that would otherwise be the bottleneck, sitting on a machine inside the network you are a customer of.",
-          "The published hardware makes the trade concrete. Storage appliances are 2U servers with up to 120TB of raw storage and around 200Gbps of operational throughput, connected by 6x10Gbps or up to 2x100Gbps. There is also a smaller global appliance with up to 60TB and around 80Gbps, aimed at smaller partners and emerging markets. Netflix states that Open Connect serves 100% of its video traffic and that close to 95% globally is delivered over direct connections between Open Connect and residential ISPs.",
+          "The published hardware makes the trade concrete. Storage appliances are 2U servers with up to 120TB of raw storage and around 200Gbps of operational throughput, connected by 6x10Gbps or up to 2x100Gbps. There is also a smaller global appliance with up to 60TB and around 80Gbps, aimed at smaller partners and emerging markets. Netflix states that Open Connect serves 100% of its video traffic, and that close to 90% of that traffic globally is delivered over direct connections between Open Connect and the residential ISPs its members use.",
           "Content arrives on those appliances during off-peak hours, chosen by predictive models of what each region will want. This is the part that makes the whole thing work: the catalogue is finite, demand is forecastable, and yesterday's data tells you a great deal about tomorrow's viewing. Popularity is not uniform, so an appliance does not need the whole catalogue to serve almost all requests locally.",
           "The appliances do not decide who they serve. They are directed caches: an OCA only serves clients whose prefixes the ISP has advertised to it over BGP, so the ISP retains control of what traffic lands where, which is a precondition for any ISP agreeing to host equipment at all.",
         ],
@@ -430,6 +459,18 @@ export const caseStudies: Card[] = [
 
       {
         id: "netflix-microservices",
+        sources: [
+          {
+            label: "Netflix TechBlog, Zuul 2: the Netflix journey to asynchronous, non-blocking systems",
+            url: "https://netflixtechblog.com/zuul-2-the-netflix-journey-to-asynchronous-non-blocking-systems-45947377fb5c",
+            supports: "That the edge gateway was rewritten on Netty for asynchronous non-blocking I/O in order to hold very large numbers of connections.",
+          },
+          {
+            label: "Netflix, Hystrix: no longer in active development",
+            url: "https://github.com/Netflix/Hystrix/blob/master/README.md",
+            supports: "That Hystrix popularised the circuit breaker and the declared fallback per remote call, and has since been retired in favour of adaptive concurrency limits.",
+          },
+        ],
         title: "Microservices and the compounding failure problem",
         level: "advanced",
         body: [
@@ -509,6 +550,13 @@ export const caseStudies: Card[] = [
 
       {
         id: "netflix-caching",
+        sources: [
+          {
+            label: "Netflix TechBlog, Announcing EVCache: distributed in-memory datastore",
+            url: "https://netflixtechblog.com/announcing-evcache-distributed-in-memory-datastore-for-cloud-c26a698c27f7",
+            supports: "That EVCache is built on memcached and replicated across availability zones and regions, and what it holds on the serving path.",
+          },
+        ],
         title: "EVCache: caching across regions without distributed transactions",
         level: "advanced",
         body: [
@@ -572,6 +620,13 @@ export const caseStudies: Card[] = [
 
       {
         id: "netflix-regions",
+        sources: [
+          {
+            label: "Netflix TechBlog, Active-active for multi-regional resiliency",
+            url: "https://netflixtechblog.com/active-active-for-multi-regional-resiliency-c47719f6685b",
+            supports: "That Netflix runs multiple regions active-active rather than keeping a standby, and rehearses full region evacuation as a routine exercise.",
+          },
+        ],
         title: "Active-active regions and practising the evacuation",
         level: "advanced",
         body: [
@@ -734,6 +789,13 @@ export const caseStudies: Card[] = [
     topics: [
       {
         id: "uber-geo",
+        sources: [
+          {
+            label: "Uber Engineering, H3: a hexagonal hierarchical spatial index",
+            url: "https://www.uber.com/en-GB/blog/h3/",
+            supports: "The framing quoted here, that hexagons have one distance between a cell centre and its neighbours against two for squares and three for triangles, the sixteen resolutions with an aperture of seven, and the twelve unavoidable pentagons oriented over water.",
+          },
+        ],
         title: "H3: why the world is tiled in hexagons",
         level: "intermediate",
         body: [
@@ -1302,6 +1364,13 @@ export const caseStudies: Card[] = [
     topics: [
       {
         id: "fanout",
+        sources: [
+          {
+            label: "Twitter engineering, via High Scalability: the architecture Twitter uses for 150M active users",
+            url: "https://highscalability.com/the-architecture-twitter-uses-to-deal-with-150m-active-users/",
+            supports: "That home timelines are materialised in a Redis cluster holding roughly the most recent 800 tweet identifiers per user, and that identifiers rather than tweets are what is stored.",
+          },
+        ],
         title: "Fan-out on write against fan-out on read",
         level: "intermediate",
         body: [
@@ -1663,6 +1732,13 @@ export const caseStudies: Card[] = [
     topics: [
       {
         id: "whatsapp-connections",
+        sources: [
+          {
+            label: "WhatsApp engineering, 1 million is so 2011",
+            url: "https://blog.whatsapp.com/1-million-is-so-2011",
+            supports: "The published account of holding well over a million concurrent connections on a single machine, which is the figure the Erlang argument rests on.",
+          },
+        ],
         title: "A process per connection, and why Erlang",
         level: "advanced",
         body: [
@@ -1800,6 +1876,13 @@ export const caseStudies: Card[] = [
 
       {
         id: "e2e",
+        sources: [
+          {
+            label: "WhatsApp, encryption overview technical white paper",
+            url: "https://faq.whatsapp.com/820124435853543",
+            supports: "The Signal Protocol construction described here: pre-keys uploaded in advance for asynchronous session setup, sender keys for groups, and a separate identity and session per device.",
+          },
+        ],
         title: "End-to-end encryption, and designing so the server cannot help",
         level: "advanced",
         body: [

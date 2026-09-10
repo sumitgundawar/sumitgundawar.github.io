@@ -218,7 +218,7 @@ export const design3: Card[] = [
             [{ id: "topic", label: "Topic", sub: "months of retained events", kind: "queue" }],
             [
               { id: "known", label: "Known consumers", kind: "service" },
-              { id: "unknown", label: "Consumers you forgot", kind: "service" },
+              { id: "unknown", label: "Forgotten consumers", kind: "service" },
               { id: "new", label: "New consumer", sub: "replays from the start", kind: "service" },
             ],
           ],
@@ -504,10 +504,10 @@ export const design3: Card[] = [
               { id: "lib", label: "Shared library", sub: "one per language", kind: "edge", alternative: true },
               { id: "side", label: "Sidecar proxy", sub: "one per instance", kind: "edge" },
             ],
-            [{ id: "feat", label: "Retries, mTLS, telemetry", sub: "uniform either way", kind: "data" }],
+            [{ id: "feat", label: "Retries and mTLS", sub: "uniform either way", kind: "data" }],
             [
-              { id: "cost1", label: "Reimplemented per language", kind: "external", alternative: true },
-              { id: "cost2", label: "A second network to debug", kind: "external" },
+              { id: "cost1", label: "Once per language", kind: "external", alternative: true },
+              { id: "cost2", label: "A second network", kind: "external" },
             ],
           ],
           edges: [
@@ -602,7 +602,7 @@ export const design3: Card[] = [
             ],
             [
               { id: "mesh", label: "Mesh or library", sub: "mTLS, timeouts, tracing", kind: "edge" },
-              { id: "flat", label: "Flat trusted network", sub: "one breach reaches all", kind: "external", alternative: true },
+              { id: "flat", label: "Flat, trusted", sub: "one breach reaches all", kind: "external", alternative: true },
             ],
           ],
           edges: [
@@ -787,8 +787,8 @@ export const design3: Card[] = [
               { id: "serve", label: "Serving values", kind: "data" },
             ],
             [
-              { id: "good", label: "Evaluation predicts production", kind: "edge" },
-              { id: "skew", label: "Good offline, worse live", kind: "external", alternative: true },
+              { id: "good", label: "Evaluation misleads", kind: "edge" },
+              { id: "skew", label: "Good offline only", kind: "external", alternative: true },
             ],
           ],
           edges: [

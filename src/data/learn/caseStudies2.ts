@@ -45,7 +45,7 @@ export const caseStudies2: Card[] = [
             [{ id: "cap", label: "Capture", sub: "at dispatch, days later", kind: "service" }],
             [{ id: "settle", label: "Settlement", sub: "batched, days", kind: "data" }],
             [
-              { id: "expire", label: "Authorisation expires", sub: "never captured", kind: "external", alternative: true },
+              { id: "expire", label: "Auth expires", sub: "never captured", kind: "external", alternative: true },
               { id: "unknown", label: "Timeout", sub: "authorised, or not", kind: "external", alternative: true },
             ],
           ],
@@ -227,7 +227,7 @@ export const caseStudies2: Card[] = [
             ],
             [{ id: "zero", label: "Entries sum to zero", sub: "checked continuously", kind: "edge" }],
             [
-              { id: "bal", label: "Materialised balance", sub: "recomputed and compared", kind: "data" },
+              { id: "bal", label: "Stored balance", sub: "recomputed and compared", kind: "data" },
               { id: "stored", label: "Balance as a column", sub: "no explanation, races", kind: "data", alternative: true },
             ],
           ],
@@ -399,7 +399,7 @@ export const caseStudies2: Card[] = [
               { id: "timeout", label: "Timeout", sub: "no answer at all", kind: "external", alternative: true },
             ],
             [
-              { id: "stop", label: "Stop, ask the customer", kind: "service" },
+              { id: "stop", label: "Stop, ask the user", kind: "service" },
               { id: "dun", label: "Scheduled retries", sub: "days, then give up", kind: "service" },
               { id: "lookup", label: "Look it up first", sub: "never retry blind", kind: "service" },
             ],
@@ -586,8 +586,8 @@ export const caseStudies2: Card[] = [
         diagram: {
           caption: "One queue per host, drained politely, many hosts at once",
           columns: [
-            [{ id: "seed", label: "Seeds and discovered links", kind: "client" }],
-            [{ id: "norm", label: "Normalise and dedupe", sub: "sessions, sorting, case", kind: "service" }],
+            [{ id: "seed", label: "Seeds, then links", kind: "client" }],
+            [{ id: "norm", label: "Normalise, dedupe", sub: "sessions, sorting, case", kind: "service" }],
             [{ id: "front", label: "Frontier", sub: "partitioned by host", kind: "queue" }],
             [
               { id: "h1", label: "example.com", sub: "1 request every few seconds", kind: "external" },

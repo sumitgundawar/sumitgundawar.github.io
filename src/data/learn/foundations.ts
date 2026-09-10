@@ -112,9 +112,9 @@ export const foundations: Card[] = [
             [{ id: "tcp", label: "TCP", sub: "ordered, retransmitted", kind: "edge" },
              { id: "udp", label: "UDP", sub: "no order, no retries", kind: "edge" },
              { id: "quic", label: "QUIC", sub: "ordered per stream", kind: "edge" }],
-            [{ id: "hol", label: "Head-of-line blocking", sub: "one loss stalls the rest", kind: "data" },
+            [{ id: "hol", label: "Head-of-line stall", sub: "one loss stalls the rest", kind: "data" },
              { id: "drop", label: "Loss is dropped", sub: "playback continues", kind: "data" },
-             { id: "own", label: "You write reliability", sub: "and congestion control", kind: "data", alternative: true }],
+             { id: "own", label: "You own reliability", sub: "and congestion control", kind: "data", alternative: true }],
           ],
           edges: [
             { from: "file", to: "tcp", label: "take the guarantee" },
@@ -201,7 +201,7 @@ export const foundations: Card[] = [
             [{ id: "h1", label: "HTTP/1.1", sub: "6 connections per host", kind: "edge" },
              { id: "h2", label: "HTTP/2", sub: "multiplexed, HPACK", kind: "edge" },
              { id: "h3", label: "HTTP/3", sub: "QUIC over UDP", kind: "edge" }],
-            [{ id: "hacks", label: "Sprites and sharding", sub: "now actively harmful", kind: "data", alternative: true },
+            [{ id: "hacks", label: "Sprites, sharding", sub: "now actively harmful", kind: "data", alternative: true },
              { id: "tcphol", label: "One TCP byte stream", sub: "a loss stalls every stream", kind: "data" },
              { id: "perstream", label: "Independent streams", sub: "a loss stalls one", kind: "data" }],
             [{ id: "mobile", label: "Wifi to mobile data", sub: "connection id survives it", kind: "external" }],
@@ -213,7 +213,7 @@ export const foundations: Card[] = [
             { from: "h2", to: "tcphol", label: "still on TCP" },
             { from: "page", to: "h3", label: "one connection" },
             { from: "h3", to: "perstream", label: "loss isolated" },
-            { from: "h3", to: "mobile", label: "and it migrates" },
+            { from: "h3", to: "mobile" },
           ],
         },
         sources: [
@@ -706,7 +706,7 @@ export const foundations: Card[] = [
         diagram: {
           caption: "A definite no is cheap; a maybe has to be confirmed",
           columns: [
-            [{ id: "key", label: "Is this key present?", sub: "asked before an expensive read", kind: "client" }],
+            [{ id: "key", label: "Key present?", sub: "asked before an expensive read", kind: "client" }],
             [{ id: "bits", label: "Bit array", sub: "~10 bits per item, k hashes", kind: "data" }],
             [{ id: "no", label: "Any bit is zero", sub: "definitely absent, certain", kind: "service" },
              { id: "maybe", label: "All bits set", sub: "probably present, ~1 per cent wrong", kind: "service" }],
@@ -808,9 +808,9 @@ export const foundations: Card[] = [
             [{ id: "a", label: "Transaction A", sub: "reads balance 100", kind: "client" },
              { id: "b", label: "Transaction B", sub: "reads balance 100", kind: "client" }],
             [{ id: "app", label: "Computed in the app", sub: "two statements", kind: "service", alternative: true },
-             { id: "sql", label: "One update statement", sub: "balance = balance - 60", kind: "service" }],
+             { id: "sql", label: "One UPDATE", sub: "balance = balance - 60", kind: "service" }],
             [{ id: "lost", label: "Lost update", sub: "second write overwrites", kind: "data", alternative: true },
-             { id: "safe", label: "Serialised by the row lock", sub: "both applied", kind: "data" }],
+             { id: "safe", label: "Row lock serialises", sub: "both applied", kind: "data" }],
           ],
           edges: [
             { from: "a", to: "app", label: "write 40" },
@@ -902,7 +902,7 @@ export const foundations: Card[] = [
             [{ id: "q1", label: "country = UK", sub: "leading column", kind: "client" },
              { id: "q2", label: "country and city", sub: "full prefix", kind: "client" },
              { id: "q3", label: "city = London", sub: "no prefix", kind: "client", alternative: true }],
-            [{ id: "idx", label: "Index on (country, city)", sub: "sorted by country, then city", kind: "data" }],
+            [{ id: "idx", label: "(country, city)", sub: "sorted by country, then city", kind: "data" }],
             [{ id: "seek", label: "Seek", sub: "a handful of pages", kind: "service" },
              { id: "scan", label: "Scan", sub: "every page in the table", kind: "service", alternative: true }],
             [{ id: "cover", label: "Covering index", sub: "answered without the table", kind: "external" }],
@@ -987,8 +987,8 @@ export const foundations: Card[] = [
             [{ id: "src", label: "Normalised tables", sub: "each fact stored once", kind: "data" }],
             [{ id: "join", label: "Join on read", sub: "cheap on an indexed key", kind: "service" },
              { id: "view", label: "Read model", sub: "refreshed asynchronously", kind: "service" }],
-            [{ id: "drift", label: "Every copy can drift", sub: "the real cost, not disk", kind: "external", alternative: true },
-             { id: "hist", label: "Price at time of sale", sub: "a different fact, not a copy", kind: "external" }],
+            [{ id: "drift", label: "Copies can drift", sub: "the real cost, not disk", kind: "external", alternative: true },
+             { id: "hist", label: "Price when sold", sub: "a different fact, not a copy", kind: "external" }],
           ],
           edges: [
             { from: "src", to: "join", label: "the default" },
@@ -1064,14 +1064,14 @@ export const foundations: Card[] = [
         diagram: {
           caption: "The access pattern chooses the store, and the schema exists either way",
           columns: [
-            [{ id: "adhoc", label: "Unanticipated queries", sub: "and multi-row transactions", kind: "client" },
+            [{ id: "adhoc", label: "Unplanned queries", sub: "and multi-row transactions", kind: "client" },
              { id: "whole", label: "Read whole, by id", sub: "shape varies per record", kind: "client" },
              { id: "pattern", label: "One known key", sub: "at very high volume", kind: "client" }],
             [{ id: "rel", label: "Relational", sub: "constraints enforced once", kind: "data" },
              { id: "doc", label: "Document", sub: "record matches the object", kind: "data" },
              { id: "kv", label: "Key-value", sub: "lookups and nothing else", kind: "data" }],
-            [{ id: "db", label: "Schema in the database", sub: "checked on every path", kind: "service" },
-             { id: "code", label: "Schema in every reader", sub: "not absent, just unenforced", kind: "service", alternative: true }],
+            [{ id: "db", label: "Schema in the DB", sub: "checked on every path", kind: "service" },
+             { id: "code", label: "Schema per reader", sub: "not absent, just unenforced", kind: "service", alternative: true }],
           ],
           edges: [
             { from: "adhoc", to: "rel", label: "the default" },
@@ -1147,11 +1147,11 @@ export const foundations: Card[] = [
         diagram: {
           caption: "Many client connections, few real ones, returned at every commit",
           columns: [
-            [{ id: "inst", label: "Serverless instances", sub: "count follows traffic", kind: "client" }],
+            [{ id: "inst", label: "Serverless fleet", sub: "count follows traffic", kind: "client" }],
             [{ id: "pooler", label: "Pooler", sub: "transaction mode", kind: "edge" },
              { id: "direct", label: "Direct connections", sub: "one process each", kind: "edge", alternative: true }],
-            [{ id: "few", label: "A few dozen backends", sub: "throughput peaks near core count", kind: "data" },
-             { id: "wall", label: "Too many connections", sub: "refused, not slowed", kind: "data", alternative: true }],
+            [{ id: "few", label: "Dozens of backends", sub: "throughput peaks near core count", kind: "data" },
+             { id: "wall", label: "No slots left", sub: "refused, not slowed", kind: "data", alternative: true }],
             [{ id: "lost", label: "What you give up", sub: "session state, advisory locks", kind: "external" }],
           ],
           edges: [

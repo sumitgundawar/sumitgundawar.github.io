@@ -47,6 +47,80 @@ export interface DiagramEdge {
   async?: boolean;
 }
 
+/* What actually fits in a diagram node, measured rather than guessed.
+ *
+ * The renderer draws each node in a fixed 168px box with 14px of padding either
+ * side, so a label or a sub has 140px. SVG text neither wraps nor clips, so
+ * anything longer used to bleed across the border, which is why the renderer
+ * truncates with an ellipsis instead.
+ *
+ * The advance widths below were measured in the browser with the real webfonts
+ * loaded, because the renderer previously assumed a single monospace advance of
+ * 0.56em for both strings and was wrong twice over. The label is set in the
+ * proportional sans at 13.5px, which measures 0.486 to 0.528em per character
+ * across realistic label text, so 0.56 truncated labels that would have fitted:
+ * "Head-of-line blocking" measures exactly 140px and was being cut to
+ * "Head-of-line bloc...". The sub is set in the mono at 11px, which measures a
+ * flat 0.600em, so 0.56 let a 22-character sub overflow its box by 5px.
+ *
+ * 0.53 for the label is the top of the measured range, which is the safe end
+ * for proportional text; 0.60 for the mono is exact. */
+export const NODE_TEXT_WIDTH = 140;
+export const LABEL_PX = 13.5;
+export const LABEL_EM_PER_CHAR = 0.53;
+export const SUB_PX = 11;
+export const SUB_EM_PER_CHAR = 0.6;
+
+/** Longest label that renders without an ellipsis. One line: a label is the
+ *  name of the thing and should not need two. */
+export const LABEL_MAX_CHARS = Math.floor(NODE_TEXT_WIDTH / (LABEL_PX * LABEL_EM_PER_CHAR));
+/** Characters of sub per line. */
+export const SUB_MAX_CHARS = Math.floor(NODE_TEXT_WIDTH / (SUB_PX * SUB_EM_PER_CHAR));
+/** The sub gets two lines, which is what the box has room for.
+ *
+ *  One line was 21 characters, and the corpus had never been written to that:
+ *  138 subs were already being silently truncated before this limit was ever
+ *  measured, because the author kept writing the informative second line the
+ *  material wanted and the renderer kept quietly cutting it. Given a choice
+ *  between rewriting several hundred good strings and giving the box the room
+ *  the data has always needed, the box wins. */
+export const SUB_MAX_LINES = 2;
+
+/** Break a sub into the lines the renderer will draw.
+ *
+ *  Word wrap, with a hard break for a single token longer than a line, because
+ *  "stale-while-revalidate" is 22 characters with nowhere to wrap and truncating
+ *  it to "stale-while-revalid" tells the reader less than breaking it does.
+ *  Returns at most SUB_MAX_LINES lines; anything beyond that is ellipsised,
+ *  which the content check exists to prevent reaching production. */
+export function wrapSub(text: string, perLine = SUB_MAX_CHARS, maxLines = SUB_MAX_LINES): string[] {
+  const lines: string[] = [];
+  let rest = text.trim();
+  while (rest.length && lines.length < maxLines) {
+    if (rest.length <= perLine) {
+      lines.push(rest);
+      rest = "";
+      break;
+    }
+    /* Break at the last space that fits. If there is none, the token itself is
+       longer than a line, so break inside it. */
+    let cut = rest.lastIndexOf(" ", perLine);
+    if (cut <= 0) cut = perLine;
+    lines.push(rest.slice(0, cut).trimEnd());
+    rest = rest.slice(cut).trimStart();
+  }
+  if (rest.length && lines.length) {
+    const last = lines[lines.length - 1];
+    lines[lines.length - 1] = last.slice(0, Math.max(1, perLine - 1)) + "\u2026";
+  }
+  return lines;
+}
+
+/** Whether a sub fits the box without being ellipsised. */
+export function subFits(text: string): boolean {
+  return !wrapSub(text).some((l) => l.endsWith("\u2026"));
+}
+
 export interface Diagram {
   caption: string;
   /** Columns left to right: request flows forward through the stack. */

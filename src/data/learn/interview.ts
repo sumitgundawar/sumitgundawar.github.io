@@ -281,7 +281,7 @@ export const interview: Card[] = [
               { id: "staff", label: "Staff", sub: "other people's output", kind: "service" },
               { id: "trap", label: "Bigger projects", sub: "still senior evidence", kind: "external", alternative: true },
             ],
-            [{ id: "out", label: "Often nothing was built", sub: "a decision, a document", kind: "data" }],
+            [{ id: "out", label: "Often nothing built", sub: "a decision, a document", kind: "data" }],
           ],
           edges: [
             { from: "eng", to: "sen", label: "scope grows" },

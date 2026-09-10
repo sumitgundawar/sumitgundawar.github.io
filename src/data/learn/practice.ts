@@ -27,7 +27,7 @@ export const practice: Card[] = [
             [{ id: "unit", label: "Unit", sub: "many, milliseconds", kind: "data" }],
             [{ id: "int", label: "Integration", sub: "some, real database", kind: "service" }],
             [{ id: "e2e", label: "End to end", sub: "few, whole system", kind: "external" }],
-            [{ id: "diag", label: "What a failure tells you", sub: "which function, or just something", kind: "edge" }],
+            [{ id: "diag", label: "What a failure says", sub: "which function, or just something", kind: "edge" }],
           ],
           edges: [
             { from: "unit", to: "int", label: "slower, broader" },
@@ -91,12 +91,12 @@ export const practice: Card[] = [
         diagram: {
           caption: "Three measures, and only one of them looks at assertions",
           columns: [
-            [{ id: "test", label: "A test that asserts nothing", sub: "calls the function, checks nothing", kind: "client" }],
+            [{ id: "test", label: "Asserts nothing", sub: "calls the function, checks nothing", kind: "client" }],
             [{ id: "line", label: "Line coverage", sub: "reports it as covered", kind: "service", alternative: true },
              { id: "branch", label: "Branch coverage", sub: "both sides of a condition ran", kind: "service" },
              { id: "mut", label: "Mutation testing", sub: "changes the code, expects a failure", kind: "service" }],
-            [{ id: "pass", label: "100 per cent, catches nothing", sub: "the whole problem in one line", kind: "data", alternative: true },
-             { id: "found", label: "Test survives the mutant", sub: "so the suite is decorative", kind: "data" }],
+            [{ id: "pass", label: "100%, catches none", sub: "the whole problem in one line", kind: "data", alternative: true },
+             { id: "found", label: "Mutant survives", sub: "so the suite is decorative", kind: "data" }],
             [{ id: "use", label: "Useful direction", sub: "least covered first, diff coverage", kind: "external" }],
           ],
           edges: [
@@ -176,10 +176,10 @@ export const practice: Card[] = [
           caption: "Quarantine immediately, because trust does not degrade gracefully",
           columns: [
             [{ id: "flake", label: "Test fails randomly", sub: "timing, shared state, order, clock", kind: "client" }],
-            [{ id: "retry", label: "Everyone presses retry", sub: "applied to real failures too", kind: "service", alternative: true },
-             { id: "quar", label: "Quarantined out of the gate", sub: "with an owner and a deadline", kind: "service" }],
-            [{ id: "det", label: "Remove the nondeterminism", sub: "wait on a condition, inject the clock", kind: "data" },
-             { id: "real", label: "Or the system is racy", sub: "the test is reporting accurately", kind: "data" }],
+            [{ id: "retry", label: "Everyone hits retry", sub: "applied to real failures too", kind: "service", alternative: true },
+             { id: "quar", label: "Quarantined", sub: "with an owner and a deadline", kind: "service" }],
+            [{ id: "det", label: "Remove the cause", sub: "wait on a condition, inject the clock", kind: "data" },
+             { id: "real", label: "Or the code is racy", sub: "the test is reporting accurately", kind: "data" }],
             [{ id: "rate", label: "Flake rate, tracked", sub: "a few tests cause most retries", kind: "external" }],
           ],
           edges: [
@@ -410,7 +410,7 @@ export const practice: Card[] = [
              { id: "read", label: "Actually reviewed", sub: "defects found", kind: "service" }],
             [{ id: "fast", label: "Back within hours", sub: "no context switch to pay", kind: "data" },
              { id: "slow", label: "Back tomorrow", sub: "author must return to it", kind: "data", alternative: true }],
-            [{ id: "case", label: "Names the broken case", sub: "null when never logged in", kind: "external" },
+            [{ id: "case", label: "Names the case", sub: "null when never logged in", kind: "external" },
              { id: "taste", label: "Names a preference", sub: "belongs in a linter", kind: "external", alternative: true }],
           ],
           edges: [
@@ -609,8 +609,8 @@ export const practice: Card[] = [
               { id: "feat", label: "By feature", sub: "one directory", kind: "service" },
             ],
             [
-              { id: "spread", label: "Six files, six folders", sub: "low cohesion", kind: "data", alternative: true },
-              { id: "local", label: "Six files, one folder", sub: "high cohesion", kind: "data" },
+              { id: "spread", label: "6 files, 6 folders", sub: "low cohesion", kind: "data", alternative: true },
+              { id: "local", label: "6 files, 1 folder", sub: "high cohesion", kind: "data" },
             ],
           ],
           edges: [

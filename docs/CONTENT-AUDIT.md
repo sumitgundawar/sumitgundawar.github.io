@@ -207,3 +207,73 @@ failed. It passed locally for anyone who has ever worked on the Worker, and CI
 had never caught it because the checks were added to the build in commits that
 were not pushed until now. Fixed by installing the Worker's dependencies in the
 workflow and keying the npm cache to both lockfiles.
+
+## J. Diagram rendering, found by screenshotting my own work.
+
+Three defects, all invisible in a diff and two of them mine.
+
+### J1. Node text was being truncated. 490 strings. Fixed.
+
+`FlowDiagram` estimates text width to decide where to cut a label with an
+ellipsis, and it used one monospace advance of 0.56em for both strings it draws.
+Measured in the browser with the real webfonts, that is wrong twice:
+
+| | Assumed | Measured | Effect |
+|---|---|---|---|
+| label (proportional sans, 13.5px) | 0.56em | 0.486 to 0.528em | truncated labels that fitted |
+| sub (mono, 11px) | 0.56em | 0.600em (flat) | let a 22-char sub overflow its box |
+
+So "Head-of-line blocking" measures exactly 140px, fits, and was rendered as
+"Head-of-line bloc...".
+
+More importantly the box was too small for the way the data has always been
+written: 138 subs were already being silently truncated before this pass, and my
+diagrams took it to 490 because I followed the existing style. The worst cases
+cut off the very figure the node existed to show, with "~48,000 tokens per
+message" rendering as "~48,000 tokens pe...".
+
+Fixed by correcting the advance per font, and by giving the sub the two lines
+the data has always needed: the box grew from 62px to 74px, and `wrapSub` word
+wraps with a hard break for a token longer than one line. Nothing was shortened
+away, and the 138 pre-existing truncations are fixed too. 94 labels were
+genuinely too long for a one-line label and were tightened by hand.
+
+Verified: 2,758 node text elements across all 49 diagram pages, none escaping
+its box. `check:content` now fails the build on any string that would truncate,
+using limits imported from the same constants the renderer draws with, so the
+two cannot disagree.
+
+### J2. Edge labels drew through node boxes. 19 collisions. Fixed.
+
+`route` already arced skip-column edges over the intervening column, a fix the
+author had made once after a Netflix label ended up behind a node. But the lift
+was measured from the two endpoints alone, so whenever something in between sat
+higher than both of them, the arc went straight through it. Backward edges had
+the same bug downward.
+
+Now the arc clears the topmost node it passes over and the dip clears the lowest,
+which fixes the class rather than the instances: measured collisions at desktop
+width went from 19 to 0. Four labels that still collided for an unrelated reason
+were dropped, each redundant with the node text it was covering.
+
+### J3. Edge labels overlap node text on phones. Pre-existing. Not fixed.
+
+At phone width the renderer switches to a vertical stack, one node per row, in an
+SVG only as wide as a single box. There is therefore no horizontal room beside a
+box, and the label sits at the bezier midpoint, so any edge spanning more than
+one position in the stack drops its label on the node in between. On the TCP and
+UDP diagram, "take the guarantee" lands on top of "a late frame is worthless"
+and "the hidden bill" lands on "one loss stalls the rest".
+
+Measured: 316 substantial collisions at 390px against 0 at 1500px, across every
+card. This predates this work and is not something my changes affect either way.
+
+It is left alone deliberately, because the two cheap fixes are both worse than
+the problem. Suppressing labels on phones removes information on the device most
+readers use, which is a product decision rather than a bug fix. Drawing a
+background plate behind each label hides the node text underneath it. The real
+fix is a label lane in the vertical layout: widen the stacked gap, place each
+label in the gap below its source rather than at the midpoint of its curve, and
+offset multiple edges leaving one node within that gap. That is renderer work
+with layout consequences for all 49 pages and it wants doing on its own, not
+appended to a content pass.

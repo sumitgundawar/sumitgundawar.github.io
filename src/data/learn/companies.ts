@@ -254,8 +254,8 @@ export const companies: Card[] = [
             [{ id: "aloud", label: "Aloud, on a timer", sub: "45 minutes, diagram as you go", kind: "service" },
              { id: "silent", label: "Read and reason", sub: "trains neither constraint", kind: "service", alternative: true }],
             [{ id: "bend", label: "Change a constraint", sub: "10x traffic, hard consistency", kind: "data" }],
-            [{ id: "load", label: "Load-bearing decisions", sub: "the ones you had to unwind", kind: "data" },
-             { id: "peer", label: "With a second person", sub: "rehearses being interrupted", kind: "external" }],
+            [{ id: "load", label: "Load-bearing ones", sub: "the ones you had to unwind", kind: "data" },
+             { id: "peer", label: "With someone else", sub: "rehearses being interrupted", kind: "external" }],
           ],
           edges: [
             { from: "six", to: "aloud", label: "one at a time" },

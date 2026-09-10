@@ -115,7 +115,7 @@ export const languages: Card[] = [
             [{ id: "loop", label: "Loop", sub: "i = 0, 1, 2", kind: "client" }],
             [
               { id: "shared", label: "One binding", sub: "shared by all three", kind: "service", alternative: true },
-              { id: "per", label: "Binding per iteration", kind: "service" },
+              { id: "per", label: "Per-iteration bind", kind: "service" },
             ],
             [
               { id: "same", label: "All three see 3", kind: "data", alternative: true },
@@ -194,12 +194,12 @@ export const languages: Card[] = [
         diagram: {
           caption: "The access pattern chooses the structure",
           columns: [
-            [{ id: "q", label: "What are you asking?", kind: "client" }],
+            [{ id: "q", label: "What is asked?", kind: "client" }],
             [
               { id: "byidx", label: "By position", kind: "service" },
               { id: "bykey", label: "By key", kind: "service" },
               { id: "range", label: "Everything between", kind: "service" },
-              { id: "least", label: "The smallest, repeatedly", kind: "service" },
+              { id: "least", label: "Smallest, often", kind: "service" },
             ],
             [
               { id: "arr", label: "Array", sub: "O(1) index, O(n) search", kind: "data" },
@@ -925,7 +925,7 @@ export const languages: Card[] = [
               { id: "val", label: "Validated", sub: "Pydantic, or by hand", kind: "service" },
             ],
             [
-              { id: "boom", label: "Fails later, elsewhere", kind: "data", alternative: true },
+              { id: "boom", label: "Fails elsewhere", kind: "data", alternative: true },
               { id: "safe", label: "A real User", sub: "checker and runtime agree", kind: "data" },
             ],
           ],
@@ -1105,7 +1105,7 @@ export const languages: Card[] = [
           columns: [
             [{ id: "obj", label: "obj.method()", sub: "receiver is obj", kind: "client" }],
             [
-              { id: "extract", label: "const f = obj.method", sub: "receiver lost", kind: "service", alternative: true },
+              { id: "extract", label: "f = obj.method", sub: "receiver lost", kind: "service", alternative: true },
               { id: "arrow", label: "() => this.x", sub: "this from enclosing scope", kind: "service" },
             ],
             [
@@ -1485,7 +1485,7 @@ export const languages: Card[] = [
             ],
             [
               { id: "all", label: "All customers", kind: "data" },
-              { id: "inner", label: "Only those with orders", kind: "data", alternative: true },
+              { id: "inner", label: "Only with orders", kind: "data", alternative: true },
             ],
           ],
           edges: [
@@ -1655,11 +1655,11 @@ export const languages: Card[] = [
             [{ id: "rows", label: "Orders", sub: "many per customer", kind: "data" }],
             [
               { id: "grp", label: "GROUP BY customer", sub: "one row out per group", kind: "service" },
-              { id: "win", label: "OVER (PARTITION BY customer)", sub: "every row kept", kind: "service" },
+              { id: "win", label: "OVER (PARTITION BY)", sub: "every row kept", kind: "service" },
             ],
             [
               { id: "tot", label: "Totals", sub: "the orders are gone", kind: "data" },
-              { id: "rank", label: "Rank within customer", sub: "top-N per group", kind: "data" },
+              { id: "rank", label: "Rank per customer", sub: "top-N per group", kind: "data" },
             ],
           ],
           edges: [
@@ -1751,7 +1751,7 @@ export const languages: Card[] = [
             [{ id: "begin", label: "BEGIN", kind: "client" }],
             [{ id: "upd", label: "UPDATE order", sub: "row lock taken", kind: "service" }],
             [
-              { id: "ext", label: "Call payment provider", sub: "2s, lock still held", kind: "external", alternative: true },
+              { id: "ext", label: "Call the provider", sub: "2s, lock still held", kind: "external", alternative: true },
               { id: "after", label: "Call after COMMIT", sub: "nothing waiting", kind: "service" },
             ],
             [{ id: "queue", label: "Everyone else", sub: "queued behind the row", kind: "queue" }],
@@ -2031,7 +2031,7 @@ export const languages: Card[] = [
               { id: "imm", label: "Immutable key", sub: "hash cannot move", kind: "service" },
             ],
             [
-              { id: "lost", label: "Lookup checks bucket 87", sub: "present, unreachable", kind: "external", alternative: true },
+              { id: "lost", label: "Lookup: bucket 87", sub: "present, unreachable", kind: "external", alternative: true },
               { id: "found", label: "Found", kind: "data" },
             ],
           ],
@@ -2131,7 +2131,7 @@ export const languages: Card[] = [
             [{ id: "old", label: "Old generation", sub: "collected rarely", kind: "data" }],
             [
               { id: "leak", label: "Never released", sub: "cache with no eviction", kind: "external", alternative: true },
-              { id: "ok", label: "Steady after collection", kind: "service" },
+              { id: "ok", label: "Steady after GC", kind: "service" },
             ],
           ],
           edges: [
@@ -2230,7 +2230,7 @@ export const languages: Card[] = [
             [{ id: "carrier", label: "Small carrier pool", sub: "unmounts on blocking", kind: "edge" }],
             [
               { id: "oom", label: "Out of memory", kind: "external", alternative: true },
-              { id: "fine", label: "Blocking code, at scale", kind: "data" },
+              { id: "fine", label: "Blocking, at scale", kind: "data" },
             ],
           ],
           edges: [
@@ -2419,7 +2419,7 @@ export const languages: Card[] = [
             [{ id: "sched", label: "Runtime scheduler", sub: "one queue per processor", kind: "edge" }],
             [{ id: "m", label: "OS threads", sub: "roughly one per core", kind: "service" }],
             [
-              { id: "block", label: "Blocked on a channel", sub: "unmounted, costs nothing", kind: "data" },
+              { id: "block", label: "Blocked on send", sub: "unmounted, costs nothing", kind: "data" },
               { id: "leak", label: "Blocked forever", sub: "a leak nothing reports", kind: "external", alternative: true },
             ],
           ],
@@ -2679,7 +2679,7 @@ export const languages: Card[] = [
             [{ id: "repo", label: "Repository", sub: "wraps: loading order 42", kind: "service" }],
             [{ id: "svc", label: "Service", sub: "wraps: completing checkout", kind: "service" }],
             [
-              { id: "msg", label: "One readable sentence", sub: "with errors.Is intact", kind: "data" },
+              { id: "msg", label: "A readable trace", sub: "with errors.Is intact", kind: "data" },
               { id: "bare", label: "connection refused", sub: "returned unchanged", kind: "external", alternative: true },
             ],
           ],

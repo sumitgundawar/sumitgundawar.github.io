@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef, type CSSProperties } from "react";
+import { LABEL_EM_PER_CHAR, LABEL_PX, NODE_TEXT_WIDTH, wrapSub } from "@/data/learn/types";
 import { usePrefersReducedMotion } from "@/lib/hooks";
 import type { Diagram, DiagramNode, NodeKind } from "@/data/learn";
 
@@ -50,15 +51,27 @@ const KIND_LABEL: Record<NodeKind, string> = {
 
 /** SVG <text> neither wraps nor clips, so an over-long label simply bleeds
  *  across the box border into whatever is next to it. Measured overflows in
- *  shipped data reached 343px inside a 140px slot. Truncate to what fits. */
-function fit(text: string, px: number, maxWidth: number): string {
-  const perChar = px * 0.56; // Commit Mono advance, close enough for layout
-  const max = Math.floor(maxWidth / perChar);
+ *  shipped data reached 343px inside a 140px slot. Truncate to what fits.
+ *
+ *  The advance was a single 0.56em for both strings, described as the Commit
+ *  Mono advance, and that was wrong in both directions. The label is not set in
+ *  Commit Mono: it is the proportional sans, which measures 0.486 to 0.528em
+ *  per character, so 0.56 truncated labels that fitted. The sub is mono and
+ *  measures 0.600em, so 0.56 let it overflow. Both numbers now come from
+ *  measuring the real fonts in the browser, and they live beside the content so
+ *  the build can check the data against the same limits the renderer applies. */
+function fit(text: string, emPerChar: number, px: number, maxWidth: number): string {
+  const max = Math.floor(maxWidth / (px * emPerChar));
   return text.length <= max ? text : text.slice(0, Math.max(1, max - 1)) + "…";
 }
 
 const W = 168;
-const H = 62;
+/* 62 gave the sub a single 21-character line, which the corpus had never been
+   written to: 138 subs were already being truncated before anyone measured the
+   limit. 74 gives it two lines. Every other use of H is a formula, so the taller
+   box propagates through the column heights, the node positions, the SVG height
+   and the edge routing without any of them needing to know. */
+const H = 74;
 const GAP_X = 132; // wide enough that edge labels sit between boxes, not on them
 const GAP_Y = 34;
 const PAD = 18;
@@ -237,7 +250,11 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
     if (to.col < from.col) {
       const x1 = from.x + W / 2;
       const x2 = to.x + W / 2;
-      const dip = Math.max(from.y, to.y) + H + 30 + laneOffset;
+      /* Below everything it passes, for the same reason the forward arc has to
+         clear everything it passes over. */
+      const between = placed.filter((n) => n.col > to.col && n.col < from.col);
+      const bottom = Math.max(from.y, to.y, ...between.map((n) => n.y));
+      const dip = bottom + H + 30 + laneOffset;
       const p0: [number, number] = [x1, from.y + H];
       const p3: [number, number] = [x2, to.y + H];
       const p1: [number, number] = [x1, dip];
@@ -252,8 +269,18 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
     const p3: [number, number] = [to.x, ty];
 
     if (to.col - from.col > 1) {
-      // arc over the intervening column rather than through it
-      const lift = Math.min(from.y, to.y) - 26 - laneOffset;
+      /* Arc over the intervening columns rather than through them.
+       *
+       * The lift used to be measured from the two endpoints alone, which is
+       * right only when nothing in between sits higher than both of them. Where
+       * something does, and it commonly does because the endpoints are often in
+       * lower rows, the arc passed straight through it and dropped the label on
+       * a box: measured at 19 collisions across the corpus, worst on a diagram
+       * whose label landed on the very figure it was pointing at. Clearing the
+       * topmost skipped node fixes the class rather than the instances. */
+      const skipped = placed.filter((n) => n.col > from.col && n.col < to.col);
+      const top = Math.min(from.y, to.y, ...skipped.map((n) => n.y));
+      const lift = top - 26 - laneOffset;
       const p1: [number, number] = [p0[0] + 60, lift];
       const p2: [number, number] = [p3[0] - 60, lift];
       return {
@@ -501,25 +528,27 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                 />
                 <text
                   x={n.x + 14}
-                  y={n.y + (n.sub ? 26 : 36) - (active ? 2 : 0)}
+                  y={n.y + (n.sub ? 26 : 42) - (active ? 2 : 0)}
                   fontSize={13.5}
                   fontWeight={550}
                   fill={n.alternative ? "var(--warn)" : c.text}
                 >
-                  {fit(n.label, 13.5, W - 28)}
+                  {fit(n.label, LABEL_EM_PER_CHAR, LABEL_PX, NODE_TEXT_WIDTH)}
                 </text>
-                {n.sub && (
-                  <text
-                    x={n.x + 14}
-                    y={n.y + 44 - (active ? 2 : 0)}
-                    fontSize={11}
-                    fill={c.text}
-                    opacity={0.72}
-                    className="mono"
-                  >
-                    {fit(n.sub, 11, W - 28)}
-                  </text>
-                )}
+                {n.sub &&
+                  wrapSub(n.sub).map((line, li) => (
+                    <text
+                      key={li}
+                      x={n.x + 14}
+                      y={n.y + 45 + li * 13 - (active ? 2 : 0)}
+                      fontSize={11}
+                      fill={c.text}
+                      opacity={0.72}
+                      className="mono"
+                    >
+                      {line}
+                    </text>
+                  ))}
               </g>
               </g>
             );

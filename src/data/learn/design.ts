@@ -1152,7 +1152,7 @@ export const design: Card[] = [
             [
               {
                 "id": "k",
-                "label": "Partition by user id",
+                "label": "Keyed by user id",
                 "kind": "edge"
               }
             ],
@@ -2760,7 +2760,7 @@ export const design: Card[] = [
           columns: [
             [{ id: "src", label: "Request counter", sub: "one metric", kind: "service" }],
             [
-              { id: "safe", label: "endpoint, status, region", sub: "50 x 6 x 3 = 900", kind: "data" },
+              { id: "safe", label: "endpoint, status", sub: "50 x 6 x 3 = 900", kind: "data" },
               { id: "bad", label: "plus customer id", sub: "x 10,000 = 9M", kind: "data", alternative: true },
             ],
             [{ id: "tsdb", label: "Metrics store", sub: "index held in memory", kind: "data" }],

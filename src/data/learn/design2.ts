@@ -677,8 +677,8 @@ export const design2: Card[] = [
             [{ id: "hb", label: "Heartbeat", sub: "every 30s, key lives 45s", kind: "service" }],
             [{ id: "all", label: "Notify everyone", sub: "10,000 messages per arrival", kind: "data", alternative: true },
              { id: "view", label: "Notify the viewport", sub: "who has this open now", kind: "data" }],
-            [{ id: "batch", label: "Batched and coalesced", sub: "one update per second or two", kind: "external" },
-             { id: "shed", label: "Shed first under load", sub: "before typing, before delivery", kind: "external" }],
+            [{ id: "batch", label: "Batched, coalesced", sub: "one update per second or two", kind: "external" },
+             { id: "shed", label: "Shed first", sub: "before typing, before delivery", kind: "external" }],
           ],
           edges: [
             { from: "user", to: "hb", label: "refreshes a key" },
@@ -1335,7 +1335,7 @@ export const design2: Card[] = [
           columns: [
             [{ id: "mez", label: "Mezzanine", sub: "one very large master", kind: "client" }],
             [{ id: "enc", label: "Per-title encode", sub: "measure the content first", kind: "service" }],
-            [{ id: "ladder", label: "Ladder of renditions", sub: "each cut into segments", kind: "data" },
+            [{ id: "ladder", label: "Rendition ladder", sub: "each cut into segments", kind: "data" },
              { id: "man", label: "Manifest", sub: "lists what exists", kind: "data" }],
             [{ id: "player", label: "Player", sub: "buffer occupancy decides", kind: "external" }],
           ],
@@ -1703,11 +1703,11 @@ export const design2: Card[] = [
         diagram: {
           caption: "Envelope encryption, and the channels a secret leaks through anyway",
           columns: [
-            [{ id: "kms", label: "Key management service", sub: "holds the master key", kind: "service" }],
+            [{ id: "kms", label: "Key management", sub: "holds the master key", kind: "service" }],
             [{ id: "dek", label: "Data key", sub: "encrypted by the master", kind: "data" }],
             [{ id: "field", label: "Encrypted field", sub: "stored beside the data", kind: "data" },
              { id: "same", label: "Key beside the data", sub: "decoration, not a control", kind: "data", alternative: true }],
-            [{ id: "leak", label: "Where it actually leaks", sub: "logs, URLs, error trackers", kind: "external", alternative: true }],
+            [{ id: "leak", label: "Where it leaks", sub: "logs, URLs, error trackers", kind: "external", alternative: true }],
           ],
           edges: [
             { from: "kms", to: "dek", label: "wraps it" },
@@ -2166,18 +2166,18 @@ export const design2: Card[] = [
           caption: "The physical layout is the whole performance story",
           columns: [
             [{ id: "q1", label: "Fetch one order", sub: "every column of one row", kind: "client" },
-             { id: "q2", label: "Sum revenue by month", sub: "3 columns of a billion rows", kind: "client" }],
+             { id: "q2", label: "Revenue by month", sub: "3 columns of a billion rows", kind: "client" }],
             [{ id: "row", label: "Row store", sub: "one record, one read", kind: "data" },
              { id: "col", label: "Column store", sub: "unnamed columns cost nothing", kind: "data" }],
             [{ id: "compress", label: "Compression works", sub: "one kind of value per column", kind: "service" },
              { id: "contend", label: "Same buffer pool", sub: "a scan evicts the working set", kind: "service", alternative: true }],
-            [{ id: "order", label: "Replica, then view, then warehouse", sub: "in that order", kind: "external" }],
+            [{ id: "order", label: "Replica, then view", sub: "in that order", kind: "external" }],
           ],
           edges: [
             { from: "q1", to: "row", label: "contiguous" },
             { from: "q2", to: "col", label: "pruned" },
             { from: "col", to: "compress", label: "then vectorised" },
-            { from: "q2", to: "contend", label: "if run on the primary" },
+            { from: "q2", to: "contend" },
             { from: "contend", to: "order", label: "the remedies, cheapest first" },
           ],
         },
@@ -2342,8 +2342,8 @@ export const design2: Card[] = [
              { id: "dual", label: "Dual write", sub: "commit, then publish", kind: "data", alternative: true }],
             [{ id: "cdc", label: "Log reader", sub: "a second consumer of the WAL", kind: "service" },
              { id: "gap", label: "The gap", sub: "die in between, nothing detects it", kind: "service", alternative: true }],
-            [{ id: "sinks", label: "Index, cache, warehouse", sub: "cannot disagree with the data", kind: "external" },
-             { id: "slot", label: "Unread replication slot", sub: "holds WAL, fills the disk", kind: "external", alternative: true }],
+            [{ id: "sinks", label: "Index, cache, DW", sub: "cannot disagree with the data", kind: "external" },
+             { id: "slot", label: "Unread WAL slot", sub: "holds WAL, fills the disk", kind: "external", alternative: true }],
           ],
           edges: [
             { from: "app", to: "db", label: "the only write" },

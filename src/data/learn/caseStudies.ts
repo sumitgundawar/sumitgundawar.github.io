@@ -505,7 +505,7 @@ export const caseStudies: Card[] = [
             { from: "page", to: "perso" },
             { from: "page", to: "art" },
             { from: "page", to: "auth" },
-            { from: "fallback", to: "page", label: "on timeout" },
+            { from: "fallback", to: "page" },
           ],
         },
         check: {
@@ -1027,7 +1027,7 @@ export const caseStudies: Card[] = [
         diagram: {
           caption: "Record the transition, then tell everyone about it",
           columns: [
-            [{ id: "apps", label: "Rider and driver apps", sub: "unreliable network", kind: "client" }],
+            [{ id: "apps", label: "Both apps", sub: "unreliable network", kind: "client" }],
             [{ id: "trip", label: "Trip service", sub: "validates transitions", kind: "service" }],
             [{ id: "store", label: "Trip store", sub: "state, durable", kind: "data" }],
             [{ id: "bus", label: "Event stream", sub: "at least once", kind: "queue" }],
@@ -1469,7 +1469,7 @@ export const caseStudies: Card[] = [
               { id: "fan", label: "Fan-out worker", sub: "push path", kind: "queue" },
               { id: "hot", label: "Recent posts", sub: "pull path", kind: "data" },
             ],
-            [{ id: "tl", label: "Materialised timeline", sub: "ids per user", kind: "data" }],
+            [{ id: "tl", label: "Stored timeline", sub: "ids per user", kind: "data" }],
             [{ id: "merge", label: "Merge at read", sub: "sort by time", kind: "service" }],
             [{ id: "reader", label: "Reader", kind: "client" }],
           ],
@@ -1538,7 +1538,7 @@ export const caseStudies: Card[] = [
         diagram: {
           caption: "Retrieve in time order, then score the shortlist",
           columns: [
-            [{ id: "tl", label: "Materialised timeline", sub: "time ordered", kind: "data" }],
+            [{ id: "tl", label: "Stored timeline", sub: "time ordered", kind: "data" }],
             [{ id: "pull", label: "Large accounts", sub: "fetched per read", kind: "data" }],
             [{ id: "cands", label: "Candidate set", sub: "a few hundred", kind: "service" }],
             [
@@ -2488,7 +2488,7 @@ export const caseStudies: Card[] = [
           caption: "Resolve, batch, then dispatch per channel with its own rules",
           columns: [
             [{ id: "ev", label: "Event", sub: "something happened", kind: "queue" }],
-            [{ id: "pref", label: "Preference resolution", sub: "who, which channel", kind: "service" }],
+            [{ id: "pref", label: "Resolve preferences", sub: "who, which channel", kind: "service" }],
             [{ id: "batch", label: "Dedupe and batch", sub: "windowed", kind: "service" }],
             [
               { id: "push", label: "Push", sub: "fast, unreliable", kind: "external" },

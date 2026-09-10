@@ -1,4 +1,5 @@
 import { cards } from "./index";
+import { LABEL_MAX_CHARS, SUB_MAX_CHARS, SUB_MAX_LINES, subFits, wrapSub } from "./types";
 
 /* Content invariants, asserted at module load in development.
  *
@@ -77,6 +78,45 @@ export function findProblems(): Problem[] {
   }
 
   return problems;
+}
+
+/* Diagram text that does not fit its box.
+ *
+ * A node is a fixed 168px box and SVG text neither wraps nor clips, so the
+ * renderer truncates anything longer with an ellipsis. That is the correct
+ * behaviour for the renderer and a silent failure for the reader: nothing errors,
+ * the diagram just stops saying what it was written to say, and the worst cases
+ * are the ones that cut off a number. "~48,000 tokens per message" rendered as
+ * "~48,000 tokens pe...", which is a diagram whose whole point was the figure.
+ *
+ * At its worst this affected 472 of 1,247 nodes, and only became visible in a
+ * screenshot at phone width. Terse labels are good diagram design, so the fix is
+ * to keep the data inside what fits rather than to make the boxes bigger, and
+ * this is what stops it drifting back. */
+export function findDiagramOverflow(): Problem[] {
+  const out: Problem[] = [];
+  for (const card of cards) {
+    for (const topic of card.topics) {
+      for (const col of topic.diagram?.columns ?? []) {
+        for (const n of col) {
+          const at = `${card.id}/${topic.id}`;
+          if (n.label.length > LABEL_MAX_CHARS) {
+            out.push({
+              where: at,
+              what: `label "${n.label}" is ${n.label.length} chars, ${LABEL_MAX_CHARS} fit, so it renders truncated`,
+            });
+          }
+          if (n.sub && !subFits(n.sub)) {
+            out.push({
+              where: at,
+              what: `sub "${n.sub}" does not fit ${SUB_MAX_LINES} lines of ${SUB_MAX_CHARS}, it renders as ${wrapSub(n.sub).join(" / ")}`,
+            });
+          }
+        }
+      }
+    }
+  }
+  return out;
 }
 
 /* The length tell.
@@ -160,6 +200,10 @@ export function findUniformity(): Problem[] {
 
 if (import.meta.env?.DEV) {
   for (const u of findUniformity()) console.warn(`[learn content] ${u.what}`);
+  const overflow = findDiagramOverflow();
+  if (overflow.length) {
+    console.error(`[learn content] ${overflow.length} diagram string(s) render truncated`);
+  }
   const problems = findProblems();
   if (problems.length) {
     console.error(

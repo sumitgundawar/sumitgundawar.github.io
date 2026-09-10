@@ -159,7 +159,7 @@ export const dissections: Card[] = [
             ],
             [
               { id: "ci", label: "CI wants 30 readers", sub: "but each one slows the push", kind: "external", alternative: true },
-              { id: "db", label: "External placement database", sub: "which machine holds what", kind: "external" },
+              { id: "db", label: "Placement database", sub: "which machine holds what", kind: "external" },
             ],
           ],
           edges: [
@@ -455,7 +455,7 @@ export const dissections: Card[] = [
             [{ id: "rep", label: "Replica", sub: "holds an ETag for the log head", kind: "service" }],
             [
               { id: "not", label: "304 Not Modified", sub: "under 10ms on average", kind: "data" },
-              { id: "adv", label: "200 with the new index", sub: "the log has moved on", kind: "data" },
+              { id: "adv", label: "200: new index", sub: "the log has moved on", kind: "data" },
             ],
             [
               { id: "serve", label: "Serve from disk", sub: "warm cache, current", kind: "external" },
@@ -647,7 +647,7 @@ export const dissections: Card[] = [
             [{ id: "std", label: "S3 Standard", sub: "up to 120 pushes/s", kind: "data" },
              { id: "exp", label: "S3 Express One Zone", sub: "over 300 pushes/s", kind: "data" }],
             [{ id: "git", label: "Git compaction", sub: "the new bottleneck", kind: "service" }],
-            [{ id: "prim", label: "Primary compacts once", sub: "applied to disk and log", kind: "service" }],
+            [{ id: "prim", label: "Primary compacts", sub: "applied to disk and log", kind: "service" }],
             [{ id: "reps", label: "100 replicas", sub: "download compacted packs", kind: "edge" },
              { id: "reads", label: "Linear read scaling", sub: "no push regression", kind: "external" }],
           ],
@@ -761,9 +761,9 @@ export const dissections: Card[] = [
               { id: "force", label: "With smooth forcing", sub: "what was actually proved", kind: "data" },
               { id: "unforced", label: "Without forcing", sub: "not what was proved", kind: "data", alternative: true },
             ],
-            [{ id: "clay", label: "Clay statements C and D", sub: "breakdown, forcing permitted", kind: "service" }],
+            [{ id: "clay", label: "Clay C and D", sub: "breakdown, forcing permitted", kind: "service" }],
             [
-              { id: "proc", label: "Journal, then two years", sub: "then general acceptance", kind: "external" },
+              { id: "proc", label: "Journal, two years", sub: "then general acceptance", kind: "external" },
               { id: "noclaim", label: "Prize not claimed", sub: "OpenAI states this", kind: "external" },
             ],
           ],
@@ -970,11 +970,11 @@ export const dissections: Card[] = [
             [{ id: "ns", label: "Navier-Stokes", sub: "2.7M messages, ~130B tokens", kind: "data" }],
             [
               { id: "per", label: "Per agent", sub: "~270 messages, ~13M tokens", kind: "service" },
-              { id: "rate", label: "Per agent per second", sub: "~40 output tokens, for 88 hours", kind: "service" },
+              { id: "rate", label: "Per agent, per sec", sub: "~40 output tokens, for 88 hours", kind: "service" },
             ],
             [
-              { id: "artefact", label: "~48,000 tokens per message", sub: "producing, not chatting", kind: "external" },
-              { id: "input", label: "Input tokens unreported", sub: "usually the larger number", kind: "external", alternative: true },
+              { id: "artefact", label: "~48k per message", sub: "producing, not chatting", kind: "external" },
+              { id: "input", label: "Input unreported", sub: "usually the larger number", kind: "external", alternative: true },
             ],
           ],
           edges: [
@@ -1159,7 +1159,7 @@ export const dissections: Card[] = [
         diagram: {
           caption: "The proof is checked mechanically; the statement is checked by people",
           columns: [
-            [{ id: "prob", label: "Fefferman's description", sub: "informal, with conditions", kind: "client" }],
+            [{ id: "prob", label: "Fefferman's spec", sub: "informal, with conditions", kind: "client" }],
             [
               { id: "trans", label: "Translation", sub: "spaces, decay, quantifiers", kind: "service", alternative: true },
             ],
@@ -1264,7 +1264,7 @@ export const dissections: Card[] = [
             ],
             [
               { id: "ans", label: "What could it read?", sub: "answerable", kind: "service" },
-              { id: "unans", label: "Whose work shaped it?", sub: "unanswerable by construction", kind: "service", alternative: true },
+              { id: "unans", label: "Whose work?", sub: "unanswerable by construction", kind: "service", alternative: true },
             ],
             [{ id: "claim", label: "An honest denial", sub: "that nobody can check", kind: "external", alternative: true }],
           ],

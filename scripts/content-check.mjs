@@ -10,12 +10,13 @@
  * It runs in the build because it caught real defects in content written
  * minutes earlier, twice.
  */
-import { findProblems, findAnswerTells, findUniformity } from "../src/data/learn/validate.ts";
+import { findProblems, findAnswerTells, findUniformity, findDiagramOverflow } from "../src/data/learn/validate.ts";
 
 const groups = [
   ["structure", findProblems()],
   ["answer tells", findAnswerTells()],
   ["uniformity", findUniformity()],
+  ["diagram text fits", findDiagramOverflow()],
 ];
 
 let total = 0;

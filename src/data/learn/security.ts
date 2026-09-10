@@ -194,10 +194,10 @@ export const security: Card[] = [
           columns: [
             [{ id: "evil", label: "Attacker's page", sub: "submits a form to your origin", kind: "client" }],
             [{ id: "cookie", label: "Session cookie", sub: "attached automatically", kind: "edge", alternative: true },
-             { id: "bearer", label: "Authorization header", sub: "only your script sets it", kind: "edge" }],
+             { id: "bearer", label: "Auth header", sub: "only your script sets it", kind: "edge" }],
             [{ id: "lax", label: "SameSite=Lax", sub: "withheld on cross-site posts", kind: "service" },
              { id: "token", label: "Synchroniser token", sub: "unreadable across origins", kind: "service" }],
-            [{ id: "cors", label: "CORS is not the defence", sub: "a simple post needs no preflight", kind: "external", alternative: true }],
+            [{ id: "cors", label: "CORS is not it", sub: "a simple post needs no preflight", kind: "external", alternative: true }],
           ],
           edges: [
             { from: "evil", to: "cookie", label: "rides along" },
@@ -278,7 +278,7 @@ export const security: Card[] = [
              { id: "addr", label: "Validate at connect", sub: "the resolved address, every hop", kind: "service" },
              { id: "proxy", label: "Egress proxy", sub: "known hosts only", kind: "service" }],
             [{ id: "dns", label: "DNS points inward", sub: "or rebinds after the check", kind: "data", alternative: true },
-             { id: "redir", label: "302 to an internal host", sub: "after validation passed", kind: "data", alternative: true }],
+             { id: "redir", label: "302 to internal", sub: "after validation passed", kind: "data", alternative: true }],
             [{ id: "meta", label: "Metadata endpoint", sub: "IMDSv2 requires a token", kind: "external" }],
           ],
           edges: [
@@ -373,10 +373,10 @@ export const security: Card[] = [
         diagram: {
           caption: "A postinstall script anywhere in the tree runs with your build's privileges",
           columns: [
-            [{ id: "add", label: "One dependency added", sub: "for one helper function", kind: "client" }],
-            [{ id: "tree", label: "1,000 transitive packages", sub: "1,000 maintainer accounts", kind: "data" }],
+            [{ id: "add", label: "One dependency", sub: "for one helper function", kind: "client" }],
+            [{ id: "tree", label: "1,000 packages", sub: "1,000 maintainer accounts", kind: "data" }],
             [{ id: "script", label: "postinstall", sub: "runs without being imported", kind: "service", alternative: true }],
-            [{ id: "creds", label: "CI secrets and artefact", sub: "deploy credentials, signing keys", kind: "external", alternative: true },
+            [{ id: "creds", label: "CI secrets", sub: "deploy credentials, signing keys", kind: "external", alternative: true },
              { id: "prov", label: "Signed provenance", sub: "built from the claimed repo", kind: "external" }],
           ],
           edges: [
@@ -561,7 +561,7 @@ export const security: Card[] = [
           caption: "The oldest open transaction sets the horizon for the whole database",
           columns: [
             [{ id: "upd", label: "Update", sub: "insert a version, mark the old", kind: "client" }],
-            [{ id: "vers", label: "Several row versions", sub: "readers see their snapshot", kind: "data" }],
+            [{ id: "vers", label: "Many row versions", sub: "readers see their snapshot", kind: "data" }],
             [{ id: "vac", label: "Vacuum", sub: "reclaims what nobody needs", kind: "service" },
              { id: "idle", label: "Idle in transaction", sub: "holds the horizon still", kind: "service", alternative: true }],
             [{ id: "reuse", label: "Space reusable", sub: "not returned to the OS", kind: "external" },
@@ -644,7 +644,7 @@ export const security: Card[] = [
           columns: [
             [{ id: "d1", label: "Doctor A", sub: "sees B is on call", kind: "client" },
              { id: "d2", label: "Doctor B", sub: "sees A is on call", kind: "client" }],
-            [{ id: "snap", label: "Each in its own snapshot", sub: "the rule holds in both", kind: "service" }],
+            [{ id: "snap", label: "Own snapshot each", sub: "the rule holds in both", kind: "service" }],
             [{ id: "w1", label: "A removes A", sub: "writes one row", kind: "data" },
              { id: "w2", label: "B removes B", sub: "writes a different row", kind: "data" }],
             [{ id: "none", label: "Nobody on call", sub: "no error was ever raised", kind: "external", alternative: true },
@@ -863,7 +863,7 @@ export const security: Card[] = [
             { from: "read", to: "r1", label: "sees the latest" },
             { from: "read", to: "r3", label: "and a stale copy" },
             { from: "read", to: "sloppy", label: "if nodes were substituted" },
-            { from: "r3", to: "repair", label: "converges anyway", async: true },
+            { from: "r3", to: "repair", async: true },
           ],
         },
         sources: [
@@ -945,8 +945,8 @@ export const security: Card[] = [
              { id: "pc", label: "P: consistency", sub: "refuse the write", kind: "service" }],
             [{ id: "el", label: "E: latency", sub: "nearest replica, possibly stale", kind: "data" },
              { id: "ec", label: "E: consistency", sub: "quorum round trips", kind: "data" }],
-            [{ id: "rare", label: "A bad afternoon a year", sub: "what CAP describes", kind: "external", alternative: true },
-             { id: "every", label: "Every single request", sub: "what actually shapes the system", kind: "external" }],
+            [{ id: "rare", label: "Once a year", sub: "what CAP describes", kind: "external", alternative: true },
+             { id: "every", label: "Every request", sub: "what actually shapes the system", kind: "external" }],
           ],
           edges: [
             { from: "state", to: "pa", label: "partitioned" },

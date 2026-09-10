@@ -45,6 +45,14 @@ jobs:
         run: npm ci
         working-directory: worker
 
+      # The prerenderer drives a real browser, so the build needs the browser
+      # binary and not only the npm package. `npm ci` installs Playwright
+      # itself; the browsers are a separate download, which is why the build got
+      # all the way to its last step and then failed on a missing executable.
+      # --with-deps brings the system libraries Chromium needs on the runner.
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Build
         run: npm run build
 

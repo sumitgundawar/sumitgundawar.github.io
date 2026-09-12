@@ -17,10 +17,29 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 const ICON = readFileSync("public/favicon.svg", "utf8");
 
-const INK = "#14171a";
-const PAPER = "#f1f4f2";
-const GREEN = "#3dd68c";
-const DIM = "#8b948f";
+/* The palette is read from the stylesheet rather than restated here.
+ *
+ * It used to be four hand-copied hex values, and all four had drifted from the
+ * site they were meant to match: the ground was #14171a against a site whose
+ * ink is #0e1110, which is both lighter and cooler, so the icon read as a
+ * blue-grey tile on a green-black page and the card behind a shared link did
+ * the same. The text was #f1f4f2 against a warm #edebe3. The manifest then
+ * published #14171a as the theme colour while index.html published #0e1110, so
+ * the site gave two answers to one question.
+ *
+ * None of that could be seen in a diff, and all of it follows from the palette
+ * living in two places. Now there is one. */
+function palette() {
+  const css = readFileSync("src/index.css", "utf8");
+  const read = (name) => {
+    const m = css.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`));
+    if (!m) throw new Error(`gen-og: --${name} not found in src/index.css`);
+    return m[1];
+  };
+  return { INK: read("ink"), PAPER: read("c-text"), GREEN: read("signal"), DIM: read("c-text-dim") };
+}
+
+const { INK, PAPER, GREEN, DIM } = palette();
 
 /* Deliberately not a poster. The card carries the three things someone deciding
    whether to click actually wants: who this is, what is on the other side of
@@ -81,6 +100,16 @@ const card = `
 </div>
 `;
 
+/* The mark carries its ground colour, so it is rewritten from the palette too
+   rather than being a fifth copy of the ink hex, and the corrected SVG is
+   written back. Without writing it back the file on disk stays a hand-edited
+   copy that can drift again, which is the whole defect this is fixing: after
+   this runs, the SVG, the three PNGs, the ICO and the manifest are all derived
+   from src/index.css, and the only ink written by hand anywhere is the
+   theme-color in index.html, which check:brand asserts. */
+const icon = ICON.replace(/(<rect[^>]*fill=")#[0-9a-fA-F]{3,8}(")/, `$1${INK}$2`);
+if (icon !== ICON) writeFileSync("public/favicon.svg", icon);
+
 const iconPage = (size) => `
 <!doctype html>
 <meta charset="utf-8">
@@ -89,7 +118,7 @@ const iconPage = (size) => `
   body { width: ${size}px; height: ${size}px; }
   svg { width: ${size}px; height: ${size}px; display: block; }
 </style>
-${ICON}
+${icon}
 `;
 
 const browser = await chromium.launch();
@@ -129,4 +158,31 @@ writeFileSync(
   ) + "\n",
 );
 
-console.log("og: og.png 1200x630, icons 180/32/16, manifest written");
+/* favicon.ico, because browsers request it from the root whether or not it is
+   declared, and the one that was there was a black and white leftover with none
+   of this mark in it. An ICO may embed PNGs, which every browser since IE11
+   reads, so the two already-generated sizes are wrapped rather than redrawn. */
+const icoSizes = [32, 16];
+const pngs = icoSizes.map((s) => readFileSync(`public/favicon-${s}.png`));
+const header = Buffer.alloc(6 + 16 * pngs.length);
+header.writeUInt16LE(0, 0);
+header.writeUInt16LE(1, 2); // type 1 = icon
+header.writeUInt16LE(pngs.length, 4);
+let offset = header.length;
+pngs.forEach((png, i) => {
+  const e = 6 + i * 16;
+  header.writeUInt8(icoSizes[i], e);
+  header.writeUInt8(icoSizes[i], e + 1);
+  header.writeUInt8(0, e + 2); // palette entries, 0 for true colour
+  header.writeUInt8(0, e + 3);
+  header.writeUInt16LE(1, e + 4); // colour planes
+  header.writeUInt16LE(32, e + 6);
+  header.writeUInt32LE(png.length, e + 8);
+  header.writeUInt32LE(offset, e + 12);
+  offset += png.length;
+});
+writeFileSync("public/favicon.ico", Buffer.concat([header, ...pngs]));
+
+console.log(
+  `og: og.png 1200x630, icons 180/32/16, favicon.ico (${icoSizes.join("+")}), manifest, palette ink ${INK} text ${PAPER}`,
+);

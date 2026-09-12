@@ -3,8 +3,8 @@
   "short_name": "Sumit",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#14171a",
-  "theme_color": "#14171a",
+  "background_color": "#0e1110",
+  "theme_color": "#0e1110",
   "icons": [
     {
       "src": "/favicon.svg",

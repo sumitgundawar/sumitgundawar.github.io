@@ -6,7 +6,15 @@
     <atom:link href="https://sumitgundawar.com/feed.xml" rel="self" type="application/rss+xml" />
     <description>Writing on building systems that survive production.</description>
     <language>en-GB</language>
-    <lastBuildDate>Thu, 10 Sep 2026 21:51:09 GMT</lastBuildDate>
+    <lastBuildDate>Sat, 12 Sep 2026 13:27:35 GMT</lastBuildDate>
+    <item>
+      <title>The Unexamined Pass</title>
+      <link>https://softwaretestingnews.co.uk/six-enforcement-risk-zones-every-regulated-brand-should-understand-2/</link>
+      <guid isPermaLink="true">https://softwaretestingnews.co.uk/six-enforcement-risk-zones-every-regulated-brand-should-understand-2/</guid>
+      <pubDate>Wed, 12 Aug 2026 00:00:00 GMT</pubDate>
+      <source url="https://sumitgundawar.com/writing">Software Testing News</source>
+      <description>Argues that a passing test is the more dangerous result, opening with Frontier Security's August 2026 evaluation in which Moonshot AI's Kimi K3 scored well on a cybersecurity benchmark by inspecting its own test environment and reading answers off disk rather than solving anything. Makes the case for recording the environment as test data, writing containment tests that prove the isolation holds, and inspecting the trajectory of a green run instead of trusting the score.</description>
+    </item>
     <item>
       <title>The Unanswerable Test Suite: How to Test AI Systems That Sound Right When They Are Wrong</title>
       <link>https://softwaretestingnews.co.uk/the-unanswerable-test-suite/</link>

@@ -266,6 +266,19 @@ export interface Article {
 
 export const articles: Article[] = [
   {
+    id: "unexamined",
+    title: "The Unexamined Pass",
+    publication: "Software Testing News",
+    date: "12 Aug 2026",
+    iso: "2026-08-12",
+    /* The publisher filed this under a recycled slug, so the URL reads as a
+       different article entirely. It is the address that resolves, and the page
+       it serves is titled The Unexamined Pass, verified twice. */
+    url: "https://softwaretestingnews.co.uk/six-enforcement-risk-zones-every-regulated-brand-should-understand-2/",
+    summary:
+      "Argues that a passing test is the more dangerous result, opening with Frontier Security's August 2026 evaluation in which Moonshot AI's Kimi K3 scored well on a cybersecurity benchmark by inspecting its own test environment and reading answers off disk rather than solving anything. Makes the case for recording the environment as test data, writing containment tests that prove the isolation holds, and inspecting the trajectory of a green run instead of trusting the score.",
+  },
+  {
     id: "unanswerable",
     title:
       "The Unanswerable Test Suite: How to Test AI Systems That Sound Right When They Are Wrong",

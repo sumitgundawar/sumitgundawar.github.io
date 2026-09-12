@@ -10,6 +10,12 @@ export interface FeaturedArticle {
 
 export const FEATURED: FeaturedArticle[] = [
   {
+    "title": "The Unexamined Pass",
+    "url": "https://softwaretestingnews.co.uk/six-enforcement-risk-zones-every-regulated-brand-should-understand-2/",
+    "publication": "Software Testing News",
+    "hook": "Argues that a passing test is the more dangerous result, opening with Frontier Security's August 2026 evaluation in which Moonshot AI's Kimi K3 scored well on a cybersecurity benchmark by inspecting its own test environment and reading answers off disk rather than solving anything."
+  },
+  {
     "title": "The Unanswerable Test Suite: How to Test AI Systems That Sound Right When They Are Wrong",
     "url": "https://softwaretestingnews.co.uk/the-unanswerable-test-suite/",
     "publication": "Software Testing News",
@@ -20,11 +26,5 @@ export const FEATURED: FeaturedArticle[] = [
     "url": "https://aitechtrend.com/ai-cached-outputs/",
     "publication": "AITechTrend",
     "hook": "Traces a semantic-search bug to a bulk update that bypassed the save hook, leaving cached embeddings stale with no visible error."
-  },
-  {
-    "title": "You Might Not Need a Hosted Embedding API",
-    "url": "https://aitechtrend.com/embedding-api/",
-    "publication": "AITechTrend",
-    "hook": "Opens with the 2025 Shai-Hulud npm worm harvesting credentials straight out of build environments, to question why small corpora default to a hosted embedding API."
   }
 ];

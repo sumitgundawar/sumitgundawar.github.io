@@ -3,22 +3,6 @@ import { trackClick } from "@/lib/hooks";
 import { getTurnstileToken, loadTurnstile } from "@/lib/turnstile";
 import { API } from "@/lib/api";
 
-/* The signup, shown where someone has just got something out of the site.
- *
- * On the profile page the form sits near the bottom, which is fine for a person
- * who came looking for it and useless for everyone else. Asking after three
- * answered checks, or after a finished architecture, asks someone who has
- * demonstrated the material is worth their time. That is the whole argument for
- * placement: same form, better moment.
- *
- * Inline, never a modal. An overlay that interrupts reading to ask for an email
- * is the thing people install blockers for, and the material here is the reason
- * they came.
- *
- * Dismissal is remembered. Asking twice is worse than never asking, and someone
- * who said no is not a lead to re-approach in three topics' time.
- */
-
 const KEY = "sg-newsletter-v1";
 
 type Seen = { dismissed?: boolean; joined?: boolean };
@@ -35,22 +19,16 @@ function write(v: Seen) {
   try {
     localStorage.setItem(KEY, JSON.stringify({ ...read(), ...v }));
   } catch {
-    /* private browsing: it will ask again next visit, which is acceptable */
   }
 }
 
 export function NewsletterPrompt({ context, line }: { context: string; line: string }) {
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [email, setEmail] = useState("");
-  /* Bot filters, checked server-side. `company` is a honeypot that stays empty
-     for anyone real, and renderedAt lets the server reject a submission that
-     arrived faster than a person could read the sentence above it. Resend's free
-     tier is 100 sends a day, so scripted signups cost real delivery. */
+
   const [company, setCompany] = useState("");
   const [renderedAt] = useState(() => Date.now());
-  /* The invisible Turnstile widget renders into this. It is only mounted
-     once someone touches the form, so the third-party script is never
-     fetched for the many visitors who never sign up. */
+
   const capture = useRef<HTMLDivElement>(null);
   const [hidden, setHidden] = useState(() => {
     const s = read();
@@ -118,10 +96,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
           </div>
 
           <form onSubmit={submit} className="mt-4 flex flex-col sm:flex-row gap-2 min-w-0">
-            {/* Hidden from people and from assistive technology, so nobody real
-                can fill it in by accident: aria-hidden and tabIndex -1 keep it
-                out of the reading order, and display:none keeps it out of the
-                layout. Only a script that fills every input will touch it. */}
+
             <div aria-hidden="true" style={{ display: "none" }}>
               <label htmlFor={`np-co-${context}`}>Company</label>
               <input
@@ -165,7 +140,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
               {message}
             </p>
           )}
-          <p className="mono text-[length:var(--fs-micro)] mt-3" style={{ color: "var(--c-text-dim)" }}>
+          <p className="mono text-t3 mt-3" style={{ color: "var(--c-text-dim)" }}>
             Unsubscribe in one click, from any email.
           </p>
         </>

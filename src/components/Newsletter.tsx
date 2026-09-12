@@ -4,30 +4,14 @@ import { trackClick } from "@/lib/hooks";
 import { getTurnstileToken, loadTurnstile } from "@/lib/turnstile";
 import { API } from "@/lib/api";
 
-/* Newsletter signup.
- *
- * Single opt-in: subscribed on submit, no confirmation click. Valid consent
- * under UK GDPR provided the ask is explicit, unticked and unbundled, which is
- * why the consent line below is written out and there is no pre-ticked box.
- *
- * A welcome email still goes out. On a new sending domain a typo'd address
- * bounces, and bounces are what get a new sender blocked, so the first send is
- * also the check that the address is real.
- */
-
-
 export function Newsletter() {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
-  /* Same two bot filters as the inline prompt, checked server-side. See
-     NewsletterPrompt for why: Resend allows 100 sends a day, so scripted
-     signups cost real delivery to people who actually asked. */
+
   const [company, setCompany] = useState("");
   const [renderedAt] = useState(() => Date.now());
-  /* The invisible Turnstile widget renders into this. It is only mounted
-     once someone touches the form, so the third-party script is never
-     fetched for the many visitors who never sign up. */
+
   const capture = useRef<HTMLDivElement>(null);
 
   async function submit(e: React.FormEvent) {
@@ -74,8 +58,7 @@ export function Newsletter() {
         <p className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
           Notes on building systems that survive production: what broke, and what the fix cost.
           Sent when there is something worth sending, and never for anything else.{" "}
-          {/* Asking someone to trust a description of writing they cannot read
-              is a worse pitch than the writing itself. Every issue is public. */}
+
           <Link to="/archive" className="link-underline" style={{ color: "var(--accent-2)" }}>
             Read past issues first
           </Link>
@@ -89,8 +72,7 @@ export function Newsletter() {
         ) : (
           <>
           <form onSubmit={submit} className="mt-4 flex flex-col sm:flex-row gap-2 min-w-0">
-            {/* Honeypot: out of the layout and out of the reading order, so
-                only a script that fills every input will touch it. */}
+
             <div aria-hidden="true" style={{ display: "none" }}>
               <label htmlFor="newsletter-company">Company</label>
               <input
@@ -127,8 +109,7 @@ export function Newsletter() {
               {state === "busy" ? "…" : "subscribe"}
             </button>
           </form>
-          {/* Turnstile renders here, invisibly. Outside the form so a re-render
-              of the fields cannot tear down a widget mid-verification. */}
+
           <div ref={capture} aria-hidden="true" />
           </>
         )}
@@ -139,7 +120,7 @@ export function Newsletter() {
           </p>
         )}
 
-        <p className="mono text-[length:var(--fs-micro)] mt-3 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+        <p className="mono text-t3 mt-3 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
           Unsubscribe from any email, in one click. Your address is stored to send this and nothing
           else, and is never passed on.
         </p>

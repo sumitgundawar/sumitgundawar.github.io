@@ -1,17 +1,5 @@
 import type { Card } from "./types";
 
-/* Blog dissections.
- *
- * Deeply technical engineering writing, taken apart and redrawn. The rule for
- * this track is that the original is linked at the top of the card, before any
- * of the explanation, because a dissection that buries its source is a summary
- * passing itself off as analysis.
- *
- * The second rule is that simpler must not mean vaguer. The point is to remove
- * the assumed background, not the detail: the numbers stay, the component names
- * stay, and where the original is careful about what it does and does not claim,
- * that care is carried over rather than rounded off into a headline.
- */
 export const dissections: Card[] = [
   {
     id: "cursor-git",

@@ -1,11 +1,5 @@
 import type { Card } from "./types";
 
-/* Four subjects the design track did not cover and that a reader in 2026
-   expects: event-driven architecture in its own right rather than as a
-   footnote to queues, the gateway and mesh layer that sits in front of every
-   service estate, machine learning systems as an operational concern rather
-   than a modelling one, and the edge, which has stopped being a cache. */
-
 export const design3: Card[] = [
   {
     id: "event-driven",

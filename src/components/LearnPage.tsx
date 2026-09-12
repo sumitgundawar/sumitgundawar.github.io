@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Masthead, SiteFooter } from "./primitives";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FlowDiagram } from "./FlowDiagram";
 import { DiagramViews } from "./DiagramViews";
@@ -8,17 +9,11 @@ import { trackQuiz } from "@/lib/api";
 import { track } from "@/lib/track";
 import { useProgress, summarise, type Progress } from "@/lib/progress";
 import { usePageDwell, setSocialMeta, useStagger } from "@/lib/hooks";
-/* Imported from the leaf modules rather than from the barrel.
- *
- * "@/data/learn" pulls every card into whatever imports it, which is how this
- * page came to ship 407KB of JavaScript to show one card. The manifest carries
- * the titles and levels the index renders; the material for an opened card is
- * fetched as its own chunk. */
+
 import { manifest, topicCount } from "@/data/learn/manifest";
 import { loadCard } from "@/data/learn/load";
 import { TRACKS, LEVELS, type Card, type CardMeta, type Level, type Topic, type Check, type Source } from "@/data/learn/types";
 
-/** Cards that still have something to show once a level filter is applied. */
 function metaForLevel(level: Level | "all"): CardMeta[] {
   if (level === "all") return manifest;
   return manifest
@@ -29,9 +24,6 @@ function metaForLevel(level: Level | "all"): CardMeta[] {
 const countByLevel = (level: Level) =>
   manifest.reduce((n, c) => n + c.topics.filter((t) => t.level === level).length, 0);
 
-/** A grid whose children arrive one after another rather than all at once.
- *  A component rather than a hook call at the use site, because the grid is
- *  rendered inside a map over tracks and hooks cannot be called there. */
 function StaggerGrid({ className, children }: { className?: string; children: ReactNode }) {
   const ref = useStagger<HTMLDivElement>();
   return (
@@ -41,17 +33,6 @@ function StaggerGrid({ className, children }: { className?: string; children: Re
   );
 }
 
-/** Where a claim came from.
- *
- *  The material makes several hundred checkable claims, and for a long time it
- *  cited none of them, so a reader who wanted to know whether SQS really
- *  defaults to a thirty second visibility timeout had to go and find out. Each
- *  entry says what it supports as well as where it is, because a list of links
- *  with no statement of what they are for is an appeal to authority rather than
- *  evidence.
- *
- *  Deliberately below the diagram and above the assistant: it is reference
- *  material, not part of the argument, and nobody reads it first. */
 function Sources({ sources }: { sources: Source[] }) {
   return (
     <details className="mt-7 max-w-[36em] group">
@@ -65,11 +46,7 @@ function Sources({ sources }: { sources: Source[] }) {
         <span aria-hidden className="group-open:hidden">
           +
         </span>
-        {/* An ASCII hyphen rather than a minus sign entity. The prose check reads
-            source files, so &minus; would have passed it and still shipped a
-            non-ASCII glyph to the reader, which is the rule being dodged rather
-            than kept. The outbound arrows are entities because that arrow is on
-            the allowlist already. */}
+
         <span aria-hidden className="hidden group-open:inline">
           -
         </span>
@@ -90,7 +67,7 @@ function Sources({ sources }: { sources: Source[] }) {
               >
                 {s.label} <span aria-hidden>&#8599;</span>
               </a>
-              <p className="mt-1 text-[length:var(--fs-label)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+              <p className="mt-1 text-t3 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
                 {s.supports}
               </p>
             </div>
@@ -101,12 +78,6 @@ function Sources({ sources }: { sources: Source[] }) {
   );
 }
 
-/** The piece of writing a dissection is about.
- *
- *  At the top of the card, before any of the explanation, because a dissection
- *  that buries its source is a summary passing itself off as analysis. The
- *  reader should be able to go and read the real thing first if they would
- *  rather, and the note says why it was worth taking apart. */
 function Subject({ subject }: { subject: NonNullable<Card["subject"]> }) {
   const when = new Date(subject.published + "T00:00:00Z").toLocaleDateString("en-GB", {
     day: "numeric",
@@ -157,14 +128,6 @@ function LevelDot({ level }: { level: Level }) {
   );
 }
 
-/** Stable per-topic shuffle.
- *
- *  107 of 109 checks were authored with the answer at index 1, and 103 had it
- *  as the longest option, so clicking the second button every time scored 98%
- *  without reading anything. Hand-balancing 122 quizzes is fragile and would
- *  drift the moment new ones are written, so the order is randomised here
- *  instead. Seeded by topic id so it is stable across re-renders and does not
- *  move under the reader between clicking and reading the explanation. */
 function shuffleOptions(topic: Topic, check: Check) {
   let seed = 0;
   const key = topic.id + check.prompt;
@@ -184,15 +147,6 @@ function shuffleOptions(topic: Topic, check: Check) {
   };
 }
 
-/* Which question to ask this time.
- *
- * One fixed question makes a second visit a memory test rather than a check of
- * understanding. Where a topic carries a bank, one is chosen per visit, and the
- * choice is per mount rather than per render so the question does not change
- * under someone midway through reading it.
- *
- * Random rather than sequential, because sequential needs stored state per
- * topic and the point is variety, not coverage. */
 function useCheck(topic: Topic): Check {
   const bank = useMemo(() => [topic.check, ...(topic.checks ?? [])], [topic]);
   const [index] = useState(() => Math.floor(Math.random() * bank.length));
@@ -212,15 +166,11 @@ function TopicView({
 }) {
   const check = useCheck(topic);
   const shuffled = useMemo(() => shuffleOptions(topic, check), [topic, check]);
-  // Seed from stored progress: this component unmounts when the topic is
-  // collapsed, so without this the answer disappears on every close.
+
   const [picked, setPicked] = useState<number | null>(() =>
     wasCorrect === undefined ? null : wasCorrect ? shuffled.correctIndex : -1,
   );
-  /* Which option was clicked in this interaction, as opposed to which one is
-     stored as the answer. Cleared once the animation has run so that a later
-     re-render, of which there are several while the explanation appears, does
-     not replay it. */
+
   const [justAnswered, setJustAnswered] = useState<number | null>(null);
   useEffect(() => {
     if (justAnswered === null) return;
@@ -242,35 +192,11 @@ function TopicView({
       level: topic.level,
       correct: i === shuffled.correctIndex,
     });
-    /* First-party too. GA tells you a quiz was answered; this records which
-       option was chosen, which is the part that says whether a distractor is
-       working or whether an explanation is not. */
+
     trackQuiz(topic.id, i, i === shuffled.correctIndex);
   };
 
   return (
-    /* One column until there is genuinely room for two.
-     *
-     * Everything here was capped at 36em and stacked, inside a container half
-     * again as wide, so a wide card held narrow content with a column of empty
-     * space beside it. Widening the text was not the answer: 36em is already
-     * about 72 characters and past that a line is harder to read, not easier.
-     *
-     * So the width goes to the layout instead. Prose keeps its measure on the
-     * left, the quiz moves up beside it rather than a screen further down, and
-     * the diagram spans both because a diagram is the one thing here that gets
-     * better with more room.
-     *
-     * The breakpoint is a container query rather than a viewport one, and that
-     * is a correction rather than a preference. Keyed to the viewport at xl,
-     * the second column turned on at 1280px while the column it lives in had
-     * already given 230px to the contents rail and 56px to the gap, so the quiz
-     * got 198px and every answer option wrapped to five or seven lines. It was
-     * worst from 1280px to 1535px, which includes 1440px, and it was invisible
-     * to anyone developing at 1920px. What decides whether two columns fit is
-     * the width of this column, so that is what is now measured: 36em of prose
-     * plus a gap plus roughly 20em of quiz is about 936px, and below that the
-     * honest answer is one column. */
     <div className="pb-8 pt-1">
       <div className="grid @min-[936px]:grid-cols-[minmax(0,36em)_minmax(0,1fr)] gap-x-10 @min-[1180px]:gap-x-14 items-start">
       <div className="min-w-0">
@@ -281,7 +207,6 @@ function TopicView({
           </p>
         ))}
       </div>
-
 
       {topic.why && (
         <div
@@ -331,15 +256,9 @@ function TopicView({
               <button
                 key={i}
                 onClick={() => answer(i)}
-                /* aria-disabled, not disabled. A disabled button leaves the tab
-                   order entirely, so a screen reader user who answered could not
-                   get back to the options to hear which one was right. The click
-                   is guarded in answer() already. */
+
                 aria-disabled={answered}
                 className={`text-left text-[length:var(--fs-body)] leading-snug px-3.5 py-3 rounded-md border transition-colors flex gap-3 items-start min-h-[48px]${
-                  /* Only the option just clicked animates. Animating every
-                     revealed option makes the whole list twitch and hides which
-                     one the reader actually chose. */
                   justAnswered === i ? (isCorrect ? " check-correct" : " check-wrong") : ""
                 }`}
                 style={{
@@ -363,8 +282,6 @@ function TopicView({
           })}
         </div>
         {answered && (
-          /* role=status so the outcome and the reasoning are announced. Without
-             it a screen reader user answered and heard nothing at all. */
           <p role="status" className="text-[length:var(--fs-body)] mt-4 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
             <span style={{ color: correct ? "var(--lv-beginner)" : "var(--crit)" }}>
               {correct ? "Correct. " : "Not quite. "}
@@ -375,33 +292,15 @@ function TopicView({
       </div>
       </div>
 
-      {/* Spans both columns: a diagram is the one thing on this page that gets
-          better with more room, so it is not confined to the reading column. */}
       {topic.diagram && <DiagramViews diagram={topic.diagram} id={`${cardId}-${topic.id}`} />}
 
       {topic.sources && <Sources sources={topic.sources} />}
 
-      {/* After the check, not before: the question is worth attempting before
-          the assistant is on hand to answer it for you. */}
       <AskBox topicId={topic.id} />
     </div>
   );
 }
 
-/* A card, read as one guide rather than clicked through as an accordion.
- *
- * It used to open one topic at a time behind a plus and a minus, which meant a
- * page carried about a hundred and twenty words of visible teaching and then a
- * row of collapsed headings. Three things were wrong with that. A reader could
- * not see the shape of what they were about to learn. The quiz, being the only
- * thing in the open topic with a border around it, outweighed the explanation it
- * was testing. And a crawler, or anyone arriving from search, got one topic of
- * text where the page claims to teach a subject.
- *
- * Everything is open now, in order, with a contents rail that tracks where you
- * are. The rail is the part that makes length affordable: a long page is only
- * daunting when you cannot see its end or jump within it.
- */
 function CardDetail({
   card,
   onBack,
@@ -415,10 +314,6 @@ function CardDetail({
 }) {
   const [active, setActive] = useState<string | null>(card.topics[0]?.id ?? null);
 
-  /* Which section the reader is actually in, so the rail is a position rather
-     than a list of links. rootMargin pins the trigger line near the top of the
-     viewport; without it every section is "active" while it is anywhere on
-     screen and the highlight jitters between two at once. */
   useEffect(() => {
     const io = new IntersectionObserver(
       (entries) => {
@@ -448,9 +343,6 @@ function CardDetail({
         ← all topics
       </button>
 
-      {/* h1, not h2. Every deep-linked topic URL, which is what the
-          sitemap advertises, previously started its heading order at h2 with
-          no h1 anywhere on the page. */}
       <h1 className="text-[length:var(--fs-section)] sm:text-[length:var(--fs-page)] font-semibold tracking-[-0.02em]" style={{ color: "var(--c-text)" }}>
         {card.title}
       </h1>
@@ -461,8 +353,7 @@ function CardDetail({
       {card.subject && <Subject subject={card.subject} />}
 
       <div className="mt-9 grid lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)] gap-x-10 xl:gap-x-14 items-start">
-        {/* The rail. Sticky from lg up, and simply the first thing on the page
-            below that, where a fixed column would eat half a phone screen. */}
+
         <nav
           aria-label="Contents"
           className="lg:sticky lg:top-8 min-w-0 mb-8 lg:mb-0 pb-5 lg:pb-0 border-b lg:border-b-0"
@@ -479,7 +370,7 @@ function CardDetail({
                   <a
                     href={`#topic-${t.id}`}
                     onClick={() => track("topic_open", { card: card.id, topic: t.id, level: t.level })}
-                    className="flex items-start gap-2.5 py-2 text-[length:var(--fs-label)] leading-snug"
+                    className="flex items-start gap-2.5 py-2 min-h-[44px] text-[length:var(--fs-label)] leading-snug"
                     style={{
                       color: here ? "var(--c-text)" : "var(--c-text-dim)",
                       borderLeft: `2px solid ${here ? "var(--accent)" : "transparent"}`,
@@ -506,16 +397,12 @@ function CardDetail({
           </div>
         </nav>
 
-        {/* The container the topic layout's queries resolve against. It is this
-            column rather than the viewport that decides whether the quiz fits
-            beside the prose, because the rail and the gap have already been
-            taken out of it. */}
         <div className="min-w-0 @container">
           {card.topics.map((t, i) => (
             <section
               key={t.id}
               id={`topic-${t.id}`}
-              /* Clears the fixed nav when jumped to from the rail. */
+
               style={{ scrollMarginTop: 88 }}
               className={i === 0 ? "" : "mt-14 pt-12 border-t"}
             >
@@ -545,9 +432,6 @@ function CardDetail({
 }
 
 export function LearnPage() {
-  // Held in the URL rather than component state: 122 topics had no addresses,
-  // so nothing could be linked or bookmarked, and the browser back button left
-  // the page entirely instead of closing the open card.
   const { cardId } = useParams<{ cardId?: string }>();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
@@ -567,15 +451,12 @@ export function LearnPage() {
 
   usePageDwell(cardId ? `/learn/${cardId}` : "/learn", cardId);
 
-
   const openCard = cardId ?? null;
   const setOpenCard = (id: string | null) =>
     navigate(id ? `/learn/${id}${window.location.search}` : `/learn${window.location.search}`);
 
   const visible = useMemo(() => metaForLevel(level), [level]);
-  /* The index knows the card exists and what it is called before any of its
-     material has been fetched, so the heading, the title and the description
-     are correct from the first frame and only the body waits. */
+
   const currentMeta = openCard ? manifest.find((c) => c.id === openCard) ?? null : null;
   const [current, setCurrent] = useState<Card | null>(null);
 
@@ -611,23 +492,17 @@ export function LearnPage() {
       document.head.appendChild(tag);
     }
     tag.setAttribute("content", desc);
-    /* The same title and description on the social tags. They were left at the
-       site-wide defaults, so a shared link to a specific card was indexed and
-       previewed under a name that described the whole site instead. */
+
     setSocialMeta(title, desc);
   }, [currentMeta]);
 
   return (
-    <main id="content" className="min-h-[100dvh]">
-      <div className="mx-auto w-full max-w-[940px] xl:max-w-[1180px] 2xl:max-w-[1320px] px-5 sm:px-8 xl:px-10 py-8 lg:py-12">
-        <Link to="/" className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
-          ← back to profile
-        </Link>
+    <>
+      <Masthead />
+      <main id="content" className="min-h-[100dvh]">
+      <div className="shell py-8 lg:py-12">
 
         {currentMeta && !current ? (
-          /* data-loading is the signal the prerenderer waits to disappear.
-             Without it a build could capture this frame and ship a page whose
-             entire content is the word loading. */
           <div className="mt-10" data-loading="card">
             <p className="mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
               loading {currentMeta.title.toLowerCase()}
@@ -641,10 +516,7 @@ export function LearnPage() {
               progress={progress}
               onAnswered={record}
             />
-            {/* After three answered checks, not on arrival. Someone who has
-                worked through three has demonstrated the material is worth
-                their time, which is a different person from someone who just
-                landed. Below the card, so it never interrupts a topic. */}
+
             {answeredCount >= 3 && (
               <NewsletterPrompt
                 context="learn"
@@ -667,9 +539,6 @@ export function LearnPage() {
               when you refresh.
             </p>
 
-            {/* The counts used to appear twice, once as a stats row and again
-                inside the filter pills immediately below. Same four numbers,
-                four lines of phone screen, no extra information. */}
             {(() => {
               const all = summarise(progress, manifest.flatMap((c) => c.topics.map((t) => t.id)));
               if (!all.answered) return null;
@@ -740,12 +609,6 @@ export function LearnPage() {
                     {inTrack.map((c) => {
                       const levelsHere = LEVELS.filter((l) => c.topics.some((t) => t.level === l));
                       return (
-                        /* A link, not a button. As a button these were
-                           invisible to crawlers, so the only route to 122
-                           topics was the sitemap, and a reader could not
-                           cmd-click, middle-click or copy the link of any of
-                           them, which is exactly what someone triaging a study
-                           resource does. The routing already existed. */
                         <Link
                           key={c.id}
                           to={`/learn/${c.id}${window.location.search}`}
@@ -785,5 +648,7 @@ export function LearnPage() {
         )}
       </div>
     </main>
+      <SiteFooter />
+    </>
   );
 }

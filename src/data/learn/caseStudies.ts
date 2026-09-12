@@ -1,8 +1,5 @@
 import type { Card } from "./types";
 
-/* The classic system design interview questions, answered the way a senior or
-   staff candidate would: the constraint first, then the decision it forces. */
-
 export const caseStudies: Card[] = [
   {
     id: "netflix",
@@ -2547,5 +2544,4 @@ export const caseStudies: Card[] = [
       },
     ],
   },
-
 ];

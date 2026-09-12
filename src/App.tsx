@@ -4,10 +4,6 @@ import { useEffect } from "react";
 import { StatusPage } from "@/components/StatusPage";
 import { useAnalyticsPageview, useCanonical } from "@/lib/hooks";
 
-/* The profile page is the entry point and stays in the main bundle. Every other
-   page is fetched when it is first visited, and the learn material is split
-   again beneath that, one chunk per group of cards, so opening one card does
-   not download the whole curriculum. */
 const LearnPage = lazy(() =>
   import("@/components/LearnPage").then((m) => ({ default: m.LearnPage })),
 );
@@ -29,23 +25,11 @@ function AnalyticsListener() {
   return null;
 }
 
-/** Points every route's canonical at itself.
- *
- *  Here rather than in each page, because the tag used to be a single static
- *  line in index.html naming the home page, which the prerenderer then copied
- *  into all 53 routes. A page that forgets to set it is a page claiming to be
- *  the home page, and Google acts on that by not indexing it. */
 function Canonical() {
   useCanonical();
   return null;
 }
 
-/* Reset scroll on forward navigation, and only on forward navigation.
- *
- * Opening a card from halfway down /learn landed the reader mid-topic, past the
- * title, because the router keeps the scroll position by default. Back is left
- * alone deliberately: returning to a list and finding your place is correct,
- * and it already worked. */
 function ScrollReset() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -59,9 +43,6 @@ function ScrollReset() {
   return null;
 }
 
-/* A keyboard user should not have to tab through the whole nav on every page.
- * Visible only when focused, which is the point: it is for people who are
- * tabbing, and invisible to everyone else. */
 function SkipLink() {
   return (
     <a
@@ -74,8 +55,6 @@ function SkipLink() {
   );
 }
 
-/** Deliberately plain: the chunk arrives in well under a second on any real
- *  connection, and a spinner that flashes is worse than a quiet moment. */
 function RouteFallback() {
   return <div className="min-h-[100dvh]" aria-busy="true" />;
 }
@@ -97,10 +76,7 @@ export default function App() {
       <Canonical />
       <ScrollReset />
       <ExitPrompt />
-      {/* One wrapper, keyed by path, so a route change replays the enter
-          animation. Opacity and transform only: nothing here can move the
-          document, and the prerenderer captures the DOM rather than the frame,
-          so the text is present in the HTML whatever the animation is doing. */}
+
       <Suspense fallback={<RouteFallback />}>
         <PageTransition>
         <Routes>

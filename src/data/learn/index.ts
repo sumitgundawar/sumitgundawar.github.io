@@ -15,8 +15,6 @@ import type { Card, Level, Topic } from "./types";
 
 export * from "./types";
 
-/** Ordered so a reader working top to bottom goes foundations first and
- *  interview last. Tracks group them on the page. */
 export const cards: Card[] = [
   ...foundations,
   ...languages,
@@ -42,7 +40,6 @@ export function countByLevel(level: Level): number {
   return allTopics.filter((t) => t.level === level).length;
 }
 
-/** Cards that still have something to show once a level filter is applied. */
 export function cardsForLevel(level: Level | "all"): Card[] {
   if (level === "all") return cards;
   return cards

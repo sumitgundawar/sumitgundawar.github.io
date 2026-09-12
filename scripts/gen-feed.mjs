@@ -1,15 +1,3 @@
-/* RSS from the articles list.
- *
- * Everything he has written is on a publisher's domain, so there is no feed
- * anyone can follow him by: the newsletter is the only way to hear about a new
- * piece, and it asks for an email before you have read one. A feed costs
- * nothing, needs no consent, and is how most of the people who would want this
- * actually read.
- *
- * The items point at the publishers rather than at copies here. Republishing
- * with a canonical tag is the stronger move for search, and it needs the
- * publisher's agreement, so that is a separate decision. This works either way.
- */
 import { writeFileSync } from "node:fs";
 import { articles, identity } from "../src/data/content.ts";
 

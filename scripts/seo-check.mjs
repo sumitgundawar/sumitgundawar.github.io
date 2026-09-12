@@ -1,18 +1,3 @@
-/* Indexing signals, checked against the built output.
- *
- * This exists because of a single line. index.html carried one hard-coded
- * <link rel="canonical"> pointing at the home page, and the prerenderer copies
- * that template into every route, so all 53 pages told Google that the
- * canonical version of them was the home page. Google honours that: the other
- * 52 were filed as "alternative page with proper canonical tag", which is a
- * synonym for not indexed, and the symptom was a sitemap of 53 URLs against
- * almost nothing in the index.
- *
- * Nothing failed. tsc passed, the content checks passed, every page rendered
- * correctly and read correctly. The only place it was visible was a coverage
- * report weeks later, which is exactly the kind of defect that needs a check
- * rather than an intention.
- */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -44,13 +29,10 @@ for (const f of files) {
     continue;
   }
 
-  /* The expected canonical is derivable from the path, so a page that claims a
-     different one is claiming to be a page it is not. */
   const rel = f.replace(/^dist/, "").replace(/\.html$/, "").replace(/\/index$/, "/");
   const expected = SITE + (rel === "" ? "/" : rel);
   if (canonical !== expected) problems.push(`${f}: canonical is ${canonical}, expected ${expected}`);
 
-  /* Two pages naming one canonical is the original bug. */
   if (seen.has(canonical)) problems.push(`${f}: shares its canonical with ${seen.get(canonical)}`);
   seen.set(canonical, f);
 
@@ -65,8 +47,6 @@ for (const f of files) {
   if (!title) problems.push(`${f}: no title`);
 }
 
-/* A sitemap advertising a page that was never built is a crawl budget spent on
-   a 404, and it is reported as an error rather than a warning. */
 for (const loc of sitemap) {
   if (!seen.has(loc)) problems.push(`sitemap lists ${loc} but no page was built with that canonical`);
 }

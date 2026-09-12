@@ -1,14 +1,5 @@
 import type { Card } from "./types";
 
-/* Two more case studies, chosen because they exercise decisions the first five
-   do not. Payments is the money case: idempotency, a ledger that must balance,
-   and outcomes that arrive minutes after the request. Web search is the scale
-   case: a crawl nobody controls, an index too large for one machine, and a
-   query that fans out to thousands of shards and is as slow as the slowest.
-
-   Everything attributed here is published: Stripe's documented behaviour, and
-   Google's own papers on Percolator and the Caffeine indexing system. */
-
 export const caseStudies2: Card[] = [
   {
     id: "payments",

@@ -1,23 +1,9 @@
 import { useEffect, useState } from "react";
+import { Masthead, SiteFooter } from "./primitives";
 import { Link, useParams } from "react-router-dom";
 import { usePageDwell, usePageMeta } from "@/lib/hooks";
 import { API, listIssues, readIssue, type Issue, type IssueSummary } from "@/lib/api";
 import { Newsletter } from "./Newsletter";
-
-/* The newsletter archive.
- *
- * Every issue used to exist only in the inboxes it reached. That makes the
- * newsletter unlinkable, invisible to search, and impossible to evaluate: the
- * sign-up form asked people to trust a description of writing they could not
- * read. An archive answers that question with the writing itself.
- *
- * The reading view is built from the plain text part rather than the mailed
- * HTML. The HTML is a table-based email document with its own colours and
- * widths, and dropping it into the page would mean either an iframe or trusting
- * markup through dangerouslySetInnerHTML, so the site renders the words in its
- * own typography and links to the original for anyone who wants to see what
- * actually landed.
- */
 
 function formatDate(epochSeconds: number): string {
   return new Date(epochSeconds * 1000).toLocaleDateString("en-GB", {
@@ -27,9 +13,6 @@ function formatDate(epochSeconds: number): string {
   });
 }
 
-/* Emails are written with a blank line between paragraphs and the occasional
- * bare URL. Both survive this; anything more elaborate belongs in the mailed
- * version, which is one link away. */
 function paragraphs(text: string): string[] {
   return text
     .replace(/\r\n/g, "\n")
@@ -38,10 +21,6 @@ function paragraphs(text: string): string[] {
     .filter(Boolean);
 }
 
-/* The plain part is written for a mail client, so it ends with the machinery a
- * mail client needs and a web page does not: an unsubscribe link belonging to
- * one subscriber, and the postal footer. Neither means anything here, and the
- * unsubscribe link is specific to whoever received that copy. */
 function readable(issue: Issue): string[] {
   const source = issue.text?.trim()
     ? issue.text
@@ -190,18 +169,23 @@ export function ArchivePage() {
   usePageDwell(slug ? `/archive/${slug}` : "/archive");
 
   return (
-    <main id="content" className="min-h-[100dvh]">
-      <div className="mx-auto w-full max-w-[1280px] 2xl:max-w-[1600px] px-5 sm:px-8 lg:px-10 pt-16 sm:pt-20 lg:pt-12 pb-16">
-        <Link
-          to={slug ? "/archive" : "/"}
-          className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"
-          style={{ color: "var(--c-text-dim)" }}
-        >
-          {slug ? "← every issue" : "← back to profile"}
-        </Link>
+    <>
+      <Masthead />
+      <main id="content" className="min-h-[100dvh]">
+      <div className="shell pt-16 sm:pt-20 lg:pt-12 pb-16">
+        {slug && (
+          <Link
+            to="/archive"
+            className="mono text-m2 text-accent link-underline inline-flex items-center min-h-[44px]"
+          >
+            &#8592; every issue
+          </Link>
+        )}
 
         {slug ? <IssueView slug={slug} /> : <IssueList />}
       </div>
     </main>
+      <SiteFooter />
+    </>
   );
 }

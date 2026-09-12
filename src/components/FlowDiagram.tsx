@@ -3,14 +3,6 @@ import { LABEL_EM_PER_CHAR, LABEL_PX, NODE_TEXT_WIDTH, wrapSub } from "@/data/le
 import { usePrefersReducedMotion } from "@/lib/hooks";
 import type { Diagram, DiagramNode, NodeKind } from "@/data/learn";
 
-/* Renders an architecture diagram from nodes and edges.
-
-   Two things it does that a static image cannot: packets travel the edges so
-   the direction of flow is visible without reading labels, and every box can
-   be hovered for the reasoning behind it. Depth comes from a stacked base
-   plate under each box rather than literal 3D, which stays legible at 390px
-   where an isometric projection would not. */
-
 const KIND_COLOR: Record<NodeKind, { fill: string; edge: string; text: string }> = {
   client: { fill: "var(--n-client)", edge: "var(--n-client-edge)", text: "var(--n-client-text)" },
   edge: { fill: "var(--n-edge)", edge: "var(--n-edge-edge)", text: "var(--n-edge-text)" },
@@ -20,13 +12,6 @@ const KIND_COLOR: Record<NodeKind, { fill: string; edge: string; text: string }>
   external: { fill: "var(--n-external)", edge: "var(--n-external-edge)", text: "var(--n-external-text)" },
 };
 
-/** Below this the horizontal layout has to shrink so far that node labels
- *  render around 7px. Stacking is the only thing that keeps them readable.
- *
- *  1023 rather than 767: at iPad portrait the horizontal diagram is 1104px wide
- *  inside an 876px column, so it had to be scrolled sideways, while the stacked
- *  layout that already existed would have fitted. Tablets now get the layout
- *  built for them instead of the desktop one in a narrower box. */
 function useNarrow(): boolean {
   const [narrow, setNarrow] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches,
@@ -49,33 +34,18 @@ const KIND_LABEL: Record<NodeKind, string> = {
   external: "External",
 };
 
-/** SVG <text> neither wraps nor clips, so an over-long label simply bleeds
- *  across the box border into whatever is next to it. Measured overflows in
- *  shipped data reached 343px inside a 140px slot. Truncate to what fits.
- *
- *  The advance was a single 0.56em for both strings, described as the Commit
- *  Mono advance, and that was wrong in both directions. The label is not set in
- *  Commit Mono: it is the proportional sans, which measures 0.486 to 0.528em
- *  per character, so 0.56 truncated labels that fitted. The sub is mono and
- *  measures 0.600em, so 0.56 let it overflow. Both numbers now come from
- *  measuring the real fonts in the browser, and they live beside the content so
- *  the build can check the data against the same limits the renderer applies. */
 function fit(text: string, emPerChar: number, px: number, maxWidth: number): string {
   const max = Math.floor(maxWidth / (px * emPerChar));
   return text.length <= max ? text : text.slice(0, Math.max(1, max - 1)) + "…";
 }
 
 const W = 168;
-/* 62 gave the sub a single 21-character line, which the corpus had never been
-   written to: 138 subs were already being truncated before anyone measured the
-   limit. 74 gives it two lines. Every other use of H is a formula, so the taller
-   box propagates through the column heights, the node positions, the SVG height
-   and the edge routing without any of them needing to know. */
+
 const H = 74;
-const GAP_X = 132; // wide enough that edge labels sit between boxes, not on them
+const GAP_X = 132;
 const GAP_Y = 34;
 const PAD = 18;
-const DEPTH = 3; // base-plate offset; subtle enough to read as depth, not as a second box
+const DEPTH = 3;
 
 interface Placed extends DiagramNode {
   x: number;
@@ -85,9 +55,7 @@ interface Placed extends DiagramNode {
 
 export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
   const [hovered, setHovered] = useState<string | null>(null);
-  /* Fullscreen, because an architecture diagram is the one thing on this site
-     that is genuinely too big for the column it sits in: it already scrolls
-     sideways inside its frame, which is a poor way to read a graph. */
+
   const frameRef = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
 
@@ -101,24 +69,13 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
     const el = frameRef.current;
     if (!el) return;
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
-    /* Not every browser has this on every element, notably iOS Safari, so a
-       rejection falls back to leaving the diagram where it is rather than
-       throwing at someone who just wanted a bigger picture. */
+
     else void el.requestFullscreen?.().catch(() => {});
   };
   const narrow = useNarrow();
-  // The packets are SMIL, and CSS animation properties do not touch SMIL, // the reduced-motion block in index.css never stopped them. Not rendering
-  // them is the only thing that actually does.
+
   const reducedMotion = usePrefersReducedMotion();
 
-  /* Draw the diagram in the first time it is seen.
-   *
-   * These diagrams are the most distinctive thing on the site and they arrived
-   * fully formed, which hides the fact worth noticing: a diagram is a sequence,
-   * not a picture. Edges draw along their own length, which is measured rather
-   * than guessed, because a dash pattern longer than the path finishes early
-   * and the effect reads as a glitch. Once only: a diagram that redraws every
-   * time it scrolls past is an interruption. */
   const svgRef = useRef<SVGSVGElement>(null);
   useEffect(() => {
     const svg = svgRef.current;
@@ -146,8 +103,6 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
   }, [reducedMotion, diagram]);
 
   const { placed, width, height, byId } = useMemo(() => {
-    // One column per row when stacked, so the graph reads top to bottom and
-    // every label renders at full size.
     const cols = narrow ? diagram.columns.flat().map((n) => [n]) : diagram.columns;
     const tallest = Math.max(...cols.map((c) => c.length));
     const colHeight = (n: number) => n * H + (n - 1) * GAP_Y;
@@ -168,8 +123,6 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
 
     const byId = Object.fromEntries(placed.map((p) => [p.id, p]));
 
-    // Skip-column edges arc above the rows and backward edges dip below, so the
-    // viewBox has to make room or they are clipped at the frame.
     const colOf = (nid: string) => byId[nid]?.col;
     let above = 0;
     let below = 0;
@@ -193,9 +146,6 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
     };
   }, [diagram, narrow]);
 
-  /** Cubic bezier midpoint, where a label sits. Computing it means labels are
-   *  ordinary horizontal text rather than textPath, which rotates every glyph
-   *  to the tangent and is unreadable on anything but a shallow curve. */
   const bezierMid = (
     p0: [number, number],
     p1: [number, number],
@@ -206,22 +156,11 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
     (p0[1] + 3 * p1[1] + 3 * p2[1] + p3[1]) / 8,
   ];
 
-  /**
-   * Route an edge and report where its label goes.
-   *
-   * Four cases, and the previous version only really handled one. Forward
-   * adjacent edges go right face to left face. Forward edges that skip a column
-   * arc above the row so they do not pass under the boxes in between, that is
-   * what hid the Netflix diagram's "video segments" label behind a node.
-   * Backward edges bow underneath. Same-column edges bow out to the right.
-   */
   const route = (from: Placed, to: Placed, laneOffset: number) => {
     const fy = from.y + H / 2;
     const ty = to.y + H / 2;
 
     if (narrow) {
-      // Vertical flow: leave the bottom face, enter the top, bowing to the
-      // right so several edges out of one node stay distinguishable.
       const x = from.x + W / 2;
       const bow = x + 26 + laneOffset;
       const p0: [number, number] = [x, from.y + H];
@@ -250,8 +189,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
     if (to.col < from.col) {
       const x1 = from.x + W / 2;
       const x2 = to.x + W / 2;
-      /* Below everything it passes, for the same reason the forward arc has to
-         clear everything it passes over. */
+
       const between = placed.filter((n) => n.col > to.col && n.col < from.col);
       const bottom = Math.max(from.y, to.y, ...between.map((n) => n.y));
       const dip = bottom + H + 30 + laneOffset;
@@ -269,15 +207,6 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
     const p3: [number, number] = [to.x, ty];
 
     if (to.col - from.col > 1) {
-      /* Arc over the intervening columns rather than through them.
-       *
-       * The lift used to be measured from the two endpoints alone, which is
-       * right only when nothing in between sits higher than both of them. Where
-       * something does, and it commonly does because the endpoints are often in
-       * lower rows, the arc passed straight through it and dropped the label on
-       * a box: measured at 19 collisions across the corpus, worst on a diagram
-       * whose label landed on the very figure it was pointing at. Clearing the
-       * topmost skipped node fixes the class rather than the instances. */
       const skipped = placed.filter((n) => n.col > from.col && n.col < to.col);
       const top = Math.min(from.y, to.y, ...skipped.map((n) => n.y));
       const lift = top - 26 - laneOffset;
@@ -312,11 +241,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
           ...(full ? { display: "flex", alignItems: "center", height: "100%" } : null),
         }}
       >
-        {/* The reasoning, in the frame rather than in the caption.
-            A one-line caption could say the component's name, which the box
-            already said. This says what it does for the system and what running
-            it actually costs, which is what someone looking at an architecture
-            wants and had to scroll to the cards below to find. */}
+
         {hoveredNode?.why && (
           <div
             className="absolute left-2 bottom-2 z-10 max-w-[min(30em,calc(100%-1rem))] p-3.5"
@@ -399,8 +324,6 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
             const pid = `${id}-e${i}`;
             const dim = hovered !== null && hovered !== e.from && hovered !== e.to;
 
-            // Fan parallel edges apart so several leaving the same node do not
-            // stack into one line with their labels on top of each other.
             const { d, mid } = route(from, to, (i % 3) * 13);
             const label = e.label ?? "";
             const labelW = label.length * 5.6 + 10;
@@ -418,7 +341,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                   markerEnd={`url(#arrow-${id})`}
                   opacity={0.5}
                 />
-                {/* the packet: this is what makes the direction readable */}
+
                 {!reducedMotion && <circle r={3.2} fill={e.async ? "var(--accent-2)" : "var(--accent)"}>
                   <animateMotion
                     dur={e.async ? "3.4s" : "2.2s"}
@@ -441,9 +364,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                 </circle>}
                 {label && (
                   <g>
-                    {/* opaque plate rather than a text stroke: a stroke halo
-                        punched a visible hole through whatever border it
-                        crossed, which read as a rendering fault */}
+
                     <rect
                       x={mid[0] - labelW / 2}
                       y={mid[1] - 8}
@@ -474,11 +395,6 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
             const active = hovered === n.id;
             const dim = hovered !== null && !active;
             return (
-              /* The fade lives on a wrapper rather than on the interactive
-                 group. An animation with a forwards fill sets opacity as a
-                 property, which outranks the presentation attribute below it,
-                 so putting both on one element would leave every node stuck at
-                 full opacity and quietly kill the hover dimming. */
               <g
                 key={n.id}
                 className="node-fade"
@@ -490,15 +406,14 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                 onMouseLeave={() => setHovered(null)}
                 onFocus={() => setHovered(n.id)}
                 onBlur={() => setHovered(null)}
-                /* There is no hover on a touch screen, so a tap selects, and
-                   tapping the same node again clears it. */
+
                 onClick={() => setHovered((cur) => (cur === n.id ? null : n.id))}
                 tabIndex={0}
                 role="img"
                 aria-label={`${n.label}${n.sub ? `, ${n.sub}` : ""}. ${KIND_LABEL[kind]}.`}
                 style={{ cursor: "pointer", transition: "opacity .18s" }}
               >
-                {/* base plate reads as thickness without an isometric projection */}
+
                 <rect
                   x={n.x + DEPTH}
                   y={n.y + DEPTH}
@@ -508,12 +423,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                   fill={c.edge}
                   opacity={0.18}
                 />
-                {/* An alternative is drawn as a road not taken: dashed, in the
-                    warning hue rather than its layer colour, and slightly
-                    recessed. It must be legible as "considered and not chosen"
-                    at a glance, without a legend, because a diagram where the
-                    alternatives look like components is worse than one with no
-                    alternatives at all. */}
+
                 <rect
                   x={n.x}
                   y={n.y - (active ? 2 : 0)}

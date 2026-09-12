@@ -1,10 +1,5 @@
 import type { Card } from "./types";
 
-/* Application security. The identity card covers who you are and what you may
-   do; this covers everything an attacker does with input you accepted.
-   Correct answers are distributed across positions deliberately, and the
-   distractors are the mistakes people actually make. */
-
 export const security: Card[] = [
   {
     id: "appsec",

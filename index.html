@@ -1,12 +1,7 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!-- Legacy SPA redirect decoder.
-         Cloudflare Pages serves /learn directly with a 200, so this no longer
-         fires for anything the site links to. It stays because links of the
-         form /?/learn were being handed out while the site was on GitHub Pages,
-         and someone may have one saved. Fifteen lines to not break a bookmark. -->
+
     <script>
       (function (l) {
         if (l.search && l.search[1] === "/") {
@@ -30,7 +25,6 @@
       })(window.location);
     </script>
 
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-G6WTGY3N8N"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -44,8 +38,8 @@
 
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#0e1110" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0b0d" />
     <title>Sumit Gundawar, Software Engineer & Innovation Integration</title>
     <meta
       name="description"
@@ -53,15 +47,10 @@
     />
     <meta name="author" content="Sumit Gundawar" />
 
-    <!-- Icons. The SVG is the one browsers actually use; the PNGs exist for the
-         ones that will not take it, and for an installed shortcut. A flat trace
-         with one blip rather than a monogram, because an icon is read at
-         sixteen pixels in a row of twenty tabs and letterforms are not. -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-
 
     <meta property="og:title" content="Sumit Gundawar, Software Engineer & Innovation Integration" />
     <meta property="og:type" content="website" />
@@ -76,8 +65,10 @@
     <link rel="alternate" type="application/rss+xml" title="Sumit Gundawar" href="https://sumitgundawar.com/feed.xml" />
     <link rel="canonical" href="https://sumitgundawar.com/" />
 
-    <!-- BEGIN generated structured data: scripts/gen-jsonld.mjs -->
-        <script type="application/ld+json">
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sumit Gundawar, Software Engineer & Innovation Integration" />
+    <meta name="twitter:description" content="London software engineer. APIs, data pipelines, and the integrations everything else quietly depends on. Speaking at JAX London 2026." />
+    <script type="application/ld+json" data-generated="jsonld">
     {
       "@context": "https://schema.org",
       "@type": "Person",
@@ -85,7 +76,7 @@
       "name": "Sumit Gundawar",
       "url": "https://sumitgundawar.com",
       "image": "https://sumitgundawar.com/sumit-gundawar.webp",
-      "jobTitle": "Software Engineer & Innovation Integration",
+      "jobTitle": "Full-stack engineer",
       "description": "Sole engineer on a multi-product clinical platform in London: the APIs, the integrations that keep payments and logistics in step, and AI features that reach no patient without a human reading them first. Before that, the pipelines behind PepsiCo's global supply chain, across 25 million product and customer combinations.",
       "address": {
         "@type": "PostalAddress",
@@ -132,7 +123,7 @@
       ]
     }
     </script>
-        <script type="application/ld+json">
+    <script type="application/ld+json" data-generated="jsonld">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
@@ -144,7 +135,7 @@
       }
     }
     </script>
-        <script type="application/ld+json">
+    <script type="application/ld+json" data-generated="jsonld">
     {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -161,7 +152,7 @@
       }
     }
     </script>
-        <script type="application/ld+json">
+    <script type="application/ld+json" data-generated="jsonld">
     {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -178,7 +169,7 @@
       }
     }
     </script>
-        <script type="application/ld+json">
+    <script type="application/ld+json" data-generated="jsonld">
     {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -195,7 +186,7 @@
       }
     }
     </script>
-        <script type="application/ld+json">
+    <script type="application/ld+json" data-generated="jsonld">
     {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -212,7 +203,7 @@
       }
     }
     </script>
-        <script type="application/ld+json">
+    <script type="application/ld+json" data-generated="jsonld">
     {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -229,7 +220,7 @@
       }
     }
     </script>
-        <script type="application/ld+json">
+    <script type="application/ld+json" data-generated="jsonld">
     {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -246,7 +237,7 @@
       }
     }
     </script>
-        <script type="application/ld+json">
+    <script type="application/ld+json" data-generated="jsonld">
     {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -263,7 +254,7 @@
       }
     }
     </script>
-        <script type="application/ld+json">
+    <script type="application/ld+json" data-generated="jsonld">
     {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -280,7 +271,7 @@
       }
     }
     </script>
-        <script type="application/ld+json">
+    <script type="application/ld+json" data-generated="jsonld">
     {
       "@context": "https://schema.org",
       "@type": "Event",
@@ -319,11 +310,6 @@
       }
     }
     </script>
-        <!-- END generated structured data -->
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Sumit Gundawar, Software Engineer & Innovation Integration" />
-    <meta name="twitter:description" content="London software engineer. APIs, data pipelines, and the integrations everything else quietly depends on. Speaking at JAX London 2026." />
   </head>
 
   <body>

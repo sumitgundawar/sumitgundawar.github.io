@@ -2,21 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePrefersReducedMotion } from "@/lib/hooks";
 import type { Diagram, NodeKind } from "@/data/learn";
 
-/* The same architecture, seen down the Z axis instead of across the page.
- *
- * A flat diagram draws a request as a line moving left to right, which is a
- * convention you have to already know. Standing the columns up as planes and
- * pushing them back in space shows the thing the convention stands for: the
- * request enters at the front, passes through the edge, through the services,
- * and reaches storage at the back. Depth is doing real work here, which is the
- * only reason to spend it: a box that merely rotates is decoration, and the
- * flat view stays the default for that reason.
- *
- * Built on CSS 3D rather than WebGL. three.js would be roughly 600kB for what
- * amounts to a dozen rectangles on parallel planes, and it would not survive a
- * 390px screen. transform-style: preserve-3d composites on the GPU, degrades to
- * a plain stack when 3D is unsupported, and costs nothing to download. */
-
 const KIND_COLOR: Record<NodeKind, string> = {
   client: "var(--n-client)",
   edge: "var(--n-edge)",
@@ -35,12 +20,6 @@ const KIND_EDGE: Record<NodeKind, string> = {
   external: "var(--n-external-edge)",
 };
 
-/* Separation comes from rotateX, not rotateY.
-   The first attempt used a three-quarter view and the planes slid across each
-   other: with the scene centred, rotateY moves every layer along the same
-   screen axis, so they overlapped and the labels became unreadable. Tilting
-   back instead maps translateZ onto screen Y, so each layer lands in its own
-   horizontal band, like looking down a stack of glass sheets. */
 const KIND_LABEL: Record<NodeKind, string> = {
   client: "Client",
   edge: "Edge / CDN",
@@ -50,36 +29,24 @@ const KIND_LABEL: Record<NodeKind, string> = {
   external: "External",
 };
 
-const LAYER_GAP = 150; // px of Z between planes
+const LAYER_GAP = 150;
 
 export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
   const reduced = usePrefersReducedMotion();
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  /* Resting angle is a three-quarter view: enough rotation to read the depth,
-     not so much that the front plane occludes the ones behind it. */
   const [tilt, setTilt] = useState({ x: 54, y: -8 });
   const [dragging, setDragging] = useState(false);
   const [active, setActive] = useState(0);
-  /* The flat view names the kind of every box on hover. The layered view had no
-     equivalent, so a node here was a coloured rectangle and nothing else. Tap
-     rather than hover, because the whole point of this view is that it is
-     dragged, and on a touch screen there is no hover to begin with. */
+
   const [picked, setPicked] = useState<string | null>(null);
 
-  /* Walk the pulse through the layers so the direction of flow is legible
-     without hovering anything. Paused entirely under reduced motion, where a
-     looping highlight is exactly the kind of thing people turn it off for. */
   useEffect(() => {
     if (reduced || dragging) return;
     const t = setInterval(() => setActive((i) => (i + 1) % diagram.columns.length), 1400);
     return () => clearInterval(t);
   }, [reduced, dragging, diagram.columns.length]);
 
-  /* Which layer the packet is on, and how far between this one and the next.
-     Highlighting a plane says where the request is; a mark moving between them
-     says it is travelling, which is the thing depth was spent to show. Frozen
-     under reduced motion, where the highlight alone still carries the order. */
   const [travel, setTravel] = useState(0);
   useEffect(() => {
     if (reduced || dragging) return;
@@ -93,14 +60,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
     return () => cancelAnimationFrame(raf);
   }, [reduced, dragging, active]);
 
-  /* Pointer drag rotates the scene. Pointer events cover mouse, pen and touch
-     with one path, and setPointerCapture keeps the drag alive when the cursor
-     leaves the element mid-gesture. */
   const onDown = (e: React.PointerEvent) => {
-    /* Do not capture the pointer when the press started on a node.
-       setPointerCapture redirects every subsequent event to the container, so
-       the button never received its click and tapping a component did nothing
-       at all. Pressing a node is a tap; pressing the background is a drag. */
     if ((e.target as Element).closest("button")) return;
     (e.target as Element).setPointerCapture?.(e.pointerId);
     setDragging(true);
@@ -108,8 +68,6 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
   const onMove = (e: React.PointerEvent) => {
     if (!dragging) return;
     setTilt((t) => ({
-      // Clamped so the stack cannot be rotated into a state where the layers
-      // occlude each other, which is the failure the tilt-back fixes.
       x: Math.max(28, Math.min(70, t.x - e.movementY * 0.35)),
       y: Math.max(-26, Math.min(26, t.y + e.movementX * 0.35)),
     }));
@@ -136,7 +94,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
           background: "var(--diagram-bg)",
           border: "1px solid var(--hair)",
           cursor: dragging ? "grabbing" : "grab",
-          touchAction: "none", // let the drag rotate instead of scrolling the page
+          touchAction: "none",
         }}
         onPointerDown={onDown}
         onPointerMove={onMove}
@@ -165,7 +123,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
                   opacity: reduced ? 1 : lit ? 1 : 0.72,
                 }}
               >
-                {/* the plane itself, so the layer reads as a surface */}
+
                 <div
                   aria-hidden
                   className="absolute left-1/2 top-1/2"
@@ -228,13 +186,6 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
             aria-hidden
             className="absolute left-1/2 pointer-events-none"
             style={{
-              /* Positioned in screen space rather than inside the rotated
-                 scene: a mark on a plane tilted 54 degrees is an ellipse a few
-                 pixels tall and reads as nothing. Riding the same axis the
-                 layers separate along keeps it legible at every angle. */
-              /* Clamped to the last plane. active + travel ran past the end on the
-                 final layer, so the packet slid out below the stack and looked
-                 like it had fallen off rather than arrived. */
               top: `${18 + (Math.min(active + travel, diagram.columns.length - 1) / Math.max(1, diagram.columns.length - 1)) * 64}%`,
               width: 9,
               height: 9,
@@ -260,10 +211,6 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
         const edgesOut = diagram.edges.filter((e) => e.from === picked);
         const edgesIn = diagram.edges.filter((e) => e.to === picked);
         return (
-          /* A panel under the scene rather than a tooltip on the node. A
-             tooltip anchored to a plane rotated 54 degrees moves whenever the
-             scene does, which is unreadable during the drag this view exists
-             for. */
           <div
             role="status"
             className="mt-2 p-3"

@@ -26,6 +26,7 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-unused-expressions": "off",
       "@typescript-eslint/no-empty-object-type": "off",
+      "no-empty": ["error", { allowEmptyCatch: true }],
     },
   },
   /* The Worker gets the unused-symbol rule the site does not.

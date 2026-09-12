@@ -1,13 +1,3 @@
-/* Bake the published articles into the Worker.
- *
- * The welcome email points at real pieces, with their real titles and their real
- * one-line hooks, because a first email that says "I write things, subscribe"
- * and names none of them is asking for trust it has not earned yet.
- *
- * Generated rather than hand-listed, for the same reason topics.generated.ts is:
- * a copy typed into the Worker drifts the moment something new is published, and
- * the version that drifts is the one going to every new subscriber.
- */
 import { writeFileSync } from "node:fs";
 import { articles } from "../src/data/content.ts";
 
@@ -18,8 +8,7 @@ const picked = [...articles]
     title: a.title,
     url: a.url,
     publication: a.publication,
-    // The first sentence of the summary. The whole thing is a paragraph, and a
-    // list of paragraphs is not a list any more.
+
     hook: (a.summary.split(/(?<=\.)\s/)[0] ?? a.summary).trim(),
   }));
 

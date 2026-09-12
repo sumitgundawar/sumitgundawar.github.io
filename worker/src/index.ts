@@ -1,32 +1,17 @@
-/**
- * Slack -> GitHub relay.
- *
- * Turns the site agent's 5-minute polling delay into a near-instant trigger.
- * It deliberately carries no payload: on a qualifying Slack message it fires a
- * bare `repository_dispatch` that means "wake up and check Slack now". The
- * Action still reads the command from Slack itself, so this Worker holds no
- * state, and the scheduled poll keeps working unchanged if the Worker breaks.
- */
-
-/**
- * Regenerate with `npx wrangler types` after changing bindings in
- * wrangler.jsonc. Do not extend this by hand.
- */
 import { handleApi, handleBroadcast, handleCronRun, handleNewsletterArchive, handleReportPreview, handleStatus, runCron, type ApiEnv } from "./api";
 import { handleNewsletterBatch, type NewsletterEnv, type SendJob } from "./newsletter";
 
 interface Env extends ApiEnv, NewsletterEnv {
-  // secrets, set with `wrangler secret put`
   SLACK_SIGNING_SECRET: string;
   GITHUB_TOKEN: string;
-  // vars, set in wrangler.jsonc
+
   GITHUB_REPO: string;
   SLACK_CHANNEL_ID: string;
   SLACK_ALLOWED_USER_ID: string;
 }
 
 const MAX_SKEW_SECONDS = 300;
-// Reactions that carry a decision on a proposal. Anything else is ignored.
+
 const DECISION_REACTIONS = new Set(["white_check_mark", "x"]);
 
 const encoder = new TextEncoder();
@@ -37,11 +22,6 @@ function toHex(buffer: ArrayBuffer): string {
     .join("");
 }
 
-/**
- * Slack signs every request: HMAC-SHA256 over `v0:<timestamp>:<raw body>`.
- * Without this check the endpoint is an open trigger for anyone who finds the
- * URL, so a failure here must reject rather than fall through.
- */
 async function isFromSlack(
   request: Request,
   rawBody: string,
@@ -51,7 +31,6 @@ async function isFromSlack(
   const signature = request.headers.get("X-Slack-Signature");
   if (!timestamp || !signature) return false;
 
-  // Replay protection: refuse anything older than five minutes.
   const age = Math.abs(Date.now() / 1000 - Number(timestamp));
   if (!Number.isFinite(age) || age > MAX_SKEW_SECONDS) return false;
 
@@ -69,8 +48,6 @@ async function isFromSlack(
   );
   const expected = `v0=${toHex(mac)}`;
 
-  // Hash both sides to a fixed length so the comparison is timing-safe even
-  // when the supplied signature differs in length.
   const [received, computed] = await Promise.all([
     crypto.subtle.digest("SHA-256", encoder.encode(signature)),
     crypto.subtle.digest("SHA-256", encoder.encode(expected)),
@@ -119,10 +96,6 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     try {
-      /* The site's own API shares this Worker rather than getting its own.
-         One deployment, one set of secrets, and the NVIDIA and Supabase
-         credentials stay in exactly one place. Handled before the Slack path
-         because that path assumes every POST is a Slack event. */
       const preview = await handleReportPreview(request, env);
       if (preview) return preview;
       const cron = await handleCronRun(request, env);
@@ -140,8 +113,6 @@ export default {
         return new Response("site-agent relay: ok", { status: 200 });
       }
 
-      // Buffering the whole body is required to verify the signature, and is
-      // safe here: Slack event payloads are small and capped by Slack.
       const rawBody = await request.text();
 
       if (!(await isFromSlack(request, rawBody, env.SLACK_SIGNING_SECRET))) {
@@ -163,7 +134,6 @@ export default {
         };
       };
 
-      // One-time handshake when you point Slack at this URL.
       if (payload.type === "url_verification") {
         return Response.json({ challenge: payload.challenge });
       }
@@ -171,17 +141,15 @@ export default {
       const event = payload.event;
       const fromYou = event?.user === env.SLACK_ALLOWED_USER_ID;
 
-      // Any message you send in the channel is a task, with no prefix.
       const isTask =
         event?.type === "message" &&
-        !event.subtype && // ignore edits, joins, deletions
-        !event.bot_id && // never let the agent's own replies retrigger it
+        !event.subtype &&
+        !event.bot_id &&
         event.channel === env.SLACK_CHANNEL_ID &&
         fromYou &&
         typeof event.text === "string" &&
         event.text.trim().length > 0;
 
-      // Approving or discarding a proposal is a reaction, not a message.
       const isDecision =
         event?.type === "reaction_added" &&
         fromYou &&
@@ -191,9 +159,6 @@ export default {
         DECISION_REACTIONS.has(event.reaction);
 
       if (isTask || isDecision) {
-        // Slack demands a response inside 3s and retries on anything else, and
-        // a retry here would mean a duplicate dispatch, so ack first and let
-        // the GitHub call finish after the response.
         ctx.waitUntil(wakeTheAgent(env));
       }
 
@@ -209,22 +174,11 @@ export default {
     }
   },
 
-  /* The cron entry point that was missing.
-   *
-   * The work is awaited rather than passed to ctx.waitUntil. A rejection inside
-   * waitUntil disappears, and an invisible failure is the exact shape of the bug
-   * this handler fixes; the returned promise already keeps the invocation alive.
-   * A failure rethrows so the dashboard's cron history records it as failed
-   * instead of as a clean run that quietly sent nothing.
-   */
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     const result = await runCron(controller.cron, env);
     if (!result.ok) throw new Error(`cron ${controller.cron} failed: ${result.error}`);
   },
 
-  /* Newsletter delivery. Resend allows 100 sends a day on this plan, so the
-     consumer spends only what is left of today's budget and returns the rest to
-     the queue instead of truncating a broadcast the way an unpaced loop would. */
   async queue(batch: MessageBatch<SendJob>, env: Env): Promise<void> {
     await handleNewsletterBatch(batch, env);
   },

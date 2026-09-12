@@ -17,14 +17,6 @@ export function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-/* Reveal an element once it scrolls into view. Returns a ref to attach. */
-/* Reveals the children of a container one after another rather than as a block.
- *
- * A grid of twelve cards appearing at once reads as a page that was slow; the
- * same grid arriving over 300ms reads as a page that is assembling itself. The
- * delay is capped so a long list never leaves the last item waiting, and the
- * whole thing is skipped under reduced motion, where every child is simply
- * shown. Applied to the container, so adding a card needs no extra wiring. */
 export function useStagger<T extends HTMLElement = HTMLDivElement>(step = 45, cap = 360) {
   const ref = useRef<T>(null);
   useEffect(() => {
@@ -59,12 +51,6 @@ export function useStagger<T extends HTMLElement = HTMLDivElement>(step = 45, ca
   return ref;
 }
 
-/* Counts up to a number when it first comes into view.
- *
- * Only for figures that are worth noticing, and only once: a number that
- * re-animates every time it scrolls past is a distraction rather than an
- * accent. Returns the value to render, which is the final one immediately
- * under reduced motion so nothing depends on the animation having run. */
 export function useCountUp(target: number, durationMs = 900): number {
   const [value, setValue] = useState(target);
   const ref = useRef<HTMLElement | null>(null);
@@ -79,7 +65,7 @@ export function useCountUp(target: number, durationMs = 900): number {
     setValue(0);
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / durationMs);
-      // Ease out, so the number decelerates into its final value.
+
       setValue(Math.round(target * (1 - Math.pow(1 - t, 3))));
       if (t < 1) frame = requestAnimationFrame(tick);
     };
@@ -115,7 +101,6 @@ export function useReveal<T extends HTMLElement = HTMLDivElement>() {
   return ref;
 }
 
-/* Sends a GA4 page_view on every route change, including the first. */
 export function useAnalyticsPageview(): void {
   const location = useLocation();
   useEffect(() => {
@@ -128,24 +113,6 @@ export function useAnalyticsPageview(): void {
   }, [location.pathname, location.search]);
 }
 
-/* Records a click, to this site's own API first and to GA4 if it happens to be
- * there.
- *
- * The order matters and the early return is the bug that was here: this function
- * used to begin with `if (typeof window.gtag !== "function") return`, so every
- * click on the site was contingent on Google Analytics having loaded. Anyone
- * running a blocker, which is a large share of the audience this site is aimed
- * at, generated no record anywhere, and none of it ever reached the database the
- * weekly report is built from. The first-party call therefore happens first and
- * unconditionally, and gtag is the optional half.
- *
- * The most useful single field is which thing was clicked, not just that some
- * article was. The keys below are every key any call site actually passes, in
- * order of how specific they are: a title names the exact article or episode, a
- * channel names which contact link, and action distinguishes play from pause.
- * Guessing at names instead of reading the call sites is how the first version
- * of this recorded twelve events with an empty target.
- */
 const TARGET_KEYS = ["title", "channel", "topic", "view", "context", "action", "target", "label", "show"];
 
 export function trackClick(event: string, params: Record<string, string> = {}): void {
@@ -156,7 +123,6 @@ export function trackClick(event: string, params: Record<string, string> = {}): 
   window.gtag("event", event, params);
 }
 
-/* Live clock, ticks every second. */
 export function useNow(interval = 1000): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -166,14 +132,6 @@ export function useNow(interval = 1000): number {
   return now;
 }
 
-
-/* Page views with dwell, sent once per route change and once on the way out.
- *
- * Dwell is the number that makes views interpretable: a topic with many views
- * and three seconds of dwell was mis-sold by its title, and one with few views
- * and two minutes is buried. It is sent with keepalive so closing the tab, the
- * commonest way to end a visit, still reports it. visibilitychange rather than
- * unload, because unload has not been reliable on mobile Safari for years. */
 export function usePageDwell(path: string, topicId?: string): void {
   useEffect(() => {
     const started = Date.now();
@@ -189,23 +147,11 @@ export function usePageDwell(path: string, topicId?: string): void {
     document.addEventListener("visibilitychange", onHide);
     return () => {
       document.removeEventListener("visibilitychange", onHide);
-      send(); // route change counts as leaving the page
+      send();
     };
   }, [path, topicId]);
 }
 
-/* Per-page title and description.
- *
- * Every route shipped the same <title>, which is the one string a search result
- * shows as its headline and the one a shared link uses as its name. Identical
- * across four pages and thirty-four cards, it told a reader nothing about which
- * page they had found.
- *
- * Set from a component rather than in the router, because the title of a learn
- * card is not known until the card is. The prerenderer captures whatever the DOM
- * holds when it snapshots, so this reaches crawlers as a static title rather
- * than only after the bundle runs.
- */
 export function usePageMeta(title: string, description?: string): void {
   useEffect(() => {
     const full = title ? `${title} \u00b7 ${SITE_NAME}` : SITE_NAME;
@@ -215,10 +161,6 @@ export function usePageMeta(title: string, description?: string): void {
   }, [title, description]);
 }
 
-/** Split out because /learn already builds its own title and description, in a
- *  form tuned for search, and two hooks writing different titles to the same
- *  page is worse than either. It calls this so its social tags agree with its
- *  own <title> rather than with a second opinion. */
 export function setSocialMeta(title: string, description?: string): void {
   setMeta("property", "og:title", title);
   setMeta("name", "twitter:title", title);
@@ -230,22 +172,6 @@ export function setSocialMeta(title: string, description?: string): void {
 
 const ORIGIN = "https://sumitgundawar.com";
 
-/** The canonical URL of the page being viewed, and og:url to match.
- *
- *  These were a single hard-coded tag in index.html pointing at the home page,
- *  and the prerenderer copies that template into all 53 routes, so every page
- *  on the site told Google that the canonical version of it was the home page.
- *  Google honours that: the other 52 were filed as "alternative page with
- *  proper canonical tag", which is a synonym for not indexed. That is the whole
- *  explanation for a sitemap of 53 URLs and almost nothing in the index.
- *
- *  Query is deliberately dropped. /learn?level=advanced is a filtered view of
- *  /learn rather than a page of its own, so it should consolidate into the bare
- *  path rather than compete with it.
- *
- *  The path is normalised to match the sitemap exactly, because a canonical and
- *  a sitemap entry that differ by a trailing slash are two URLs as far as a
- *  crawler is concerned. */
 export function setCanonical(pathname: string): void {
   const path = pathname !== "/" && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
   const href = ORIGIN + path;
@@ -261,12 +187,6 @@ export function setCanonical(pathname: string): void {
   setMeta("property", "og:url", href);
 }
 
-/** Keep the canonical correct on every route, including client-side navigation.
- *
- *  Called once at the top of the app rather than from each page, because a page
- *  that forgets is a page that claims to be the home page, and that failure is
- *  invisible: it looks fine to a reader and only shows up weeks later in a
- *  coverage report. */
 export function useCanonical(): void {
   const { pathname } = useLocation();
   useEffect(() => {

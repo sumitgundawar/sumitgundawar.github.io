@@ -1,14 +1,3 @@
-/* Bake the learn material into the Worker.
- *
- * topicText used to arrive from the browser and was appended to the system
- * prompt, which handed the client 4000 characters in the highest-trust position
- * in the conversation: every rule above it was negotiable through the same
- * channel that set them. It also made the answer cache poisonable, because the
- * cache key covered the question but not the text the answer was grounded in.
- *
- * Generating the map server-side removes both at once. The Worker looks the
- * topic up by id and rejects ids it does not know, so there is no longer a
- * client-supplied string anywhere near the prompt. */
 import { writeFileSync } from "node:fs";
 import { cards } from "../src/data/learn/index.ts";
 

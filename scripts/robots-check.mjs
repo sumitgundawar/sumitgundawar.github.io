@@ -1,25 +1,3 @@
-/* What robots.txt actually permits, evaluated rather than eyeballed.
- *
- * The live file is not the file in this repo. Cloudflare prepends a managed
- * block that disallows nine agents, and public/robots.txt is appended after it,
- * so the effective policy is the combination of the two and cannot be read off
- * either one. Reading it wrongly is easy: the first version of this checker
- * merged each agent's own rules with the wildcard group and concluded that CCBot
- * was allowed, which is the opposite of the truth.
- *
- * So this implements the matcher properly: most specific group only, falling
- * back to the wildcard when an agent has no group of its own; groups naming the
- * same agent combined; longest path match wins; on a tie the least restrictive
- * wins. Then it asserts the intended policy rather than describing the file.
- *
- * Usage: node scripts/robots-check.mjs
- */
-
-/* RFC 9309 + Google's matcher, correctly this time:
-   - a crawler uses the MOST SPECIFIC matching group only, falling back to * if
-     it has no group of its own
-   - groups naming the same agent are combined
-   - the longest matching path wins; on a tie the least restrictive wins */
 function parse(txt){
   const groups=new Map(); let cur=[];
   let expectingAgents=false;

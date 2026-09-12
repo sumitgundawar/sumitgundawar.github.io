@@ -1,8 +1,5 @@
 import type { Card } from "./types";
 
-/* Second half of the system design track: APIs, real-time, search, storage,
-   identity, coordination, and the data plane. */
-
 export const design2: Card[] = [
   {
     id: "api-design",

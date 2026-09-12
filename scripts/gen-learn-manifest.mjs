@@ -1,18 +1,3 @@
-/* The learn index, without the learn material.
- *
- * Every card used to arrive in one JavaScript chunk: 407KB raw, 111KB over the
- * wire, on a page that shows one card. Reading about containers downloaded all
- * five case studies, and the ratio was getting worse with every topic written.
- *
- * The fix is not a database. A database would add a network round trip to a
- * page that currently needs none, and would take the text out of the
- * prerendered HTML that search engines and link previews read. The fix is to
- * ship only what the page uses: this manifest for the index, which needs titles
- * and levels, and one module per group of cards, fetched when a card is opened.
- *
- * Generated rather than written, because a hand-maintained index of 34 cards
- * silently stops listing the newest one, and nothing fails when it does.
- */
 import { writeFileSync } from "node:fs";
 
 const SITE = "https://sumitgundawar.com";
@@ -55,10 +40,6 @@ export const cardCount = ${entries.length};
 
 writeFileSync("src/data/learn/manifest.ts", body);
 
-/* The sitemap is regenerated from the same list, because the two drifted the
-   moment a card was added: a page that exists, is linked and is not in the
-   sitemap is also not prerendered, so it ships as an empty shell to every
-   crawler. Generating both from one source removes the possibility. */
 const today = new Date().toISOString().slice(0, 10);
 const fixed = [
   ["/", "1.0"],

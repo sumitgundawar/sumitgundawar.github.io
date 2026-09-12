@@ -1,16 +1,7 @@
 import { Link } from "react-router-dom";
+import { Masthead, SiteFooter } from "./primitives";
 import { articles, identity } from "@/data/content";
 import { usePageDwell, usePageMeta, trackClick } from "@/lib/hooks";
-
-/* A page for the writing, rather than a section three screens down the profile.
- *
- * Every piece lives on a publisher's domain, which is normal and is also why
- * none of it is findable under his own name. A page here gives the work an
- * address that is his, somewhere to point a talk audience, and a home for the
- * feed. It does not fix the search problem on its own, since these are still
- * links out; republishing with a canonical tag is the move that does, and that
- * needs the publishers' agreement.
- */
 
 export function WritingPage() {
   usePageDwell("/writing");
@@ -26,15 +17,10 @@ export function WritingPage() {
   }, {});
 
   return (
-    <main id="content" className="min-h-[100dvh]">
-      <div className="mx-auto w-full max-w-[1280px] 2xl:max-w-[1600px] [@media(min-width:2100px)]:max-w-[1840px] px-5 sm:px-8 lg:px-10 2xl:px-14 pt-16 sm:pt-20 lg:pt-12 pb-8 lg:pb-12">
-        <Link
-          to="/"
-          className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"
-          style={{ color: "var(--c-text-dim)" }}
-        >
-          ← back to profile
-        </Link>
+    <>
+      <Masthead />
+      <main id="content" className="min-h-[100dvh]">
+      <div className="shell pt-16 sm:pt-20 lg:pt-12 pb-8 lg:pb-12">
 
         <h1
           className="font-semibold tracking-[-0.02em] mt-6"
@@ -101,5 +87,7 @@ export function WritingPage() {
         </p>
       </div>
     </main>
+      <SiteFooter />
+    </>
   );
 }

@@ -1,28 +1,23 @@
-/* All public content for the site. Voice: dry, precise, confident.
-   No emoji, no exclamation marks, no buzzwords. Employer stays unnamed. */
-
 export const identity = {
   name: "Sumit Gundawar",
-  title: "Software Engineer & Innovation Integration",
+  title: "Full-stack engineer",
   location: "London, UK",
   site: "sumitgundawar.com",
   linkedin: "https://linkedin.com/in/sumit-gundawar-759470129",
   linkedinLabel: "linkedin.com/in/sumit-gundawar-759470129",
   email: "sumitgundawar3@gmail.com",
   status: "Open to roles",
-  availability: "Open to software engineering and data roles, London or remote.",
+  availability: "Open to software engineering roles, London or remote.",
   bio: "Sole engineer on a multi-product clinical platform in London: the APIs, the integrations that keep payments and logistics in step, and AI features that reach no patient without a human reading them first. Before that, the pipelines behind PepsiCo's global supply chain, across 25 million product and customer combinations.",
-  careerStart: "2019-06-01T00:00:00Z",
 };
 
 export type Health = "ok" | "warn" | "crit";
 
 export interface TimelineRow {
   key: string;
-  /** Employer, on its own line under the role: the two are different facts
-   *  and running them together with a separator made both harder to scan. */
+
   org?: string;
-  label: string; // NOW / PREVIOUSLY / EDUCATION
+  label: string;
   title: string;
   line: string;
   dates: string;
@@ -60,12 +55,10 @@ export interface EduRow {
   dates: string;
   place: string;
   tags?: string[];
-  /** Evidence, where any exists. Education is the one part of a CV that is
-   *  usually taken on trust, and a photograph of the thing running is worth
-   *  more than another sentence claiming it did. */
+
   media?: {
     photo: { src: string; alt: string };
-    /** Silent loop. Poster is the clip's own first frame, see LoopVideo. */
+
     video?: { src: string; poster: string; label: string; event?: string };
     caption: string;
   };
@@ -112,61 +105,48 @@ export const education: EduRow[] = [
   },
 ];
 
-export interface SkillGroup {
-  key: string;
-  label: string;
-  items: string[];
-}
-
-export const skills: SkillGroup[] = [
-  {
-    key: "fullstack",
-    label: "Full-stack",
-    items: ["Node.js", "Express", "Next.js", "MongoDB"],
-  },
-  {
-    key: "ml",
-    label: "Data science / ML",
-    items: [
-      "Python",
-      "Demand forecasting",
-      "Hallucination evaluation",
-      "RAG systems",
-    ],
-  },
-  {
-    key: "bi",
-    label: "Analytics & BI",
-    items: [
-      "Looker Studio",
-      "Data modelling",
-      "Multi-source integration",
-    ],
-  },
-  {
-    key: "ops",
-    label: "Cloud & ops",
-    items: ["Google Workspace admin", "Google Apps Script"],
-  },
-];
-
 export interface Kpi {
   value: string;
+  source?: string;
   label: string;
   note: string;
 }
 
 export const kpis: Kpi[] = [
-  { value: "$60M", label: "revenue impact", note: "PepsiCo supply-chain forecasting" },
-  { value: "25M+", label: "weekly records", note: "distributed data pipelines" },
-  { value: "$10M", label: "revenue uplift", note: "+26% retention, Hilton" },
-  { value: "13+", label: "products shipped", note: "as sole engineer" },
+  {
+    value: "$75M+",
+    label: "in sales impacted",
+    note: "PepsiCo demand forecasting, LatentView",
+    source:
+      "Stated in a written reference from LatentView Analytics: the demand forecasting model I developed, tested and deployed directly impacted over $75 million in sales. The letter is available on request.",
+  },
+  {
+    value: "25M+",
+    label: "weekly records",
+    note: "PySpark on Azure Databricks",
+    source:
+      "Weekly volume through the event-driven pipeline built for PepsiCo's global supply chain at LatentView. Processing time went from 13 hours to 8, a 38 per cent cut.",
+  },
+  {
+    value: "13h to 8h",
+    label: "processing time",
+    note: "a 38 per cent cut on the same pipeline",
+    source:
+      "Measured end to end on the PepsiCo demand planning disaggregation pipeline. Both endpoints are stated because a percentage on its own is not checkable.",
+  },
+  {
+    value: "13+",
+    label: "products shipped",
+    note: "as the only engineer",
+    source:
+      "Products built end to end at By Dr Vali, from schema design to on-call. Four are publicly reachable: bdvfit.com, bydrvali.com, bdvportal.com and bydrvaliportal.com.",
+  },
 ];
 
 export interface ServiceNode {
   id: string;
   name: string;
-  slo: string; // one-line description
+  slo: string;
   stack: string[];
   health: Health;
   url?: string;
@@ -184,7 +164,7 @@ export const services: ServiceNode[] = [
   {
     id: "pepsico",
     name: "DPD, Demand Planning Disaggregation",
-    slo: "Event-driven distributed pipeline processing 25M+ weekly records for PepsiCo's global supply chain. Cut processing time 38% (13h → 8h); contributed to systems with approximately $60M in annual revenue impact.",
+    slo: "Event-driven distributed pipeline processing 25M+ weekly records for PepsiCo's global supply chain. Cut processing time 38 per cent, 13h to 8h. The demand forecasting model it fed directly impacted over $75M in sales.",
     stack: ["PySpark", "Azure Databricks", "Teradata", "SQL Server"],
     health: "ok",
   },
@@ -238,7 +218,6 @@ export interface Product {
   org: string;
 }
 
-/* Full list behind the "view all" popup. Drawn from the CV and work repos. */
 export const allProducts: Product[] = [
   { name: "bdvfit.com", line: "CPD-accredited Level 7 e-learning platform for doctors and dentists.", url: "https://bdvfit.com", org: "By Dr Vali" },
   { name: "bydrvali.com", line: "Magento e-commerce store for premium health products. £500k+ revenue since launch.", url: "https://bydrvali.com", org: "By Dr Vali" },
@@ -257,10 +236,10 @@ export interface Article {
   id: string;
   title: string;
   publication: string;
-  date: string; // display
+  date: string;
   iso: string;
   url: string;
-  summary: string; // two sentences, his voice
+  summary: string;
   framework?: string;
 }
 
@@ -271,9 +250,7 @@ export const articles: Article[] = [
     publication: "Software Testing News",
     date: "12 Aug 2026",
     iso: "2026-08-12",
-    /* The publisher filed this under a recycled slug, so the URL reads as a
-       different article entirely. It is the address that resolves, and the page
-       it serves is titled The Unexamined Pass, verified twice. */
+
     url: "https://softwaretestingnews.co.uk/six-enforcement-risk-zones-every-regulated-brand-should-understand-2/",
     summary:
       "Argues that a passing test is the more dangerous result, opening with Frontier Security's August 2026 evaluation in which Moonshot AI's Kimi K3 scored well on a cybersecurity benchmark by inspecting its own test environment and reading answers off disk rather than solving anything. Makes the case for recording the environment as test data, writing containment tests that prove the isolation holds, and inspecting the trajectory of a green run instead of trusting the score.",
@@ -358,17 +335,15 @@ export const articles: Article[] = [
 export const authorPage = "https://dataconomy.com/author/sumit-gundawar/";
 
 export interface Podcast {
-  /** YouTube id. The thumbnail is served from public/podcast/<id>.webp rather
-   *  than hotlinked, so a page view makes no request to YouTube at all. */
   youtubeId?: string;
-  /** Episode number, where the show uses them. */
+
   episode?: string;
   id: string;
   show: string;
   title: string;
   when: string;
   url: string;
-  summary: string; // 2-3 sentences on why it's worth watching
+  summary: string;
 }
 
 export const podcasts: Podcast[] = [
@@ -482,25 +457,26 @@ export const frameworks: Framework[] = [
     domain: "Cross-platform dashboards",
     layers: ["Join: cardinality checks", "Validate: key match rate", "Standardise: one definition per metric"],
   },
-  {
-    abbr: "FRC Pipeline",
-    expansion: "Feature, Retrain, Consume",
-    domain: "Production ML",
-  },
 ];
 
 export interface Recognition {
   role: string;
-  /** One line of context under the headline role. */
+
   note?: string;
   org: string;
   when: string;
-  url: string;
+  url?: string;
   extraUrl?: string;
   extraLabel?: string;
 }
 
 export const recognition: Recognition[] = [
+  {
+    role: "Outstanding Performance Award, twice",
+    org: "LatentView Analytics",
+    note: "Awarded during the PepsiCo and Hilton engagements",
+    when: "2021 to 2023",
+  },
   {
     role: "Judge",
     org: "The AI Awards",
@@ -518,15 +494,7 @@ export interface Talk {
   when: string;
   url?: string;
   placeholder?: boolean;
-  /* The fields below exist for the Event markup rather than for the page.
-     Search Console reported six non-critical Events issues against this site,
-     all of them the same cause: a talk was described well enough for a human
-     reading the profile and not well enough for a machine deciding whether to
-     show it. Dates, a place with an address, an abstract and a ticket link are
-     what a rich result is made of. Only what is published is recorded here: the
-     conference runs 5 to 9 October 2026 and the session slot has not been
-     announced, so the event carries the conference window rather than a
-     specific hour invented to satisfy a validator. */
+
   startDate?: string;
   endDate?: string;
   venueName?: string;
@@ -556,14 +524,3 @@ export const speaking: Talk[] = [
     ticketsUrl: "https://jaxlondon.com/tickets/",
   },
 ];
-
-/* System graph nodes for the Overview. */
-export const graphNodes = [
-  { id: "platforms", label: "Full-stack platforms" },
-  { id: "ai", label: "AI systems" },
-  { id: "pipelines", label: "Data pipelines" },
-  { id: "analytics", label: "Analytics / BI" },
-  { id: "writing", label: "Writing" },
-] as const;
-
-/* ---------- learn engineering ---------- */

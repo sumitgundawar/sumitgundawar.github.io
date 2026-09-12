@@ -1,18 +1,3 @@
-/* The API, described.
- *
- * The owner speaks at JAX London on designing APIs and integrations that do not
- * fall apart at scale, and until now his own API was undocumented. This is the
- * worked example: eight endpoints, the decisions behind them stated rather than
- * implied, and something an attendee can curl during the session.
- *
- * It documents what the code does, not what would be nice. Where a decision
- * looks odd, the description says why, because the reasons are the interesting
- * part: an admin endpoint answers 404 rather than 401 so it does not confirm it
- * exists, /api/subscribe returns the same 200 whether or not the address was
- * already on the list so it cannot be used to test who has subscribed, and a
- * withdrawn consent is never restored by a stranger re-submitting the address.
- */
-
 export const API_VERSION = "1.0.0";
 
 export function openApiSpec(origin: string): unknown {
@@ -274,14 +259,6 @@ export function openApiSpec(origin: string): unknown {
   };
 }
 
-/* A readable page for the spec above.
- *
- * Rendered from the same object, so the page cannot describe an endpoint the
- * spec does not have. Deliberately one self-contained file with no script and no
- * external stylesheet: a documentation page that needs a CDN to render is a poor
- * advertisement for an argument about dependencies, and an attendee on
- * conference wifi should not be waiting on Redoc to boot.
- */
 export function docsPage(origin: string): string {
   const spec = openApiSpec(origin) as {
     info: { title: string; version: string; description: string };

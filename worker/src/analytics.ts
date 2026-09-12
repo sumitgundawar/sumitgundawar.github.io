@@ -1,32 +1,3 @@
-/* The analytics the report needs, computed here rather than in the database.
- *
- * The obvious way to do this is a set of Postgres functions, and that was the
- * plan: supabase/migrations/0001_analytics_depth.sql is written and still worth
- * running one day. It cannot be applied from here, because creating a function
- * needs DDL, which needs either the database password or a management token, and
- * this project's tooling has neither.
- *
- * What it does have is exactly what the rest of the Worker already uses: a
- * PostgREST credential that can SELECT. So these read the rows that are already
- * being written and aggregate them in TypeScript. No schema change, no new
- * secret, and the numbers are available today instead of whenever a password
- * turns up.
- *
- * The honest cost: this pulls rows over the wire and folds them in memory rather
- * than making Postgres do the work. That is the right trade at this size and the
- * wrong one eventually, so every query is bounded and says so. When the volume
- * makes it wrong, the migration is already written.
- *
- * One modelling note that shapes most of this file. The session key lives in
- * localStorage, so it identifies a VISITOR across visits, not a single visit.
- * max(created_at) - min(created_at) per key would report a session length of
- * several days for anyone who came back, so visits are cut out of the page view
- * stream on a 30 minute inactivity gap, which is the conventional definition and
- * the only one under which the number means anything.
- */
-
-/** Bounded deliberately. Past this the aggregation belongs in the database, and
- *  the report should say so rather than quietly truncating. */
 const MAX_ROWS = 50_000;
 const VISIT_GAP_MS = 30 * 60 * 1000;
 
@@ -56,7 +27,6 @@ async function rows<T>(query: Query, path: string): Promise<T[]> {
   }
 }
 
-/** One row per visit, not per visitor. */
 function visitsOf(views: PageViewRow[]): { session: string; pages: number; seconds: number }[] {
   const bySession = new Map<string, PageViewRow[]>();
   for (const v of views) {
@@ -77,9 +47,7 @@ function visitsOf(views: PageViewRow[]): { session: string; pages: number; secon
       const slice = list.slice(start, i);
       const span = (new Date(slice[slice.length - 1].created_at).getTime() - new Date(slice[0].created_at).getTime()) / 1000;
       const dwell = slice.reduce((s, v) => s + (v.dwell_ms ?? 0), 0) / 1000;
-      /* The greater of the two. Span alone reports 0 for a single page visit,
-         which is the commonest visit there is and not a zero second one; dwell
-         alone undercounts a visit that sat idle between pages. */
+
       visits.push({ session, pages: slice.length, seconds: Math.max(span, dwell) });
       start = i;
     }
@@ -104,8 +72,6 @@ export async function visitShape(query: Query, days: number) {
   const visits = visitsOf(views);
   const visitors = new Set(visits.map((v) => v.session)).size;
 
-  /* Returning means seen before this window, which needs one more query rather
-     than an assumption. Only the keys are fetched. */
   const earlier = await rows<{ session_key: string }>(
     query,
     `page_views?select=session_key&created_at=lt.${since(days)}&limit=${MAX_ROWS}`,
@@ -162,8 +128,6 @@ export async function pagePopularity(query: Query, days: number) {
     .sort((a, b) => b.views - a.views);
 }
 
-/** Referrers, normalised to a host: the full URL splits one source across dozens
- *  of rows and answers nothing the host does not. */
 export async function trafficSources(query: Query, days: number) {
   const rs = await rows<SessionRow>(query, `sessions?select=referrer,last_seen&last_seen=gte.${since(days)}&limit=${MAX_ROWS}`);
   const acc = new Map<string, number>();

@@ -1,10 +1,3 @@
-/* The questionnaire behind /build, and the rules that turn answers into an
-   architecture.
-
-   The point of the page is to talk people out of over-engineering, so the
-   recommendation is driven mostly by scale, and every component carries the
-   reasoning and the alternatives rather than being presented as the answer. */
-
 export type Scale = "tiny" | "small" | "medium" | "large";
 
 export interface Option {
@@ -18,7 +11,7 @@ export interface Question {
   prompt: string;
   help?: string;
   options: Option[];
-  /** Skipping is allowed everywhere; this is what is assumed if you do. */
+
   skipDefault: string;
 }
 
@@ -137,24 +130,21 @@ export type Answers = Record<string, string>;
 
 export interface Recommendation {
   id: string;
-  /** Layer, used for both diagram placement and colour. */
+
   kind: "client" | "edge" | "service" | "data" | "queue" | "external";
   name: string;
   pick: string;
-  /** Why this component exists in your architecture at all. */
+
   why: string;
-  /** Where it runs and roughly what it costs. */
+
   where: string;
-  /** Real alternatives, so the recommendation reads as a choice not a verdict. */
+
   alternatives: { name: string; when: string }[];
-  /** Set when the component is only needed above a certain scale. */
+
   optional?: boolean;
-  /** What this component talks to. The diagram is drawn from these, so an
-   *  architecture diagram states real dependencies rather than whatever
-   *  happened to land in the next column. Ids that are not present in the
-   *  current recommendation are ignored, so this can name optional pieces. */
+
   dependsOn?: string[];
-  /** Dependencies the caller does not wait on. */
+
   dependsOnAsync?: string[];
 }
 
@@ -422,8 +412,6 @@ export function recommend(a: Answers): Recommendation[] {
   return out;
 }
 
-/** Rough monthly cost band, deliberately vague, the point is the order of
- *  magnitude, not a quote. */
 export function costBand(a: Answers): string {
   const scale = scaleRank[a.scale ?? "small"] ?? 1;
   if (a.budget === "free" && scale <= 1) return "Close to nothing, most of this fits inside free tiers";

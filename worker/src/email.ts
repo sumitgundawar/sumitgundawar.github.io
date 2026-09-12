@@ -1,40 +1,18 @@
-/* Email rendering, built on docs/EMAIL-DESIGN.md.
- *
- * Read that document before adding an email. It carries the palette, the type
- * scale, the structure every message follows, and the reasoning for the
- * constraints, which are not the web's: Gmail strips <style>, Outlook renders
- * through Word so there is no flexbox, remote images are hidden by default and
- * pre-fetched by Apple, and anything over 102KB is clipped along with its
- * unsubscribe link.
- *
- * Compose from the components below rather than writing table markup by hand.
- * That is the whole point of having them: the emails looked like three
- * different products because each one was hand-built.
- */
-
 import { FEATURED } from "./articles.generated";
 
-/* ---------- tokens: docs/EMAIL-DESIGN.md#palette ---------- */
-
-const PAPER = "#f1f4f2"; //  tinted toward the brand green, never a flat grey
-const CARD = "#fdfefd"; //   not pure white: a flat #fff surface is the tell of a template
-const INK = "#14171a"; //     17.99:1 on card
-const DIM = "#5f6660"; //      5.91:1 on card
-const LINE = "#e3e3df"; //     a boundary, not text
-const ACCENT = "#0b6b46"; //   6.55:1 on card
+const PAPER = "#f1f4f2";
+const CARD = "#fdfefd";
+const INK = "#14171a";
+const DIM = "#5f6660";
+const LINE = "#e3e3df";
+const ACCENT = "#0b6b46";
 const WARN = "#b45309";
-/* A tint of the accent, for a panel that needs to sit apart from the page
-   without a border. Text still passes on it: ink 16.58:1, dim 5.44:1. */
-const TINT = "#f1f7f4";
-/* The header band, which is the site's own ink. White reads 17.99:1 on it and
-   the site's signal green 9.59:1, so the brand colour finally gets to be the
-   brand colour: it is unusable on white and perfectly legible here. */
-const BAND = "#14171a";
-const BAND_TEXT = "#f6f9f7"; // not pure white either, for the same reason
-const BAND_ACCENT = "#3dd68c";
 
-/* The site's signal green is deliberately absent as text or link: #3dd68c
-   measures 1.88:1 on white. It appears only as a block nothing is written on. */
+const TINT = "#f1f7f4";
+
+const BAND = "#14171a";
+const BAND_TEXT = "#f6f9f7";
+const BAND_ACCENT = "#3dd68c";
 
 const SANS = `-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif`;
 const MONO = `ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace`;
@@ -44,9 +22,6 @@ const PAD = 28;
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/* ---------- components: docs/EMAIL-DESIGN.md#components ---------- */
-
-/** Preheader, page, card, wordmark, footer. Every email is this shape. */
 function shell(opts: { preheader: string; title: string; eyebrow: string; body: string; footer: string }): string {
   return `<!doctype html>
 <html lang="en">
@@ -95,7 +70,6 @@ function shell(opts: { preheader: string; title: string; eyebrow: string; body: 
 </html>`;
 }
 
-/** A row of the card, at the standard padding. */
 const block = (inner: string, topPad = 22) =>
   `<tr><td style="padding:${topPad}px ${PAD}px 0 ${PAD}px;font-family:${SANS};">${inner}</td></tr>`;
 
@@ -108,16 +82,12 @@ const lede = (t: string) =>
 const para = (t: string) =>
   `<div style="font-size:15px;line-height:1.65;color:${INK};padding-top:14px;">${esc(t)}</div>`;
 
-/** The mono uppercase eyebrow. This is what makes the mail read as the site's
- *  rather than as a template; the site uses exactly this for every section. */
 const label = (t: string) =>
   `<div style="font-family:${MONO};font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:${DIM};">${esc(t)}</div>`;
 
 const link = (href: string, text: string) =>
   `<a href="${esc(href)}" style="color:${ACCENT};">${esc(text)}</a>`;
 
-/** A horizontal bar as a table row. Two cells: filled and empty. Nothing here
- *  needs a client to support anything invented after about 2003. */
 function bar(label: string, value: number, max: number, sub: string, colour = ACCENT): string {
   const pct = max > 0 ? Math.max(2, Math.round((value / max) * 100)) : 2;
   return `
@@ -150,9 +120,7 @@ export interface ReportData {
   engagement: { topic_id: string; views: number; readers: number; median_dwell_s: number | null; pct_change: number | null }[];
   struggling: { topic_id: string; answers: number; wrong: number; wrong_pct: number }[];
   dropoff: { topic_id: string; times_last: number }[];
-  /* Everything below arrives empty until 0001_analytics_depth.sql has been run,
-     and every section that reads it is omitted when empty, so the report stays
-     correct rather than half-rendered in the meantime. */
+
   shape: { visits: number; visitors: number; median_seconds: number | null; median_pages: number | null; single_page_pct: number | null; returning_pct: number | null }[];
   clicks: { event: string; target: string; clicks: number; visitors: number; pct_change: number | null }[];
   pages: { path: string; views: number; visitors: number; median_dwell_s: number | null; pct_change: number | null }[];
@@ -161,7 +129,6 @@ export interface ReportData {
   days: number;
 }
 
-/** A number of seconds as something readable at a glance. */
 function dur(s: number | null): string {
   if (s === null || !Number.isFinite(s)) return "n/a";
   if (s < 60) return `${Math.round(s)}s`;
@@ -170,7 +137,6 @@ function dur(s: number | null): string {
   return rest ? `${m}m ${rest}s` : `${m}m`;
 }
 
-/** A stat block: four figures across, the same shape as the digest row. */
 function statRow(cells: { label: string; value: string; note?: string }[]): string {
   return `<tr>${cells
     .map(
@@ -184,7 +150,6 @@ function statRow(cells: { label: string; value: string; note?: string }[]): stri
     .join("")}</tr>`;
 }
 
-/** A plain two-column table: label on the left, count on the right. */
 function listTable(rows: { left: string; right: string; sub?: string }[]): string {
   return rows
     .map(
@@ -201,9 +166,6 @@ function listTable(rows: { left: string; right: string; sub?: string }[]): strin
     .join("");
 }
 
-/* "Sessions" was the wrong word for it. The session key lives in localStorage,
-   so one key is one browser across every visit it ever makes, which is a visitor
-   and not a session. Visits are counted separately, in the shape section. */
 const LABEL: Record<string, string> = {
   sessions: "Visitors",
   page_views: "Page views",
@@ -252,8 +214,6 @@ export function renderReportEmail(d: ReportData): string {
     )
     .join("");
 
-  /* One eyebrow component, shared with every other email, rather than a fourth
-     hand-written variant of the same thing. docs/EMAIL-DESIGN.md#components. */
   const section = (title: string, note: string, inner: string) =>
     inner
       ? `
@@ -266,9 +226,6 @@ export function renderReportEmail(d: ReportData): string {
 
   const empty = d.digest.every((m) => m.current_period === 0);
 
-  /* How long a visit lasts and how far it goes. One row of five figures rather
-     than a chart, because these are the numbers that get compared against
-     themselves week to week and a bar of one value says nothing. */
   const s = d.shape[0];
   const shapeRows = s
     ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
@@ -289,19 +246,6 @@ export function renderReportEmail(d: ReportData): string {
     })),
   );
 
-  /* Both ends of the list, because a page nobody opens is the actionable half
-     and is invisible in a table sorted by popularity.
-   *
-   * The tail is only worth printing when it is actually a different set of pages
-   * from the head. Reversing the list and taking six gave back the same six rows
-   * whenever fewer than about fifteen pages had been visited, which is a section
-   * that looks like analysis and repeats what is directly above it. So: exclude
-   * anything already shown, and drop the section entirely if too little is left
-   * to be a tail.
-   *
-   * Note this can only rank pages that were visited at least once. A page with
-   * no views at all does not appear in page_views and so cannot appear here; that
-   * needs the route inventory in the Worker and is not yet done. */
   const TOP_N = 8;
   const topPages = listTable(
     d.pages.slice(0, TOP_N).map((p) => ({
@@ -365,41 +309,10 @@ export function renderReportEmail(d: ReportData): string {
   });
 }
 
-/* The welcome, which is the only email most subscribers will ever judge.
- *
- * It used to be two bare paragraphs written inline in the subscribe handler. It
- * arrived, and it read like a system notification, which is the wrong first
- * impression for a list whose entire pitch is that the writing is worth reading.
- *
- * Same constraints as everything else here, for the same reasons: no style
- * block, tables rather than flexbox, no remote images, 600px with a max-width so
- * it collapses cleanly on a phone. The one deliberate flourish is a rule under
- * the wordmark, drawn as a coloured table cell, because that is the only kind of
- * graphic every client renders without being asked.
- *
- * It sets the frequency expectation in the first line. The commonest reason a
- * new subscriber marks mail as spam is not disliking it, it is being surprised
- * by it, and a spam complaint costs a new sending domain far more than an
- * unsubscribe does.
- */
 export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }): string {
   const { site, unsubscribe } = opts;
   const host = site.replace(/^https?:\/\//, "");
 
-  /* A letter with something in it.
-   *
-   * The first version of this was a marketing card with a big button, which is
-   * the shape Gmail files under Promotions. The correction went too far the
-   * other way: a plain note that named nothing and gave the reader no reason to
-   * stay. Both were wrong for the same reason, which is that neither had any
-   * actual content in it.
-   *
-   * So: three real pieces, with their real titles and the incident each one
-   * opens with, generated from content.ts so they cannot drift. That is what
-   * makes it worth reading, and it is also what makes it look like
-   * correspondence rather than a campaign, because it is specific rather than
-   * promotional. Structure is what Gmail classifies on, not colour.
-   */
   const picks = FEATURED.map(
     (a) => `
       <tr>
@@ -425,8 +338,6 @@ export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }):
       14,
     ),
 
-    /* The substance. A first email that says "I write things" and names none of
-       them is asking for trust it has not earned. */
     `<tr><td style="padding:26px ${PAD}px 0 ${PAD}px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background:${TINT};">
         <tr><td bgcolor="${TINT}" style="padding:20px ${PAD}px 6px ${PAD}px;font-family:${SANS};">
@@ -455,12 +366,7 @@ export function renderWelcomeEmail(opts: { site: string; unsubscribe: string }):
     eyebrow: "Newsletter",
     body,
     footer:
-      /* Never a bare domain in plain text: clients detect it and repaint it as a
-         blue underlined link, which is what made the old masthead look wrong. */
-      /* Sender identity, a location and a visible unsubscribe. CAN-SPAM wants a
-         postal address and Gmail's bulk sender rules want one-click out; a
-         footer with neither is the commonest reason a legitimate list gets
-         filed as spam. */
+
       `Sumit Gundawar, London, United Kingdom<br>` +
       `${link("https://linkedin.com/in/sumit-gundawar-759470129", "LinkedIn")} &nbsp;&middot;&nbsp; ${link("https://github.com/sumitgundawar", "GitHub")} &nbsp;&middot;&nbsp; ${link(site, host)}<br><br>` +
       `You subscribed at ${link(site, host)}. Your address is stored to send this and nothing else, and is never passed on. ` +
@@ -494,16 +400,6 @@ export function renderWelcomeText(opts: { site: string; unsubscribe: string }): 
   ].join("\n");
 }
 
-/* Alerts, which are a different kind of mail from the weekly report.
- *
- * The report is read at leisure and is mostly numbers. An alert is read once,
- * probably on a phone, and its whole job is to say what happened in the subject
- * line and the first two lines of the body. So: no charts, no comparison
- * columns, one warn-coloured rule down the side of each item, and nothing that
- * needs images enabled to make sense.
- *
- * Same table-and-inline-styles constraints as the report, for the same reasons.
- */
 export function renderAlertsEmail(fired: string[]): string {
   const rows = fired
     .map(
@@ -547,8 +443,6 @@ export function renderAlertsText(fired: string[]): string {
   return [`Site alerts, ${new Date().toISOString().slice(0, 10)}`, "", ...fired.map((f) => `- ${f}`)].join("\n");
 }
 
-/** Plain text alternative. Some clients prefer it, and every client falls back
- *  to it when HTML is blocked, so it has to carry the same numbers. */
 export function renderReportText(d: ReportData): string {
   const lines = [`Site report, week to ${new Date().toISOString().slice(0, 10)}`, ""];
   for (const m of d.digest) {

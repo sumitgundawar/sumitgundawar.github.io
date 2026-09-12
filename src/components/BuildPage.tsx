@@ -1,4 +1,5 @@
 import { usePageMeta } from "@/lib/hooks";
+import { Masthead, SiteFooter } from "./primitives";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { NewsletterPrompt } from "./NewsletterPrompt";
@@ -16,12 +17,6 @@ import {
 } from "@/data/build";
 import type { Diagram, DiagramEdge } from "@/data/learn";
 
-/** Lay the recommended components out as a request flowing left to right.
- *
- *  Edges come from each component's declared dependencies. Deriving them from
- *  column position instead, which is what this did originally, produced
- *  confident nonsense: "CDN to authentication", "video pipeline to database",
- *  and no edge at all between the application server and the database. */
 function toDiagram(recs: Recommendation[]): Diagram {
   const order: Record<string, number> = { client: 0, edge: 1, service: 2, queue: 3, data: 4, external: 4 };
   const present = new Set(recs.map((r) => r.id));
@@ -39,8 +34,6 @@ function toDiagram(recs: Recommendation[]): Diagram {
     r.dependsOnAsync?.forEach((to) => add(r.id, to, true));
   });
 
-  // A component nothing points at and which points nowhere would float
-  // unconnected, so give it the one honest edge it has: the app server uses it.
   const linked = new Set(edges.flatMap((e) => [e.from, e.to]));
   const host = recs.find((r) => r.id === "api") ?? recs[0];
   recs.forEach((r) => {
@@ -50,16 +43,6 @@ function toDiagram(recs: Recommendation[]): Diagram {
   const columns: Recommendation[][] = [[], [], [], [], []];
   recs.forEach((r) => columns[order[r.kind] ?? 2].push(r));
 
-  /* The roads not taken, drawn beside the choices.
-   *
-   * A diagram showing only what was picked reads as the one possible answer,
-   * which is never true and is the opposite of how the decision was actually
-   * made. Each component's first alternative is drawn dashed next to it, with
-   * the condition under which it becomes the better choice, so the architecture
-   * shows its own reasoning rather than presenting a verdict.
-   *
-   * One per component, not all of them. Three alternatives beside every box is a
-   * diagram nobody can read, and the first is the one worth knowing about. */
   const withAlternatives = columns.filter((c) => c.length).map((col) =>
     col.flatMap((r) => {
       const chosen = {
@@ -87,11 +70,9 @@ function toDiagram(recs: Recommendation[]): Diagram {
     }),
   );
 
-  // An alternative is joined to the component it replaces, never to anything
-  // else, so the reader can see at a glance which decision it belongs to.
   const altEdges: DiagramEdge[] = withAlternatives
     .flat()
-    .filter((n) => n.alternative)
+    .filter((n) => "alternative" in n && n.alternative)
     .map((n) => ({ from: n.id.replace(/-alt$/, ""), to: n.id, label: "or", async: true }));
 
   return {
@@ -162,17 +143,12 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
   );
 }
 
-/** The model's contribution to one question: new wording, and why it chose it.
- *  Never an option, and never an id the local catalogue does not already have. */
 interface Adaptive {
   prompt: string;
   help: string;
   reason: string;
 }
 
-/** Back has to undo an adaptive step, which is a question, its wording, and any
- *  answers that were inferred alongside it. A step counter cannot express that,
- *  so the whole state of the interview is pushed instead. */
 interface Snapshot {
   answers: Answers;
   currentId: string;
@@ -185,12 +161,7 @@ export function BuildPage() {
     "Build a system",
     "Ten questions about scale, budget and constraints, and a costed architecture with the reasoning attached at the end of them.",
   );
-  /* Answers live in the URL as well as in state.
-     The result is the most shareable thing on the site, a costed architecture
-     with the reasoning attached, and until now the only way to show someone was
-     a screenshot: ten questions in, the URL still said /build. The same problem
-     was fixed for /learn months ago and this one was missed. Compact encoding,
-     question id to option id, so the link stays short enough to paste. */
+
   const [params, setParams] = useSearchParams();
 
   const fromUrl = useMemo<Answers>(() => {
@@ -204,19 +175,6 @@ export function BuildPage() {
     return out;
   }, [params]);
 
-  /* An interview, not a form.
-   *
-   * This used to walk the ten questions in file order, every time, so a second
-   * visit was visibly the same page and the wording never acknowledged anything
-   * you had already said. Now each answer is sent to the model, which picks
-   * which of the remaining questions is worth asking next, rewrites it for this
-   * particular build, and fills in anything the earlier answers already settle.
-   *
-   * The fixed list has not gone anywhere; it is the floor. If the call fails,
-   * times out, or comes back with an id that is not in it, the next question is
-   * simply the next one in order, and nothing about the page tells the reader
-   * that something did not happen. The option ids never come from the model, so
-   * whatever it does the answers remain valid input to recommend(). */
   const [answers, setAnswers] = useState<Answers>(fromUrl);
   const [currentId, setCurrentId] = useState<string>(() =>
     Object.keys(fromUrl).length ? "" : (questions[0]?.id ?? ""),
@@ -245,11 +203,6 @@ export function BuildPage() {
     );
     setThinking(false);
 
-    /* Everything the model said is checked against the local catalogue before
-       any of it is used, including the inferred answers: an option id that is
-       not in the question it claims to answer is dropped rather than repaired,
-       because a plausible wrong answer here silently changes the architecture
-       the reader is shown and they would have no way to notice. */
     const target = res && questions.find((q) => q.id === res.ask);
     if (res && target) {
       const merged = { ...current };
@@ -293,8 +246,6 @@ export function BuildPage() {
     setInferred(prev.inferred);
   };
 
-  /* An answer nobody gave has to be reversible, or it is a decision made on the
-     reader's behalf that they cannot see and cannot undo. */
   const askInferred = () => {
     const ids = Object.keys(inferred);
     if (!ids.length) return;
@@ -316,9 +267,6 @@ export function BuildPage() {
       track("build_share", {});
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      /* Clipboard is blocked without a user gesture in some browsers, and over
-         http. The URL is in the address bar either way, so failing quietly is
-         better than an error about a convenience. */
     }
   };
 
@@ -332,9 +280,6 @@ export function BuildPage() {
     track("build_restart", {});
   };
 
-  /* Written only at the end. Updating it per question would put ten entries in
-     the back stack for one run, so Back would walk the questionnaire rather
-     than leaving the page. */
   useEffect(() => {
     if (!done) return;
     const encoded = Object.entries(answers).map(([q, o]) => `${q}:${o}`).join(",");
@@ -344,17 +289,15 @@ export function BuildPage() {
   }, [done, answers, params, setParams]);
 
   const base = questions.find((x) => x.id === currentId) ?? null;
-  // The model rewrites the wording, never the answers. Options come from the
-  // local question every time, whatever the reply contained.
+
   const q = base && !thinking ? { ...base, prompt: note?.prompt || base.prompt, help: note?.help || base.help } : null;
   const answeredCount = Object.keys(answers).length;
 
   return (
-    <main id="content" className="min-h-[100dvh]">
-      <div className="mx-auto w-full max-w-[940px] px-5 sm:px-8 py-8 lg:py-12">
-        <Link to="/" className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
-          ← back to profile
-        </Link>
+    <>
+      <Masthead />
+      <main id="content" className="min-h-[100dvh]">
+      <div className="shell py-8 lg:py-12">
 
         <h1
           className="mt-7 font-semibold leading-[1.05] tracking-[-0.02em]"
@@ -393,8 +336,6 @@ export function BuildPage() {
 
             <div className="mt-8">
               {note?.reason && (
-                /* Why this one, and not the next one on a list. A question that
-                   arrives out of order without saying why looks like a bug. */
                 <p className="text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
                   <span className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em]" style={{ color: "var(--accent-2)" }}>
                     why this one{" "}
@@ -489,9 +430,6 @@ export function BuildPage() {
               </button>
             </div>
 
-            {/* Ten questions in, on the screen that answers them. The highest
-                intent moment the site has, and the only one where someone has
-                just watched it produce something specific to them. */}
             <NewsletterPrompt
               context="build"
               line="If this was useful, I write about the decisions behind architectures like this one: what broke in production and what the fix cost. Sent when there is something worth sending."
@@ -521,5 +459,7 @@ export function BuildPage() {
         )}
       </div>
     </main>
+      <SiteFooter />
+    </>
   );
 }

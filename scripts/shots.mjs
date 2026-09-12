@@ -1,13 +1,3 @@
-/**
- * Screenshot the built site at phone, tablet and desktop widths.
- *
- * The agent edits layout blind otherwise: it cannot tell whether a change fixed
- * the overflow or merely moved it, and "content is clipped" is invisible in a
- * diff. Run after `npm run build`; writes PNGs the agent can read.
- *
- *   node scripts/shots.mjs [outDir]
- */
-
 import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
@@ -16,8 +6,6 @@ import { chromium } from "playwright";
 const DIST = "dist";
 const OUT = process.argv[2] || ".shots";
 
-/** Routes come from the router itself, so a new page is covered the moment it
- *  exists rather than silently going unscreenshotted. */
 function routes() {
   try {
     const src = readFileSync("src/App.tsx", "utf8");
@@ -30,22 +18,14 @@ function routes() {
   }
 }
 
-/* 360 and 768 are here because they are where things actually broke. The old
-   list jumped 390 -> 820 and never saw the narrowest common Android width, nor
-   iPad portrait, which is the width at which the two-column aside first has to
-   fit. Testing only the comfortable sizes is how a layout passes while being
-   unusable on the device most people are holding. */
 const VIEWPORTS = [
-  { name: "phone-sm", width: 360, height: 800 },  // common Android floor
-  { name: "phone", width: 390, height: 844 },     // iPhone 14
+  { name: "phone-sm", width: 360, height: 800 },
+  { name: "phone", width: 390, height: 844 },
   { name: "ipad-portrait", width: 768, height: 1024 },
-  { name: "tablet", width: 820, height: 1180 },   // iPad Air
+  { name: "tablet", width: 820, height: 1180 },
   { name: "ipad-landscape", width: 1024, height: 768 },
   { name: "desktop", width: 1440, height: 900 },
-  /* Above 1440 was never checked, which is precisely where the shell's max-width
-     starts leaving dead margin, so every run reported "clean" while the layout
-     wasted half the screen on the monitors most people at a desk actually use.
-     A check whose range stops short of the problem cannot see the problem. */
+
   { name: "desktop-lg", width: 1920, height: 1080 },
   { name: "desktop-xl", width: 2560, height: 1440 },
 ];
@@ -57,7 +37,6 @@ const TYPES = {
   ".woff": "font/woff", ".woff2": "font/woff2", ".pdf": "application/pdf",
 };
 
-/** Static server with SPA fallback, so client-side routes render. */
 function serve(port) {
   const server = createServer((req, res) => {
     const url = decodeURIComponent((req.url || "/").split("?")[0]);
@@ -87,21 +66,13 @@ for (const vp of VIEWPORTS) {
   });
   await page.goto(`http://localhost:${port}${path}`, { waitUntil: "networkidle" });
 
-  // Sections reveal on scroll via IntersectionObserver, which never fires for
-  // below-fold content during a full-page capture — Playwright resizes the
-  // viewport, so scrolling does not help either. The result was that every
-  // screenshot showed the first two sections and blank space for the rest,
-  // which made this tool quietly useless for reviewing the home page.
-  // Force the revealed end state: that is what we want to look at anyway.
   await page.evaluate(async () => {
     document.querySelectorAll(".reveal").forEach((el) => el.classList.add("in"));
     await new Promise((r) => setTimeout(r, 150));
   });
 
-  await page.waitForTimeout(400); // let fonts settle so text metrics are real
+  await page.waitForTimeout(400);
 
-  // Horizontal overflow is the most common mobile break and is easy to miss in
-  // a screenshot, so measure it and name the widest offenders explicitly.
   const overflow = await page.evaluate(() => {
     const docWidth = document.documentElement.clientWidth;
     const guilty = [];
@@ -115,9 +86,7 @@ for (const vp of VIEWPORTS) {
         });
       }
     }
-    /* The fixed nav is out of flow, so it lands on top of whatever is beneath
-       it and no overflow measurement can see that. It has to be compared
-       against the content directly. */
+
     const nav = document.querySelector("nav[aria-label=Primary]");
     const collisions = [];
     if (nav) {
@@ -154,18 +123,6 @@ for (const vp of VIEWPORTS) {
 await browser.close();
 server.close();
 
-/* The verdict is the count of elements past the edge, NOT scrollWidth.
- *
- * This line used to read `r.scrolls ? ... : "no horizontal overflow"`, and
- * html/body carry overflow-x: clip — needed because overflow-x: hidden silently
- * disables position:sticky. Clip severs the overflow instead of scrolling it,
- * so scrollWidth never exceeds clientWidth and the verdict was permanently
- * "no horizontal overflow" no matter how much content was being cut off.
- *
- * The offending elements were listed directly underneath the whole time. The
- * summary said clean, so nobody read the list, and a phone layout with the
- * name, the subtitle and half the metrics sliced off the right edge shipped
- * behind a green tick. Report the measurement, not the proxy. */
 let broken = 0;
 for (const r of written) {
   const bits = [];

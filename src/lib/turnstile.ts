@@ -1,20 +1,3 @@
-/* Turnstile, loaded late and never in the way.
- *
- * The widget is invisible in managed mode: nobody clicks anything, and in the
- * normal case nobody sees anything. What it costs is a third-party script on a
- * page that is otherwise entirely self-contained, so it is not loaded with the
- * page. It loads the first time someone touches a signup field, which is the
- * only moment it can possibly be needed, and never at all for the large majority
- * of visitors who never go near the form.
- *
- * Every failure path resolves rather than rejects. The server treats a missing
- * token as acceptable and only refuses a token that is present and invalid, so a
- * blocked script, an offline moment or a slow load costs a real person nothing.
- * A newsletter that stops working because a challenge widget did not load is
- * worse than one that occasionally admits a bot, especially with a honeypot and
- * a timing check still standing behind it.
- */
-
 const SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 export const TURNSTILE_SITEKEY = "0x4AAAAAAES60SZ216FlFQwT";
 
@@ -29,7 +12,6 @@ declare global {
 
 let loading: Promise<boolean> | null = null;
 
-/** Loads the script once per page, whatever calls it. */
 export function loadTurnstile(): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
   if (window.turnstile) return Promise.resolve(true);
@@ -48,19 +30,13 @@ export function loadTurnstile(): Promise<boolean> {
     s.defer = true;
     s.onload = () => resolve(Boolean(window.turnstile));
     s.onerror = () => resolve(false);
-    // A widget that never loads must not hold a form open indefinitely.
+
     setTimeout(() => resolve(Boolean(window.turnstile)), 8000);
     document.head.appendChild(s);
   });
   return loading;
 }
 
-/**
- * Renders an invisible widget into `el` and resolves with its token.
- *
- * Resolves with null on every failure, including timeout, because the caller's
- * job is to submit the form either way.
- */
 export function getTurnstileToken(el: HTMLElement): Promise<string | null> {
   return new Promise((resolve) => {
     let settled = false;

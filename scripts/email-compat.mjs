@@ -1,16 +1,3 @@
-/* Email client compatibility, checked rather than claimed.
- *
- * There is no way to truly render Outlook's Word engine from here, so this does
- * the next best thing: it asserts the structural properties that decide whether
- * a client can render the message at all, each one tied to the client that
- * breaks without it. Those rules are stable and well documented, and every
- * failure below is a known, specific breakage rather than a style opinion.
- *
- * What this cannot tell you is covered honestly at the end of the run.
- *
- * Usage: node scripts/email-compat.mjs <bundled-email-module>
- */
-
 const mod = await import(process.argv[2] ?? "/tmp/em.mjs");
 
 const samples = {
@@ -33,8 +20,6 @@ const samples = {
   }),
 };
 
-/* Each rule names the client that breaks without it, because "best practice"
-   with no consequence attached is how these get dropped later. */
 const RULES = [
   ["Gmail: no <style> block, it is stripped in several contexts", (h) => !/<style[\s>]/i.test(h)],
   ["Gmail: no <link> to a stylesheet", (h) => !/<link[^>]+stylesheet/i.test(h)],
@@ -43,8 +28,7 @@ const RULES = [
   ["Outlook (Word): no position absolute or fixed", (h) => !/position:\s*(absolute|fixed)/i.test(h)],
   ["Outlook (Word): no float for layout", (h) => !/float:\s*(left|right)/i.test(h)],
   ["Outlook (Word): no background-image", (h) => !/background-image/i.test(h)],
-  /* text-transform is fine in Word and was matching the naive "transform:"
-     pattern; only the CSS transform property is the problem. */
+
   ["Outlook (Word): no box-shadow or CSS transform", (h) => !/(box-shadow|[^-]\btransform:)/i.test(h)],
   ["Outlook (Word): no rem, vh or vw units, it understands px and pt", (h) => !/:\s*[\d.]+(rem|vh|vw)\b/i.test(h)],
   ["Outlook: every layout table declares cellpadding, cellspacing and border", (h) => {

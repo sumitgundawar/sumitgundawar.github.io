@@ -1,18 +1,5 @@
 import type { Card } from "./types";
 
-/* Programming, as distinct from system design.
- *
- * The rest of this material assumes you can already write the code and asks how
- * to arrange it. This track is the other half: the concepts every language
- * shares, and then the handful of languages worth knowing properly, each
- * covered through the things that actually catch people rather than through a
- * syntax tour that a reference does better.
- *
- * The topics here are shorter than in the design track on purpose. They are
- * written to be correct and useful now, and to be deepened the same way the
- * case studies were, one card at a time.
- */
-
 export const languages: Card[] = [
   {
     id: "programming-foundations",
@@ -2830,5 +2817,4 @@ export const languages: Card[] = [
       },
     ],
   },
-
 ];

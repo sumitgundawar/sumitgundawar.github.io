@@ -1,9 +1,5 @@
 import type { Card } from "./types";
 
-/* Questions that circulate publicly in interview write-ups and candidate
-   reports. Treat the company attributions as indicative rather than sourced, loops vary by team and change over time. The useful observation is the
-   overlap: the same 25 to 30 problems recur, so preparation transfers. */
-
 export const companies: Card[] = [
   {
     id: "company-questions",

@@ -1,34 +1,8 @@
-/* The share image, and the icons, rendered rather than drawn by hand.
- *
- * A link to this site was previewing with an image that described nothing about
- * it, and a link preview is the whole of the first impression on Slack, on
- * LinkedIn and in a message. This generates the card from the same palette and
- * type as the site, so the preview looks like the page it opens, and it is
- * generated rather than exported from a design tool so that changing the words
- * is a one-line diff rather than an afternoon.
- *
- * Playwright is already a dependency for prerendering, so this costs nothing
- * new to run. Sizes: 1200 by 630 is the Open Graph standard and is what every
- * platform crops from; 180 is the Apple touch icon; 32 and 16 are the classic
- * favicon sizes for browsers that will not take the SVG.
- */
 import { chromium } from "playwright";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const ICON = readFileSync("public/favicon.svg", "utf8");
 
-/* The palette is read from the stylesheet rather than restated here.
- *
- * It used to be four hand-copied hex values, and all four had drifted from the
- * site they were meant to match: the ground was #14171a against a site whose
- * ink is #0e1110, which is both lighter and cooler, so the icon read as a
- * blue-grey tile on a green-black page and the card behind a shared link did
- * the same. The text was #f1f4f2 against a warm #edebe3. The manifest then
- * published #14171a as the theme colour while index.html published #0e1110, so
- * the site gave two answers to one question.
- *
- * None of that could be seen in a diff, and all of it follows from the palette
- * living in two places. Now there is one. */
 function palette() {
   const css = readFileSync("src/index.css", "utf8");
   const read = (name) => {
@@ -36,77 +10,58 @@ function palette() {
     if (!m) throw new Error(`gen-og: --${name} not found in src/index.css`);
     return m[1];
   };
-  return { INK: read("ink"), PAPER: read("c-text"), GREEN: read("signal"), DIM: read("c-text-dim") };
+  return { INK: read("ink"), PAPER: read("text-hi"), GREEN: read("accent"), DIM: read("text-lo") };
 }
 
 const { INK, PAPER, GREEN, DIM } = palette();
 
-/* Deliberately not a poster. The card carries the three things someone deciding
-   whether to click actually wants: who this is, what is on the other side of
-   the link, and one reason to believe it is worth the tap. */
 const card = `
 <!doctype html>
 <meta charset="utf-8">
 <style>
-  @font-face { font-family: fallback; src: local("Helvetica Neue"), local("Arial"); }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     width: 1200px; height: 630px; background: ${INK}; color: ${PAPER};
-    font-family: "Mona Sans", "Helvetica Neue", Arial, sans-serif;
+    font-family: Georgia, "Times New Roman", serif;
     display: flex; flex-direction: column; justify-content: space-between;
-    padding: 64px 72px; position: relative; overflow: hidden;
+    padding: 64px 72px; position: relative;
   }
-  .grid {
-    position: absolute; inset: 0;
-    background-image:
-      linear-gradient(to right, rgba(255,255,255,0.035) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px);
-    background-size: 60px 60px;
-  }
-  .row { display: flex; align-items: center; gap: 16px; position: relative; }
-  .icon { width: 56px; height: 56px; }
+  .row { display: flex; align-items: center; gap: 18px; }
+  .icon { width: 44px; height: 44px; }
   .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
-  .label { font-size: 20px; letter-spacing: 0.16em; text-transform: uppercase; color: ${DIM}; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; background: ${GREEN}; }
-  h1 { font-size: 78px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 600; position: relative; }
-  h1 em { font-style: normal; color: ${GREEN}; }
-  p { font-size: 27px; line-height: 1.45; color: #c9d1cd; max-width: 22em; margin-top: 22px; position: relative; }
-  .foot { display: flex; align-items: baseline; gap: 28px; position: relative; }
-  .chip {
-    font-size: 20px; letter-spacing: 0.04em; color: ${PAPER};
-    border: 1px solid rgba(255,255,255,0.18); padding: 9px 16px;
-  }
-  .site { font-size: 22px; color: ${DIM}; margin-left: auto; }
+  .kicker { font-size: 19px; letter-spacing: 0.14em; text-transform: uppercase; color: ${DIM}; font-weight: 700; }
+  h1 { font-size: 92px; line-height: 0.98; letter-spacing: -0.03em; font-weight: 500; max-width: 15em; }
+  p { font-size: 26px; line-height: 1.45; color: ${PAPER}; opacity: 0.78; max-width: 24em; margin-top: 26px; }
+  .foot { display: flex; align-items: baseline; gap: 20px; }
+  .fig { font-size: 20px; color: ${PAPER}; border: 1px solid ${DIM}; padding: 10px 16px; letter-spacing: 0.03em; white-space: nowrap; }
+  .site { font-size: 21px; color: ${DIM}; margin-left: auto; letter-spacing: 0.04em; }
+  .mark { position: absolute; width: 14px; height: 14px; border-color: ${GREEN}; }
+  .tl { left: 26px; top: 26px; border-left: 2px solid; border-top: 2px solid; }
+  .tr { right: 26px; top: 26px; border-right: 2px solid; border-top: 2px solid; }
+  .bl { left: 26px; bottom: 26px; border-left: 2px solid; border-bottom: 2px solid; }
+  .br { right: 26px; bottom: 26px; border-right: 2px solid; border-bottom: 2px solid; }
 </style>
-<div class="grid"></div>
+<span class="mark tl"></span><span class="mark tr"></span>
+<span class="mark bl"></span><span class="mark br"></span>
 
 <div class="row">
   <span class="icon">${ICON}</span>
-  <span class="mono label">sumit gundawar</span>
-  <span class="dot"></span>
-  <span class="mono label" style="letter-spacing:0.1em">open to roles</span>
+  <span class="mono kicker">sumit gundawar</span>
 </div>
 
 <div>
-  <h1>Systems that survive<br><em>production</em>.</h1>
-  <p>APIs, integrations and data pipelines, written up with what broke and what the fix cost. Plus a free system design course and an architecture builder.</p>
+  <h1>I design systems around how they fail.</h1>
+  <p>Full-stack engineer in London. Sole engineer on a multi-product clinical platform, and 221 topics of system design where every number carries its source.</p>
 </div>
 
 <div class="foot">
-  <span class="mono chip">/learn</span>
-  <span class="mono chip">/build</span>
-  <span class="mono chip">JAX London 2026</span>
+  <span class="mono fig">$75M+ sales impacted</span>
+  <span class="mono fig">13h to 8h</span>
+  <span class="mono fig">13+ products shipped</span>
   <span class="mono site">sumitgundawar.com</span>
 </div>
 `;
 
-/* The mark carries its ground colour, so it is rewritten from the palette too
-   rather than being a fifth copy of the ink hex, and the corrected SVG is
-   written back. Without writing it back the file on disk stays a hand-edited
-   copy that can drift again, which is the whole defect this is fixing: after
-   this runs, the SVG, the three PNGs, the ICO and the manifest are all derived
-   from src/index.css, and the only ink written by hand anywhere is the
-   theme-color in index.html, which check:brand asserts. */
 const icon = ICON.replace(/(<rect[^>]*fill=")#[0-9a-fA-F]{3,8}(")/, `$1${INK}$2`);
 if (icon !== ICON) writeFileSync("public/favicon.svg", icon);
 
@@ -136,8 +91,6 @@ for (const size of [180, 32, 16]) {
 
 await browser.close();
 
-/* A web app manifest, so an installed shortcut and an Android home screen use
-   the same mark rather than a screenshot of the page. */
 writeFileSync(
   "public/site.webmanifest",
   JSON.stringify(
@@ -158,24 +111,20 @@ writeFileSync(
   ) + "\n",
 );
 
-/* favicon.ico, because browsers request it from the root whether or not it is
-   declared, and the one that was there was a black and white leftover with none
-   of this mark in it. An ICO may embed PNGs, which every browser since IE11
-   reads, so the two already-generated sizes are wrapped rather than redrawn. */
 const icoSizes = [32, 16];
 const pngs = icoSizes.map((s) => readFileSync(`public/favicon-${s}.png`));
 const header = Buffer.alloc(6 + 16 * pngs.length);
 header.writeUInt16LE(0, 0);
-header.writeUInt16LE(1, 2); // type 1 = icon
+header.writeUInt16LE(1, 2);
 header.writeUInt16LE(pngs.length, 4);
 let offset = header.length;
 pngs.forEach((png, i) => {
   const e = 6 + i * 16;
   header.writeUInt8(icoSizes[i], e);
   header.writeUInt8(icoSizes[i], e + 1);
-  header.writeUInt8(0, e + 2); // palette entries, 0 for true colour
+  header.writeUInt8(0, e + 2);
   header.writeUInt8(0, e + 3);
-  header.writeUInt16LE(1, e + 4); // colour planes
+  header.writeUInt16LE(1, e + 4);
   header.writeUInt16LE(32, e + 6);
   header.writeUInt32LE(png.length, e + 8);
   header.writeUInt32LE(offset, e + 12);

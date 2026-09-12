@@ -2,18 +2,6 @@ import { useRef, useState } from "react";
 import { askStream } from "@/lib/api";
 import { trackClick } from "@/lib/hooks";
 
-/* Ask a follow-up about the topic you are reading.
- *
- * The material answers the question it chose to ask. This is for the question
- * the reader actually has, which is usually narrower: why this and not that,
- * what happens at ten times the load, how does it fail. The topic text goes up
- * with the question so the answer is grounded in what is on the page rather
- * than in whatever the model remembers about the subject.
- *
- * Nothing here mentions models. Fifteen of them sit behind this box and the
- * chain falls through several on a bad day; a reader who is told which one
- * answered has been handed a detail they cannot act on. */
-
 const SUGGESTIONS = [
   "Why not the simpler option?",
   "What breaks at ten times the load?",
@@ -24,11 +12,9 @@ export function AskBox({ topicId }: { topicId: string }) {
   const [q, setQ] = useState("");
   const [thread, setThread] = useState<{ q: string; a: string }[]>([]);
   const [busy, setBusy] = useState(false);
-  /* The answer being written right now, kept separate from the finished thread
-     so a re-render per token touches one string rather than the whole list. */
+
   const [live, setLive] = useState("");
-  /* The question currently being answered, so the streaming block reads like
-     the finished ones above it rather than appearing under an ellipsis. */
+
   const [pending, setPending] = useState("");
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -43,9 +29,6 @@ export function AskBox({ topicId }: { topicId: string }) {
     setLive("");
     setPending(text);
     try {
-      /* Rendered as it arrives. The total wait is much the same; what changes is
-         that words appear in about a second instead of the reader watching
-         "Thinking" for twelve to sixteen seconds. */
       const a = await askStream(text, topicId, (chunk) => setLive((prev) => prev + chunk));
       setThread((t) => [...t, { q: text, a }]);
       setLive("");
@@ -53,10 +36,9 @@ export function AskBox({ topicId }: { topicId: string }) {
     } catch (err) {
       setLive("");
       setPending("");
-      // The chain has already tried every model that answers. If it got here
-      // the honest thing is to say so, not to retry in a loop the reader can see.
+
       setError(err instanceof Error ? err.message : "Something went wrong.");
-      setQ(text); // give them their question back rather than losing it
+      setQ(text);
     } finally {
       setBusy(false);
       inputRef.current?.focus();

@@ -4,18 +4,9 @@ import { LayeredDiagram } from "./LayeredDiagram";
 import { trackClick } from "@/lib/hooks";
 import type { Diagram } from "@/data/learn";
 
-/* Flat is the default and stays the default.
- *
- * The flat view is the one that teaches: it names every hop and labels every
- * edge, and it is readable at 390px. The layered view answers a different
- * question, which is what "through the stack" actually means, and it answers it
- * better than any arrangement on a plane can. Offering both and defaulting to
- * flat means the depth is there for the people it helps without taxing the
- * people it does not. */
 export function DiagramViews({ diagram, id }: { diagram: Diagram; id: string }) {
   const [view, setView] = useState<"flow" | "layers">("flow");
 
-  // Two columns is a before and an after; there is no stack to look through.
   if (diagram.columns.length < 3) return <FlowDiagram diagram={diagram} id={id} />;
 
   return (

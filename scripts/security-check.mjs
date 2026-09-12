@@ -1,17 +1,3 @@
-/* Security checks run against production.
- *
- * Written as a script rather than done once by hand, because the findings that
- * mattered on this site were all things that were true at one point and stopped
- * being true after a deploy. Everything here is an attempt at the attack, not an
- * inspection of the code: an admin endpoint is called without a token and with a
- * wrong one, the assistant is asked to reveal its prompt and to speak as its
- * owner, malformed sessions and traversal-shaped ids are posted, an unknown
- * origin asks for CORS, and the shipped bundle is searched for every credential
- * shape this project uses.
- *
- * Usage: node scripts/security-check.mjs
- */
-
 const API = "https://site-agent-relay.sumitgundawar3.workers.dev";
 const SITE = "https://sumitgundawar.com";
 const out = [];

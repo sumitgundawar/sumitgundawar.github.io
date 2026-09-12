@@ -12,7 +12,7 @@ Live at [sumitgundawar.com](https://sumitgundawar.com).
 | Route | What it is |
 | --- | --- |
 | `/` | Profile as a status page: work, writing, speaking, education, live signals |
-| `/learn` | System design material: 34 cards, 143 topics, diagrams and quiz questions, including five long case studies |
+| `/learn` | System design material: 48 cards, 221 topics (36 beginner, 89 intermediate, 96 advanced), diagrams, cited sources and written quiz banks, including seven case studies and two blog dissections |
 | `/learn/:cardId` | One card, with its topics, diagrams and checks |
 | `/build` | An interview that sizes an architecture to what you are building, and shows what was considered instead |
 | `/writing` | Published articles, pointing at the publishers as canonical |

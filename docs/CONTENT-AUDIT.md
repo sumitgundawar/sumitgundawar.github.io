@@ -1,7 +1,10 @@
 # Learning material audit
 
-A pass over all 46 cards and 208 topics, looking for three things: claims that are
-wrong, claims that are unsourced, and topics that were left unfinished.
+A pass over the 46 cards and 208 topics that existed when it was written, looking for
+three things: claims that are
+wrong, claims that are unsourced, and topics that were left unfinished. The corpus is
+48 cards and 221 topics now, the difference being the dissections track added in
+section G.
 
 Every item below has a status. `fixed` means the change is in the repository and
 the build passes. Items marked `by design` were considered and deliberately left

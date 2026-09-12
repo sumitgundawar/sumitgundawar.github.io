@@ -89,34 +89,6 @@
 
     --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
     --ease-snap: cubic-bezier(0.3, 0, 0.2, 1);
-
-    --bg: var(--ink);
-    --panel: var(--ink-2);
-    --panel-2: var(--ink-3);
-    --hair: var(--rule-2);
-    --hair-strong: var(--rule-3);
-    --fg: var(--text-hi);
-    --fg-dim: var(--text-mid);
-    --c-text: var(--text-hi);
-    --c-text-dim: var(--text-mid);
-    --surface: var(--ink-2);
-    --surface-2: var(--ink-3);
-    --line: var(--rule-2);
-    --signal: var(--ok);
-    --cool: var(--n-edge);
-    --accent-alt: var(--accent-2);
-    --diagram-bg: var(--plate);
-    --lv-beginner: var(--n-service);
-    --lv-intermediate: var(--n-data);
-    --lv-advanced: var(--n-queue);
-    --fs-micro: var(--m3);
-    --fs-label: var(--m2);
-    --fs-input: var(--m1);
-    --fs-body: var(--t2);
-    --fs-item: var(--t1);
-    --fs-section: var(--d3);
-    --fs-page: var(--d2);
-    --fs-hero: var(--d1);
   }
 
   @media (min-width: 400px) {

@@ -91,8 +91,8 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
         style={{
           height: `${Math.max(340, 150 + diagram.columns.length * 118)}px`,
           perspective: "1100px",
-          background: "var(--diagram-bg)",
-          border: "1px solid var(--hair)",
+          background: "var(--plate)",
+          border: "1px solid var(--rule-2)",
           cursor: dragging ? "grabbing" : "grab",
           touchAction: "none",
         }}
@@ -132,7 +132,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
                     height: 108,
                     marginLeft: -150,
                     marginTop: -54,
-                    border: `1px solid ${lit ? "var(--accent)" : "var(--hair)"}`,
+                    border: `1px solid ${lit ? "var(--accent)" : "var(--rule-2)"}`,
                     background: lit ? "rgba(61,214,140,0.05)" : "transparent",
                     transition: "border-color .35s, background .35s",
                   }}
@@ -143,7 +143,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
                     style={{
                       fontSize: 9,
                       letterSpacing: "0.12em",
-                      color: lit ? "var(--accent)" : "var(--c-text-dim)",
+                      color: lit ? "var(--accent)" : "var(--text-mid)",
                       transition: "color .35s",
                     }}
                   >
@@ -164,7 +164,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
                         fontSize: 11,
                         background: KIND_COLOR[n.kind ?? "service"],
                         border: `1px solid ${KIND_EDGE[n.kind ?? "service"]}`,
-                        color: "var(--c-text)",
+                        color: "var(--text-hi)",
                         boxShadow: lit ? "0 6px 20px rgba(0,0,0,0.45)" : "0 2px 8px rgba(0,0,0,0.3)",
                         transition: "box-shadow .35s",
                       }}
@@ -200,7 +200,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
 
         <div
           className="absolute left-3 bottom-2 mono pointer-events-none"
-          style={{ fontSize: 10, color: "var(--c-text-dim)" }}
+          style={{ fontSize: 10, color: "var(--text-mid)" }}
         >
           {picked ? "tap again to dismiss" : "drag to rotate, tap a component"}
         </div>
@@ -214,15 +214,15 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
           <div
             role="status"
             className="mt-2 p-3"
-            style={{ background: "var(--surface)", border: "1px solid var(--hair-strong)" }}
+            style={{ background: "var(--ink-2)", border: "1px solid var(--rule-3)" }}
           >
-            <div className="mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text)" }}>
+            <div className="mono text-m2" style={{ color: "var(--text-hi)" }}>
               {node.label}
               {node.sub ? ` · ${node.sub}` : ""}
-              <span style={{ color: "var(--c-text-dim)" }}> · {KIND_LABEL[node.kind ?? "service"]}</span>
+              <span style={{ color: "var(--text-mid)" }}> · {KIND_LABEL[node.kind ?? "service"]}</span>
             </div>
             {(edgesIn.length > 0 || edgesOut.length > 0) && (
-              <div className="mono text-[length:var(--fs-micro)] mt-1.5" style={{ color: "var(--c-text-dim)" }}>
+              <div className="mono text-m3 mt-1.5" style={{ color: "var(--text-mid)" }}>
                 {edgesIn.map((e, i) => (
                   <div key={`i${i}`}>
                     ← from {diagram.columns.flat().find((n) => n.id === e.from)?.label}
@@ -243,7 +243,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
         );
       })()}
 
-      <figcaption id={`${id}-layered-cap`} className="mono text-[length:var(--fs-label)] mt-2" style={{ color: "var(--c-text-dim)" }}>
+      <figcaption id={`${id}-layered-cap`} className="mono text-m2 mt-2" style={{ color: "var(--text-mid)" }}>
         {diagram.caption} · front to back is the path a request takes
       </figcaption>
     </figure>

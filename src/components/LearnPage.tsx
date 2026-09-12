@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Masthead, SiteFooter } from "./primitives";
+import { FilterBar, IndexItem, Masthead, PageHeader, SiteFooter } from "./primitives";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FlowDiagram } from "./FlowDiagram";
 import { DiagramViews } from "./DiagramViews";
@@ -12,7 +12,7 @@ import { usePageDwell, setSocialMeta, useStagger } from "@/lib/hooks";
 
 import { manifest, topicCount } from "@/data/learn/manifest";
 import { loadCard } from "@/data/learn/load";
-import { TRACKS, LEVELS, type Card, type CardMeta, type Level, type Topic, type Check, type Source } from "@/data/learn/types";
+import { TRACKS, LEVELS, type Card, type CardMeta, type Level, type Topic, type Check, type Source, type Track } from "@/data/learn/types";
 
 function metaForLevel(level: Level | "all"): CardMeta[] {
   if (level === "all") return manifest;
@@ -20,6 +20,26 @@ function metaForLevel(level: Level | "all"): CardMeta[] {
     .map((c) => ({ ...c, topics: c.topics.filter((t) => t.level === level) }))
     .filter((c) => c.topics.length > 0);
 }
+
+const TRACK_ORDER: Track[] = [
+  "dissection",
+  "case-study",
+  "design",
+  "practice",
+  "delivery",
+  "languages",
+  "foundations",
+  "interview",
+];
+
+const byLevel = {
+  beginner: manifest.reduce((n, c) => n + c.topics.filter((t) => t.level === "beginner").length, 0),
+  intermediate: manifest.reduce(
+    (n, c) => n + c.topics.filter((t) => t.level === "intermediate").length,
+    0,
+  ),
+  advanced: manifest.reduce((n, c) => n + c.topics.filter((t) => t.level === "advanced").length, 0),
+};
 
 const countByLevel = (level: Level) =>
   manifest.reduce((n, c) => n + c.topics.filter((t) => t.level === level).length, 0);
@@ -37,8 +57,8 @@ function Sources({ sources }: { sources: Source[] }) {
   return (
     <details className="mt-7 max-w-[36em] group">
       <summary
-        className="mono text-[length:var(--fs-label)] uppercase tracking-[0.09em] cursor-pointer inline-flex items-center gap-2 min-h-[44px]"
-        style={{ color: "var(--c-text-dim)" }}
+        className="mono text-m2 uppercase tracking-[0.09em] cursor-pointer inline-flex items-center gap-2 min-h-[44px]"
+        style={{ color: "var(--text-mid)" }}
       >
         <span className="tnum">
           evidence · {sources.length} {sources.length === 1 ? "source" : "sources"}
@@ -54,7 +74,7 @@ function Sources({ sources }: { sources: Source[] }) {
       <ol className="mt-2 flex flex-col gap-3.5 pl-0">
         {sources.map((s, i) => (
           <li key={i} className="flex gap-3">
-            <span className="mono tnum text-[length:var(--fs-micro)] pt-1 shrink-0" style={{ color: "var(--c-text-dim)", opacity: 0.6 }}>
+            <span className="mono tnum text-m3 pt-1 shrink-0" style={{ color: "var(--text-mid)", opacity: 0.6 }}>
               {String(i + 1).padStart(2, "0")}
             </span>
             <div className="min-w-0">
@@ -62,12 +82,12 @@ function Sources({ sources }: { sources: Source[] }) {
                 href={s.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[length:var(--fs-body)] leading-snug link-underline"
-                style={{ color: "var(--c-text)" }}
+                className="text-t2 leading-snug link-underline"
+                style={{ color: "var(--text-hi)" }}
               >
                 {s.label} <span aria-hidden>&#8599;</span>
               </a>
-              <p className="mt-1 text-t3 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+              <p className="mt-1 text-t3 leading-relaxed" style={{ color: "var(--text-mid)" }}>
                 {s.supports}
               </p>
             </div>
@@ -87,25 +107,25 @@ function Subject({ subject }: { subject: NonNullable<Card["subject"]> }) {
   });
   return (
     <div
-      className="mt-6 rounded-lg border p-4 sm:p-5 max-w-[42em]"
-      style={{ borderColor: "var(--hair-strong)", background: "var(--surface-2)" }}
+      className="mt-24 border border-rule-2 p-24 measure"
+      style={{ borderColor: "var(--rule-3)", background: "var(--ink-3)" }}
     >
-      <div className="mono text-[length:var(--fs-label)] uppercase tracking-[0.09em] mb-2" style={{ color: "var(--accent)" }}>
+      <div className="mono text-m2 uppercase tracking-[0.09em] mb-2" style={{ color: "var(--accent)" }}>
         dissecting
       </div>
       <a
         href={subject.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-[length:var(--fs-item)] font-medium leading-snug link-underline"
-        style={{ color: "var(--c-text)" }}
+        className="text-t1 font-medium leading-snug link-underline"
+        style={{ color: "var(--text-hi)" }}
       >
         {subject.title} <span aria-hidden>&#8599;</span>
       </a>
-      <div className="mono text-[length:var(--fs-label)] mt-1.5" style={{ color: "var(--c-text-dim)" }}>
+      <div className="mono text-m2 mt-1.5" style={{ color: "var(--text-mid)" }}>
         {subject.publisher} · {when}
       </div>
-      <p className="mt-3 text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+      <p className="mt-3 text-t2 leading-relaxed" style={{ color: "var(--text-mid)" }}>
         {subject.note}
       </p>
     </div>
@@ -113,9 +133,9 @@ function Subject({ subject }: { subject: NonNullable<Card["subject"]> }) {
 }
 
 const LEVEL_COLOR: Record<Level, string> = {
-  beginner: "var(--lv-beginner)",
-  intermediate: "var(--lv-intermediate)",
-  advanced: "var(--lv-advanced)",
+  beginner: "var(--ok)",
+  intermediate: "var(--warn)",
+  advanced: "var(--crit)",
 };
 
 function LevelDot({ level }: { level: Level }) {
@@ -198,54 +218,40 @@ function TopicView({
 
   return (
     <div className="pb-8 pt-1">
-      <div className="grid @min-[936px]:grid-cols-[minmax(0,36em)_minmax(0,1fr)] gap-x-10 @min-[1180px]:gap-x-14 items-start">
+      <div className="grid @min-[1060px]:grid-cols-[minmax(0,var(--measure))_minmax(0,1fr)] gap-x-48 items-start">
       <div className="min-w-0">
       <div className="flex flex-col gap-3 max-w-[36em]">
         {topic.body.map((p, i) => (
-          <p key={i} className="text-[length:var(--fs-body)] leading-[1.65]" style={{ color: "var(--c-text-dim)" }}>
+          <p key={i} className="text-t2 leading-[1.65]" style={{ color: "var(--text-mid)" }}>
             {p}
           </p>
         ))}
       </div>
 
       {topic.why && (
-        <div
-          className="mt-5 border-l-2 pl-4 py-1 max-w-[36em]"
-          style={{ borderColor: "var(--accent)" }}
-        >
-          <div className="mono text-[length:var(--fs-label)] uppercase tracking-[0.09em] mb-1.5" style={{ color: "var(--accent)" }}>
-            why this choice
+        <div className="mt-32 md:grid md:grid-cols-[96px_minmax(0,1fr)] md:gap-24 measure">
+          <div className="eyebrow mb-8 md:mb-0 md:pt-4" style={{ color: "var(--accent)" }}>
+            why
           </div>
-          <p className="text-[length:var(--fs-body)] leading-[1.65]" style={{ color: "var(--c-text)" }}>
-            {topic.why}
-          </p>
+          <p className="text-t2 text-text-hi">{topic.why}</p>
         </div>
       )}
 
       {topic.inPractice && (
-        <div
-          className="mt-4 border-l-2 pl-4 py-1 max-w-[36em]"
-          style={{ borderColor: "var(--accent-2)" }}
-        >
-          <div className="mono text-[length:var(--fs-label)] uppercase tracking-[0.09em] mb-1.5" style={{ color: "var(--accent-2)" }}>
-            in practice
-          </div>
-          <p className="text-[length:var(--fs-body)] leading-[1.65]" style={{ color: "var(--c-text)" }}>
-            {topic.inPractice}
-          </p>
+        <div className="mt-24 md:grid md:grid-cols-[96px_minmax(0,1fr)] md:gap-24 measure">
+          <div className="eyebrow mb-8 md:mb-0 md:pt-4">in practice</div>
+          <p className="text-t2 text-text-hi">{topic.inPractice}</p>
         </div>
       )}
 
       </div>
 
       <div
-        className="mt-6 @min-[936px]:mt-0 rounded-lg border p-4 sm:p-5 max-w-[36em] @min-[936px]:max-w-none min-w-0"
-        style={{ borderColor: "var(--hair)", background: "var(--surface-2)" }}
+        className="mt-32 @min-[1060px]:mt-0 border border-rule-2 p-16 sm:p-24 measure @min-[1060px]:max-w-none min-w-0"
+        style={{ background: "var(--ink-1)" }}
       >
-        <div className="mono text-[length:var(--fs-label)] uppercase tracking-[0.09em] mb-2.5" style={{ color: "var(--c-text-dim)" }}>
-          check yourself
-        </div>
-        <p className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text)" }}>
+        <div className="eyebrow mb-16">check yourself</div>
+        <p className="text-t2 leading-relaxed" style={{ color: "var(--text-hi)" }}>
           {check.prompt}
         </p>
         <div className="flex flex-col gap-2 mt-4">
@@ -258,18 +264,19 @@ function TopicView({
                 onClick={() => answer(i)}
 
                 aria-disabled={answered}
-                className={`text-left text-[length:var(--fs-body)] leading-snug px-3.5 py-3 rounded-md border transition-colors flex gap-3 items-start min-h-[48px]${
+                className={`text-left text-t3 px-16 py-12 border transition-colors duration-[120ms] flex gap-12 items-start min-h-[48px]${
                   justAnswered === i ? (isCorrect ? " check-correct" : " check-wrong") : ""
                 }`}
                 style={{
-                  borderColor: show ? (isCorrect ? "var(--lv-beginner)" : "var(--crit)") : "var(--hair-strong)",
-                  background: show && isCorrect ? "rgba(61,214,140,0.10)" : "var(--surface)",
-                  color: show && isCorrect ? "var(--lv-beginner)" : "var(--c-text)",
+                  borderColor: show ? (isCorrect ? "var(--ok)" : "var(--crit)") : "var(--rule-3)",
+                  borderWidth: show ? 2 : 1,
+                  background: show && isCorrect ? "var(--n-service-fill)" : "var(--ink)",
+                  color: show && isCorrect ? "var(--ok)" : "var(--text-hi)",
                   opacity: answered && i !== picked && !isCorrect ? 0.45 : 1,
                   cursor: answered ? "default" : "pointer",
                 }}
               >
-                <span className="mono text-[length:var(--fs-label)] pt-0.5 shrink-0 w-3" style={{ color: show && isCorrect ? "var(--lv-beginner)" : "var(--c-text-dim)" }}>
+                <span className="mono text-m2 pt-0.5 shrink-0 w-3" style={{ color: show && isCorrect ? "var(--ok)" : "var(--text-mid)" }}>
                   {show && isCorrect ? (
                     <span className="check-mark inline-block">✓</span>
                   ) : (
@@ -282,8 +289,8 @@ function TopicView({
           })}
         </div>
         {answered && (
-          <p role="status" className="text-[length:var(--fs-body)] mt-4 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
-            <span style={{ color: correct ? "var(--lv-beginner)" : "var(--crit)" }}>
+          <p role="status" className="text-t2 mt-4 leading-relaxed" style={{ color: "var(--text-mid)" }}>
+            <span style={{ color: correct ? "var(--ok)" : "var(--crit)" }}>
               {correct ? "Correct. " : "Not quite. "}
             </span>
             {check.explain}
@@ -337,16 +344,16 @@ function CardDetail({
     <div>
       <button
         onClick={onBack}
-        className="mono text-[length:var(--fs-label)] mb-4 inline-flex items-center gap-1.5 link-underline min-h-[44px]"
-        style={{ color: "var(--c-text-dim)" }}
+        className="mono text-m2 mb-4 inline-flex items-center gap-1.5 link-underline min-h-[44px]"
+        style={{ color: "var(--text-mid)" }}
       >
         ← all topics
       </button>
 
-      <h1 className="text-[length:var(--fs-section)] sm:text-[length:var(--fs-page)] font-semibold tracking-[-0.02em]" style={{ color: "var(--c-text)" }}>
+      <h1 className="text-d2 measure">
         {card.title}
       </h1>
-      <p className="mt-3 text-[length:var(--fs-body)] leading-relaxed max-w-[36em]" style={{ color: "var(--c-text-dim)" }}>
+      <p className="mt-3 text-t2 leading-relaxed max-w-[36em]" style={{ color: "var(--text-mid)" }}>
         {card.summary}
       </p>
 
@@ -357,9 +364,9 @@ function CardDetail({
         <nav
           aria-label="Contents"
           className="lg:sticky lg:top-8 min-w-0 mb-8 lg:mb-0 pb-5 lg:pb-0 border-b lg:border-b-0"
-          style={{ borderColor: "var(--hair)" }}
+          style={{ borderColor: "var(--rule-2)" }}
         >
-          <div className="mono text-[length:var(--fs-micro)] uppercase tracking-[0.12em] mb-3" style={{ color: "var(--c-text-dim)" }}>
+          <div className="mono text-m3 uppercase tracking-[0.12em] mb-3" style={{ color: "var(--text-mid)" }}>
             contents
           </div>
           <ol className="flex flex-col gap-0.5">
@@ -370,20 +377,20 @@ function CardDetail({
                   <a
                     href={`#topic-${t.id}`}
                     onClick={() => track("topic_open", { card: card.id, topic: t.id, level: t.level })}
-                    className="flex items-start gap-2.5 py-2 min-h-[44px] text-[length:var(--fs-label)] leading-snug"
+                    className="flex items-start gap-2.5 py-2 min-h-[44px] text-m2 leading-snug"
                     style={{
-                      color: here ? "var(--c-text)" : "var(--c-text-dim)",
+                      color: here ? "var(--text-hi)" : "var(--text-mid)",
                       borderLeft: `2px solid ${here ? "var(--accent)" : "transparent"}`,
                       paddingLeft: 10,
                       marginLeft: -12,
                     }}
                   >
-                    <span className="mono tnum shrink-0 pt-px" style={{ color: here ? "var(--accent)" : "var(--c-text-dim)", opacity: here ? 1 : 0.6 }}>
+                    <span className="mono tnum shrink-0 pt-px" style={{ color: here ? "var(--accent)" : "var(--text-mid)", opacity: here ? 1 : 0.6 }}>
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <span className="min-w-0">{t.title}</span>
                     {t.id in progress && (
-                      <span className="mono shrink-0 ml-auto" style={{ color: progress[t.id] ? "var(--signal)" : "var(--crit)" }}>
+                      <span className="mono shrink-0 ml-auto" style={{ color: progress[t.id] ? "var(--ok)" : "var(--crit)" }}>
                         {progress[t.id] ? "✓" : "×"}
                       </span>
                     )}
@@ -392,7 +399,7 @@ function CardDetail({
               );
             })}
           </ol>
-          <div className="mono text-[length:var(--fs-micro)] mt-4 pt-3 border-t" style={{ color: "var(--c-text-dim)", borderColor: "var(--hair)" }}>
+          <div className="mono text-m3 mt-4 pt-3 border-t" style={{ color: "var(--text-mid)", borderColor: "var(--rule-2)" }}>
             {card.topics.length} topics{done ? ` · ${done} answered` : ""}
           </div>
         </nav>
@@ -407,13 +414,13 @@ function CardDetail({
               className={i === 0 ? "" : "mt-14 pt-12 border-t"}
             >
               <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="mono tnum text-[length:var(--fs-label)]" style={{ color: "var(--accent)" }}>
+                <span className="mono tnum text-m2" style={{ color: "var(--accent)" }}>
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <h2 className="text-[length:var(--fs-item)] sm:text-[length:var(--fs-section)] font-medium tracking-[-0.015em] min-w-0" style={{ color: "var(--c-text)" }}>
+                <h2 className="min-w-0">
                   {t.title}
                 </h2>
-                <span className="mono text-[length:var(--fs-label)] uppercase tracking-wide ml-auto shrink-0" style={{ color: LEVEL_COLOR[t.level] }}>
+                <span className="mono text-m2 uppercase tracking-wide ml-auto shrink-0" style={{ color: LEVEL_COLOR[t.level] }}>
                   {t.level}
                 </span>
               </div>
@@ -504,7 +511,7 @@ export function LearnPage() {
 
         {currentMeta && !current ? (
           <div className="mt-10" data-loading="card">
-            <p className="mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
+            <p className="mono text-m2" style={{ color: "var(--text-mid)" }}>
               loading {currentMeta.title.toLowerCase()}
             </p>
           </div>
@@ -526,124 +533,102 @@ export function LearnPage() {
           </div>
         ) : (
           <>
-            <h1
-              className="mt-7 font-semibold leading-[1.05] tracking-[-0.02em]"
-              style={{ fontSize: "var(--fs-page)", color: "var(--c-text)" }}
+            <PageHeader
+              title="Learn engineering"
+              standfirst={`${topicCount} topics across ${manifest.length} cards, from first principles to the decisions senior and staff interviews actually probe. ${byLevel.advanced} of them are advanced. Every topic says why a choice was made rather than only what it was, and every number carries the source it came from.`}
             >
-              Learn engineering
-            </h1>
-            <p className="mt-3.5 text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
-              Software engineering and system design, from first principles to the decisions senior and
-              staff interviews actually probe. Every topic explains why a choice was made, not just what
-              it was. Answer the check at the end of each, there are no accounts, and your score resets
-              when you refresh.
-            </p>
-
-            {(() => {
-              const all = summarise(progress, manifest.flatMap((c) => c.topics.map((t) => t.id)));
-              if (!all.answered) return null;
-              return (
-                <div className="mt-6 max-w-[36em]">
-                  <div className="flex items-baseline justify-between mono text-[length:var(--fs-label)] mb-2" style={{ color: "var(--c-text-dim)" }}>
-                    <span className="tnum">
-                      {all.answered} of {all.total} answered · {all.correct} correct
-                    </span>
-                    <button onClick={reset} className="link-underline inline-flex items-center min-h-[44px]">
-                      reset progress
-                    </button>
-                  </div>
-                  <div className="h-[4px] rounded-full overflow-hidden" style={{ background: "var(--hair-strong)" }}>
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${(all.answered / all.total) * 100}%`, background: "var(--signal)" }}
-                    />
-                  </div>
-                </div>
-              );
-            })()}
-
-            <div className="mt-7 flex flex-wrap gap-2">
-              {(["all", ...LEVELS] as const).map((l) => {
-                const on = level === l;
+              {(() => {
+                const all = summarise(progress, manifest.flatMap((c) => c.topics.map((t) => t.id)));
+                if (!all.answered) return null;
                 return (
-                  <button
-                    key={l}
-                    onClick={() => {
-                      setLevel(l);
-                      track("level_filter", { level: l });
-                    }}
-                    className="mono text-[length:var(--fs-label)] px-4 rounded-full border transition-colors inline-flex items-center min-h-[44px]"
-                    style={{
-                      borderColor: on ? (l === "all" ? "var(--c-text)" : LEVEL_COLOR[l]) : "var(--hair)",
-                      color: on ? (l === "all" ? "var(--c-text)" : LEVEL_COLOR[l]) : "var(--c-text-dim)",
-                      background: on ? "var(--surface-2)" : "transparent",
-                    }}
-                  >
-                    {l === "all" ? `everything · ${topicCount}` : `${l} · ${countByLevel(l)}`}
-                  </button>
+                  <div className="measure-46">
+                    <div className="flex items-baseline justify-between gap-16 mono text-m2 text-text-lo mb-8">
+                      <span className="tnum">
+                        {all.answered} of {all.total} answered, {all.correct} correct
+                      </span>
+                      <button
+                        onClick={reset}
+                        className="link-underline inline-flex items-center min-h-[44px] text-accent"
+                      >
+                        reset
+                      </button>
+                    </div>
+                    <div
+                      role="progressbar"
+                      aria-valuenow={all.answered}
+                      aria-valuemin={0}
+                      aria-valuemax={all.total}
+                      className="h-4"
+                      style={{ background: "var(--rule-2)" }}
+                    >
+                      <div
+                        className="h-full transition-all duration-500"
+                        style={{ width: `${(all.answered / all.total) * 100}%`, background: "var(--accent)" }}
+                      />
+                    </div>
+                  </div>
                 );
-              })}
-            </div>
+              })()}
+            </PageHeader>
+
+            <FilterBar
+              label="Filter by level"
+              value={level}
+              onChange={(id) => {
+                setLevel(id as Level | "all");
+                track("level_filter", { level: id });
+              }}
+              options={[
+                { id: "all", label: `everything ${topicCount}` },
+                ...LEVELS.map((l) => ({ id: l, label: `${l} ${countByLevel(l)}` })),
+              ]}
+            />
 
             {level !== "all" && (
-              <p className="mt-3 text-[length:var(--fs-body)]" style={{ color: "var(--c-text-dim)" }}>
-                Showing {shownTopics} {level} topics across {visible.length} cards.
+              <p className="text-t3 text-text-lo mt-24">
+                {shownTopics} {level} topics across {visible.length} cards.
               </p>
             )}
 
-            {TRACKS.map((tr) => {
-              const inTrack = visible.filter((c) => c.track === tr.id);
-              if (!inTrack.length) return null;
-              return (
-                <section key={tr.id} className="mt-16">
-                  <div>
-                    <h2 className="text-[length:var(--fs-item)] font-semibold tracking-[-0.015em]" style={{ color: "var(--c-text)" }}>
-                      {tr.label}
-                    </h2>
-                    <p className="mt-1.5 text-[length:var(--fs-body)] max-w-[42em]" style={{ color: "var(--c-text-dim)" }}>
-                      {tr.blurb}
-                    </p>
-                  </div>
-
-                  <StaggerGrid className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
-                    {inTrack.map((c) => {
-                      const levelsHere = LEVELS.filter((l) => c.topics.some((t) => t.level === l));
-                      return (
-                        <Link
-                          key={c.id}
-                          to={`/learn/${c.id}${window.location.search}`}
-                          onClick={() => track("card_open", { card: c.id, track: c.track })}
-                          className="press text-left rounded-lg border p-4 sm:p-5 flex flex-col gap-2 h-full transition-transform hover:-translate-y-0.5"
-                          style={{ borderColor: "var(--hair-strong)", background: "var(--surface)" }}
-                        >
-                          <span className="text-[length:var(--fs-item)] font-medium leading-snug" style={{ color: "var(--c-text)" }}>
-                            {c.title}
-                          </span>
-                          <span className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
-                            {c.summary}
-                          </span>
-                          <span className="mt-auto pt-3 flex items-center gap-2.5 mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
-                            {(() => {
-                              const done = summarise(progress, c.topics.map((t) => t.id));
-                              return (
-                                <span className="tnum" style={done.answered ? { color: "var(--signal)" } : undefined}>
-                                  {done.answered ? `${done.answered}/${done.total} done` : `${done.total} topics`}
+            <div className="grid gap-64 md:gap-96 mt-48 pb-96">
+              {TRACK_ORDER.map((trackId) => {
+                const tr = TRACKS.find((x) => x.id === trackId);
+                const inTrack = visible.filter((c) => c.track === trackId);
+                if (!tr || !inTrack.length) return null;
+                return (
+                  <section key={tr.id}>
+                    <h2 className="measure">{tr.label}</h2>
+                    <p className="text-t3 text-text-lo mt-12 measure-46">{tr.blurb}</p>
+                    <div className="mt-32">
+                      {inTrack.map((c) => {
+                        const done = summarise(progress, c.topics.map((t) => t.id));
+                        const levelsHere = LEVELS.filter((l) => c.topics.some((t) => t.level === l));
+                        return (
+                          <IndexItem
+                            key={c.id}
+                            title={c.title}
+                            to={`/learn/${c.id}${window.location.search}`}
+                            summary={c.summary}
+                            meta={
+                              <span className="flex items-center gap-12 xl:justify-end">
+                                <span className="tnum">
+                                  {done.answered ? `${done.answered}/${done.total} answered` : `${done.total} topics`}
                                 </span>
-                              );
-                            })()}
-                            <span className="flex items-center gap-1">
-                              {levelsHere.map((l) => (
-                                <LevelDot key={l} level={l} />
-                              ))}
-                            </span>
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </StaggerGrid>
-                </section>
-              );
-            })}
+                                <span className="flex items-center gap-4">
+                                  {levelsHere.map((l) => (
+                                    <LevelDot key={l} level={l} />
+                                  ))}
+                                </span>
+                              </span>
+                            }
+                          />
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
           </>
         )}
       </div>

@@ -61,7 +61,7 @@ export function LoopVideo({
   }, [wanted]);
 
   return (
-    <div className={`relative overflow-hidden border border-hair ${className}`} style={{ background: "var(--surface-2)" }}>
+    <div className={`relative overflow-hidden border border-rule-2 ${className}`} style={{ background: "var(--ink-3)" }}>
       <video
         ref={ref}
         src={src}

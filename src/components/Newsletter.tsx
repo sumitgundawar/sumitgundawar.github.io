@@ -43,30 +43,30 @@ export function Newsletter() {
   return (
     <section className="mt-14" aria-labelledby="newsletter-h">
       <div className="flex items-center flex-wrap gap-3 mb-5">
-        <span aria-hidden className="inline-block shrink-0" style={{ width: 7, height: 7, background: "var(--cool)" }} />
+        <span aria-hidden className="inline-block shrink-0" style={{ width: 7, height: 7, background: "var(--accent)" }} />
         <h2
           id="newsletter-h"
           className="mono uppercase font-semibold"
-          style={{ fontSize: "var(--fs-label)", letterSpacing: "0.14em", color: "var(--c-text-dim)" }}
+          style={{ fontSize: "var(--m2)", letterSpacing: "0.14em", color: "var(--text-mid)" }}
         >
           newsletter
         </h2>
-        <span className="h-px flex-1 min-w-8" style={{ background: "var(--hair)" }} />
+        <span className="h-px flex-1 min-w-8" style={{ background: "var(--rule-2)" }} />
       </div>
 
       <div className="max-w-[36em]">
-        <p className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+        <p className="text-t2 leading-relaxed" style={{ color: "var(--text-mid)" }}>
           Notes on building systems that survive production: what broke, and what the fix cost.
           Sent when there is something worth sending, and never for anything else.{" "}
 
-          <Link to="/archive" className="link-underline" style={{ color: "var(--accent-2)" }}>
+          <Link to="/archive" className="link-underline" style={{ color: "var(--accent)" }}>
             Read past issues first
           </Link>
           .
         </p>
 
         {state === "done" ? (
-          <p className="mono text-[length:var(--fs-input)] mt-4" style={{ color: "var(--accent)" }} role="status">
+          <p className="mono text-m1 mt-4" style={{ color: "var(--accent)" }} role="status">
             You are on the list. A welcome note is on its way.
           </p>
         ) : (
@@ -97,14 +97,14 @@ export function Newsletter() {
               disabled={state === "busy"}
               placeholder="you@example.com"
               autoComplete="email"
-              className="mono text-[length:var(--fs-input)] flex-1 min-w-0 px-3 min-h-[44px]"
-              style={{ background: "var(--surface)", border: "1px solid var(--hair-strong)", color: "var(--c-text)" }}
+              className="mono text-m1 flex-1 min-w-0 px-3 min-h-[44px]"
+              style={{ background: "var(--ink-2)", border: "1px solid var(--rule-3)", color: "var(--text-hi)" }}
             />
             <button
               type="submit"
               disabled={state === "busy"}
-              className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em] px-4 min-h-[44px] shrink-0"
-              style={{ border: "1px solid var(--hair-strong)", background: "var(--surface-2)", color: "var(--c-text)" }}
+              className="mono text-m2 uppercase tracking-[0.08em] px-4 min-h-[44px] shrink-0"
+              style={{ border: "1px solid var(--rule-3)", background: "var(--ink-3)", color: "var(--text-hi)" }}
             >
               {state === "busy" ? "…" : "subscribe"}
             </button>
@@ -115,12 +115,12 @@ export function Newsletter() {
         )}
 
         {state === "error" && (
-          <p className="mono text-[length:var(--fs-label)] mt-2" style={{ color: "var(--warn)" }} role="alert">
+          <p className="mono text-m2 mt-2" style={{ color: "var(--warn)" }} role="alert">
             {message}
           </p>
         )}
 
-        <p className="mono text-t3 mt-3 leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+        <p className="mono text-t3 mt-3 leading-relaxed" style={{ color: "var(--text-mid)" }}>
           Unsubscribe from any email, in one click. Your address is stored to send this and nothing
           else, and is never passed on.
         </p>

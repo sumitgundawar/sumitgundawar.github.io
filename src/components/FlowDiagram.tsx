@@ -236,8 +236,8 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
         ref={frameRef}
         className="relative overflow-x-auto rounded-lg border"
         style={{
-          borderColor: "var(--hair)",
-          background: "var(--diagram-bg)",
+          borderColor: "var(--rule-2)",
+          background: "var(--plate)",
           ...(full ? { display: "flex", alignItems: "center", height: "100%" } : null),
         }}
       >
@@ -246,34 +246,34 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
           <div
             className="absolute left-2 bottom-2 z-10 max-w-[min(30em,calc(100%-1rem))] p-3.5"
             style={{
-              background: "var(--surface)",
-              border: "1px solid var(--hair-strong)",
+              background: "var(--ink-2)",
+              border: "1px solid var(--rule-3)",
               boxShadow: "0 8px 28px rgba(0,0,0,0.45)",
             }}
             role="status"
           >
             <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-[length:var(--fs-item)] font-medium" style={{ color: "var(--c-text)" }}>
+              <span className="text-t1 font-medium" style={{ color: "var(--text-hi)" }}>
                 {hoveredNode.label}
               </span>
               {hoveredNode.sub && (
-                <span className="mono text-[length:var(--fs-label)]" style={{ color: "var(--cool)" }}>
+                <span className="mono text-m2" style={{ color: "var(--accent)" }}>
                   {hoveredNode.sub}
                 </span>
               )}
-              <span className="mono text-[length:var(--fs-micro)] uppercase tracking-[0.08em] ml-auto" style={{ color: "var(--c-text-dim)" }}>
+              <span className="mono text-m3 uppercase tracking-[0.08em] ml-auto" style={{ color: "var(--text-mid)" }}>
                 {KIND_LABEL[hoveredNode.kind ?? "service"]}
               </span>
             </div>
-            <p className="text-[length:var(--fs-body)] leading-relaxed mt-2" style={{ color: "var(--c-text-dim)" }}>
+            <p className="text-t2 leading-relaxed mt-2" style={{ color: "var(--text-mid)" }}>
               {hoveredNode.why}
             </p>
             {hoveredNode.setup && (
               <>
-                <div className="mono text-[length:var(--fs-micro)] uppercase tracking-[0.09em] mt-3 mb-1" style={{ color: "var(--accent)" }}>
+                <div className="mono text-m3 uppercase tracking-[0.09em] mt-3 mb-1" style={{ color: "var(--accent)" }}>
                   running it
                 </div>
-                <p className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+                <p className="text-t2 leading-relaxed" style={{ color: "var(--text-mid)" }}>
                   {hoveredNode.setup}
                 </p>
               </>
@@ -287,10 +287,10 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
           aria-label={full ? "Leave full screen" : "View full screen"}
           className="absolute top-2 right-2 z-10 mono uppercase tracking-[0.08em] px-2.5 min-h-[44px] inline-flex items-center gap-2"
           style={{
-            fontSize: "var(--fs-micro)",
-            color: "var(--c-text)",
-            background: "var(--surface)",
-            border: "1px solid var(--hair-strong)",
+            fontSize: "var(--m3)",
+            color: "var(--text-hi)",
+            background: "var(--ink-2)",
+            border: "1px solid var(--rule-3)",
           }}
         >
           {full ? "exit" : "full screen"}
@@ -313,7 +313,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
               markerHeight="6"
               orient="auto-start-reverse"
             >
-              <path d="M 0 1 L 8 4 L 0 7 z" fill="var(--c-text-dim)" />
+              <path d="M 0 1 L 8 4 L 0 7 z" fill="var(--text-mid)" />
             </marker>
           </defs>
 
@@ -335,14 +335,14 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                   className="edge-path"
                   d={d}
                   fill="none"
-                  stroke="var(--c-text-dim)"
+                  stroke="var(--text-mid)"
                   strokeWidth={1.25}
                   strokeDasharray={e.async ? "5 4" : undefined}
                   markerEnd={`url(#arrow-${id})`}
                   opacity={0.5}
                 />
 
-                {!reducedMotion && <circle r={3.2} fill={e.async ? "var(--accent-2)" : "var(--accent)"}>
+                {!reducedMotion && <circle r={3.2} fill={e.async ? "var(--accent)" : "var(--accent)"}>
                   <animateMotion
                     dur={e.async ? "3.4s" : "2.2s"}
                     begin={`${(i % 5) * 0.45}s`}
@@ -371,13 +371,13 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                       width={labelW}
                       height={16}
                       rx={3}
-                      fill="var(--diagram-bg)"
+                      fill="var(--plate)"
                     />
                     <text
                       x={mid[0]}
                       y={mid[1] + 3.5}
                       fontSize={10.5}
-                      fill="var(--c-text-dim)"
+                      fill="var(--text-mid)"
                       textAnchor="middle"
                       className="mono"
                     >
@@ -466,8 +466,8 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
         </svg>
       </div>
 
-      <figcaption className="mt-2.5 text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mono text-[length:var(--fs-label)] mb-2">
+      <figcaption className="mt-2.5 text-m2" style={{ color: "var(--text-mid)" }}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mono text-m2 mb-2">
           {([...new Set(diagram.columns.flat().map((n) => n.kind ?? "service"))] as NodeKind[]).map(
             (k) => (
               <span key={k} className="inline-flex items-center gap-1.5">
@@ -495,7 +495,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
         </div>
         <span>{diagram.caption}</span>
         {hoveredNode && !hoveredNode.why && (
-          <span className="mono text-[length:var(--fs-label)] ml-3" style={{ color: "var(--accent)" }}>
+          <span className="mono text-m2 ml-3" style={{ color: "var(--accent)" }}>
             {hoveredNode.label}
             {hoveredNode.sub ? ` · ${hoveredNode.sub}` : ""} · {KIND_LABEL[hoveredNode.kind ?? "service"]}
           </span>

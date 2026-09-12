@@ -1,5 +1,5 @@
 import { usePageMeta } from "@/lib/hooks";
-import { Masthead, SiteFooter } from "./primitives";
+import { Masthead, PageHeader, SiteFooter } from "./primitives";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { NewsletterPrompt } from "./NewsletterPrompt";
@@ -88,29 +88,29 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
   return (
     <div
       className="rounded-lg border p-4 sm:p-5"
-      style={{ borderColor: "var(--hair-strong)", background: "var(--surface)" }}
+      style={{ borderColor: "var(--rule-3)", background: "var(--ink-2)" }}
     >
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
         <div className="flex items-baseline gap-2.5 flex-wrap">
-          <span className="text-[length:var(--fs-item)] font-medium" style={{ color: "var(--c-text)" }}>
+          <span className="text-t1 font-medium" style={{ color: "var(--text-hi)" }}>
             {rec.name}
           </span>
-          <span className="mono text-[length:var(--fs-label)]" style={{ color: "var(--accent)" }}>
+          <span className="mono text-m2" style={{ color: "var(--accent)" }}>
             {rec.pick}
           </span>
         </div>
         {rec.optional && (
-          <span className="mono text-[length:var(--fs-label)] uppercase tracking-wide" style={{ color: "var(--lv-intermediate)" }}>
+          <span className="mono text-m2 uppercase tracking-wide" style={{ color: "var(--warn)" }}>
             add when needed
           </span>
         )}
       </div>
 
-      <p className="mt-2.5 text-[length:var(--fs-body)] leading-[1.6]" style={{ color: "var(--c-text-dim)" }}>
+      <p className="mt-2.5 text-t2 leading-[1.6]" style={{ color: "var(--text-mid)" }}>
         {rec.why}
       </p>
 
-      <p className="mt-2 text-[length:var(--fs-body)] leading-relaxed mono" style={{ color: "var(--c-text-dim)", opacity: 0.85 }}>
+      <p className="mt-2 text-t2 leading-relaxed mono" style={{ color: "var(--text-mid)", opacity: 0.85 }}>
         {rec.where}
       </p>
 
@@ -119,8 +119,8 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
           setShowAlts((s) => !s);
           if (!showAlts) track("build_alternatives", { component: rec.id });
         }}
-        className="mono text-[length:var(--fs-label)] mt-3 link-underline"
-        style={{ color: "var(--accent-2)" }}
+        className="mono text-m2 mt-3 link-underline"
+        style={{ color: "var(--accent)" }}
       >
         {showAlts ? "hide alternatives" : `switch this · ${rec.alternatives.length} alternatives`}
       </button>
@@ -128,11 +128,11 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
       {showAlts && (
         <div className="mt-3 flex flex-col gap-2.5">
           {rec.alternatives.map((alt) => (
-            <div key={alt.name} className="border-l-2 pl-3" style={{ borderColor: "var(--hair)" }}>
-              <div className="text-[length:var(--fs-body)] font-medium" style={{ color: "var(--c-text)" }}>
+            <div key={alt.name} className="border-l-2 pl-3" style={{ borderColor: "var(--rule-2)" }}>
+              <div className="text-t2 font-medium" style={{ color: "var(--text-hi)" }}>
                 {alt.name}
               </div>
-              <div className="text-[length:var(--fs-body)] leading-relaxed" style={{ color: "var(--c-text-dim)" }}>
+              <div className="text-t2 leading-relaxed" style={{ color: "var(--text-mid)" }}>
                 {alt.when}
               </div>
             </div>
@@ -297,24 +297,17 @@ export function BuildPage() {
     <>
       <Masthead />
       <main id="content" className="min-h-[100dvh]">
-      <div className="shell py-8 lg:py-12">
+      <div className="shell pb-96">
 
-        <h1
-          className="mt-7 font-semibold leading-[1.05] tracking-[-0.02em]"
-          style={{ fontSize: "var(--fs-page)", color: "var(--c-text)" }}
-        >
-          Build a system
-        </h1>
-        <p className="mt-3.5 text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
-          A short interview, then an architecture sized to what you are actually building. The questions
-          adapt to your answers, so it asks what still matters and skips what you have already settled.
-          Every component comes with why it is there, what it costs, and what you would use instead.
-        </p>
+        <PageHeader
+          title="Build a system"
+          standfirst="A short interview, then an architecture sized to what you are actually building. The questions adapt to your answers, so it asks what still matters and skips what you have already settled. Every component comes with why it is there, what it costs, and what you would use instead, because a recommendation with no visible alternatives reads as a verdict rather than a choice."
+        />
 
         {thinking && (
           <div className="mt-10 flex items-center gap-3" aria-live="polite">
             <span className="build-pulse" aria-hidden />
-            <span className="mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
+            <span className="mono text-m2" style={{ color: "var(--text-mid)" }}>
               working out what to ask next
             </span>
           </div>
@@ -322,61 +315,69 @@ export function BuildPage() {
 
         {q && (
           <>
-            <div className="mt-8 flex items-center gap-3">
-              <div className="h-[4px] flex-1 rounded-full overflow-hidden" style={{ background: "var(--hair-strong)" }}>
+            <div
+              className="sticky z-40 py-16 -mx-[var(--pad)] px-[var(--pad)] border-b border-rule-2"
+              style={{ top: "var(--masthead)", background: "var(--ink)" }}
+            >
+            <div className="flex items-center gap-16 measure-46">
+              <div
+                role="progressbar"
+                aria-valuenow={answeredCount}
+                aria-valuemin={0}
+                aria-valuemax={questions.length}
+                className="h-4 flex-1"
+                style={{ background: "var(--rule-2)" }}
+              >
                 <div
-                  className="h-full rounded-full transition-all duration-300"
+                  className="h-full transition-all duration-300"
                   style={{ width: `${(answeredCount / questions.length) * 100}%`, background: "var(--accent)" }}
                 />
               </div>
-              <span className="mono text-[length:var(--fs-label)] tnum shrink-0" style={{ color: "var(--c-text-dim)" }}>
+              <span className="mono text-m2 tnum shrink-0 text-text-lo">
                 {answeredCount + 1} / {questions.length}
               </span>
+            </div>
             </div>
 
             <div className="mt-8">
               {note?.reason && (
-                <p className="text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
-                  <span className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em]" style={{ color: "var(--accent-2)" }}>
+                <p className="text-t2 leading-relaxed max-w-[34em]" style={{ color: "var(--text-mid)" }}>
+                  <span className="eyebrow" style={{ color: "var(--accent)" }}>
                     why this one{" "}
                   </span>
                   {note.reason}
                 </p>
               )}
-              <h2 className="mt-2 text-[length:var(--fs-item)] sm:text-[length:var(--fs-item)] font-semibold tracking-[-0.01em]" style={{ color: "var(--c-text)" }}>
-                {q.prompt}
-              </h2>
+              <h2 className="mt-12 measure-46">{q.prompt}</h2>
               {q.help && (
-                <p className="mt-2.5 text-[length:var(--fs-body)] leading-relaxed max-w-[32em]" style={{ color: "var(--c-text-dim)" }}>
+                <p className="mt-2.5 text-t2 leading-relaxed max-w-[32em]" style={{ color: "var(--text-mid)" }}>
                   {q.help}
                 </p>
               )}
 
-              <div className="mt-5 flex flex-col gap-2.5 max-w-[36em]">
-                {q.options.map((o) => (
+              <div className="mt-32 flex flex-col gap-12 measure-46">
+                {q.options.map((o, i) => (
                   <button
                     key={o.id}
                     onClick={() => choose(q.id, o.id)}
-                    className="text-left rounded-lg border px-4 py-3.5 transition-transform hover:-translate-y-0.5"
-                    style={{ borderColor: "var(--hair-strong)", background: "var(--surface)" }}
+                    className="press text-left border border-rule-3 px-16 py-16 min-h-[56px] grid grid-cols-[24px_minmax(0,1fr)] gap-12 transition-colors duration-[120ms] hover:bg-ink-1"
                   >
-                    <div className="text-[length:var(--fs-body)]" style={{ color: "var(--c-text)" }}>
-                      {o.label}
-                    </div>
-                    {o.hint && (
-                      <div className="text-[length:var(--fs-body)] mt-0.5" style={{ color: "var(--c-text-dim)" }}>
-                        {o.hint}
-                      </div>
-                    )}
+                    <span className="mono text-m3 text-text-lo pt-4">
+                      {String.fromCharCode(65 + i)}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-t2 text-text-hi">{o.label}</span>
+                      {o.hint && <span className="block text-t3 text-text-lo mt-4">{o.hint}</span>}
+                    </span>
                   </button>
                 ))}
               </div>
 
               {Object.keys(inferred).length > 0 && (
-                <p className="mt-4 text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+                <p className="mt-4 text-t2 leading-relaxed max-w-[34em]" style={{ color: "var(--text-mid)" }}>
                   {Object.keys(inferred).length === 1 ? "One question was" : `${Object.keys(inferred).length} questions were`}{" "}
                   answered from what you had already said, to keep this short.{" "}
-                  <button onClick={askInferred} className="link-underline mono text-[length:var(--fs-label)]" style={{ color: "var(--accent-2)" }}>
+                  <button onClick={askInferred} className="link-underline mono text-m2" style={{ color: "var(--accent)" }}>
                     ask me those as well
                   </button>
                 </p>
@@ -386,16 +387,14 @@ export function BuildPage() {
                 {history.length > 0 && (
                   <button
                     onClick={back}
-                    className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"
-                    style={{ color: "var(--c-text-dim)" }}
+                    className="mono text-m2 text-accent link-underline inline-flex items-center min-h-[44px]"
                   >
                     ← back
                   </button>
                 )}
                 <button
                   onClick={() => choose(q.id, q.skipDefault, true)}
-                  className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"
-                  style={{ color: "var(--c-text-dim)" }}
+                  className="mono text-m2 text-accent link-underline inline-flex items-center min-h-[44px]"
                 >
                   skip, assume a sensible default
                 </button>
@@ -409,21 +408,20 @@ export function BuildPage() {
             <div className="flex items-center gap-4 flex-wrap">
               <button
                 onClick={back}
-                className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]"
-                style={{ color: "var(--c-text-dim)" }}
+                className="mono text-m2 text-accent link-underline inline-flex items-center min-h-[44px]"
               >
                 ← change last answer
               </button>
-              <button onClick={restart} className="mono text-[length:var(--fs-label)] link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--c-text-dim)" }}>
+              <button onClick={restart} className="mono text-m2 link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--text-mid)" }}>
                 start again
               </button>
               <button
                 onClick={copyLink}
-                className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em] px-3 min-h-[44px] inline-flex items-center"
+                className="mono text-m2 uppercase tracking-[0.08em] px-3 min-h-[44px] inline-flex items-center"
                 style={{
-                  border: "1px solid var(--hair-strong)",
-                  background: "var(--surface-2)",
-                  color: copied ? "var(--accent)" : "var(--c-text)",
+                  border: "1px solid var(--rule-3)",
+                  background: "var(--ink-3)",
+                  color: copied ? "var(--accent)" : "var(--text-hi)",
                 }}
               >
                 {copied ? "link copied" : "copy link"}
@@ -435,10 +433,10 @@ export function BuildPage() {
               line="If this was useful, I write about the decisions behind architectures like this one: what broke in production and what the fix cost. Sent when there is something worth sending."
             />
 
-            <p className="mt-6 text-[length:var(--fs-body)] leading-relaxed max-w-[35em]" style={{ color: "var(--c-text)" }}>
+            <p className="mt-6 text-t2 leading-relaxed max-w-[35em]" style={{ color: "var(--text-hi)" }}>
               {headline(answers)}
             </p>
-            <p className="mt-2.5 mono text-[length:var(--fs-body)]" style={{ color: "var(--accent)" }}>
+            <p className="mt-2.5 mono text-t2" style={{ color: "var(--accent)" }}>
               {costBand(answers)}
             </p>
 
@@ -450,7 +448,7 @@ export function BuildPage() {
               ))}
             </div>
 
-            <p className="mt-8 text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+            <p className="mt-8 text-t2 leading-relaxed max-w-[34em]" style={{ color: "var(--text-mid)" }}>
               Anything marked add when needed is deliberately not part of the first build. Add it when you
               have measured that you need it, not before, every component you skip is one you do not have
               to operate, secure or pay for.

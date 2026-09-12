@@ -23,11 +23,11 @@ export function DiagramViews({ diagram, id }: { diagram: Diagram; id: string }) 
                 trackClick("diagram_view", { view: v, diagram: id });
               }}
               aria-pressed={on}
-              className="mono text-[length:var(--fs-micro)] uppercase tracking-[0.08em] px-2.5 min-h-[44px] inline-flex items-center"
+              className="mono text-m3 uppercase tracking-[0.08em] px-2.5 min-h-[44px] inline-flex items-center"
               style={{
-                background: on ? "var(--surface-2)" : "transparent",
-                border: `1px solid ${on ? "var(--hair-strong)" : "var(--hair)"}`,
-                color: on ? "var(--c-text)" : "var(--c-text-dim)",
+                background: on ? "var(--ink-3)" : "transparent",
+                border: `1px solid ${on ? "var(--rule-3)" : "var(--rule-2)"}`,
+                color: on ? "var(--text-hi)" : "var(--text-mid)",
               }}
             >
               {v === "flow" ? "flow" : "3D layers"}

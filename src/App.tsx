@@ -48,7 +48,7 @@ function SkipLink() {
     <a
       href="#content"
       className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-3 mono text-[13px]"
-      style={{ background: "var(--surface-2)", color: "var(--c-text)", border: "1px solid var(--hair-strong)" }}
+      style={{ background: "var(--ink-3)", color: "var(--text-hi)", border: "1px solid var(--rule-3)" }}
     >
       Skip to content
     </a>

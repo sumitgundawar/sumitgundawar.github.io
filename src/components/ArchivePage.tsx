@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Masthead, SiteFooter } from "./primitives";
+import { IndexItem, Masthead, SiteFooter } from "./primitives";
 import { Link, useParams } from "react-router-dom";
 import { usePageDwell, usePageMeta } from "@/lib/hooks";
 import { API, listIssues, readIssue, type Issue, type IssueSummary } from "@/lib/api";
@@ -52,7 +52,7 @@ function IssueView({ slug }: { slug: string }) {
 
   if (state === "loading") {
     return (
-      <p className="mt-10 mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
+      <p className="mt-10 mono text-m2" style={{ color: "var(--text-mid)" }}>
         loading
       </p>
     );
@@ -61,10 +61,10 @@ function IssueView({ slug }: { slug: string }) {
   if (state === "missing" || !issue) {
     return (
       <div className="mt-10">
-        <p className="text-[length:var(--fs-body)]" style={{ color: "var(--c-text)" }}>
+        <p className="text-t2" style={{ color: "var(--text-hi)" }}>
           No issue with that address.
         </p>
-        <Link to="/archive" className="mt-3 inline-flex mono text-[length:var(--fs-label)] link-underline" style={{ color: "var(--accent-2)" }}>
+        <Link to="/archive" className="mt-3 inline-flex mono text-m2 link-underline" style={{ color: "var(--accent)" }}>
           see every issue
         </Link>
       </div>
@@ -72,17 +72,17 @@ function IssueView({ slug }: { slug: string }) {
   }
 
   return (
-    <article className="mt-9 max-w-[38em]">
-      <p className="mono text-[length:var(--fs-label)] uppercase tracking-[0.08em]" style={{ color: "var(--accent-2)" }}>
+    <article className="mt-48 measure">
+      <p className="mono text-m2 uppercase tracking-[0.08em]" style={{ color: "var(--accent)" }}>
         {formatDate(issue.sent_at)}
       </p>
-      <h1 className="mt-3 font-semibold leading-[1.1] tracking-[-0.02em]" style={{ fontSize: "var(--fs-page)", color: "var(--c-text)" }}>
+      <h1 className="text-d2 mt-12 measure">
         {issue.subject}
       </h1>
 
       <div className="mt-7 flex flex-col gap-4">
         {readable(issue).map((p, i) => (
-          <p key={i} className="text-[length:var(--fs-body)] leading-[1.7]" style={{ color: "var(--c-text)" }}>
+          <p key={i} className="text-t2 leading-[1.7]" style={{ color: "var(--text-hi)" }}>
             {p}
           </p>
         ))}
@@ -90,8 +90,8 @@ function IssueView({ slug }: { slug: string }) {
 
       <a
         href={`${API}/api/newsletter/${encodeURIComponent(issue.slug)}?format=html`}
-        className="mt-7 inline-flex mono text-[length:var(--fs-label)] link-underline"
-        style={{ color: "var(--c-text-dim)" }}
+        className="mt-7 inline-flex mono text-m2 link-underline"
+        style={{ color: "var(--text-mid)" }}
       >
         view the email as it was sent
       </a>
@@ -119,45 +119,41 @@ function IssueList() {
 
   return (
     <>
-      <h1 className="mt-6 font-semibold tracking-[-0.02em]" style={{ fontSize: "var(--fs-page)", color: "var(--c-text)" }}>
+      <h1 className="text-d2 mt-24 measure">
         Newsletter archive
       </h1>
-      <p className="mt-3 text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+      <p className="mt-3 text-t2 leading-relaxed max-w-[34em]" style={{ color: "var(--text-mid)" }}>
         Every issue, in full, without subscribing. If you want to know what arrives before you hand
         over an address, this is the honest version of that answer.
       </p>
 
       {issues === null && (
-        <p className="mt-8 mono text-[length:var(--fs-label)]" style={{ color: "var(--c-text-dim)" }}>
+        <p className="mt-8 mono text-m2" style={{ color: "var(--text-mid)" }}>
           loading
         </p>
       )}
 
       {issues?.length === 0 && (
-        <p className="mt-8 text-[length:var(--fs-body)] leading-relaxed max-w-[34em]" style={{ color: "var(--c-text-dim)" }}>
+        <p className="mt-8 text-t2 leading-relaxed max-w-[34em]" style={{ color: "var(--text-mid)" }}>
           Nothing sent yet. The first issue will appear here the day it goes out, which is also the
           reason there is no schedule attached to it.
         </p>
       )}
 
       {issues && issues.length > 0 && (
-        <ul className="mt-8 flex flex-col">
+        <div className="mt-32">
           {issues.map((issue) => (
-            <li key={issue.slug} className="border-t py-4" style={{ borderColor: "var(--hair)" }}>
-              <Link to={`/archive/${issue.slug}`} className="group flex flex-col gap-1">
-                <span className="mono text-[length:var(--fs-label)] tnum" style={{ color: "var(--c-text-dim)" }}>
-                  {formatDate(issue.sent_at)}
-                </span>
-                <span className="text-[length:var(--fs-item)] link-underline" style={{ color: "var(--c-text)" }}>
-                  {issue.subject}
-                </span>
-              </Link>
-            </li>
+            <IndexItem
+              key={issue.slug}
+              kicker={formatDate(issue.sent_at)}
+              title={issue.subject}
+              to={`/archive/${issue.slug}`}
+            />
           ))}
-        </ul>
+        </div>
       )}
 
-      <div className="mt-12 max-w-[34em]">
+      <div className="mt-64 measure-46">
         <Newsletter />
       </div>
     </>

@@ -72,6 +72,62 @@ export function Masthead() {
   );
 }
 
+export function PageHeader({
+  title,
+  standfirst,
+  children,
+}: {
+  title: string;
+  standfirst?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="pt-48 md:pt-64 pb-48">
+      <h1 className="text-d2 measure">{title}</h1>
+      {standfirst && <p className="text-t2 text-text-mid mt-24 measure">{standfirst}</p>}
+      {children && <div className="mt-24">{children}</div>}
+    </div>
+  );
+}
+
+export function FilterBar({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { id: string; label: string }[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="sticky z-40 flex flex-wrap border-b border-rule-2 -mx-[var(--pad)] px-[var(--pad)]"
+      style={{ top: "var(--masthead)", background: "var(--ink-2)" }}
+    >
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          aria-pressed={value === o.id}
+          onClick={() => onChange(o.id)}
+          className={cn(
+            "mono text-m2 px-16 min-h-[44px] inline-flex items-center border-b-2 transition-colors duration-[120ms]",
+            value === o.id
+              ? "text-text-hi border-accent"
+              : "text-text-lo border-transparent hover:text-text-hi",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Spine({
   n,
   id,
@@ -218,12 +274,16 @@ export function IndexItem({
   meta?: ReactNode;
 }) {
   const body = (
-    <>
-      {kicker && <div className="eyebrow mb-8">{kicker}</div>}
-      <h3 className="link-underline inline">{title}</h3>
-      {summary && <p className="text-t3 text-text-mid mt-12 measure-46">{summary}</p>}
-      {meta && <div className="mono text-m2 text-text-lo mt-12">{meta}</div>}
-    </>
+    <span className="xl:grid xl:grid-cols-[minmax(0,1fr)_164px] xl:gap-40 xl:items-baseline">
+      <span className="block min-w-0">
+        {kicker && <span className="eyebrow block mb-8">{kicker}</span>}
+        <h3 className="link-underline inline">{title}</h3>
+        {summary && <span className="block text-t3 text-text-mid mt-12 measure-46">{summary}</span>}
+      </span>
+      {meta && (
+        <span className="block mono text-m2 text-text-lo mt-12 xl:mt-0 xl:text-right">{meta}</span>
+      )}
+    </span>
   );
   const shell =
     "group block py-24 border-t border-rule-2 first:border-t-0 first:pt-0 transition-colors duration-[120ms] hover:bg-ink-1";

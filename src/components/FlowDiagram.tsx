@@ -39,11 +39,40 @@ function fit(text: string, emPerChar: number, px: number, maxWidth: number): str
   return text.length <= max ? text : text.slice(0, Math.max(1, max - 1)) + "…";
 }
 
+const EDGE_LABEL_PX = 10.5;
+const EDGE_CHAR = 5.6;
+
+function wrapLabel(text: string, maxWidth: number, maxLines: number): string[] {
+  const perLine = Math.max(6, Math.floor(maxWidth / EDGE_CHAR));
+  if (text.length <= perLine) return [text];
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    const next = line ? `${line} ${word}` : word;
+    if (next.length <= perLine) {
+      line = next;
+      continue;
+    }
+    if (line) lines.push(line);
+    line = word;
+    if (lines.length === maxLines) break;
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  if (lines.length > maxLines) lines.length = maxLines;
+  const last = lines[lines.length - 1];
+  const used = lines.join(" ").length;
+  if (used < text.length) {
+    lines[lines.length - 1] = `${last.slice(0, Math.max(1, perLine - 1))}\u2026`;
+  }
+  return lines;
+}
+
 const W = 168;
 
 const H = 74;
-const GAP_X = 132;
+const GAP_X = 176;
 const GAP_Y = 34;
+const GAP_Y_NARROW = 92;
 const PAD = 18;
 const DEPTH = 3;
 
@@ -116,7 +145,9 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
           ...node,
           col: ci,
           x: narrow ? PAD : PAD + ci * (W + GAP_X),
-          y: narrow ? PAD + ci * (H + GAP_Y) : PAD + offset + ri * (H + GAP_Y),
+          y: narrow
+            ? PAD + ci * (H + GAP_Y_NARROW)
+            : PAD + offset + ri * (H + GAP_Y),
         });
       });
     });
@@ -131,7 +162,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
       const b = colOf(e.to);
       if (a === undefined || b === undefined) return;
       if (b - a > 1) above = 72;
-      if (b < a || b === a) below = 82;
+      if (b < a || b === a) below = 124;
     });
 
     return {
@@ -141,97 +172,195 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
       ),
       width: narrow ? PAD * 2 + W : PAD * 2 + cols.length * W + (cols.length - 1) * GAP_X,
       height: narrow
-        ? PAD * 2 + cols.length * H + (cols.length - 1) * GAP_Y + DEPTH
+        ? PAD * 2 + cols.length * H + (cols.length - 1) * GAP_Y_NARROW + DEPTH
         : PAD * 2 + full + DEPTH + above + below,
     };
   }, [diagram, narrow]);
 
-  const bezierMid = (
-    p0: [number, number],
-    p1: [number, number],
-    p2: [number, number],
-    p3: [number, number],
-  ): [number, number] => [
-    (p0[0] + 3 * p1[0] + 3 * p2[0] + p3[0]) / 8,
-    (p0[1] + 3 * p1[1] + 3 * p2[1] + p3[1]) / 8,
-  ];
+  const routed = useMemo(() => {
+    const bezierMid = (
+      p0: [number, number],
+      p1: [number, number],
+      p2: [number, number],
+      p3: [number, number],
+    ): [number, number] => [
+      (p0[0] + 3 * p1[0] + 3 * p2[0] + p3[0]) / 8,
+      (p0[1] + 3 * p1[1] + 3 * p2[1] + p3[1]) / 8,
+    ];
 
-  const route = (from: Placed, to: Placed, laneOffset: number) => {
-    const fy = from.y + H / 2;
-    const ty = to.y + H / 2;
+    const route = (from: Placed, to: Placed, laneOffset: number) => {
+      const fy = from.y + H / 2;
+      const ty = to.y + H / 2;
 
-    if (narrow) {
-      const x = from.x + W / 2;
-      const bow = x + 26 + laneOffset;
-      const p0: [number, number] = [x, from.y + H];
-      const p3: [number, number] = [to.x + W / 2, to.y];
-      const p1: [number, number] = [bow, p0[1] + 18];
-      const p2: [number, number] = [bow, p3[1] - 18];
+      if (narrow) {
+        const x = from.x + W / 2;
+        const bow = x + 26 + laneOffset;
+        const p0: [number, number] = [x, from.y + H];
+        const p3: [number, number] = [to.x + W / 2, to.y];
+        const p1: [number, number] = [bow, p0[1] + 18];
+        const p2: [number, number] = [bow, p3[1] - 18];
+        const down = p3[1] > p0[1];
+        const slot: [number, number] = down
+          ? [x, from.y + H + GAP_Y_NARROW / 2]
+          : [x, from.y - GAP_Y_NARROW / 2];
+        return {
+          d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
+          mid: slot,
+          room: W - 20,
+        };
+      }
+
+      if (to.col === from.col) {
+        const x = from.x + W;
+        const bulge = x + 46 + laneOffset;
+        const p0: [number, number] = [x, fy];
+        const p3: [number, number] = [x, ty];
+        const p1: [number, number] = [bulge, fy];
+        const p2: [number, number] = [bulge, ty];
+        return {
+          d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
+          mid: bezierMid(p0, p1, p2, p3),
+          room: W + GAP_X,
+        };
+      }
+
+      if (to.col < from.col) {
+        const x1 = from.x + W / 2;
+        const x2 = to.x + W / 2;
+
+        const between = placed.filter((n) => n.col > to.col && n.col < from.col);
+        const bottom = Math.max(from.y, to.y, ...between.map((n) => n.y));
+        const dip = bottom + H + 30 + laneOffset;
+        const p0: [number, number] = [x1, from.y + H];
+        const p3: [number, number] = [x2, to.y + H];
+        const p1: [number, number] = [x1, dip];
+        const p2: [number, number] = [x2, dip];
+        return {
+          d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
+          mid: bezierMid(p0, p1, p2, p3),
+          room: W + GAP_X,
+        };
+      }
+
+      const p0: [number, number] = [from.x + W, fy];
+      const p3: [number, number] = [to.x, ty];
+
+      if (to.col - from.col > 1) {
+        const skipped = placed.filter((n) => n.col > from.col && n.col < to.col);
+        const top = Math.min(from.y, to.y, ...skipped.map((n) => n.y));
+        const lift = top - 26 - laneOffset;
+        const p1: [number, number] = [p0[0] + 60, lift];
+        const p2: [number, number] = [p3[0] - 60, lift];
+        return {
+          d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
+          mid: bezierMid(p0, p1, p2, p3),
+          room: W + GAP_X,
+        };
+      }
+
+      const mx = (p0[0] + p3[0]) / 2;
+      const p1: [number, number] = [mx, p0[1]];
+      const p2: [number, number] = [mx, p3[1]];
       return {
         d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
         mid: bezierMid(p0, p1, p2, p3),
+        room: GAP_X - 24,
       };
-    }
-
-    if (to.col === from.col) {
-      const x = from.x + W;
-      const bulge = x + 46 + laneOffset;
-      const p0: [number, number] = [x, fy];
-      const p3: [number, number] = [x, ty];
-      const p1: [number, number] = [bulge, fy];
-      const p2: [number, number] = [bulge, ty];
-      return {
-        d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
-        mid: bezierMid(p0, p1, p2, p3),
-      };
-    }
-
-    if (to.col < from.col) {
-      const x1 = from.x + W / 2;
-      const x2 = to.x + W / 2;
-
-      const between = placed.filter((n) => n.col > to.col && n.col < from.col);
-      const bottom = Math.max(from.y, to.y, ...between.map((n) => n.y));
-      const dip = bottom + H + 30 + laneOffset;
-      const p0: [number, number] = [x1, from.y + H];
-      const p3: [number, number] = [x2, to.y + H];
-      const p1: [number, number] = [x1, dip];
-      const p2: [number, number] = [x2, dip];
-      return {
-        d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
-        mid: bezierMid(p0, p1, p2, p3),
-      };
-    }
-
-    const p0: [number, number] = [from.x + W, fy];
-    const p3: [number, number] = [to.x, ty];
-
-    if (to.col - from.col > 1) {
-      const skipped = placed.filter((n) => n.col > from.col && n.col < to.col);
-      const top = Math.min(from.y, to.y, ...skipped.map((n) => n.y));
-      const lift = top - 26 - laneOffset;
-      const p1: [number, number] = [p0[0] + 60, lift];
-      const p2: [number, number] = [p3[0] - 60, lift];
-      return {
-        d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
-        mid: bezierMid(p0, p1, p2, p3),
-      };
-    }
-
-    const mx = (p0[0] + p3[0]) / 2;
-    const p1: [number, number] = [mx, p0[1]];
-    const p2: [number, number] = [mx, p3[1]];
-    return {
-      d: `M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]}, ${p2[0]} ${p2[1]}, ${p3[0]} ${p3[1]}`,
-      mid: bezierMid(p0, p1, p2, p3),
     };
-  };
+
+    const CLEAR = DEPTH + 5;
+    const nodeBoxes = placed.map((n) => ({
+      x: n.x - CLEAR,
+      y: n.y - CLEAR,
+      w: W + DEPTH + CLEAR * 2,
+      h: H + DEPTH + CLEAR * 2,
+    }));
+    const taken: { x: number; y: number; w: number; h: number }[] = [];
+
+    return diagram.edges.map((e, i) => {
+      const from = byId[e.from];
+      const to = byId[e.to];
+      if (!from || !to) return null;
+
+      const { d, mid: anchor, room } = route(from, to, (i % 3) * 13);
+      const lines = e.label ? wrapLabel(e.label, room, 2) : [];
+      if (!lines.length) return { d, lines, mid: anchor, labelW: 0, labelH: 0 };
+
+      const labelW = lines.reduce((w, l) => Math.max(w, l.length * EDGE_CHAR), 0) + 12;
+      const labelH = lines.length * 13 + 5;
+      const stepX = labelW / 2 + 12;
+
+      const offsets: [number, number][] = [];
+      for (let k = 0; k <= 20; k += 1) {
+        offsets.push([0, k * 8]);
+        if (k) offsets.push([0, -k * 8]);
+      }
+      for (let kx = 1; kx <= 3; kx += 1) {
+        for (let k = 0; k <= 12; k += 1) {
+          offsets.push([kx * stepX, k * 8], [-kx * stepX, k * 8]);
+          if (k) offsets.push([kx * stepX, -k * 8], [-kx * stepX, -k * 8]);
+        }
+      }
+
+      const area = (
+        a: { x: number; y: number; w: number; h: number },
+        b: { x: number; y: number; w: number; h: number },
+      ) =>
+        Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) *
+        Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+
+      let mid = anchor;
+      let best = Infinity;
+      for (const [dx, dy] of offsets) {
+        const candidate: [number, number] = [anchor[0] + dx, anchor[1] + dy];
+        const box = {
+          x: candidate[0] - labelW / 2,
+          y: candidate[1] - labelH / 2,
+          w: labelW,
+          h: labelH,
+        };
+        const cost =
+          nodeBoxes.reduce((n, b) => n + area(box, b), 0) +
+          taken.reduce((n, b) => n + area(box, b), 0);
+        if (cost < best) {
+          best = cost;
+          mid = candidate;
+        }
+        if (cost === 0) break;
+      }
+
+      taken.push({
+        x: mid[0] - labelW / 2 - 4,
+        y: mid[1] - labelH / 2 - 3,
+        w: labelW + 8,
+        h: labelH + 6,
+      });
+      return { d, lines, mid, labelW, labelH };
+    });
+  }, [diagram, byId, placed, narrow]);
 
   const hoveredNode = hovered ? byId[hovered] : null;
   const hasAlternatives = diagram.columns.some((col) => col.some((n) => n.alternative));
 
   return (
     <figure className="my-6">
+      {!full && (
+        <div className="flex justify-end mb-8">
+          <button
+            type="button"
+            onClick={toggleFull}
+            aria-label="View full screen"
+            className="mono text-m3 caps tracking-[0.08em] px-12 min-h-[44px] inline-flex items-center gap-8"
+            style={{
+              color: "var(--text-mid)",
+              background: "transparent",
+              border: "1px solid var(--rule-2)",
+            }}
+          >
+            Full screen
+          </button>
+        </div>
+      )}
       <div
         ref={frameRef}
         className="relative overflow-x-auto rounded-lg border"
@@ -244,7 +373,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
 
         {hoveredNode?.why && (
           <div
-            className="absolute left-2 bottom-2 z-10 max-w-[min(30em,calc(100%-1rem))] p-3.5"
+            className="absolute left-8 bottom-8 z-10 max-w-[min(30em,calc(100%-1rem))] p-16"
             style={{
               background: "var(--ink-2)",
               border: "1px solid var(--rule-3)",
@@ -252,7 +381,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
             }}
             role="status"
           >
-            <div className="flex items-baseline gap-2 flex-wrap">
+            <div className="flex items-baseline gap-8 flex-wrap">
               <span className="text-t1 font-medium" style={{ color: "var(--text-hi)" }}>
                 {hoveredNode.label}
               </span>
@@ -261,17 +390,17 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                   {hoveredNode.sub}
                 </span>
               )}
-              <span className="mono text-m3 uppercase tracking-[0.08em] ml-auto" style={{ color: "var(--text-mid)" }}>
+              <span className="mono text-m3 caps tracking-[0.08em] ml-auto" style={{ color: "var(--text-mid)" }}>
                 {KIND_LABEL[hoveredNode.kind ?? "service"]}
               </span>
             </div>
-            <p className="text-t2 leading-relaxed mt-2" style={{ color: "var(--text-mid)" }}>
+            <p className="text-t2 leading-relaxed mt-8" style={{ color: "var(--text-mid)" }}>
               {hoveredNode.why}
             </p>
             {hoveredNode.setup && (
               <>
-                <div className="mono text-m3 uppercase tracking-[0.09em] mt-3 mb-1" style={{ color: "var(--accent)" }}>
-                  running it
+                <div className="mono text-m3 caps tracking-[0.09em] mt-12 mb-4" style={{ color: "var(--accent)" }}>
+                  Running it
                 </div>
                 <p className="text-t2 leading-relaxed" style={{ color: "var(--text-mid)" }}>
                   {hoveredNode.setup}
@@ -281,11 +410,11 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
           </div>
         )}
 
-        <button
+        {full && <button
           type="button"
           onClick={toggleFull}
-          aria-label={full ? "Leave full screen" : "View full screen"}
-          className="absolute top-2 right-2 z-10 mono uppercase tracking-[0.08em] px-2.5 min-h-[44px] inline-flex items-center gap-2"
+          aria-label="Leave full screen"
+          className="absolute top-8 right-8 z-10 mono caps tracking-[0.08em] px-12 min-h-[44px] inline-flex items-center gap-8"
           style={{
             fontSize: "var(--m3)",
             color: "var(--text-hi)",
@@ -293,8 +422,8 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
             border: "1px solid var(--rule-3)",
           }}
         >
-          {full ? "exit" : "full screen"}
-        </button>
+          Exit
+        </button>}
         <svg
           ref={svgRef}
           viewBox={`0 0 ${width} ${height}`}
@@ -324,9 +453,9 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
             const pid = `${id}-e${i}`;
             const dim = hovered !== null && hovered !== e.from && hovered !== e.to;
 
-            const { d, mid } = route(from, to, (i % 3) * 13);
-            const label = e.label ?? "";
-            const labelW = label.length * 5.6 + 10;
+            const geom = routed[i];
+            if (!geom) return null;
+            const { d, mid, lines, labelW, labelH } = geom;
 
             return (
               <g key={pid} opacity={dim ? 0.22 : 1} style={{ transition: "opacity .18s" }}>
@@ -362,26 +491,29 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
                     repeatCount="indefinite"
                   />
                 </circle>}
-                {label && (
+                {lines.length > 0 && (
                   <g>
-
                     <rect
                       x={mid[0] - labelW / 2}
-                      y={mid[1] - 8}
+                      y={mid[1] - labelH / 2}
                       width={labelW}
-                      height={16}
+                      height={labelH}
                       rx={3}
                       fill="var(--plate)"
                     />
                     <text
                       x={mid[0]}
-                      y={mid[1] + 3.5}
-                      fontSize={10.5}
+                      y={mid[1] - labelH / 2 + 11}
+                      fontSize={EDGE_LABEL_PX}
                       fill="var(--text-mid)"
                       textAnchor="middle"
                       className="mono"
                     >
-                      {label}
+                      {lines.map((l, li) => (
+                        <tspan key={li} x={mid[0]} dy={li === 0 ? 0 : 13}>
+                          {l}
+                        </tspan>
+                      ))}
                     </text>
                   </g>
                 )}
@@ -467,7 +599,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
       </div>
 
       <figcaption className="mt-2.5 text-m2" style={{ color: "var(--text-mid)" }}>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mono text-m2 mb-2">
+        <div className="flex flex-wrap items-center gap-x-16 gap-y-8 mono text-m2 mb-8">
           {([...new Set(diagram.columns.flat().map((n) => n.kind ?? "service"))] as NodeKind[]).map(
             (k) => (
               <span key={k} className="inline-flex items-center gap-1.5">
@@ -485,11 +617,11 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
               </span>
             ),
           )}
-          <span className="opacity-80">dashed = asynchronous</span>
+          <span className="opacity-80">Dashed = asynchronous</span>
           {hasAlternatives && (
             <span className="inline-flex items-center gap-1.5" style={{ color: "var(--warn)" }}>
               <span aria-hidden style={{ width: 9, height: 9, border: "1px dashed var(--warn)" }} />
-              considered, not chosen
+              Considered, not chosen
             </span>
           )}
         </div>

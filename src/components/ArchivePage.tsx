@@ -53,7 +53,7 @@ function IssueView({ slug }: { slug: string }) {
   if (state === "loading") {
     return (
       <p className="mt-10 mono text-m2" style={{ color: "var(--text-mid)" }}>
-        loading
+        Loading
       </p>
     );
   }
@@ -65,7 +65,7 @@ function IssueView({ slug }: { slug: string }) {
           No issue with that address.
         </p>
         <Link to="/archive" className="mt-3 inline-flex mono text-m2 link-underline" style={{ color: "var(--accent)" }}>
-          see every issue
+          See every issue
         </Link>
       </div>
     );
@@ -93,7 +93,7 @@ function IssueView({ slug }: { slug: string }) {
         className="mt-7 inline-flex mono text-m2 link-underline"
         style={{ color: "var(--text-mid)" }}
       >
-        view the email as it was sent
+        View the email as it was sent
       </a>
     </article>
   );
@@ -119,22 +119,22 @@ function IssueList() {
 
   return (
     <>
-      <h1 className="text-d2 mt-24 measure">
-        Newsletter archive
-      </h1>
-      <p className="mt-3 text-t2 leading-relaxed max-w-[34em]" style={{ color: "var(--text-mid)" }}>
-        Every issue, in full, without subscribing. If you want to know what arrives before you hand
-        over an address, this is the honest version of that answer.
-      </p>
+      <div className="mt-24 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:gap-64 md:items-end">
+        <h1 className="text-d2">Newsletter archive</h1>
+        <p className="mt-12 md:mt-0 md:pb-4 text-t2" style={{ color: "var(--text-mid)" }}>
+          Every issue, in full, without subscribing. If you want to know what arrives before you
+          hand over an address, this is the honest version of that answer.
+        </p>
+      </div>
 
       {issues === null && (
         <p className="mt-8 mono text-m2" style={{ color: "var(--text-mid)" }}>
-          loading
+          Loading
         </p>
       )}
 
       {issues?.length === 0 && (
-        <p className="mt-8 text-t2 leading-relaxed max-w-[34em]" style={{ color: "var(--text-mid)" }}>
+        <p className="mt-8 text-t2 measure" style={{ color: "var(--text-mid)" }}>
           Nothing sent yet. The first issue will appear here the day it goes out, which is also the
           reason there is no schedule attached to it.
         </p>
@@ -153,7 +153,7 @@ function IssueList() {
         </div>
       )}
 
-      <div className="mt-64 measure-46">
+      <div className="mt-64 measure">
         <Newsletter />
       </div>
     </>
@@ -174,7 +174,7 @@ export function ArchivePage() {
             to="/archive"
             className="mono text-m2 text-accent link-underline inline-flex items-center min-h-[44px]"
           >
-            &#8592; every issue
+            &#8592; Every issue
           </Link>
         )}
 

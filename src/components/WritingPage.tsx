@@ -41,15 +41,17 @@ export function WritingPage() {
             onClick={() => trackClick("feed_click", {})}
             className="mono text-m2 text-accent link-underline min-h-[44px] min-w-[44px] inline-flex items-center"
           >
-            rss, no email needed
+            RSS, no email needed
           </a>
         </PageHeader>
 
         <div className="grid gap-64 md:gap-96 pb-96">
           {groups.map(({ mode, items }) => (
             <section key={mode.id}>
-              <h2 className="measure">{mode.failure}</h2>
-              <p className="text-t3 text-text-lo mt-12 measure-46">{mode.because}</p>
+              <div className="md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:gap-64 md:items-baseline">
+                <h2>{mode.failure}</h2>
+                <p className="text-t3 text-text-lo mt-12 md:mt-0">{mode.because}</p>
+              </div>
               <div className="mt-32">
                 {items.map((a) => (
                   <IndexItem
@@ -58,7 +60,7 @@ export function WritingPage() {
                     title={a.title}
                     href={a.url}
                     summary={a.summary}
-                    meta={a.framework ? `framework: ${a.framework}` : undefined}
+                    meta={a.framework ? `Framework: ${a.framework}` : undefined}
                   />
                 ))}
               </div>

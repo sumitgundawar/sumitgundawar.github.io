@@ -47,9 +47,9 @@ const serviceById = new Map(services.map((s) => [s.id, s]));
 
 function Statement() {
   return (
-    <div className="pt-48 md:pt-96 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:gap-64 md:items-end">
+    <div className="pt-48 md:pt-96 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-32 md:gap-64 sm:items-end">
       <div className="min-w-0">
-      <h1 className="measure">
+      <h1>
         <span className="eyebrow block mb-24">{identity.name}</span>
         I design systems around how they fail.
       </h1>
@@ -59,11 +59,11 @@ function Statement() {
       </p>
       <p className="text-t3 text-text-lo mt-16 measure">{identity.bio}</p>
       <div className="mt-32 flex flex-wrap items-center gap-24">
-        <PrimaryAction href={`mailto:${identity.email}`}>get in touch</PrimaryAction>
+        <PrimaryAction href={`mailto:${identity.email}`}>Get in touch</PrimaryAction>
         <StatusDot label={identity.availability} />
       </div>
       </div>
-      <div className="mt-48 md:mt-0 md:w-[300px] xl:w-[360px] shrink-0">
+      <div className="mt-48 sm:mt-0 max-w-[280px] sm:max-w-none sm:w-[232px] md:w-[300px] xl:w-[360px] shrink-0">
         <Plate n={0} bleed={false}>
           <img
             src="/sumit-gundawar.webp"
@@ -80,63 +80,84 @@ function Statement() {
   );
 }
 
+type ProofRow = {
+  kind: string;
+  source: string;
+  title: string;
+  url?: string;
+  note?: string;
+};
+
 function Proof() {
-  const rows = [
+  const rows: ProofRow[] = [
     ...podcasts.map((p) => ({
-      kicker: p.episode ? `${p.show}, ${p.episode}` : p.show,
+      kind: "Podcast",
+      source: p.episode ? `${p.show}, ${p.episode}` : p.show,
       title: p.title,
       url: p.url,
-      note: "podcast",
     })),
     ...speaking.map((t) => ({
-      kicker: t.venue,
+      kind: "Talk",
+      source: t.venue,
       title: t.title,
       url: t.url,
       note: t.when,
     })),
     ...recognition.map((r) => ({
-      kicker: r.org,
+      kind: "Recognition",
+      source: r.org,
       title: r.role,
       url: r.url,
       note: r.note ?? r.when,
     })),
     {
-      kicker: `${articles.length} articles`,
-      title: "Software Testing News, AITechTrend and Dataconomy",
+      kind: "Byline",
+      source: "Software Testing News, AITechTrend and Dataconomy",
+      title: `${articles.length} published articles`,
       url: authorPage,
-      note: "author page",
     },
   ];
+
+  const grid =
+    "sm:grid sm:grid-cols-[120px_minmax(0,1fr)] xl:grid-cols-[132px_minmax(0,1fr)_300px] sm:gap-24 md:gap-32 sm:items-baseline";
+
   return (
     <ul className="border-t border-rule-2">
-      {rows.map((row) => (
-        <li key={row.kicker + row.title} className="border-b border-rule-2">
-          {row.url ? (
-            <a
-              href={row.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block py-16 md:grid md:grid-cols-[200px_minmax(0,1fr)_auto] md:gap-24 md:items-baseline transition-colors duration-[120ms] hover:bg-ink-1"
-            >
-              <span className="eyebrow">{row.kicker}</span>
-              <span className="text-t3 text-text-hi link-underline block mt-8 md:mt-0">
-                {row.title}
-              </span>
-              <span className="mono text-m3 uppercase text-text-lo mt-8 md:mt-0 block">
-                {row.note}
-              </span>
-            </a>
-          ) : (
-            <div className="py-16 md:grid md:grid-cols-[200px_minmax(0,1fr)_auto] md:gap-24 md:items-baseline">
-              <span className="eyebrow">{row.kicker}</span>
-              <span className="text-t3 text-text-hi block mt-8 md:mt-0">{row.title}</span>
-              <span className="mono text-m3 uppercase text-text-lo mt-8 md:mt-0 block">
-                {row.note}
-              </span>
-            </div>
-          )}
-        </li>
-      ))}
+      {rows.map((row) => {
+        const inner = (
+          <>
+            <span className="mono text-m2 caps text-accent block">{row.kind}</span>
+            <span className="block min-w-0 mt-8 sm:mt-0">
+              <span className="block text-t1 text-text-hi link-underline">{row.title}</span>
+              <span className="block eyebrow mt-8">{row.source}</span>
+              {row.note && (
+                <span className="block text-t3 text-text-lo mt-8 measure-wide xl:hidden">
+                  {row.note}
+                </span>
+              )}
+            </span>
+            {row.note && (
+              <span className="hidden xl:block text-t3 text-text-lo">{row.note}</span>
+            )}
+          </>
+        );
+        return (
+          <li key={row.source + row.title} className="border-b border-rule-2">
+            {row.url ? (
+              <a
+                href={row.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`group block py-24 transition-colors duration-[120ms] hover:bg-ink-1 ${grid}`}
+              >
+                {inner}
+              </a>
+            ) : (
+              <div className={`py-24 ${grid}`}>{inner}</div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -153,24 +174,27 @@ function Mode({ mode, index }: { mode: (typeof failureModes)[number]; index: num
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="w-full text-left min-h-[44px] flex items-baseline gap-16"
+        className="w-full text-left min-h-[44px] flex items-start gap-16 group"
       >
-        <span aria-hidden className="mono text-m2 text-accent shrink-0 w-12">
-          {open ? "-" : "+"}
+        <span
+          aria-hidden
+          className="mono text-t1 leading-[28px] text-accent shrink-0 w-24 text-center"
+        >
+          {open ? "\u2212" : "+"}
         </span>
-        <h3 className="min-w-0">{mode.failure}</h3>
+        <h3 className="min-w-0 flex-1">{mode.failure}</h3>
       </button>
-      <p className="text-t3 text-text-mid mt-12 measure-46 pl-24">{mode.because}</p>
+      <p className="text-t2 text-text-mid mt-12 measure-wide md:pl-40">{mode.because}</p>
 
       {open && (
-        <div className="mt-32 pl-24 grid gap-32 md:grid-cols-2 xl:gap-48">
-          <div>
-            <Kicker>what I built against it</Kicker>
+        <div className="mt-32 md:pl-40 grid gap-32 md:grid-cols-2 xl:gap-48">
+          <div className="md:row-span-2">
+            <Kicker>What I built against it</Kicker>
             <ul className="mt-12 grid gap-16">
               {mode.built.map((b) => (
                 <li key={b.title}>
                   <div className="text-t3 text-text-hi">{b.title}</div>
-                  <p className="text-t3 text-text-mid mt-4 measure-46">{b.detail}</p>
+                  <p className="text-t3 text-text-mid mt-4">{b.detail}</p>
                   {b.url && (
                     <a
                       href={b.url}
@@ -187,9 +211,9 @@ function Mode({ mode, index }: { mode: (typeof failureModes)[number]; index: num
           </div>
 
           {incident && (
-            <div>
-              <Kicker>it has happened in public</Kicker>
-              <p className="text-t3 text-text-mid mt-12 measure-46">
+            <div className="md:col-start-2 md:row-start-1">
+              <Kicker>It has happened in public</Kicker>
+              <p className="text-t3 text-text-mid mt-12">
                 <span className="mono text-m2 tnum text-text-lo">{incident.year}</span>{" "}
                 <span className="text-text-hi">{incident.title}.</span> {incident.cause}{" "}
                 {incident.blastRadius}
@@ -198,8 +222,8 @@ function Mode({ mode, index }: { mode: (typeof failureModes)[number]; index: num
           )}
 
           {modeArticles.length > 0 && (
-            <div>
-              <Kicker>what I published on it</Kicker>
+            <div className="md:col-start-2">
+              <Kicker>What I published on it</Kicker>
               <ul className="mt-12 grid gap-12">
                 {modeArticles.map((a) => (
                   <li key={a!.id}>
@@ -211,7 +235,7 @@ function Mode({ mode, index }: { mode: (typeof failureModes)[number]; index: num
                     >
                       {a!.title}
                     </a>
-                    <span className="mono text-m3 uppercase text-text-lo ml-8">
+                    <span className="mono text-m2 text-text-lo ml-8 whitespace-nowrap">
                       {a!.publication}
                     </span>
                   </li>
@@ -226,8 +250,8 @@ function Mode({ mode, index }: { mode: (typeof failureModes)[number]; index: num
             </div>
           )}
 
-          <div className="md:col-span-2">
-            <Kicker>and what teaches it</Kicker>
+          <div className="md:col-span-2 md:col-start-1">
+            <Kicker>And what teaches it</Kicker>
             <div className="flex flex-wrap gap-8 mt-12">
               {mode.topicIds.map((id) => {
                 const card = manifest.find((c) => c.topics.some((t) => t.id === id));
@@ -237,7 +261,7 @@ function Mode({ mode, index }: { mode: (typeof failureModes)[number]; index: num
                   <Link
                     key={id}
                     to={`/learn/${card.id}#topic-${id}`}
-                    className="mono text-m3 uppercase text-text-lo border border-rule-3 px-12 min-h-[44px] inline-flex items-center hover:text-text-hi transition-colors duration-[120ms]"
+                    className="text-t3 text-text-mid border border-rule-3 px-12 py-4 min-h-[44px] inline-flex items-center hover:text-text-hi hover:border-accent transition-colors duration-[120ms]"
                   >
                     {topic.title}
                   </Link>
@@ -263,12 +287,12 @@ function LiveSystems() {
             href={s.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group block py-24 border-b border-rule-2 transition-colors duration-[120ms] hover:bg-ink-1 md:grid md:grid-cols-[96px_minmax(0,1fr)] md:gap-24"
+            className="group block py-24 border-b border-rule-2 transition-colors duration-[120ms] hover:bg-ink-1 sm:grid sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-24 md:gap-32"
           >
             <span className="mono text-m2 text-accent">{s.urlLabel}</span>
-            <span className="block min-w-0 mt-8 md:mt-0">
+            <span className="block min-w-0 mt-8 sm:mt-0">
               <span className="block text-t1 text-text-hi link-underline">{s.name}</span>
-              <span className="block text-t3 text-text-mid mt-8 measure-46">{s.slo}</span>
+              <span className="block text-t3 text-text-mid mt-8 measure-wide">{s.slo}</span>
               <span className="flex flex-wrap gap-8 mt-16">
                 {s.stack.slice(0, 6).map((x) => (
                   <Tag key={x}>{x}</Tag>
@@ -279,10 +303,10 @@ function LiveSystems() {
         ))}
       </div>
       <div className="mt-24">
-        <Kicker>built, and not publicly reachable</Kicker>
+        <Kicker>Built, and not publicly reachable</Kicker>
         <ul className="mt-12 grid gap-12">
           {unlinked.map((s) => (
-            <li key={s.id}>
+            <li key={s.id} className="measure-wide">
               <span className="text-t3 text-text-hi">{s.name}.</span>{" "}
               <span className="text-t3 text-text-mid">{s.slo}</span>
             </li>
@@ -298,7 +322,7 @@ function Method() {
     <div className="grid gap-24 md:grid-cols-2">
       <div>
         <h3>I check my own claims, and publish what was wrong</h3>
-        <p className="text-t3 text-text-mid mt-12 measure-46">
+        <p className="text-t3 text-text-mid mt-12 measure-wide">
           The {CORPUS.topics} topics behind {CORPUS.cards} cards carry 141 cited sources. Every one
           was requested: 132 resolve, and the nine that do not are explained rather than dropped.
           Three of my own factual claims turned out to be wrong and are corrected in public, and one
@@ -308,12 +332,12 @@ function Method() {
           to="/learn"
           className="mono text-m2 text-accent link-underline mt-16 min-h-[44px] inline-flex items-center"
         >
-          read the material
+          Read the material
         </Link>
       </div>
       <div>
         <h3>The site refuses to ship its own mistakes</h3>
-        <p className="text-t3 text-text-mid mt-12 measure-46">
+        <p className="text-t3 text-text-mid mt-12 measure-wide">
           Eleven check suites run in the build: 45 assertions against the deployed site, 30 on
           security, 69 email compatibility rules, plus gates on typography, colour contrast at the
           sizes actually used, content structure, indexing signals and every route returning real
@@ -325,7 +349,7 @@ function Method() {
           rel="noopener noreferrer"
           className="mono text-m2 text-accent link-underline mt-16 min-h-[44px] inline-flex items-center"
         >
-          the source &#8599;
+          The source &#8599;
         </a>
       </div>
     </div>
@@ -377,7 +401,7 @@ export function StatusPage() {
             id="failures"
             title="Seven ways a system fails, and what I did about each"
           >
-            <p className="text-t3 text-text-lo measure-46 -mt-12 mb-24">
+            <p className="text-t3 text-text-lo measure-wide -mt-12 mb-24">
               Each one gathers what I built against it, the time it happened to somebody in public,
               what I published about it, and the material that teaches it.
             </p>
@@ -401,14 +425,14 @@ export function StatusPage() {
                 to="/build"
                 className="mono text-m2 text-accent link-underline min-h-[44px] inline-flex items-center"
               >
-                size your system
+                Size your system
               </Link>
             }
           >
             <div className="grid gap-32 md:grid-cols-2">
               <div>
                 <h3>An architecture recommender that talks you down</h3>
-                <p className="text-t3 text-text-mid mt-12 measure-46">
+                <p className="text-t3 text-text-mid mt-12">
                   Ten questions, then a recommendation where every component carries its reasoning
                   and its real alternatives. At small scale it tells you so, because most systems are
                   over-engineered and a recommendation with no visible alternatives reads as a
@@ -418,12 +442,12 @@ export function StatusPage() {
                   to="/build"
                   className="mono text-m2 text-accent link-underline mt-16 min-h-[44px] inline-flex items-center"
                 >
-                  answer ten questions
+                  Answer ten questions
                 </Link>
               </div>
               <div>
                 <h3>A clinical retrieval demo you can make refuse you</h3>
-                <p className="text-t3 text-text-mid mt-12 measure-46">
+                <p className="text-t3 text-text-mid mt-12">
                   {serviceById.get("groundcheck")?.slo}
                 </p>
                 <a
@@ -432,7 +456,7 @@ export function StatusPage() {
                   rel="noopener noreferrer"
                   className="mono text-m2 text-accent link-underline mt-16 min-h-[44px] inline-flex items-center"
                 >
-                  make it refuse &#8599;
+                  Make it refuse &#8599;
                 </a>
               </div>
             </div>
@@ -467,7 +491,7 @@ export function StatusPage() {
           <Spine n={9} id="contact" title="Getting hold of me">
             <div className="grid gap-32 md:grid-cols-2">
               <div>
-                <p className="text-t2 text-text-mid measure-46">{identity.availability}</p>
+                <p className="text-t2 text-text-mid measure">{identity.availability}</p>
                 <div className="mt-24 flex flex-wrap items-center gap-24">
                   <PrimaryAction href={`mailto:${identity.email}`}>
                     {identity.email}
@@ -478,7 +502,7 @@ export function StatusPage() {
                     rel="noopener noreferrer"
                     className="mono text-m2 text-accent link-underline min-h-[44px] inline-flex items-center"
                   >
-                    linkedin &#8599;
+                    LinkedIn &#8599;
                   </a>
                 </div>
               </div>

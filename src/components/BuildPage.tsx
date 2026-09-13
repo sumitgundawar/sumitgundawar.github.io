@@ -87,7 +87,7 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
 
   return (
     <div
-      className="rounded-lg border p-4 sm:p-5"
+      className="rounded-lg border p-16 sm:p-24"
       style={{ borderColor: "var(--rule-3)", background: "var(--ink-2)" }}
     >
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
@@ -100,7 +100,7 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
           </span>
         </div>
         {rec.optional && (
-          <span className="mono text-m2 uppercase tracking-wide" style={{ color: "var(--warn)" }}>
+          <span className="mono text-m2 caps tracking-wide" style={{ color: "var(--warn)" }}>
             add when needed
           </span>
         )}
@@ -110,7 +110,7 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
         {rec.why}
       </p>
 
-      <p className="mt-2 text-t2 leading-relaxed mono" style={{ color: "var(--text-mid)", opacity: 0.85 }}>
+      <p className="mt-8 text-t2 leading-relaxed mono" style={{ color: "var(--text-mid)", opacity: 0.85 }}>
         {rec.where}
       </p>
 
@@ -308,7 +308,7 @@ export function BuildPage() {
           <div className="mt-10 flex items-center gap-3" aria-live="polite">
             <span className="build-pulse" aria-hidden />
             <span className="mono text-m2" style={{ color: "var(--text-mid)" }}>
-              working out what to ask next
+              Working out what to ask next
             </span>
           </div>
         )}
@@ -319,13 +319,13 @@ export function BuildPage() {
               className="sticky z-40 py-16 -mx-[var(--pad)] px-[var(--pad)] border-b border-rule-2"
               style={{ top: "var(--masthead)", background: "var(--ink)" }}
             >
-            <div className="flex items-center gap-16 measure-46">
+            <div className="flex items-center gap-24">
               <div
                 role="progressbar"
                 aria-valuenow={answeredCount}
                 aria-valuemin={0}
                 aria-valuemax={questions.length}
-                className="h-4 flex-1"
+                className="h-8 flex-1"
                 style={{ background: "var(--rule-2)" }}
               >
                 <div
@@ -339,23 +339,16 @@ export function BuildPage() {
             </div>
             </div>
 
-            <div className="mt-8">
-              {note?.reason && (
-                <p className="text-t2 leading-relaxed max-w-[34em]" style={{ color: "var(--text-mid)" }}>
-                  <span className="eyebrow" style={{ color: "var(--accent)" }}>
-                    why this one{" "}
-                  </span>
-                  {note.reason}
-                </p>
-              )}
-              <h2 className="mt-12 measure-46">{q.prompt}</h2>
+            <div className="mt-32 md:grid md:grid-cols-[minmax(0,1fr)_300px] md:gap-64 md:items-start">
+            <div className="min-w-0">
+              <h2>{q.prompt}</h2>
               {q.help && (
-                <p className="mt-2.5 text-t2 leading-relaxed max-w-[32em]" style={{ color: "var(--text-mid)" }}>
+                <p className="mt-12 text-t2 leading-relaxed measure" style={{ color: "var(--text-mid)" }}>
                   {q.help}
                 </p>
               )}
 
-              <div className="mt-32 flex flex-col gap-12 measure-46">
+              <div className="mt-32 grid gap-12 md:grid-cols-2">
                 {q.options.map((o, i) => (
                   <button
                     key={o.id}
@@ -374,50 +367,92 @@ export function BuildPage() {
               </div>
 
               {Object.keys(inferred).length > 0 && (
-                <p className="mt-4 text-t2 leading-relaxed max-w-[34em]" style={{ color: "var(--text-mid)" }}>
+                <p className="mt-16 text-t2 leading-relaxed measure" style={{ color: "var(--text-mid)" }}>
                   {Object.keys(inferred).length === 1 ? "One question was" : `${Object.keys(inferred).length} questions were`}{" "}
                   answered from what you had already said, to keep this short.{" "}
                   <button onClick={askInferred} className="link-underline mono text-m2" style={{ color: "var(--accent)" }}>
-                    ask me those as well
+                    Ask me those as well
                   </button>
                 </p>
               )}
 
-              <div className="mt-5 flex items-center gap-5">
+              <div className="mt-24 flex items-center gap-24 flex-wrap">
                 {history.length > 0 && (
                   <button
                     onClick={back}
                     className="mono text-m2 text-accent link-underline inline-flex items-center min-h-[44px]"
                   >
-                    ← back
+                    ← Back
                   </button>
                 )}
                 <button
                   onClick={() => choose(q.id, q.skipDefault, true)}
                   className="mono text-m2 text-accent link-underline inline-flex items-center min-h-[44px]"
                 >
-                  skip, assume a sensible default
+                  Skip, assume a sensible default
                 </button>
               </div>
+            </div>
+
+            <aside className="mt-48 md:mt-0 md:border-l md:pl-32 border-rule-2">
+              {note?.reason && (
+                <div className="mb-32">
+                  <div className="eyebrow mb-8" style={{ color: "var(--accent)" }}>
+                    Why this one
+                  </div>
+                  <p className="text-t3" style={{ color: "var(--text-mid)" }}>
+                    {note.reason}
+                  </p>
+                </div>
+              )}
+              <div className="eyebrow mb-12">What you have told me</div>
+              {answeredCount === 0 ? (
+                <p className="text-t3" style={{ color: "var(--text-lo)" }}>
+                  Nothing yet. Each answer narrows what still needs asking, so the
+                  interview gets shorter as it goes.
+                </p>
+              ) : (
+                <dl className="grid gap-12">
+                  {questions
+                    .filter((item) => item.id in answers)
+                    .map((item) => {
+                      const chosen = item.options.find((o) => o.id === answers[item.id]);
+                      return (
+                        <div key={item.id} className="border-t border-rule-2 pt-12">
+                          <dt className="text-t3" style={{ color: "var(--text-lo)" }}>
+                            {item.prompt}
+                          </dt>
+                          <dd className="mono text-m2 mt-4" style={{ color: "var(--text-hi)" }}>
+                            {chosen?.label ?? answers[item.id]}
+                            {item.id in inferred && (
+                              <span className="text-text-lo"> (assumed)</span>
+                            )}
+                          </dd>
+                        </div>
+                      );
+                    })}
+                </dl>
+              )}
+            </aside>
             </div>
           </>
         )}
 
         {done && diagram && (
           <div className="mt-9">
-            <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-16 flex-wrap">
               <button
                 onClick={back}
                 className="mono text-m2 text-accent link-underline inline-flex items-center min-h-[44px]"
               >
-                ← change last answer
+                ← Change last answer
               </button>
               <button onClick={restart} className="mono text-m2 link-underline inline-flex items-center min-h-[44px]" style={{ color: "var(--text-mid)" }}>
-                start again
+                Start again
               </button>
               <button
                 onClick={copyLink}
-                className="mono text-m2 uppercase tracking-[0.08em] px-3 min-h-[44px] inline-flex items-center"
+                className="mono text-m2 caps tracking-[0.08em] px-12 min-h-[44px] inline-flex items-center"
                 style={{
                   border: "1px solid var(--rule-3)",
                   background: "var(--ink-3)",
@@ -448,7 +483,7 @@ export function BuildPage() {
               ))}
             </div>
 
-            <p className="mt-8 text-t2 leading-relaxed max-w-[34em]" style={{ color: "var(--text-mid)" }}>
+            <p className="mt-32 text-t2 leading-relaxed measure" style={{ color: "var(--text-mid)" }}>
               Anything marked add when needed is deliberately not part of the first build. Add it when you
               have measured that you need it, not before, every component you skip is one you do not have
               to operate, secure or pay for.

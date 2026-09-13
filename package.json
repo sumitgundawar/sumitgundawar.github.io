@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run gen:feed && npm run gen:jsonld && npm run gen:articles && npm run gen:learn && tsc -b && npm run check:worker && npm run check:brand && npm run check:prose && npm run check:content && npm run check:contrast && vite build && npm run prerender && npm run check:seo && npm run check:layout",
+    "build": "npm run gen:feed && npm run gen:jsonld && npm run gen:articles && npm run gen:learn && tsc -b && npm run check:worker && npm run check:brand && npm run check:prose && npm run check:content && npm run check:contrast && vite build && npm run prerender && npm run check:seo && npm run check:layout && npm run check:type && npm run check:diagrams",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "shots": "node scripts/shots.mjs",
@@ -29,7 +29,9 @@
     "gen:og": "node scripts/gen-og.mjs",
     "check:seo": "node scripts/seo-check.mjs",
     "check:brand": "node scripts/brand-check.mjs",
-    "check:layout": "node scripts/layout-check.mjs"
+    "check:layout": "node scripts/layout-check.mjs",
+    "check:type": "node scripts/typography-check.mjs",
+    "check:diagrams": "npx tsx scripts/diagram-check.mjs"
   },
   "dependencies": {
     "@fontsource-variable/mona-sans": "^5.2.8",

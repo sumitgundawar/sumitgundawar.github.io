@@ -63,6 +63,7 @@ export default {
       maxWidth: {
         measure: "var(--measure)",
         "measure-46": "min(46ch, 100%)",
+        "measure-wide": "min(78ch, 100%)",
         "measure-34": "min(34ch, 100%)",
       },
       screens: {

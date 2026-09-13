@@ -199,7 +199,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
         )}
 
         <div
-          className="absolute left-3 bottom-2 mono pointer-events-none"
+          className="absolute left-12 bottom-8 mono pointer-events-none"
           style={{ fontSize: 10, color: "var(--text-mid)" }}
         >
           {picked ? "tap again to dismiss" : "drag to rotate, tap a component"}
@@ -213,7 +213,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
         return (
           <div
             role="status"
-            className="mt-2 p-3"
+            className="mt-8 p-12"
             style={{ background: "var(--ink-2)", border: "1px solid var(--rule-3)" }}
           >
             <div className="mono text-m2" style={{ color: "var(--text-hi)" }}>
@@ -243,7 +243,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
         );
       })()}
 
-      <figcaption id={`${id}-layered-cap`} className="mono text-m2 mt-2" style={{ color: "var(--text-mid)" }}>
+      <figcaption id={`${id}-layered-cap`} className="mono text-m2 mt-8" style={{ color: "var(--text-mid)" }}>
         {diagram.caption} · front to back is the path a request takes
       </figcaption>
     </figure>

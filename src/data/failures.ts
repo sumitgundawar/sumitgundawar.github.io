@@ -28,7 +28,7 @@ export const failureModes: FailureMode[] = [
         detail:
           "Ask a clinical question and get the passage the answer came from, or a refusal when the corpus does not support one. Built on a synthetic corpus of invented conditions and doses, with a deterministic extractive fallback so it still answers when the model is unavailable.",
         url: "https://sumitgundawar-groundcheck.hf.space",
-        urlLabel: "make it refuse",
+        urlLabel: "Make it refuse",
       },
       {
         title: "Clinical AI features at By Dr Vali",
@@ -162,7 +162,7 @@ export const failureModes: FailureMode[] = [
         detail:
           "Ten questions, then a recommendation where every component carries its reasoning and its alternatives. At small scale it says so: this is a small system, and that is the most important thing about it.",
         url: "/build",
-        urlLabel: "size your system",
+        urlLabel: "Size your system",
       },
     ],
     articleIds: ["embedding"],

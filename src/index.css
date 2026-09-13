@@ -253,12 +253,16 @@
 
   .eyebrow {
     font-family: "Commit Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: var(--m3);
-    line-height: var(--lh-m3);
-    font-weight: 700;
-    letter-spacing: 0.11em;
-    text-transform: uppercase;
+    font-size: var(--m2);
+    line-height: var(--lh-m2);
+    font-weight: 500;
+    letter-spacing: 0.03em;
     color: var(--text-lo);
+  }
+
+  .caps {
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
   }
 
   .shell {
@@ -292,6 +296,10 @@
 
   .measure-46 {
     max-width: min(46ch, 100%);
+  }
+
+  .measure-wide {
+    max-width: min(78ch, 100%);
   }
 
   .measure-34 {

@@ -83,7 +83,7 @@ export function LoopVideo({
         aria-label={playing ? `Pause: ${label}` : `Play: ${label}`}
         aria-pressed={!playing}
 
-        className="absolute bottom-0 right-0 min-h-[44px] min-w-[44px] flex items-end justify-end p-2.5"
+        className="absolute bottom-0 right-0 min-h-[44px] min-w-[44px] flex items-end justify-end p-8.5"
       >
         <span
           className="flex items-center justify-center gap-[3px]"

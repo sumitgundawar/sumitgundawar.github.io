@@ -115,29 +115,29 @@ export interface Kpi {
 export const kpis: Kpi[] = [
   {
     value: "$75M+",
-    label: "in sales impacted",
+    label: "In sales impacted",
     note: "PepsiCo demand forecasting, LatentView",
     source:
       "Stated in a written reference from LatentView Analytics: the demand forecasting model I developed, tested and deployed directly impacted over $75 million in sales. The letter is available on request.",
   },
   {
     value: "25M+",
-    label: "weekly records",
+    label: "Weekly records",
     note: "PySpark on Azure Databricks",
     source:
       "Weekly volume through the event-driven pipeline built for PepsiCo's global supply chain at LatentView. Processing time went from 13 hours to 8, a 38 per cent cut.",
   },
   {
     value: "13h to 8h",
-    label: "processing time",
-    note: "a 38 per cent cut on the same pipeline",
+    label: "Processing time",
+    note: "A 38 per cent cut on the same pipeline",
     source:
       "Measured end to end on the PepsiCo demand planning disaggregation pipeline. Both endpoints are stated because a percentage on its own is not checkable.",
   },
   {
     value: "13+",
-    label: "products shipped",
-    note: "as the only engineer",
+    label: "Products shipped",
+    note: "As the only engineer",
     source:
       "Products built end to end at By Dr Vali, from schema design to on-call. Four are publicly reachable: bdvfit.com, bydrvali.com, bdvportal.com and bydrvaliportal.com.",
   },
@@ -200,7 +200,7 @@ export const services: ServiceNode[] = [
     stack: ["Python", "RAG", "Docker", "Hugging Face"],
     health: "ok",
     url: "https://sumitgundawar-groundcheck.hf.space",
-    urlLabel: "try it",
+    urlLabel: "Try it",
   },
   {
     id: "llm-eval",
@@ -484,7 +484,7 @@ export const recognition: Recognition[] = [
     when: "2026",
     url: "https://theaiawards.co.uk/",
     extraUrl: "https://theaiawards.co.uk/awards-photos-2026/",
-    extraLabel: "photos",
+    extraLabel: "Photos",
   },
 ];
 

@@ -1,7 +1,6 @@
-import { createReadStream, existsSync, statSync, readFileSync } from "node:fs";
-import { createServer } from "node:http";
-import { extname, join, normalize } from "node:path";
+import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
+import { serveDist } from "./lib/serve.mjs";
 
 const BANDS = [
   { name: "iphone-se", width: 375, height: 667 },
@@ -18,29 +17,9 @@ const BANDS = [
   { name: "desktop", width: 1728, height: 1080 },
 ];
 
-const MIME = {
-  ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
-  ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp",
-  ".ico": "image/x-icon", ".json": "application/json", ".xml": "application/xml",
-  ".woff": "font/woff", ".woff2": "font/woff2", ".pdf": "application/pdf",
-  ".txt": "text/plain", ".mp4": "video/mp4", ".webmanifest": "application/manifest+json",
-};
-
 const MIN_TARGET = 44;
 const MIN_FONT = 11;
 const MIN_PROSE_FONT = 14;
-
-function serve() {
-  const server = createServer((req, res) => {
-    const url = (req.url || "/").split("?")[0];
-    let p = join("dist", normalize(url));
-    if (existsSync(p) && statSync(p).isDirectory()) p = join(p, "index.html");
-    if (!existsSync(p)) p = existsSync(`${p}.html`) ? `${p}.html` : join("dist", "index.html");
-    res.writeHead(200, { "content-type": MIME[extname(p)] || "application/octet-stream" });
-    createReadStream(p).pipe(res);
-  });
-  return new Promise((resolve) => server.listen(0, () => resolve(server)));
-}
 
 const audit = ({ MIN_TARGET, MIN_FONT, MIN_PROSE_FONT }) => {
   const problems = [];
@@ -97,7 +76,7 @@ const audit = ({ MIN_TARGET, MIN_FONT, MIN_PROSE_FONT }) => {
   return [...new Set(problems)];
 };
 
-const server = await serve();
+const server = await serveDist();
 const base = `http://localhost:${server.address().port}`;
 const routes = [
   ...new Set(

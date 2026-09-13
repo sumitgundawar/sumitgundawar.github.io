@@ -57,11 +57,11 @@ function Sources({ sources }: { sources: Source[] }) {
   return (
     <details className="mt-7 max-w-[36em] group">
       <summary
-        className="mono text-m2 uppercase tracking-[0.09em] cursor-pointer inline-flex items-center gap-2 min-h-[44px]"
+        className="mono text-m2 uppercase tracking-[0.09em] cursor-pointer inline-flex items-center gap-8 min-h-[44px]"
         style={{ color: "var(--text-mid)" }}
       >
         <span className="tnum">
-          evidence · {sources.length} {sources.length === 1 ? "source" : "sources"}
+          Evidence &#183; {sources.length} {sources.length === 1 ? "source" : "sources"}
         </span>
         <span aria-hidden className="group-open:hidden">
           +
@@ -71,7 +71,7 @@ function Sources({ sources }: { sources: Source[] }) {
           -
         </span>
       </summary>
-      <ol className="mt-2 flex flex-col gap-3.5 pl-0">
+      <ol className="mt-8 flex flex-col gap-3.5 pl-0">
         {sources.map((s, i) => (
           <li key={i} className="flex gap-3">
             <span className="mono tnum text-m3 pt-1 shrink-0" style={{ color: "var(--text-mid)", opacity: 0.6 }}>
@@ -110,8 +110,8 @@ function Subject({ subject }: { subject: NonNullable<Card["subject"]> }) {
       className="mt-24 border border-rule-2 p-24 measure"
       style={{ borderColor: "var(--rule-3)", background: "var(--ink-3)" }}
     >
-      <div className="mono text-m2 uppercase tracking-[0.09em] mb-2" style={{ color: "var(--accent)" }}>
-        dissecting
+      <div className="mono text-m2 uppercase tracking-[0.09em] mb-8" style={{ color: "var(--accent)" }}>
+        Dissecting
       </div>
       <a
         href={subject.url}
@@ -217,10 +217,9 @@ function TopicView({
   };
 
   return (
-    <div className="pb-8 pt-1">
-      <div className="grid @min-[1060px]:grid-cols-[minmax(0,var(--measure))_minmax(0,1fr)] gap-x-48 items-start">
-      <div className="min-w-0">
-      <div className="flex flex-col gap-3 max-w-[36em]">
+    <div className="pb-32 pt-1">
+      <div className="grid @min-[860px]:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-x-48 gap-y-32 items-start">
+      <div className="min-w-0 flex flex-col gap-3">
         {topic.body.map((p, i) => (
           <p key={i} className="text-t2 leading-[1.65]" style={{ color: "var(--text-mid)" }}>
             {p}
@@ -228,33 +227,34 @@ function TopicView({
         ))}
       </div>
 
-      {topic.why && (
-        <div className="mt-32 md:grid md:grid-cols-[96px_minmax(0,1fr)] md:gap-24 measure">
-          <div className="eyebrow mb-8 md:mb-0 md:pt-4" style={{ color: "var(--accent)" }}>
-            why
-          </div>
-          <p className="text-t2 text-text-hi">{topic.why}</p>
-        </div>
+      {(topic.why || topic.inPractice) && (
+        <aside className="min-w-0 @min-[860px]:border-l @min-[860px]:pl-24 border-rule-2 flex flex-col gap-24">
+          {topic.why && (
+            <div>
+              <div className="eyebrow mb-8" style={{ color: "var(--accent)" }}>
+                Why
+              </div>
+              <p className="text-t3 text-text-hi">{topic.why}</p>
+            </div>
+          )}
+          {topic.inPractice && (
+            <div>
+              <div className="eyebrow mb-8">In practice</div>
+              <p className="text-t3 text-text-hi">{topic.inPractice}</p>
+            </div>
+          )}
+        </aside>
       )}
-
-      {topic.inPractice && (
-        <div className="mt-24 md:grid md:grid-cols-[96px_minmax(0,1fr)] md:gap-24 measure">
-          <div className="eyebrow mb-8 md:mb-0 md:pt-4">in practice</div>
-          <p className="text-t2 text-text-hi">{topic.inPractice}</p>
-        </div>
-      )}
-
-      </div>
 
       <div
-        className="mt-32 @min-[1060px]:mt-0 border border-rule-2 p-16 sm:p-24 measure @min-[1060px]:max-w-none min-w-0"
+        className="border border-rule-2 p-16 sm:p-24 min-w-0 @min-[860px]:col-span-2"
         style={{ background: "var(--ink-1)" }}
       >
-        <div className="eyebrow mb-16">check yourself</div>
+        <div className="eyebrow mb-16">Check yourself</div>
         <p className="text-t2 leading-relaxed" style={{ color: "var(--text-hi)" }}>
           {check.prompt}
         </p>
-        <div className="flex flex-col gap-2 mt-4">
+        <div className="grid gap-8 mt-16 @min-[860px]:grid-cols-2">
           {shuffled.options.map((opt, i) => {
             const isCorrect = i === shuffled.correctIndex;
             const show = answered && (i === picked || isCorrect);
@@ -289,7 +289,7 @@ function TopicView({
           })}
         </div>
         {answered && (
-          <p role="status" className="text-t2 mt-4 leading-relaxed" style={{ color: "var(--text-mid)" }}>
+          <p role="status" className="text-t2 mt-16 leading-relaxed" style={{ color: "var(--text-mid)" }}>
             <span style={{ color: correct ? "var(--ok)" : "var(--crit)" }}>
               {correct ? "Correct. " : "Not quite. "}
             </span>
@@ -344,30 +344,30 @@ function CardDetail({
     <div>
       <button
         onClick={onBack}
-        className="mono text-m2 mb-4 inline-flex items-center gap-1.5 link-underline min-h-[44px]"
+        className="mono text-m2 mb-16 inline-flex items-center gap-1.5 link-underline min-h-[44px]"
         style={{ color: "var(--text-mid)" }}
       >
-        ← all topics
+        ← All topics
       </button>
 
-      <h1 className="text-d2 measure">
-        {card.title}
-      </h1>
-      <p className="mt-3 text-t2 leading-relaxed max-w-[36em]" style={{ color: "var(--text-mid)" }}>
-        {card.summary}
-      </p>
+      <div className="md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:gap-64 md:items-end">
+        <h1 className="text-d2">{card.title}</h1>
+        <p className="mt-12 md:mt-0 md:pb-4 text-t2" style={{ color: "var(--text-mid)" }}>
+          {card.summary}
+        </p>
+      </div>
 
       {card.subject && <Subject subject={card.subject} />}
 
-      <div className="mt-9 grid lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)] gap-x-10 xl:gap-x-14 items-start">
+      <div className="mt-9 grid lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)] gap-x-10 xl:gap-x-12 items-start">
 
         <nav
           aria-label="Contents"
-          className="lg:sticky lg:top-8 min-w-0 mb-8 lg:mb-0 pb-5 lg:pb-0 border-b lg:border-b-0"
+          className="lg:sticky lg:top-32 min-w-0 mb-32 lg:mb-0 pb-24 lg:pb-0 border-b lg:border-b-0"
           style={{ borderColor: "var(--rule-2)" }}
         >
           <div className="mono text-m3 uppercase tracking-[0.12em] mb-3" style={{ color: "var(--text-mid)" }}>
-            contents
+            Contents
           </div>
           <ol className="flex flex-col gap-0.5">
             {card.topics.map((t, i) => {
@@ -377,7 +377,7 @@ function CardDetail({
                   <a
                     href={`#topic-${t.id}`}
                     onClick={() => track("topic_open", { card: card.id, topic: t.id, level: t.level })}
-                    className="flex items-start gap-2.5 py-2 min-h-[44px] text-m2 leading-snug"
+                    className="flex items-start gap-8 py-8 min-h-[44px] text-m2 leading-snug"
                     style={{
                       color: here ? "var(--text-hi)" : "var(--text-mid)",
                       borderLeft: `2px solid ${here ? "var(--accent)" : "transparent"}`,
@@ -399,7 +399,7 @@ function CardDetail({
               );
             })}
           </ol>
-          <div className="mono text-m3 mt-4 pt-3 border-t" style={{ color: "var(--text-mid)", borderColor: "var(--rule-2)" }}>
+          <div className="mono text-m3 mt-16 pt-12 border-t" style={{ color: "var(--text-mid)", borderColor: "var(--rule-2)" }}>
             {card.topics.length} topics{done ? ` · ${done} answered` : ""}
           </div>
         </nav>
@@ -507,7 +507,7 @@ export function LearnPage() {
     <>
       <Masthead />
       <main id="content" className="min-h-[100dvh]">
-      <div className="shell py-8 lg:py-12">
+      <div className="shell py-32 lg:py-48">
 
         {currentMeta && !current ? (
           <div className="mt-10" data-loading="card">
@@ -558,7 +558,7 @@ export function LearnPage() {
                       aria-valuenow={all.answered}
                       aria-valuemin={0}
                       aria-valuemax={all.total}
-                      className="h-4"
+                      className="h-8"
                       style={{ background: "var(--rule-2)" }}
                     >
                       <div
@@ -579,8 +579,11 @@ export function LearnPage() {
                 track("level_filter", { level: id });
               }}
               options={[
-                { id: "all", label: `everything ${topicCount}` },
-                ...LEVELS.map((l) => ({ id: l, label: `${l} ${countByLevel(l)}` })),
+                { id: "all", label: `Everything ${topicCount}` },
+                ...LEVELS.map((l) => ({
+                  id: l,
+                  label: `${l[0].toUpperCase()}${l.slice(1)} ${countByLevel(l)}`,
+                })),
               ]}
             />
 
@@ -597,8 +600,10 @@ export function LearnPage() {
                 if (!tr || !inTrack.length) return null;
                 return (
                   <section key={tr.id}>
-                    <h2 className="measure">{tr.label}</h2>
-                    <p className="text-t3 text-text-lo mt-12 measure-46">{tr.blurb}</p>
+                    <div className="md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:gap-64 md:items-baseline">
+                      <h2>{tr.label}</h2>
+                      <p className="text-t3 text-text-lo mt-12 md:mt-0">{tr.blurb}</p>
+                    </div>
                     <div className="mt-32">
                       {inTrack.map((c) => {
                         const done = summarise(progress, c.topics.map((t) => t.id));
@@ -610,7 +615,7 @@ export function LearnPage() {
                             to={`/learn/${c.id}${window.location.search}`}
                             summary={c.summary}
                             meta={
-                              <span className="flex items-center gap-12 xl:justify-end">
+                              <span className="flex items-center gap-12 sm:justify-end">
                                 <span className="tnum">
                                   {done.answered ? `${done.answered}/${done.total} answered` : `${done.total} topics`}
                                 </span>

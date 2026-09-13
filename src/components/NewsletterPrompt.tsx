@@ -66,7 +66,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
 
   return (
     <aside
-      className="my-8 p-5 sm:p-6"
+      className="my-32 p-24 sm:p-32"
       style={{ background: "var(--ink-2)", border: "1px solid var(--rule-3)" }}
       aria-label="Newsletter"
     >
@@ -76,7 +76,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
         </p>
       ) : (
         <>
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-16">
             <p className="text-t2 leading-relaxed max-w-[34em]" style={{ color: "var(--text-hi)" }}>
               {line}
             </p>
@@ -95,7 +95,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
             </button>
           </div>
 
-          <form onSubmit={submit} className="mt-4 flex flex-col sm:flex-row gap-2 min-w-0">
+          <form onSubmit={submit} className="mt-16 flex flex-col sm:flex-row gap-8 min-w-0">
 
             <div aria-hidden="true" style={{ display: "none" }}>
               <label htmlFor={`np-co-${context}`}>Company</label>
@@ -127,7 +127,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
             <button
               type="submit"
               disabled={state === "busy"}
-              className="mono text-m2 uppercase tracking-[0.08em] px-4 min-h-[44px] shrink-0"
+              className="mono text-m2 caps tracking-[0.08em] px-16 min-h-[44px] shrink-0"
               style={{ border: "1px solid var(--rule-3)", background: "var(--ink-3)", color: "var(--text-hi)" }}
             >
               {state === "busy" ? "…" : "subscribe"}
@@ -136,7 +136,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
           <div ref={capture} aria-hidden="true" />
 
           {state === "error" && (
-            <p className="mono text-m2 mt-2" style={{ color: "var(--warn)" }} role="alert">
+            <p className="mono text-m2 mt-8" style={{ color: "var(--warn)" }} role="alert">
               {message}
             </p>
           )}

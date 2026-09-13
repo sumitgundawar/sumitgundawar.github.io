@@ -11,7 +11,7 @@ export function DiagramViews({ diagram, id }: { diagram: Diagram; id: string }) 
 
   return (
     <div>
-      <div className="flex gap-1.5 mb-2" role="group" aria-label="Diagram view">
+      <div className="flex gap-8 mb-12" role="group" aria-label="Diagram view">
         {(["flow", "layers"] as const).map((v) => {
           const on = view === v;
           return (
@@ -23,7 +23,7 @@ export function DiagramViews({ diagram, id }: { diagram: Diagram; id: string }) 
                 trackClick("diagram_view", { view: v, diagram: id });
               }}
               aria-pressed={on}
-              className="mono text-m3 uppercase tracking-[0.08em] px-2.5 min-h-[44px] inline-flex items-center"
+              className="mono text-m3 caps tracking-[0.08em] px-12 min-h-[44px] inline-flex items-center"
               style={{
                 background: on ? "var(--ink-3)" : "transparent",
                 border: `1px solid ${on ? "var(--rule-3)" : "var(--rule-2)"}`,

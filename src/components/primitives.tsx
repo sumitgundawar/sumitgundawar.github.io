@@ -9,7 +9,7 @@ export function Kicker({ children, className }: { children: ReactNode; className
 
 export function Tag({ children }: { children: ReactNode }) {
   return (
-    <span className="mono text-m3 uppercase text-text-lo border border-rule-2 px-8 py-4 whitespace-nowrap">
+    <span className="mono text-m2 text-text-lo border border-rule-2 px-8 py-4 whitespace-nowrap">
       {children}
     </span>
   );
@@ -23,16 +23,16 @@ export function StatusDot({ label, tone = "ok" }: { label: string; tone?: "ok" |
         className="inline-block shrink-0 rounded-full"
         style={{ width: 7, height: 7, background: `var(--${tone})` }}
       />
-      <span className="mono text-m3 uppercase text-text-lo">{label}</span>
+      <span className="mono text-m2 text-text-lo">{label}</span>
     </span>
   );
 }
 
 const NAV = [
-  { to: "/", label: "profile" },
-  { to: "/learn", label: "learn" },
-  { to: "/build", label: "build" },
-  { to: "/writing", label: "writing" },
+  { to: "/", label: "Profile" },
+  { to: "/learn", label: "Learn" },
+  { to: "/build", label: "Build" },
+  { to: "/writing", label: "Writing" },
 ];
 
 export function Masthead() {
@@ -46,7 +46,7 @@ export function Masthead() {
       <div className="shell h-full flex items-center justify-between gap-16">
         <Link
           to="/"
-          className="hidden sm:inline-flex mono text-m3 uppercase text-text-hi whitespace-nowrap min-h-[44px] items-center"
+          className="hidden sm:inline-flex mono text-m2 text-text-hi whitespace-nowrap min-h-[44px] items-center"
         >
           {identity.name}
         </Link>
@@ -82,10 +82,12 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <div className="pt-48 md:pt-64 pb-48">
-      <h1 className="text-d2 measure">{title}</h1>
-      {standfirst && <p className="text-t2 text-text-mid mt-24 measure">{standfirst}</p>}
-      {children && <div className="mt-24">{children}</div>}
+    <div className="pt-48 md:pt-64 pb-48 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:gap-64 md:items-end">
+      <h1 className="text-d2">{title}</h1>
+      <div className="md:pb-4">
+        {standfirst && <p className="text-t2 text-text-mid mt-24 md:mt-0">{standfirst}</p>}
+        {children && <div className="mt-24">{children}</div>}
+      </div>
     </div>
   );
 }
@@ -181,7 +183,7 @@ export function Plate({
   return (
     <figure className={cn("relative", bleed && "xl:-mr-48 2xl:-mx-64")}>
       {n !== undefined && n > 0 && (
-        <figcaption className="mono text-m3 uppercase text-text-lo mb-8">
+        <figcaption className="mono text-m3 caps text-text-lo mb-8">
           pl. {String(n).padStart(2, "0")}
         </figcaption>
       )}
@@ -193,7 +195,7 @@ export function Plate({
         {children}
       </div>
       {caption && (
-        <figcaption className="serif italic text-t3 text-text-lo mt-12 measure-46">
+        <figcaption className="serif italic text-t3 text-text-lo mt-12 measure">
           {caption}
         </figcaption>
       )}
@@ -230,8 +232,8 @@ export function Record({
   tags?: string[];
 }) {
   return (
-    <article className="md:grid md:grid-cols-[96px_minmax(0,1fr)] md:gap-24 py-24 border-t border-rule-2 first:border-t-0 first:pt-0">
-      <div className="mono text-m2 tnum text-text-lo mb-8 md:mb-0">{meta}</div>
+    <article className="sm:grid sm:grid-cols-[112px_minmax(0,1fr)] xl:grid-cols-[128px_minmax(0,1fr)_260px] sm:gap-24 md:gap-32 py-24 border-t border-rule-2 first:border-t-0 first:pt-0">
+      <div className="mono text-m2 tnum text-text-lo mb-8 sm:mb-0">{meta}</div>
       <div className="min-w-0">
         <h3>{title}</h3>
         {org && (
@@ -245,15 +247,22 @@ export function Record({
             )}
           </div>
         )}
-        {children && <div className="text-t3 text-text-mid mt-12 measure-46">{children}</div>}
+        {children && <div className="text-t3 text-text-mid mt-12 measure-wide">{children}</div>}
         {tags && tags.length > 0 && (
-          <div className="flex flex-wrap gap-8 mt-16">
+          <div className="flex flex-wrap gap-8 mt-16 xl:hidden">
             {tags.slice(0, 6).map((t) => (
               <Tag key={t}>{t}</Tag>
             ))}
           </div>
         )}
       </div>
+      {tags && tags.length > 0 && (
+        <div className="hidden xl:flex flex-wrap content-start gap-8">
+          {tags.slice(0, 6).map((t) => (
+            <Tag key={t}>{t}</Tag>
+          ))}
+        </div>
+      )}
     </article>
   );
 }
@@ -274,14 +283,14 @@ export function IndexItem({
   meta?: ReactNode;
 }) {
   const body = (
-    <span className="xl:grid xl:grid-cols-[minmax(0,1fr)_164px] xl:gap-40 xl:items-baseline">
+    <span className="sm:grid sm:grid-cols-[minmax(0,1fr)_180px] sm:gap-24 md:gap-40 sm:items-baseline">
       <span className="block min-w-0">
         {kicker && <span className="eyebrow block mb-8">{kicker}</span>}
         <h3 className="link-underline inline">{title}</h3>
-        {summary && <span className="block text-t3 text-text-mid mt-12 measure-46">{summary}</span>}
+        {summary && <span className="block text-t3 text-text-mid mt-12 measure-wide">{summary}</span>}
       </span>
       {meta && (
-        <span className="block mono text-m2 text-text-lo mt-12 xl:mt-0 xl:text-right">{meta}</span>
+        <span className="block mono text-m2 text-text-lo mt-12 sm:mt-0 sm:text-right">{meta}</span>
       )}
     </span>
   );
@@ -308,18 +317,18 @@ export function Ledger({
   items: { value: string; label: string; note?: string; source?: string }[];
 }) {
   return (
-    <dl className="grid grid-cols-2 md:grid-cols-4 border-t border-l border-rule-2">
+    <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 border-t border-l border-rule-2">
       {items.map((item) => (
-        <div key={item.label} className="border-b border-r border-rule-2 p-16">
+        <div key={item.label} className="border-b border-r border-rule-2 p-24 flex flex-col">
           <dt className="sr-only">{item.label}</dt>
-          <dd>
+          <dd className="flex flex-col flex-1">
             <div className="serif tnum text-d3 text-text-hi">{item.value}</div>
             <div className="eyebrow mt-8">{item.label}</div>
             {item.note && <div className="text-t3 text-text-lo mt-8">{item.note}</div>}
             {item.source && (
-              <details className="mt-8">
-                <summary className="mono text-m3 uppercase text-accent cursor-pointer min-h-[44px] inline-flex items-center">
-                  how this was measured
+              <details className="mt-8 md:mt-auto">
+                <summary className="mono text-m2 text-accent cursor-pointer min-h-[44px] inline-flex items-center">
+                  How this was measured
                 </summary>
                 <p className="text-t3 text-text-mid mt-8">{item.source}</p>
               </details>
@@ -341,7 +350,7 @@ export function PrimaryAction({
   children: ReactNode;
 }) {
   const cls =
-    "press mono text-m2 uppercase inline-flex items-center justify-center min-h-[44px] px-24 transition-colors duration-[120ms]";
+    "press mono text-m2 font-semibold inline-flex items-center justify-center min-h-[44px] px-24 transition-colors duration-[120ms]";
   const style = { background: "var(--accent)", color: "var(--ink)" } as const;
   if (to) {
     return (
@@ -362,26 +371,26 @@ export function SiteFooter() {
     <footer className="border-t border-rule-2 mt-128">
       <div className="shell py-32 grid gap-24 md:grid-cols-3 mono text-m2 text-text-lo">
         <div>
-          <div className="eyebrow mb-8">contact</div>
+          <div className="eyebrow mb-8">Contact</div>
           <a href={`mailto:${identity.email}`} className="link-underline min-h-[44px] min-w-[44px] inline-flex items-center">
             {identity.email}
           </a>
         </div>
         <div>
-          <div className="eyebrow mb-8">elsewhere</div>
+          <div className="eyebrow mb-8">Elsewhere</div>
           <a
             href={identity.linkedin}
             target="_blank"
             rel="noopener noreferrer"
             className="link-underline min-h-[44px] min-w-[44px] inline-flex items-center"
           >
-            linkedin
+            LinkedIn
           </a>
         </div>
         <div>
-          <div className="eyebrow mb-8">feed</div>
+          <div className="eyebrow mb-8">Feed</div>
           <a href="/feed.xml" className="link-underline min-h-[44px] min-w-[44px] inline-flex items-center">
-            rss
+            RSS
           </a>
         </div>
       </div>

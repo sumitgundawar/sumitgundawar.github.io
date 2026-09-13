@@ -46,7 +46,7 @@ export function Newsletter() {
         <span aria-hidden className="inline-block shrink-0" style={{ width: 7, height: 7, background: "var(--accent)" }} />
         <h2
           id="newsletter-h"
-          className="mono uppercase font-semibold"
+          className="mono caps font-semibold"
           style={{ fontSize: "var(--m2)", letterSpacing: "0.14em", color: "var(--text-mid)" }}
         >
           newsletter
@@ -66,12 +66,12 @@ export function Newsletter() {
         </p>
 
         {state === "done" ? (
-          <p className="mono text-m1 mt-4" style={{ color: "var(--accent)" }} role="status">
+          <p className="mono text-m1 mt-16" style={{ color: "var(--accent)" }} role="status">
             You are on the list. A welcome note is on its way.
           </p>
         ) : (
           <>
-          <form onSubmit={submit} className="mt-4 flex flex-col sm:flex-row gap-2 min-w-0">
+          <form onSubmit={submit} className="mt-16 flex flex-col sm:flex-row gap-8 min-w-0">
 
             <div aria-hidden="true" style={{ display: "none" }}>
               <label htmlFor="newsletter-company">Company</label>
@@ -103,7 +103,7 @@ export function Newsletter() {
             <button
               type="submit"
               disabled={state === "busy"}
-              className="mono text-m2 uppercase tracking-[0.08em] px-4 min-h-[44px] shrink-0"
+              className="mono text-m2 caps tracking-[0.08em] px-16 min-h-[44px] shrink-0"
               style={{ border: "1px solid var(--rule-3)", background: "var(--ink-3)", color: "var(--text-hi)" }}
             >
               {state === "busy" ? "…" : "subscribe"}
@@ -115,7 +115,7 @@ export function Newsletter() {
         )}
 
         {state === "error" && (
-          <p className="mono text-m2 mt-2" style={{ color: "var(--warn)" }} role="alert">
+          <p className="mono text-m2 mt-8" style={{ color: "var(--warn)" }} role="alert">
             {message}
           </p>
         )}

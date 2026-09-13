@@ -47,10 +47,10 @@ export function AskBox({ topicId }: { topicId: string }) {
 
   return (
     <div className="mt-6 pt-5" style={{ borderTop: "1px solid var(--rule-2)" }}>
-      <div className="eyebrow mb-3">ask about this</div>
+      <div className="eyebrow mb-3">Ask about this</div>
 
       {thread.map((t, i) => (
-        <div key={i} className="mb-4">
+        <div key={i} className="mb-16">
           <div className="mono text-m2 mb-1.5" style={{ color: "var(--text-mid)" }}>
             {t.q}
           </div>
@@ -61,7 +61,7 @@ export function AskBox({ topicId }: { topicId: string }) {
       ))}
 
       {busy && live && (
-        <div className="mb-4" aria-live="polite">
+        <div className="mb-16" aria-live="polite">
           <div className="mono text-m2 mb-1.5" style={{ color: "var(--text-mid)" }}>
             {pending}
           </div>
@@ -94,7 +94,7 @@ export function AskBox({ topicId }: { topicId: string }) {
           e.preventDefault();
           void submit(q);
         }}
-        className="flex gap-2"
+        className="flex gap-8"
       >
         <label className="sr-only" htmlFor={`ask-${topicId}`}>
           Ask a question about this topic
@@ -112,7 +112,7 @@ export function AskBox({ topicId }: { topicId: string }) {
         <button
           type="submit"
           disabled={busy || !q.trim()}
-          className="mono text-m2 uppercase tracking-[0.08em] px-3.5 min-h-[44px]"
+          className="mono text-m2 caps tracking-[0.08em] px-16 min-h-[44px]"
           style={{
             border: "1px solid var(--rule-3)",
             color: busy || !q.trim() ? "var(--text-mid)" : "var(--text-hi)",
@@ -124,11 +124,11 @@ export function AskBox({ topicId }: { topicId: string }) {
       </form>
 
       {error && (
-        <div className="mono text-m2 mt-2" style={{ color: "var(--warn)" }} role="status">
+        <div className="mono text-m2 mt-8" style={{ color: "var(--warn)" }} role="status">
           {error}
         </div>
       )}
-      <div className="mono text-m3 mt-2" style={{ color: "var(--text-mid)" }}>
+      <div className="mono text-m3 mt-8" style={{ color: "var(--text-mid)" }}>
         Answers are generated and can be wrong. The topic above is the reviewed version.
       </div>
     </div>

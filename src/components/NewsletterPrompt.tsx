@@ -121,7 +121,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
               disabled={state === "busy"}
               placeholder="you@example.com"
               autoComplete="email"
-              className="mono text-m1 flex-1 min-w-0 px-3 min-h-[44px]"
+              className="mono text-m1 flex-1 min-w-0 px-12 min-h-[44px]"
               style={{ background: "var(--ink-3)", border: "1px solid var(--rule-3)", color: "var(--text-hi)" }}
             />
             <button
@@ -130,7 +130,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
               className="mono text-m2 caps tracking-[0.08em] px-16 min-h-[44px] shrink-0"
               style={{ border: "1px solid var(--rule-3)", background: "var(--ink-3)", color: "var(--text-hi)" }}
             >
-              {state === "busy" ? "…" : "subscribe"}
+              {state === "busy" ? "sending" : "subscribe"}
             </button>
           </form>
           <div ref={capture} aria-hidden="true" />
@@ -140,7 +140,7 @@ export function NewsletterPrompt({ context, line }: { context: string; line: str
               {message}
             </p>
           )}
-          <p className="mono text-t3 mt-3" style={{ color: "var(--text-mid)" }}>
+          <p className="text-t3 mt-16" style={{ color: "var(--text-lo)" }}>
             Unsubscribe in one click, from any email.
           </p>
         </>

@@ -28,6 +28,7 @@ import {
   services,
   speaking,
   timeline,
+  verification,
 } from "@/data/content";
 import { failureModes } from "@/data/failures";
 import { manifest } from "@/data/learn/manifest";
@@ -49,21 +50,21 @@ function Statement() {
   return (
     <div className="pt-48 md:pt-96 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-32 md:gap-64 sm:items-end">
       <div className="min-w-0">
-      <h1>
-        <span className="eyebrow block mb-24">{identity.name}</span>
-        I design systems around how they fail.
-      </h1>
-      <p className="text-t2 text-text-mid mt-32 measure">
-        {identity.title}. Node, TypeScript and React, and the data and AI systems behind them.{" "}
-        {identity.location}.
-      </p>
-      <p className="text-t3 text-text-lo mt-16 measure">{identity.bio}</p>
-      <div className="mt-32 flex flex-wrap items-center gap-24">
-        <PrimaryAction href={`mailto:${identity.email}`}>Get in touch</PrimaryAction>
-        <StatusDot label={identity.availability} />
+        <h1>
+          <span className="eyebrow block mb-24">{identity.name}</span>
+          I design systems around how they fail.
+        </h1>
+        <p className="text-t2 text-text-mid mt-32 measure">
+          {identity.title}. Node, TypeScript and React, and the data and AI systems behind them.{" "}
+          {identity.location}.
+        </p>
+        <p className="text-t3 text-text-lo mt-16 measure">{identity.bio}</p>
+        <div className="mt-32 flex flex-wrap items-center gap-24">
+          <PrimaryAction href={`mailto:${identity.email}`}>Get in touch</PrimaryAction>
+          <StatusDot label={identity.availability} />
+        </div>
       </div>
-      </div>
-      <div className="mt-48 sm:mt-0 max-w-[280px] sm:max-w-none sm:w-[232px] md:w-[300px] xl:w-[360px] shrink-0">
+      <div className="mt-48 sm:mt-0 max-w-[280px] sm:max-w-none sm:w-[236px] md:w-[288px] xl:w-[320px] shrink-0">
         <Plate n={0} bleed={false}>
           <img
             src="/sumit-gundawar.webp"
@@ -168,6 +169,15 @@ function Mode({ mode, index }: { mode: (typeof failureModes)[number]; index: num
   const modeArticles = mode.articleIds.map((id) => articleById.get(id)).filter(Boolean);
   const framework = frameworks.find((f) => f.abbr === mode.frameworkAbbr);
 
+  const inventory = [
+    `${mode.built.length} ${mode.built.length === 1 ? "thing" : "things"} built`,
+    incident ? "1 public incident" : null,
+    modeArticles.length
+      ? `${modeArticles.length} ${modeArticles.length === 1 ? "article" : "articles"}`
+      : null,
+    `${mode.topicIds.length} topics`,
+  ].filter(Boolean) as string[];
+
   return (
     <div id={mode.id} style={{ scrollMarginTop: 72 }} className="border-t border-rule-2 py-24">
       <button
@@ -178,16 +188,19 @@ function Mode({ mode, index }: { mode: (typeof failureModes)[number]; index: num
       >
         <span
           aria-hidden
-          className="mono text-t1 leading-[28px] text-accent shrink-0 w-24 text-center"
+          className="mono text-t1 leading-[28px] text-accent shrink-0 w-24 text-center order-2 ml-auto sm:order-none sm:ml-0"
         >
-          {open ? "\u2212" : "+"}
+          {open ? "-" : "+"}
         </span>
         <h3 className="min-w-0 flex-1">{mode.failure}</h3>
       </button>
-      <p className="text-t2 text-text-mid mt-12 measure-wide md:pl-40">{mode.because}</p>
+      <div className="sm:pl-40 md:grid md:grid-cols-2 md:gap-32 xl:gap-48 md:items-baseline">
+        <p className="text-t2 text-text-mid mt-12 measure-wide">{mode.because}</p>
+        <p className="mono text-m2 text-text-lo mt-12">{inventory.join(" \u00b7 ")}</p>
+      </div>
 
       {open && (
-        <div className="mt-32 md:pl-40 grid gap-32 md:grid-cols-2 xl:gap-48">
+        <div className="mt-32 sm:pl-40 grid gap-32 md:grid-cols-2 xl:gap-48">
           <div className="md:row-span-2">
             <Kicker>What I built against it</Kicker>
             <ul className="mt-12 grid gap-16">
@@ -289,7 +302,7 @@ function LiveSystems() {
             rel="noopener noreferrer"
             className="group block py-24 border-b border-rule-2 transition-colors duration-[120ms] hover:bg-ink-1 sm:grid sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-24 md:gap-32"
           >
-            <span className="mono text-m2 text-accent">{s.urlLabel}</span>
+            <span className="mono text-m2 text-accent">Open &#8599;</span>
             <span className="block min-w-0 mt-8 sm:mt-0">
               <span className="block text-t1 text-text-hi link-underline">{s.name}</span>
               <span className="block text-t3 text-text-mid mt-8 measure-wide">{s.slo}</span>
@@ -319,8 +332,8 @@ function LiveSystems() {
 
 function Method() {
   return (
-    <div className="grid gap-24 md:grid-cols-2">
-      <div>
+    <div className="grid gap-32 md:grid-cols-2">
+      <div className="flex flex-col">
         <h3>I check my own claims, and publish what was wrong</h3>
         <p className="text-t3 text-text-mid mt-12 measure-wide">
           The {CORPUS.topics} topics behind {CORPUS.cards} cards carry 141 cited sources. Every one
@@ -330,24 +343,27 @@ function Method() {
         </p>
         <Link
           to="/learn"
-          className="mono text-m2 text-accent link-underline mt-16 min-h-[44px] inline-flex items-center"
+          className="mono text-m2 text-accent link-underline mt-16 md:mt-auto md:pt-16 min-h-[44px] inline-flex items-center self-start"
         >
           Read the material
         </Link>
       </div>
-      <div>
+      <div className="flex flex-col">
         <h3>The site refuses to ship its own mistakes</h3>
         <p className="text-t3 text-text-mid mt-12 measure-wide">
-          Eleven check suites run in the build: 45 assertions against the deployed site, 30 on
-          security, 69 email compatibility rules, plus gates on typography, colour contrast at the
-          sizes actually used, content structure, indexing signals and every route returning real
-          text rather than an empty app shell.
+          {verification.suites} check suites guard this site. {verification.inBuild} of them, plus
+          the type checker, run on every build: the Worker, brand tokens, prose, content structure,
+          colour contrast at the sizes actually used, indexing signals, layout across twelve widths,
+          typography and diagram geometry. The rest run against what is deployed:{" "}
+          {verification.liveAssertions} assertions on the live site,{" "}
+          {verification.securityAssertions} on security and {verification.emailAssertions} on email
+          compatibility.
         </p>
         <a
           href="https://github.com/sumitgundawar/sumitgundawar.github.io"
           target="_blank"
           rel="noopener noreferrer"
-          className="mono text-m2 text-accent link-underline mt-16 min-h-[44px] inline-flex items-center"
+          className="mono text-m2 text-accent link-underline mt-16 md:mt-auto md:pt-16 min-h-[44px] inline-flex items-center self-start"
         >
           The source &#8599;
         </a>
@@ -430,7 +446,7 @@ export function StatusPage() {
             }
           >
             <div className="grid gap-32 md:grid-cols-2">
-              <div>
+              <div className="flex flex-col">
                 <h3>An architecture recommender that talks you down</h3>
                 <p className="text-t3 text-text-mid mt-12">
                   Ten questions, then a recommendation where every component carries its reasoning
@@ -440,12 +456,12 @@ export function StatusPage() {
                 </p>
                 <Link
                   to="/build"
-                  className="mono text-m2 text-accent link-underline mt-16 min-h-[44px] inline-flex items-center"
+                  className="mono text-m2 text-accent link-underline mt-16 md:mt-auto md:pt-16 min-h-[44px] inline-flex items-center self-start"
                 >
                   Answer ten questions
                 </Link>
               </div>
-              <div>
+              <div className="flex flex-col">
                 <h3>A clinical retrieval demo you can make refuse you</h3>
                 <p className="text-t3 text-text-mid mt-12">
                   {serviceById.get("groundcheck")?.slo}
@@ -454,7 +470,7 @@ export function StatusPage() {
                   href={serviceById.get("groundcheck")?.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mono text-m2 text-accent link-underline mt-16 min-h-[44px] inline-flex items-center"
+                  className="mono text-m2 text-accent link-underline mt-16 md:mt-auto md:pt-16 min-h-[44px] inline-flex items-center self-start"
                 >
                   Make it refuse &#8599;
                 </a>
@@ -476,8 +492,9 @@ export function StatusPage() {
             </div>
             {robot?.media?.video && (
               <div className="mt-48">
-                <Plate n={1} caption={robot.media.caption}>
+                <Plate n={1} caption={robot.media.caption} bleed={false} asideCaption fit>
                   <LoopVideo
+                    className="w-[224px] sm:w-[248px] xl:w-[264px]"
                     src={robot.media.video.src}
                     poster={robot.media.video.poster}
                     label={robot.media.video.label}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, useRef, type CSSProperties, type ReactNode } from "react";
 import { LABEL_EM_PER_CHAR, LABEL_PX, NODE_TEXT_WIDTH, wrapSub } from "@/data/learn/types";
 import { usePrefersReducedMotion } from "@/lib/hooks";
 import type { Diagram, DiagramNode, NodeKind } from "@/data/learn";
@@ -12,12 +12,14 @@ const KIND_COLOR: Record<NodeKind, { fill: string; edge: string; text: string }>
   external: { fill: "var(--n-external)", edge: "var(--n-external-edge)", text: "var(--n-external-text)" },
 };
 
+const NARROW_QUERY = "(max-width: 619px)";
+
 function useNarrow(): boolean {
   const [narrow, setNarrow] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches,
+    () => typeof window !== "undefined" && window.matchMedia(NARROW_QUERY).matches,
   );
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1023px)");
+    const mq = window.matchMedia(NARROW_QUERY);
     const on = () => setNarrow(mq.matches);
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
@@ -69,6 +71,8 @@ function wrapLabel(text: string, maxWidth: number, maxLines: number): string[] {
 
 const W = 168;
 
+const MAX_SCALE = 1.35;
+
 const H = 74;
 const GAP_X = 176;
 const GAP_Y = 34;
@@ -82,7 +86,15 @@ interface Placed extends DiagramNode {
   col: number;
 }
 
-export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
+export function FlowDiagram({
+  diagram,
+  id,
+  controls,
+}: {
+  diagram: Diagram;
+  id: string;
+  controls?: ReactNode;
+}) {
   const [hovered, setHovered] = useState<string | null>(null);
 
   const frameRef = useRef<HTMLDivElement>(null);
@@ -339,13 +351,27 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
     });
   }, [diagram, byId, placed, narrow]);
 
+  const viewHeight = useMemo(() => {
+    let bottom = 0;
+    for (const n of placed) bottom = Math.max(bottom, n.y + H + DEPTH);
+    for (const g of routed) {
+      if (!g) continue;
+      for (const m of g.d.matchAll(/-?\d+(?:\.\d+)?\s+(-?\d+(?:\.\d+)?)/g)) {
+        bottom = Math.max(bottom, Number(m[1]));
+      }
+      if (g.lines.length) bottom = Math.max(bottom, g.mid[1] + g.labelH / 2);
+    }
+    return Math.min(height, Math.ceil(bottom + PAD));
+  }, [placed, routed, height]);
+
   const hoveredNode = hovered ? byId[hovered] : null;
   const hasAlternatives = diagram.columns.some((col) => col.some((n) => n.alternative));
 
   return (
-    <figure className="my-6">
+    <figure className="my-24">
       {!full && (
-        <div className="flex justify-end mb-8">
+        <div className="flex items-center justify-between gap-8 mb-8">
+          {controls ?? <span />}
           <button
             type="button"
             onClick={toggleFull}
@@ -426,11 +452,16 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
         </button>}
         <svg
           ref={svgRef}
-          viewBox={`0 0 ${width} ${height}`}
+          viewBox={`0 0 ${width} ${viewHeight}`}
           width="100%"
           role="group"
           aria-label={diagram.caption}
-          style={{ minWidth: narrow ? undefined : width, display: "block" }}
+          style={{
+            minWidth: narrow ? undefined : width,
+            maxWidth: width * MAX_SCALE,
+            marginInline: "auto",
+            display: "block",
+          }}
         >
           <defs>
             <marker
@@ -598,11 +629,11 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
         </svg>
       </div>
 
-      <figcaption className="mt-2.5 text-m2" style={{ color: "var(--text-mid)" }}>
+      <figcaption className="mt-8 text-m2" style={{ color: "var(--text-mid)" }}>
         <div className="flex flex-wrap items-center gap-x-16 gap-y-8 mono text-m2 mb-8">
           {([...new Set(diagram.columns.flat().map((n) => n.kind ?? "service"))] as NodeKind[]).map(
             (k) => (
-              <span key={k} className="inline-flex items-center gap-1.5">
+              <span key={k} className="inline-flex items-center gap-8">
                 <span
                   aria-hidden
                   style={{
@@ -619,7 +650,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
           )}
           <span className="opacity-80">Dashed = asynchronous</span>
           {hasAlternatives && (
-            <span className="inline-flex items-center gap-1.5" style={{ color: "var(--warn)" }}>
+            <span className="inline-flex items-center gap-8" style={{ color: "var(--warn)" }}>
               <span aria-hidden style={{ width: 9, height: 9, border: "1px dashed var(--warn)" }} />
               Considered, not chosen
             </span>
@@ -627,7 +658,7 @@ export function FlowDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
         </div>
         <span>{diagram.caption}</span>
         {hoveredNode && !hoveredNode.why && (
-          <span className="mono text-m2 ml-3" style={{ color: "var(--accent)" }}>
+          <span className="mono text-m2 ml-12" style={{ color: "var(--accent)" }}>
             {hoveredNode.label}
             {hoveredNode.sub ? ` · ${hoveredNode.sub}` : ""} · {KIND_LABEL[hoveredNode.kind ?? "service"]}
           </span>

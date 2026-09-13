@@ -1,10 +1,17 @@
-import { findProblems, findAnswerTells, findUniformity, findDiagramOverflow } from "../src/data/learn/validate.ts";
+import {
+  findProblems,
+  findAnswerTells,
+  findUniformity,
+  findDiagramOverflow,
+  findBuildDiagramOverflow,
+} from "../src/data/learn/validate.ts";
 
 const groups = [
   ["structure", findProblems()],
   ["answer tells", findAnswerTells()],
   ["uniformity", findUniformity()],
   ["diagram text fits", findDiagramOverflow()],
+  ["build diagram text fits", findBuildDiagramOverflow()],
 ];
 
 let total = 0;

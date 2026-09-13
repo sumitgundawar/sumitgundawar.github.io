@@ -3,7 +3,6 @@ import { Masthead, PageHeader, SiteFooter } from "./primitives";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { NewsletterPrompt } from "./NewsletterPrompt";
-import { Link } from "react-router-dom";
 import { FlowDiagram } from "./FlowDiagram";
 import { track } from "@/lib/track";
 import { nextQuestion } from "@/lib/api";
@@ -48,7 +47,7 @@ function toDiagram(recs: Recommendation[]): Diagram {
       const chosen = {
         id: r.id,
         label: r.name,
-        sub: r.pick,
+        sub: r.pickShort ?? r.pick,
         kind: r.kind,
         why: r.why,
         setup: r.where,
@@ -59,8 +58,7 @@ function toDiagram(recs: Recommendation[]): Diagram {
         chosen,
         {
           id: `${r.id}-alt`,
-          label: alt.name,
-          sub: `instead of ${r.pick}`,
+          label: alt.short ?? alt.name,
           kind: r.kind,
           alternative: true,
           why: `Considered instead of ${r.pick}. ${alt.when}`,
@@ -90,8 +88,8 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
       className="rounded-lg border p-16 sm:p-24"
       style={{ borderColor: "var(--rule-3)", background: "var(--ink-2)" }}
     >
-      <div className="flex items-baseline justify-between gap-3 flex-wrap">
-        <div className="flex items-baseline gap-2.5 flex-wrap">
+      <div className="flex items-baseline justify-between gap-12 flex-wrap">
+        <div className="flex items-baseline gap-8 flex-wrap">
           <span className="text-t1 font-medium" style={{ color: "var(--text-hi)" }}>
             {rec.name}
           </span>
@@ -106,29 +104,30 @@ function ComponentCard({ rec }: { rec: Recommendation }) {
         )}
       </div>
 
-      <p className="mt-2.5 text-t2 leading-[1.6]" style={{ color: "var(--text-mid)" }}>
-        {rec.why}
-      </p>
-
-      <p className="mt-8 text-t2 leading-relaxed mono" style={{ color: "var(--text-mid)", opacity: 0.85 }}>
-        {rec.where}
-      </p>
+      <div className="mt-12 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,300px)] md:gap-32 md:items-start">
+        <p className="text-t2 leading-[1.6] measure-wide" style={{ color: "var(--text-mid)" }}>
+          {rec.why}
+        </p>
+        <p className="mono text-m2 mt-12 md:mt-0" style={{ color: "var(--text-lo)" }}>
+          {rec.where}
+        </p>
+      </div>
 
       <button
         onClick={() => {
           setShowAlts((s) => !s);
           if (!showAlts) track("build_alternatives", { component: rec.id });
         }}
-        className="mono text-m2 mt-3 link-underline"
+        className="mono text-m2 mt-16 link-underline"
         style={{ color: "var(--accent)" }}
       >
         {showAlts ? "hide alternatives" : `switch this · ${rec.alternatives.length} alternatives`}
       </button>
 
       {showAlts && (
-        <div className="mt-3 flex flex-col gap-2.5">
+        <div className="mt-16 flex flex-col gap-16">
           {rec.alternatives.map((alt) => (
-            <div key={alt.name} className="border-l-2 pl-3" style={{ borderColor: "var(--rule-2)" }}>
+            <div key={alt.name} className="border-l-2 pl-12 measure-wide" style={{ borderColor: "var(--rule-2)" }}>
               <div className="text-t2 font-medium" style={{ color: "var(--text-hi)" }}>
                 {alt.name}
               </div>
@@ -305,7 +304,7 @@ export function BuildPage() {
         />
 
         {thinking && (
-          <div className="mt-10 flex items-center gap-3" aria-live="polite">
+          <div className="mt-40 flex items-center gap-12" aria-live="polite">
             <span className="build-pulse" aria-hidden />
             <span className="mono text-m2" style={{ color: "var(--text-mid)" }}>
               Working out what to ask next
@@ -439,7 +438,7 @@ export function BuildPage() {
         )}
 
         {done && diagram && (
-          <div className="mt-9">
+          <div className="mt-32">
             <div className="flex items-center gap-16 flex-wrap">
               <button
                 onClick={back}
@@ -463,21 +462,16 @@ export function BuildPage() {
               </button>
             </div>
 
-            <NewsletterPrompt
-              context="build"
-              line="If this was useful, I write about the decisions behind architectures like this one: what broke in production and what the fix cost. Sent when there is something worth sending."
-            />
-
-            <p className="mt-6 text-t2 leading-relaxed max-w-[35em]" style={{ color: "var(--text-hi)" }}>
+            <p className="mt-24 text-t2 leading-relaxed measure" style={{ color: "var(--text-hi)" }}>
               {headline(answers)}
             </p>
-            <p className="mt-2.5 mono text-t2" style={{ color: "var(--accent)" }}>
+            <p className="mt-12 mono text-m1" style={{ color: "var(--accent)" }}>
               {costBand(answers)}
             </p>
 
             <FlowDiagram diagram={diagram} id="build-result" />
 
-            <div className="mt-7 grid gap-3">
+            <div className="mt-32 grid gap-12">
               {recs.map((r) => (
                 <ComponentCard key={r.id} rec={r} />
               ))}
@@ -488,6 +482,11 @@ export function BuildPage() {
               have measured that you need it, not before, every component you skip is one you do not have
               to operate, secure or pay for.
             </p>
+
+            <NewsletterPrompt
+              context="build"
+              line="If this was useful, I write about the decisions behind architectures like this one: what broke in production and what the fix cost. Sent when there is something worth sending."
+            />
           </div>
         )}
       </div>

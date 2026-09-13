@@ -1,14 +1,13 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FilterBar, IndexItem, Masthead, PageHeader, SiteFooter } from "./primitives";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { FlowDiagram } from "./FlowDiagram";
 import { DiagramViews } from "./DiagramViews";
 import { AskBox } from "./AskBox";
 import { NewsletterPrompt } from "./NewsletterPrompt";
 import { trackQuiz } from "@/lib/api";
 import { track } from "@/lib/track";
 import { useProgress, summarise, type Progress } from "@/lib/progress";
-import { usePageDwell, setSocialMeta, useStagger } from "@/lib/hooks";
+import { usePageDwell, setSocialMeta } from "@/lib/hooks";
 
 import { manifest, topicCount } from "@/data/learn/manifest";
 import { loadCard } from "@/data/learn/load";
@@ -32,30 +31,12 @@ const TRACK_ORDER: Track[] = [
   "interview",
 ];
 
-const byLevel = {
-  beginner: manifest.reduce((n, c) => n + c.topics.filter((t) => t.level === "beginner").length, 0),
-  intermediate: manifest.reduce(
-    (n, c) => n + c.topics.filter((t) => t.level === "intermediate").length,
-    0,
-  ),
-  advanced: manifest.reduce((n, c) => n + c.topics.filter((t) => t.level === "advanced").length, 0),
-};
-
 const countByLevel = (level: Level) =>
   manifest.reduce((n, c) => n + c.topics.filter((t) => t.level === level).length, 0);
 
-function StaggerGrid({ className, children }: { className?: string; children: ReactNode }) {
-  const ref = useStagger<HTMLDivElement>();
-  return (
-    <div ref={ref} className={className}>
-      {children}
-    </div>
-  );
-}
-
 function Sources({ sources }: { sources: Source[] }) {
   return (
-    <details className="mt-7 max-w-[36em] group">
+    <details className="mt-32 max-w-[36em] group">
       <summary
         className="mono text-m2 uppercase tracking-[0.09em] cursor-pointer inline-flex items-center gap-8 min-h-[44px]"
         style={{ color: "var(--text-mid)" }}
@@ -71,10 +52,10 @@ function Sources({ sources }: { sources: Source[] }) {
           -
         </span>
       </summary>
-      <ol className="mt-8 flex flex-col gap-3.5 pl-0">
+      <ol className="mt-8 flex flex-col gap-16 pl-0">
         {sources.map((s, i) => (
-          <li key={i} className="flex gap-3">
-            <span className="mono tnum text-m3 pt-1 shrink-0" style={{ color: "var(--text-mid)", opacity: 0.6 }}>
+          <li key={i} className="flex gap-12">
+            <span className="mono tnum text-m3 pt-4 shrink-0" style={{ color: "var(--text-mid)", opacity: 0.6 }}>
               {String(i + 1).padStart(2, "0")}
             </span>
             <div className="min-w-0">
@@ -87,7 +68,7 @@ function Sources({ sources }: { sources: Source[] }) {
               >
                 {s.label} <span aria-hidden>&#8599;</span>
               </a>
-              <p className="mt-1 text-t3 leading-relaxed" style={{ color: "var(--text-mid)" }}>
+              <p className="mt-4 text-t3 leading-relaxed" style={{ color: "var(--text-mid)" }}>
                 {s.supports}
               </p>
             </div>
@@ -122,10 +103,10 @@ function Subject({ subject }: { subject: NonNullable<Card["subject"]> }) {
       >
         {subject.title} <span aria-hidden>&#8599;</span>
       </a>
-      <div className="mono text-m2 mt-1.5" style={{ color: "var(--text-mid)" }}>
+      <div className="mono text-m2 mt-8" style={{ color: "var(--text-mid)" }}>
         {subject.publisher} · {when}
       </div>
-      <p className="mt-3 text-t2 leading-relaxed" style={{ color: "var(--text-mid)" }}>
+      <p className="mt-12 text-t2 leading-relaxed" style={{ color: "var(--text-mid)" }}>
         {subject.note}
       </p>
     </div>
@@ -217,9 +198,9 @@ function TopicView({
   };
 
   return (
-    <div className="pb-32 pt-1">
+    <div className="pb-32 pt-4">
       <div className="grid @min-[860px]:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-x-48 gap-y-32 items-start">
-      <div className="min-w-0 flex flex-col gap-3">
+      <div className="min-w-0 flex flex-col gap-12">
         {topic.body.map((p, i) => (
           <p key={i} className="text-t2 leading-[1.65]" style={{ color: "var(--text-mid)" }}>
             {p}
@@ -276,7 +257,7 @@ function TopicView({
                   cursor: answered ? "default" : "pointer",
                 }}
               >
-                <span className="mono text-m2 pt-0.5 shrink-0 w-3" style={{ color: show && isCorrect ? "var(--ok)" : "var(--text-mid)" }}>
+                <span className="mono text-m2 pt-2 shrink-0 w-3" style={{ color: show && isCorrect ? "var(--ok)" : "var(--text-mid)" }}>
                   {show && isCorrect ? (
                     <span className="check-mark inline-block">✓</span>
                   ) : (
@@ -344,7 +325,7 @@ function CardDetail({
     <div>
       <button
         onClick={onBack}
-        className="mono text-m2 mb-16 inline-flex items-center gap-1.5 link-underline min-h-[44px]"
+        className="mono text-m2 mb-16 inline-flex items-center gap-8 link-underline min-h-[44px]"
         style={{ color: "var(--text-mid)" }}
       >
         ← All topics
@@ -359,17 +340,17 @@ function CardDetail({
 
       {card.subject && <Subject subject={card.subject} />}
 
-      <div className="mt-9 grid lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)] gap-x-10 xl:gap-x-12 items-start">
+      <div className="mt-32 grid lg:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)] gap-x-40 xl:gap-x-12 items-start">
 
         <nav
           aria-label="Contents"
           className="lg:sticky lg:top-32 min-w-0 mb-32 lg:mb-0 pb-24 lg:pb-0 border-b lg:border-b-0"
           style={{ borderColor: "var(--rule-2)" }}
         >
-          <div className="mono text-m3 uppercase tracking-[0.12em] mb-3" style={{ color: "var(--text-mid)" }}>
+          <div className="mono text-m3 uppercase tracking-[0.12em] mb-12" style={{ color: "var(--text-mid)" }}>
             Contents
           </div>
-          <ol className="flex flex-col gap-0.5">
+          <ol className="flex flex-col gap-2">
             {card.topics.map((t, i) => {
               const here = active === t.id;
               return (
@@ -411,9 +392,9 @@ function CardDetail({
               id={`topic-${t.id}`}
 
               style={{ scrollMarginTop: 88 }}
-              className={i === 0 ? "" : "mt-14 pt-12 border-t"}
+              className={i === 0 ? "" : "mt-48 pt-12 border-t"}
             >
-              <div className="flex items-baseline gap-3 flex-wrap">
+              <div className="flex items-baseline gap-12 flex-wrap">
                 <span className="mono tnum text-m2" style={{ color: "var(--accent)" }}>
                   {String(i + 1).padStart(2, "0")}
                 </span>
@@ -510,7 +491,7 @@ export function LearnPage() {
       <div className="shell py-32 lg:py-48">
 
         {currentMeta && !current ? (
-          <div className="mt-10" data-loading="card">
+          <div className="mt-40" data-loading="card">
             <p className="mono text-m2" style={{ color: "var(--text-mid)" }}>
               loading {currentMeta.title.toLowerCase()}
             </p>
@@ -535,7 +516,7 @@ export function LearnPage() {
           <>
             <PageHeader
               title="Learn engineering"
-              standfirst={`${topicCount} topics across ${manifest.length} cards, from first principles to the decisions senior and staff interviews actually probe. ${byLevel.advanced} of them are advanced. Every topic says why a choice was made rather than only what it was, and every number carries the source it came from.`}
+              standfirst={`${topicCount} topics across ${manifest.length} cards, from first principles to the decisions senior and staff interviews actually probe. ${countByLevel("advanced")} of them are advanced. Every topic says why a choice was made rather than only what it was, and every number carries the source it came from.`}
             >
               {(() => {
                 const all = summarise(progress, manifest.flatMap((c) => c.topics.map((t) => t.id)));

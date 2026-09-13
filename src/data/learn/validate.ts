@@ -1,4 +1,5 @@
 import { cards } from "./index";
+import { questions, recommend } from "../build";
 import { LABEL_MAX_CHARS, SUB_MAX_CHARS, SUB_MAX_LINES, subFits, wrapSub } from "./types";
 
 export interface Problem {
@@ -88,6 +89,46 @@ export function findDiagramOverflow(): Problem[] {
     }
   }
   return out;
+}
+
+export function findBuildDiagramOverflow(): Problem[] {
+  const ids = questions.map((q) => q.id);
+  const options = questions.map((q) => q.options.map((o) => o.id));
+  const seen = new Map<string, string>();
+
+  const walk = (i: number, answers: Record<string, string>) => {
+    if (i === ids.length) {
+      for (const r of recommend(answers)) {
+        if (r.name.length > LABEL_MAX_CHARS) {
+          seen.set(
+            `name:${r.name}`,
+            `component "${r.name}" is ${r.name.length} chars, ${LABEL_MAX_CHARS} fit`,
+          );
+        }
+        const sub = r.pickShort ?? r.pick;
+        if (!subFits(sub)) {
+          seen.set(
+            `pick:${sub}`,
+            `pick "${sub}" renders as ${wrapSub(sub).join(" / ")}, add a pickShort`,
+          );
+        }
+        for (const alt of r.alternatives) {
+          const label = alt.short ?? alt.name;
+          if (label.length > LABEL_MAX_CHARS) {
+            seen.set(
+              `alt:${label}`,
+              `alternative "${label}" is ${label.length} chars, ${LABEL_MAX_CHARS} fit, add a short`,
+            );
+          }
+        }
+      }
+      return;
+    }
+    for (const o of options[i]) walk(i + 1, { ...answers, [ids[i]]: o });
+  };
+  walk(0, {});
+
+  return [...seen.values()].map((what) => ({ where: "/build", what }));
 }
 
 const MAX_MARGIN = 8;

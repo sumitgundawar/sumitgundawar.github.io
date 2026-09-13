@@ -47,9 +47,9 @@
     --warn: #e7b23c;
     --crit: #db7aa8;
 
-    --d1: clamp(40px, 1.5rem + 5vw, 88px);
-    --d2: clamp(30px, 1.125rem + 3.2vw, 56px);
-    --d3: clamp(22px, 0.875rem + 1.4vw, 32px);
+    --d1: clamp(34px, 1.25rem + 3.4vw, 60px);
+    --d2: clamp(27px, 1rem + 2.2vw, 44px);
+    --d3: clamp(22px, 0.875rem + 1.1vw, 30px);
     --t1: 21px;
     --t2: 17px;
     --t3: 15px;
@@ -177,9 +177,9 @@
 
   h1 {
     font-size: var(--d1);
-    line-height: 1;
-    letter-spacing: -0.03em;
-    font-variation-settings: "opsz" 72;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    font-variation-settings: "opsz" 60;
   }
 
   h2 {
@@ -207,9 +207,9 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--ink);
-    outline-offset: 0;
-    box-shadow: 0 0 0 4px var(--accent-2);
+    outline: 2px solid var(--accent-2);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 1px var(--ink);
   }
 
   input,

@@ -135,11 +135,13 @@ export interface Recommendation {
   name: string;
   pick: string;
 
+  pickShort?: string;
+
   why: string;
 
   where: string;
 
-  alternatives: { name: string; when: string }[];
+  alternatives: { name: string; when: string; short?: string }[];
 
   optional?: boolean;
 
@@ -198,7 +200,7 @@ export function recommend(a: Answers): Recommendation[] {
         "Rolling your own authentication is the most common way a small team introduces a serious vulnerability. Password reset, session handling, MFA and account recovery are each easy to get subtly wrong, and the failure is a breach rather than a bug.",
       where: "Third-party service. Usually free below a few thousand active users.",
       alternatives: [
-        { name: "Your framework's built-in auth", when: "You have someone who has done it before and wants no third-party dependency." },
+        { name: "Your framework's built-in auth", short: "Framework auth", when: "You have someone who has done it before and wants no third-party dependency." },
         { name: "SSO only", when: "Internal tool where everyone already has a company identity." },
       ],
     });
@@ -290,7 +292,7 @@ export function recommend(a: Answers): Recommendation[] {
       where: cheap ? "R2 charges no egress fee, which is the usual surprise on an image-heavy site." : "S3 or R2. Pennies per gigabyte; watch egress.",
       alternatives: [
         { name: "S3", when: "You are already deep in AWS and egress volume is modest." },
-        { name: "Uploadthing or Cloudinary", when: "You want transforms and delivery handled for you." },
+        { name: "Uploadthing or Cloudinary", short: "Cloudinary", when: "You want transforms and delivery handled for you." },
       ],
     });
   }
@@ -306,7 +308,7 @@ export function recommend(a: Answers): Recommendation[] {
         "Transcoding into multiple renditions, packaging for adaptive bitrate and delivering it is a substantial system on its own. Buying it is almost always right until video is your core product.",
       where: "Per-minute encoding plus delivery. Priced per minute stored and streamed.",
       alternatives: [
-        { name: "MediaConvert plus your own CDN", when: "High volume and you want control over the ladder." },
+        { name: "MediaConvert plus your own CDN", short: "MediaConvert + CDN", when: "High volume and you want control over the ladder." },
         { name: "ffmpeg in a worker", when: "Low volume and simple requirements." },
       ],
     });
@@ -318,11 +320,12 @@ export function recommend(a: Answers): Recommendation[] {
       kind: "service",
       name: "Realtime layer",
       pick: "Managed WebSockets (Ably, Pusher, Supabase Realtime)",
+      pickShort: "Managed WebSockets",
       why:
         "Persistent connections break the assumption that any server can serve any request, which is what makes ordinary web scaling easy. You need a pub/sub tier so a message reaches whichever node holds that user's socket.",
       where: "Priced per connection and message. Free tiers cover early usage.",
       alternatives: [
-        { name: "Your own WebSocket servers plus Redis pub/sub", when: "Volume makes per-connection pricing expensive." },
+        { name: "Your own WebSocket servers plus Redis pub/sub", short: "Your own WebSockets", when: "Volume makes per-connection pricing expensive." },
         { name: "Server-sent events", when: "Data only flows server to client." },
       ],
     });
@@ -354,8 +357,8 @@ export function recommend(a: Answers): Recommendation[] {
           : "Postgres full-text search is genuinely good and already in your stack. Adding a search service before you have the content to justify it is a second system to keep in sync for no gain.",
       where: scale >= 2 ? "Managed search, tens per month." : "No extra infrastructure.",
       alternatives: [
-        { name: "Elasticsearch or OpenSearch", when: "You need deep customisation and have someone to operate it." },
-        { name: "Postgres trigram search", when: "Fuzzy matching on names and titles is enough." },
+        { name: "Elasticsearch or OpenSearch", short: "Elasticsearch", when: "You need deep customisation and have someone to operate it." },
+        { name: "Postgres trigram search", short: "Postgres trigram", when: "Fuzzy matching on names and titles is enough." },
       ],
       optional: scale < 2,
     });
@@ -371,7 +374,7 @@ export function recommend(a: Answers): Recommendation[] {
         "Never hold card details. Using a hosted checkout keeps you out of the strictest parts of PCI compliance entirely, and subscription billing has far more edge cases than it appears, proration, dunning, tax, failed renewals.",
       where: "Per transaction. Roughly 1.5 to 3 percent plus a fixed fee.",
       alternatives: [
-        { name: "Paddle or Lemon Squeezy", when: "You want the merchant of record to handle sales tax for you." },
+        { name: "Paddle or Lemon Squeezy", short: "Paddle", when: "You want the merchant of record to handle sales tax for you." },
         { name: "Adyen", when: "Large volume and you want direct acquiring." },
       ],
     });
@@ -404,7 +407,7 @@ export function recommend(a: Answers): Recommendation[] {
       "You cannot operate what you cannot see, and the moment to install this is before the first incident rather than during it. Error tracking is the highest-value first step, because most outages surface as an exception someone should have seen.",
     where: "Free tiers are generous. Cost tracks event volume.",
     alternatives: [
-      { name: "Datadog or Grafana Cloud", when: "You need traces and dashboards across several services." },
+      { name: "Datadog or Grafana Cloud", short: "Datadog or Grafana", when: "You need traces and dashboards across several services." },
       { name: "Platform logs only", when: "Very early, and you check them by hand." },
     ],
   });

@@ -41,8 +41,8 @@ export function Newsletter() {
   }
 
   return (
-    <section className="mt-14" aria-labelledby="newsletter-h">
-      <div className="flex items-center flex-wrap gap-3 mb-5">
+    <section className="mt-48" aria-labelledby="newsletter-h">
+      <div className="flex items-center flex-wrap gap-12 mb-16">
         <span aria-hidden className="inline-block shrink-0" style={{ width: 7, height: 7, background: "var(--accent)" }} />
         <h2
           id="newsletter-h"
@@ -97,7 +97,7 @@ export function Newsletter() {
               disabled={state === "busy"}
               placeholder="you@example.com"
               autoComplete="email"
-              className="mono text-m1 flex-1 min-w-0 px-3 min-h-[44px]"
+              className="mono text-m1 flex-1 min-w-0 px-12 min-h-[44px]"
               style={{ background: "var(--ink-2)", border: "1px solid var(--rule-3)", color: "var(--text-hi)" }}
             />
             <button
@@ -106,7 +106,7 @@ export function Newsletter() {
               className="mono text-m2 caps tracking-[0.08em] px-16 min-h-[44px] shrink-0"
               style={{ border: "1px solid var(--rule-3)", background: "var(--ink-3)", color: "var(--text-hi)" }}
             >
-              {state === "busy" ? "…" : "subscribe"}
+              {state === "busy" ? "sending" : "subscribe"}
             </button>
           </form>
 
@@ -120,7 +120,7 @@ export function Newsletter() {
           </p>
         )}
 
-        <p className="mono text-t3 mt-3 leading-relaxed" style={{ color: "var(--text-mid)" }}>
+        <p className="text-t3 mt-16 leading-relaxed" style={{ color: "var(--text-lo)" }}>
           Unsubscribe from any email, in one click. Your address is stored to send this and nothing
           else, and is never passed on.
         </p>

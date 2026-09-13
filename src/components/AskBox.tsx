@@ -46,12 +46,12 @@ export function AskBox({ topicId }: { topicId: string }) {
   }
 
   return (
-    <div className="mt-6 pt-5" style={{ borderTop: "1px solid var(--rule-2)" }}>
-      <div className="eyebrow mb-3">Ask about this</div>
+    <div className="mt-24 pt-24" style={{ borderTop: "1px solid var(--rule-2)" }}>
+      <div className="eyebrow mb-12">Ask about this</div>
 
       {thread.map((t, i) => (
         <div key={i} className="mb-16">
-          <div className="mono text-m2 mb-1.5" style={{ color: "var(--text-mid)" }}>
+          <div className="mono text-m2 mb-8" style={{ color: "var(--text-mid)" }}>
             {t.q}
           </div>
           <div className="text-t2 leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-hi)" }}>
@@ -62,25 +62,25 @@ export function AskBox({ topicId }: { topicId: string }) {
 
       {busy && live && (
         <div className="mb-16" aria-live="polite">
-          <div className="mono text-m2 mb-1.5" style={{ color: "var(--text-mid)" }}>
+          <div className="mono text-m2 mb-8" style={{ color: "var(--text-mid)" }}>
             {pending}
           </div>
           <div className="text-t2 leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-hi)" }}>
             {live}
-            <span className="inline-block w-[7px] h-[1em] align-[-0.15em] ml-0.5" style={{ background: "var(--accent)" }} />
+            <span className="inline-block w-[7px] h-[1em] align-[-0.15em] ml-2" style={{ background: "var(--accent)" }} />
           </div>
         </div>
       )}
 
       {thread.length === 0 && !live && (
-        <div className="flex flex-wrap gap-1.5 mb-3">
+        <div className="flex flex-wrap gap-8 mb-12">
           {SUGGESTIONS.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => void submit(s)}
               disabled={busy}
-              className="mono text-m3 px-2.5 min-h-[44px] inline-flex items-center text-left"
+              className="mono text-m3 px-8 min-h-[44px] inline-flex items-center text-left"
               style={{ border: "1px solid var(--rule-2)", color: "var(--text-mid)" }}
             >
               {s}
@@ -106,7 +106,7 @@ export function AskBox({ topicId }: { topicId: string }) {
           onChange={(e) => setQ(e.target.value)}
           disabled={busy}
           placeholder={busy ? (live ? "Writing the answer" : "Thinking") : "Ask a follow-up"}
-          className="mono text-m1 flex-1 min-w-0 px-3 min-h-[44px]"
+          className="mono text-m1 flex-1 min-w-0 px-12 min-h-[44px]"
           style={{ background: "var(--ink-2)", border: "1px solid var(--rule-3)", color: "var(--text-hi)" }}
         />
         <button
@@ -119,7 +119,7 @@ export function AskBox({ topicId }: { topicId: string }) {
             background: "var(--ink-3)",
           }}
         >
-          {busy ? "…" : "ask"}
+          {busy ? "asking" : "ask"}
         </button>
       </form>
 
@@ -128,9 +128,9 @@ export function AskBox({ topicId }: { topicId: string }) {
           {error}
         </div>
       )}
-      <div className="mono text-m3 mt-8" style={{ color: "var(--text-mid)" }}>
+      <p className="text-t3 mt-12" style={{ color: "var(--text-lo)" }}>
         Answers are generated and can be wrong. The topic above is the reviewed version.
-      </div>
+      </p>
     </div>
   );
 }

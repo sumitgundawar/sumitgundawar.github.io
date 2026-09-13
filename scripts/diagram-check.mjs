@@ -1,7 +1,12 @@
 import { chromium } from "playwright";
 import { manifest } from "../src/data/learn/manifest.ts";
 import { startDist } from "./lib/serve.mjs";
-const WIDTHS = [390, 1440];
+const WIDTHS = [390, 820, 1440];
+
+/* An svg with a viewBox scales to its container. The vertical phone layout is
+ * 204 logical px wide, so on a tablet it was being magnified almost fourfold:
+ * 50px node labels and a page taller than the same page on a phone. */
+const MAX_SCALE = 1.36;
 
 const measure = () => {
   const out = [];
@@ -27,11 +32,14 @@ const measure = () => {
     const truncated = Array.from(svg.querySelectorAll("text, tspan"))
       .map((t) => t.textContent ?? "")
       .filter((t) => t.includes("…"));
+    const viewBox = (svg.getAttribute("viewBox") ?? "").split(/\s+/).map(Number);
+    const rendered = svg.getBoundingClientRect().width;
     out.push({
       label: svg.getAttribute("aria-label") ?? "",
       nodes,
       labels,
       truncated,
+      scale: viewBox[2] > 0 && rendered > 0 ? rendered / viewBox[2] : 1,
     });
   }
   return out;
@@ -73,6 +81,11 @@ for (const width of WIDTHS) {
       }
       for (const t of svg.truncated) {
         fails.push(`TRUNCATED  /learn/${id} @${width}  ${JSON.stringify(t)}`);
+      }
+      if (svg.scale > MAX_SCALE) {
+        fails.push(
+          `SCALE      /learn/${id} @${width}  drawn at ${svg.scale.toFixed(2)}x, ${MAX_SCALE}x is the cap`,
+        );
       }
     }
   }

@@ -1,3 +1,5 @@
+import { verification } from "./content";
+
 export interface BuiltEvidence {
   title: string;
   detail: string;
@@ -120,9 +122,8 @@ export const failureModes: FailureMode[] = [
       "A green run is evidence only if you know what it ran against. Coverage counts lines executed, not assertions made, and a suite nobody can distrust is a suite nobody checks.",
     built: [
       {
-        title: "Eleven check suites on this site",
-        detail:
-          "45 assertions against the deployed site, 30 on security, 69 email compatibility rules, plus checks on prose, contrast, content, robots and every route returning real text rather than the app shell.",
+        title: `${verification.suites} check suites on this site`,
+        detail: `${verification.inBuild} run on every build, on typography, colour contrast, content structure, diagram geometry, layout, prose, indexing signals and every route returning real text rather than the app shell. The rest run against what is deployed: ${verification.liveAssertions} assertions on the live site, ${verification.securityAssertions} on security and ${verification.emailAssertions} on email compatibility.`,
       },
       {
         title: "A published audit of my own material",

@@ -61,7 +61,10 @@ export function LoopVideo({
   }, [wanted]);
 
   return (
-    <div className={`relative overflow-hidden border border-rule-2 ${className}`} style={{ background: "var(--ink-3)" }}>
+    <div
+      className={`relative overflow-hidden border border-rule-2 ${className}`}
+      style={{ background: "var(--ink-3)" }}
+    >
       <video
         ref={ref}
         src={src}
@@ -71,7 +74,7 @@ export function LoopVideo({
         playsInline
         preload="none"
         aria-label={label}
-        className="block w-full h-full object-cover"
+        className="block w-full aspect-[4/5] object-cover"
       />
       <button
         type="button"
@@ -83,7 +86,7 @@ export function LoopVideo({
         aria-label={playing ? `Pause: ${label}` : `Play: ${label}`}
         aria-pressed={!playing}
 
-        className="absolute bottom-0 right-0 min-h-[44px] min-w-[44px] flex items-end justify-end p-8.5"
+        className="absolute bottom-0 right-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
       >
         <span
           className="flex items-center justify-center gap-[3px]"

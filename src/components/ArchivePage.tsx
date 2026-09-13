@@ -52,7 +52,7 @@ function IssueView({ slug }: { slug: string }) {
 
   if (state === "loading") {
     return (
-      <p className="mt-10 mono text-m2" style={{ color: "var(--text-mid)" }}>
+      <p className="mt-40 mono text-m2" style={{ color: "var(--text-mid)" }}>
         Loading
       </p>
     );
@@ -60,11 +60,11 @@ function IssueView({ slug }: { slug: string }) {
 
   if (state === "missing" || !issue) {
     return (
-      <div className="mt-10">
+      <div className="mt-40">
         <p className="text-t2" style={{ color: "var(--text-hi)" }}>
           No issue with that address.
         </p>
-        <Link to="/archive" className="mt-3 inline-flex mono text-m2 link-underline" style={{ color: "var(--accent)" }}>
+        <Link to="/archive" className="mt-12 inline-flex mono text-m2 link-underline" style={{ color: "var(--accent)" }}>
           See every issue
         </Link>
       </div>
@@ -80,7 +80,7 @@ function IssueView({ slug }: { slug: string }) {
         {issue.subject}
       </h1>
 
-      <div className="mt-7 flex flex-col gap-4">
+      <div className="mt-32 flex flex-col gap-4">
         {readable(issue).map((p, i) => (
           <p key={i} className="text-t2 leading-[1.7]" style={{ color: "var(--text-hi)" }}>
             {p}
@@ -90,7 +90,7 @@ function IssueView({ slug }: { slug: string }) {
 
       <a
         href={`${API}/api/newsletter/${encodeURIComponent(issue.slug)}?format=html`}
-        className="mt-7 inline-flex mono text-m2 link-underline"
+        className="mt-32 inline-flex mono text-m2 link-underline"
         style={{ color: "var(--text-mid)" }}
       >
         View the email as it was sent
@@ -168,7 +168,7 @@ export function ArchivePage() {
     <>
       <Masthead />
       <main id="content" className="min-h-[100dvh]">
-      <div className="shell pt-16 sm:pt-20 lg:pt-12 pb-16">
+      <div className="shell py-32 lg:py-48">
         {slug && (
           <Link
             to="/archive"

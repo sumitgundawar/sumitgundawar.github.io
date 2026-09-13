@@ -84,7 +84,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
   );
 
   return (
-    <figure className="my-7" aria-labelledby={`${id}-layered-cap`}>
+    <figure className="my-32" aria-labelledby={`${id}-layered-cap`}>
       <div
         ref={wrapRef}
         className="relative w-full overflow-hidden select-none"
@@ -137,7 +137,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
                     transition: "border-color .35s, background .35s",
                   }}
                 />
-                <div className="relative flex flex-col items-center gap-1.5">
+                <div className="relative flex flex-col items-center gap-8">
                   <div
                     className="mono uppercase"
                     style={{
@@ -158,7 +158,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
                         setPicked((cur) => (cur === n.id ? null : n.id));
                       }}
                       aria-pressed={picked === n.id}
-                      className="mono text-center px-2.5 py-1.5 cursor-pointer"
+                      className="mono text-center px-8 py-8 cursor-pointer"
                       style={{
                         minWidth: 132,
                         fontSize: 11,
@@ -222,7 +222,7 @@ export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }
               <span style={{ color: "var(--text-mid)" }}> · {KIND_LABEL[node.kind ?? "service"]}</span>
             </div>
             {(edgesIn.length > 0 || edgesOut.length > 0) && (
-              <div className="mono text-m3 mt-1.5" style={{ color: "var(--text-mid)" }}>
+              <div className="mono text-m3 mt-8" style={{ color: "var(--text-mid)" }}>
                 {edgesIn.map((e, i) => (
                   <div key={`i${i}`}>
                     ← from {diagram.columns.flat().find((n) => n.id === e.from)?.label}

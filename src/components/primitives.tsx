@@ -82,9 +82,9 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <div className="pt-48 md:pt-64 pb-48 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:gap-64 md:items-end">
+    <div className="pt-48 md:pt-64 pb-48 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:gap-64 md:items-start">
       <h1 className="text-d2">{title}</h1>
-      <div className="md:pb-4">
+      <div>
         {standfirst && <p className="text-t2 text-text-mid mt-24 md:mt-0">{standfirst}</p>}
         {children && <div className="mt-24">{children}</div>}
       </div>
@@ -173,29 +173,47 @@ export function Plate({
   n,
   caption,
   bleed = true,
+  asideCaption = false,
+  fit = false,
   children,
 }: {
   n?: number;
   caption?: string;
   bleed?: boolean;
+  asideCaption?: boolean;
+  fit?: boolean;
   children: ReactNode;
 }) {
   return (
-    <figure className={cn("relative", bleed && "xl:-mr-48 2xl:-mx-64")}>
-      {n !== undefined && n > 0 && (
-        <figcaption className="mono text-m3 caps text-text-lo mb-8">
-          pl. {String(n).padStart(2, "0")}
-        </figcaption>
+    <figure
+      className={cn(
+        "relative",
+        bleed && "xl:-mr-48 2xl:-mx-64",
+        asideCaption &&
+          "sm:grid sm:grid-cols-[auto_minmax(0,340px)] sm:gap-32 md:gap-48 sm:items-start sm:justify-start",
       )}
-      <div
-        className="relative border border-rule-2"
-        style={{ background: "var(--plate)" }}
-      >
-        <Registration />
-        {children}
+    >
+      <div className={cn("min-w-0", fit && "w-fit")}>
+        {n !== undefined && n > 0 && (
+          <figcaption className="mono text-m3 caps text-text-lo mb-8">
+            pl. {String(n).padStart(2, "0")}
+          </figcaption>
+        )}
+        <div
+          className={cn("relative border border-rule-2", fit && "w-fit")}
+          style={{ background: "var(--plate)" }}
+        >
+          <Registration />
+          {children}
+        </div>
       </div>
       {caption && (
-        <figcaption className="serif italic text-t3 text-text-lo mt-12 measure">
+        <figcaption
+          className={cn(
+            "serif italic text-t3 text-text-lo mt-12",
+            asideCaption ? "sm:mt-0" : "measure",
+          )}
+        >
           {caption}
         </figcaption>
       )}

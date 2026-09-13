@@ -334,6 +334,14 @@ export const articles: Article[] = [
 
 export const authorPage = "https://dataconomy.com/author/sumit-gundawar/";
 
+export const verification = {
+  suites: 14,
+  inBuild: 9,
+  liveAssertions: 45,
+  securityAssertions: 30,
+  emailAssertions: 69,
+};
+
 export interface Podcast {
   youtubeId?: string;
 

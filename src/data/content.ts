@@ -245,6 +245,17 @@ export interface Article {
 
 export const articles: Article[] = [
   {
+    id: "rail",
+    title: "Why Integrations Fall Apart at Scale, and the Four Habits That Keep Them Standing",
+    publication: "devmio",
+    date: "21 Sep 2026",
+    iso: "2026-09-21",
+    url: "https://devm.io/api/integrations-scale-rail",
+    summary:
+      "Argues that connecting to anything you do not control makes you a distributed system whether you meant it or not, opening with the October 2025 AWS outage in which a race condition in DNS automation left the us-east-1 DynamoDB endpoint unresolvable for about fifteen hours. Names the four shapes an event failure actually takes, and sets out RAIL against them: record the raw event before touching it, acknowledge fast and process off the critical path, make every retry harmless with a unique index inbound and an idempotency key outbound, and reconcile your ledger against the provider's on a schedule.",
+    framework: "RAIL",
+  },
+  {
     id: "unexamined",
     title: "The Unexamined Pass",
     publication: "Software Testing News",
@@ -390,6 +401,18 @@ export interface Incident {
 
 export const incidents: Incident[] = [
   {
+    id: "awsdns",
+    year: "2025",
+    title: "The AWS us-east-1 DNS outage",
+    cause:
+      "A race condition in the automation that manages DNS records left the regional DynamoDB endpoint with no address. The database was healthy and the data intact; the name that thousands of systems used to find it had gone.",
+    blastRadius:
+      "About fifteen hours of cascading failure out of one region, with more than a thousand companies reporting problems before the day was out.",
+    lesson:
+      "Retries against a name that cannot resolve make an outage worse. Design for the dependency that goes quiet, because partial failure is the normal case.",
+    articleId: "rail",
+  },
+  {
     id: "phe",
     year: "2020",
     title: "Public Health England",
@@ -447,6 +470,17 @@ export interface Framework {
 }
 
 export const frameworks: Framework[] = [
+  {
+    abbr: "RAIL",
+    expansion: "Record, Acknowledge, Idempotency, Ledger",
+    domain: "Integrations",
+    layers: [
+      "Record the event before you touch it",
+      "Acknowledge fast, process off the critical path",
+      "Idempotency inbound and outbound",
+      "Ledger reconciled against theirs",
+    ],
+  },
   {
     abbr: "FRAME",
     expansion: "Failure-Recovery Architecture for Multi-step Execution",

@@ -87,7 +87,9 @@ export const failureModes: FailureMode[] = [
         urlLabel: "bdvfit.com",
       },
     ],
-    articleIds: [],
+    incidentId: "awsdns",
+    articleIds: ["rail"],
+    frameworkAbbr: "RAIL",
     topicIds: ["idempotency", "payments-idempotency", "webhooks", "delivery-guarantees", "retries-backoff"],
   },
   {

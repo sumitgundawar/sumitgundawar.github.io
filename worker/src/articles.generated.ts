@@ -10,6 +10,12 @@ export interface FeaturedArticle {
 
 export const FEATURED: FeaturedArticle[] = [
   {
+    "title": "Why Integrations Fall Apart at Scale, and the Four Habits That Keep Them Standing",
+    "url": "https://devm.io/api/integrations-scale-rail",
+    "publication": "devmio",
+    "hook": "Argues that connecting to anything you do not control makes you a distributed system whether you meant it or not, opening with the October 2025 AWS outage in which a race condition in DNS automation left the us-east-1 DynamoDB endpoint unresolvable for about fifteen hours."
+  },
+  {
     "title": "The Unexamined Pass",
     "url": "https://softwaretestingnews.co.uk/six-enforcement-risk-zones-every-regulated-brand-should-understand-2/",
     "publication": "Software Testing News",
@@ -20,11 +26,5 @@ export const FEATURED: FeaturedArticle[] = [
     "url": "https://softwaretestingnews.co.uk/the-unanswerable-test-suite/",
     "publication": "Software Testing News",
     "hook": "Argues that testing an AI system needs a suite built from questions it should refuse, not just ones it should answer, opening with a consulting firm's AI-generated report caught citing sources that never existed."
-  },
-  {
-    "title": "The Quiet Failure Mode of AI Features: When Your Cached Outputs Go Stale",
-    "url": "https://aitechtrend.com/ai-cached-outputs/",
-    "publication": "AITechTrend",
-    "hook": "Traces a semantic-search bug to a bulk update that bypassed the save hook, leaving cached embeddings stale with no visible error."
   }
 ];

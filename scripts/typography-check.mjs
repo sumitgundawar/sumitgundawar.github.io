@@ -4,6 +4,7 @@ const ROUTES = ["/", "/learn", "/learn/caching", "/writing", "/build", "/archive
 const WIDTHS = [390, 820, 1440];
 
 const LOWERCASE_OK = new Set([
+  "devmio",
   "pl.",
   "rss",
   "linkedin",

@@ -64,7 +64,7 @@ const collect = () => {
       width: Math.round(box.width),
       containerWidth: Math.round(containerWidth),
       neighbour,
-      inCode: !!el.closest("code, pre, svg, [data-allow-lowercase]"),
+      inCode: !!el.closest("code, pre, svg, [data-allow-lowercase], [data-display]"),
     });
   }
   return out;
@@ -113,7 +113,13 @@ for (const width of WIDTHS) {
         first <= "z" &&
         n.transform === "none" &&
         n.text.length > 2 &&
-        !LOWERCASE_OK.has(n.text.replace(/^[\p{P}\p{S}\s]+/u, "").toLowerCase().split(/\s+/)[0]) &&
+        !LOWERCASE_OK.has(
+          n.text
+            .replace(/^[\p{P}\p{S}\s]+/u, "")
+            .toLowerCase()
+            .split(/\s+/)[0]
+            .replace(/[\p{P}\p{S}]+$/u, ""),
+        ) &&
         !/^[a-z0-9._%+-]+@/.test(n.text) &&
         !/^[a-z0-9-]+(\.[a-z0-9-]+)+\b/.test(n.text)
       ) {

@@ -17,12 +17,12 @@ export const manifest: CardMeta[] = [
       {
         "id": "request-lifecycle",
         "title": "The life of a request",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "tcp-vs-udp",
         "title": "TCP and UDP",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "http-versions",
@@ -51,12 +51,12 @@ export const manifest: CardMeta[] = [
       {
         "id": "big-o",
         "title": "Big-O without the ritual",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "hash-maps",
         "title": "Hash maps and their worst case",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "trees-indexes",
@@ -80,12 +80,12 @@ export const manifest: CardMeta[] = [
       {
         "id": "acid",
         "title": "ACID, stated plainly",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "indexes",
         "title": "Indexes and their cost",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "normalisation",
@@ -114,7 +114,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "process-thread-async",
         "title": "Processes, threads and async",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "race-conditions",
@@ -143,12 +143,12 @@ export const manifest: CardMeta[] = [
       {
         "id": "values-and-types",
         "title": "Values, types and memory",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "control-and-functions",
         "title": "Control flow, functions and scope",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "data-structures-choice",
@@ -182,7 +182,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "python-data-model",
         "title": "Everything is an object",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "python-mutable-defaults",
@@ -216,7 +216,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "js-event-loop",
         "title": "The event loop",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "js-closures-this",
@@ -250,7 +250,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "sql-joins",
         "title": "Joins and the relational model",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "sql-indexes",
@@ -284,7 +284,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "jvm-basics",
         "title": "The JVM: bytecode, JIT and warm-up",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "java-collections",
@@ -318,7 +318,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "go-goroutines",
         "title": "Goroutines and the scheduler",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "go-channels",
@@ -333,7 +333,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "go-errors",
         "title": "Errors as values",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "go-context",
@@ -352,7 +352,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "cache-strategies",
         "title": "Cache-aside, write-through, write-behind",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "invalidation",
@@ -391,7 +391,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "lb-algorithms",
         "title": "Round robin, least connections, hashing",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "consistent-hashing",
@@ -420,7 +420,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "why-queues",
         "title": "What a queue actually buys you",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "delivery-guarantees",
@@ -517,7 +517,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "logs-metrics-traces",
         "title": "Logs, metrics and traces",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "percentiles",
@@ -551,7 +551,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "rest",
         "title": "REST and resource modelling",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "graphql",
@@ -585,7 +585,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "push-options",
         "title": "Polling, long polling, SSE, WebSockets",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "scaling-connections",
@@ -595,6 +595,16 @@ export const manifest: CardMeta[] = [
       {
         "id": "presence",
         "title": "Presence and typing indicators",
+        "level": "advanced"
+      },
+      {
+        "id": "reconnect",
+        "title": "Reconnection is the normal case",
+        "level": "intermediate"
+      },
+      {
+        "id": "realtime-ordering",
+        "title": "Ordering, duplicates and what a socket guarantees",
         "level": "advanced"
       }
     ]
@@ -638,7 +648,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "object-storage",
         "title": "Object storage versus databases and disks",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "presigned-uploads",
@@ -649,6 +659,16 @@ export const manifest: CardMeta[] = [
         "id": "video-delivery",
         "title": "Video: transcoding and adaptive bitrate",
         "level": "advanced"
+      },
+      {
+        "id": "storage-classes",
+        "title": "Storage tiers and the bill you only see later",
+        "level": "intermediate"
+      },
+      {
+        "id": "image-derivatives",
+        "title": "Derivatives: never serve the original",
+        "level": "intermediate"
       }
     ]
   },
@@ -662,7 +682,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "authn-authz",
         "title": "Authentication and authorisation",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "sessions-vs-jwt",
@@ -720,7 +740,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "oltp-olap",
         "title": "OLTP and OLAP",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "batch-vs-stream",
@@ -730,6 +750,16 @@ export const manifest: CardMeta[] = [
       {
         "id": "cdc",
         "title": "Change data capture",
+        "level": "advanced"
+      },
+      {
+        "id": "late-data",
+        "title": "Late data, windows and watermarks",
+        "level": "advanced"
+      },
+      {
+        "id": "pipeline-idempotency",
+        "title": "Pipelines get replayed, so make them repeatable",
         "level": "advanced"
       }
     ]
@@ -784,6 +814,16 @@ export const manifest: CardMeta[] = [
         "id": "north-south-east-west",
         "title": "The edge and the interior are different problems",
         "level": "intermediate"
+      },
+      {
+        "id": "mtls-identity",
+        "title": "Service identity, not network position",
+        "level": "advanced"
+      },
+      {
+        "id": "retry-budgets",
+        "title": "Retry amplification, and the budget that stops it",
+        "level": "advanced"
       }
     ]
   },
@@ -807,6 +847,16 @@ export const manifest: CardMeta[] = [
       {
         "id": "ml-drift",
         "title": "Drift, monitoring and knowing it still works",
+        "level": "advanced"
+      },
+      {
+        "id": "ml-rollout",
+        "title": "Shipping a model without shipping a regression",
+        "level": "advanced"
+      },
+      {
+        "id": "ml-cost",
+        "title": "Inference economics: batching, precision and the bill",
         "level": "advanced"
       }
     ]
@@ -832,6 +882,16 @@ export const manifest: CardMeta[] = [
         "id": "edge-security",
         "title": "The edge as the security boundary",
         "level": "intermediate"
+      },
+      {
+        "id": "edge-state",
+        "title": "Where state goes when compute is everywhere",
+        "level": "advanced"
+      },
+      {
+        "id": "edge-purge",
+        "title": "Invalidation across hundreds of locations",
+        "level": "advanced"
       }
     ]
   },
@@ -845,7 +905,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "what-docker-solves",
         "title": "What Docker actually solves",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "docker-vs-k8s",
@@ -855,6 +915,16 @@ export const manifest: CardMeta[] = [
       {
         "id": "image-hygiene",
         "title": "Image size, layers and security",
+        "level": "intermediate"
+      },
+      {
+        "id": "container-isolation",
+        "title": "What actually isolates a container",
+        "level": "advanced"
+      },
+      {
+        "id": "k8s-resources",
+        "title": "Requests and limits, and why pods die",
         "level": "intermediate"
       }
     ]
@@ -869,7 +939,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "pipeline",
         "title": "What a pipeline should do",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "deploy-strategies",
@@ -898,7 +968,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "core-services",
         "title": "The core services, by concept",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "right-sizing",
@@ -927,7 +997,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "test-pyramid",
         "title": "The testing pyramid",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "coverage",
@@ -938,6 +1008,16 @@ export const manifest: CardMeta[] = [
         "id": "flaky-tests",
         "title": "Flaky tests",
         "level": "advanced"
+      },
+      {
+        "id": "contract-tests",
+        "title": "Contract tests: integration without the integration",
+        "level": "advanced"
+      },
+      {
+        "id": "test-data",
+        "title": "Test data, and the shared database problem",
+        "level": "intermediate"
       }
     ]
   },
@@ -951,12 +1031,12 @@ export const manifest: CardMeta[] = [
       {
         "id": "waterfall",
         "title": "Waterfall",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "agile",
         "title": "Agile, scrum and kanban",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "code-review",
@@ -991,6 +1071,16 @@ export const manifest: CardMeta[] = [
         "id": "tech-debt",
         "title": "Technical debt as a decision",
         "level": "intermediate"
+      },
+      {
+        "id": "blast-radius",
+        "title": "Blast radius: how far a change reaches",
+        "level": "intermediate"
+      },
+      {
+        "id": "review-standard",
+        "title": "What code review is actually for",
+        "level": "intermediate"
       }
     ]
   },
@@ -1004,7 +1094,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "netflix-ingest",
         "title": "Ingest: what arrives before any of this works",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "netflix-encoding",
@@ -1099,6 +1189,16 @@ export const manifest: CardMeta[] = [
         "id": "uber-data",
         "title": "The data platform: the same events, twice",
         "level": "intermediate"
+      },
+      {
+        "id": "uber-eta",
+        "title": "ETA as a correction, not a prediction",
+        "level": "advanced"
+      },
+      {
+        "id": "uber-ringpop",
+        "title": "Sharding in the application, not the database",
+        "level": "advanced"
       }
     ]
   },
@@ -1180,7 +1280,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "url-shortener",
         "title": "URL shortener: the interview question that is actually about ids",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "rate-limiter",
@@ -1210,6 +1310,137 @@ export const manifest: CardMeta[] = [
     ]
   },
   {
+    "id": "discord",
+    "title": "Discord: trillions of messages, millions of sockets",
+    "summary": "Partitioning a chat history that only grows, paying for tail latency instead of averages, and holding millions of live connections open without a thread for each.",
+    "track": "case-study",
+    "group": "caseStudies",
+    "topics": [
+      {
+        "id": "discord-partition",
+        "title": "Choosing a partition key that keeps working",
+        "level": "advanced"
+      },
+      {
+        "id": "discord-tail",
+        "title": "Tail latency is the number that hurts",
+        "level": "advanced"
+      },
+      {
+        "id": "discord-coalesce",
+        "title": "Coalescing: one query for a thousand readers",
+        "level": "advanced"
+      },
+      {
+        "id": "discord-sockets",
+        "title": "Holding millions of connections open",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "cloudflare",
+    "title": "Cloudflare: one address, everywhere",
+    "summary": "Announcing a single IP from hundreds of sites, running untrusted code without a container each, and a one-line change that took the network down.",
+    "track": "case-study",
+    "group": "caseStudies",
+    "topics": [
+      {
+        "id": "cf-anycast",
+        "title": "Anycast: letting the network do the routing",
+        "level": "advanced"
+      },
+      {
+        "id": "cf-isolates",
+        "title": "Isolates: the cost of starting someone else's code",
+        "level": "advanced"
+      },
+      {
+        "id": "cf-outage",
+        "title": "The one-line change that stopped everything",
+        "level": "advanced"
+      },
+      {
+        "id": "cf-tiered-cache",
+        "title": "Tiered caching: a miss in every city is still a stampede",
+        "level": "advanced"
+      },
+      {
+        "id": "cf-ddos",
+        "title": "Absorbing an attack instead of surviving one",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "dynamodb",
+    "title": "DynamoDB: predictable, or it is not a service",
+    "summary": "Why the partition key is the whole design, what a managed service actually sells, and how access patterns have to be decided before the schema.",
+    "track": "case-study",
+    "group": "caseStudies",
+    "topics": [
+      {
+        "id": "ddb-partition",
+        "title": "The partition key is the design",
+        "level": "advanced"
+      },
+      {
+        "id": "ddb-predictable",
+        "title": "What a managed database is really selling",
+        "level": "advanced"
+      },
+      {
+        "id": "ddb-model",
+        "title": "Access patterns before schema",
+        "level": "intermediate"
+      },
+      {
+        "id": "ddb-streams",
+        "title": "Streams: the outbox you do not have to build",
+        "level": "advanced"
+      },
+      {
+        "id": "ddb-gsi",
+        "title": "Secondary indexes are tables with a propagation delay",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "slack",
+    "title": "Slack: the cost of opening the app",
+    "summary": "A client that used to download an entire company before it could render, and the edge cache built to stop it.",
+    "track": "case-study",
+    "group": "caseStudies",
+    "topics": [
+      {
+        "id": "slack-boot",
+        "title": "When connecting means downloading a company",
+        "level": "intermediate"
+      },
+      {
+        "id": "slack-flannel",
+        "title": "An edge cache that understands the data",
+        "level": "advanced"
+      },
+      {
+        "id": "slack-lazy",
+        "title": "Send what is referenced, not what is reachable",
+        "level": "intermediate"
+      },
+      {
+        "id": "slack-jobqueue",
+        "title": "A job queue that cannot refuse work",
+        "level": "advanced"
+      },
+      {
+        "id": "slack-shard",
+        "title": "When the tenant is the shard key",
+        "level": "intermediate"
+      }
+    ]
+  },
+  {
     "id": "payments",
     "title": "Payments: charging a card without charging it twice",
     "summary": "Authorisation and capture, idempotency under retries, a ledger that must balance, and outcomes that arrive later.",
@@ -1219,7 +1450,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "payments-flow",
         "title": "Authorisation, capture and settlement",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "payments-idempotency",
@@ -1284,6 +1515,148 @@ export const manifest: CardMeta[] = [
         "id": "search-ranking",
         "title": "Ranking, and knowing whether it improved",
         "level": "advanced"
+      },
+      {
+        "id": "search-pagerank",
+        "title": "PageRank: the link as a judgement",
+        "level": "advanced"
+      },
+      {
+        "id": "search-infra",
+        "title": "Building the index as a batch job",
+        "level": "advanced"
+      },
+      {
+        "id": "search-neural",
+        "title": "Learned ranking, and how you know it helped",
+        "level": "advanced"
+      },
+      {
+        "id": "search-query",
+        "title": "Understanding the query before answering it",
+        "level": "advanced"
+      },
+      {
+        "id": "search-snippets",
+        "title": "The snippet is a second retrieval problem",
+        "level": "advanced"
+      },
+      {
+        "id": "search-spam",
+        "title": "Ranking is adversarial by construction",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "google-maps",
+    "title": "Google Maps: the world as an index",
+    "summary": "Tiling a sphere so that nearby places sort together, routing across a continent without walking the graph, and predicting a journey that has not happened yet.",
+    "track": "case-study",
+    "group": "caseStudies2",
+    "topics": [
+      {
+        "id": "maps-s2",
+        "title": "S2 cells: ordering a globe on one curve",
+        "level": "advanced"
+      },
+      {
+        "id": "maps-routing",
+        "title": "Why nobody runs Dijkstra on a continent",
+        "level": "advanced"
+      },
+      {
+        "id": "maps-eta",
+        "title": "Predicting a journey that has not happened",
+        "level": "advanced"
+      },
+      {
+        "id": "maps-tiles",
+        "title": "Serving the picture: tiles and zoom pyramids",
+        "level": "intermediate"
+      },
+      {
+        "id": "maps-traffic",
+        "title": "Where live traffic comes from",
+        "level": "intermediate"
+      },
+      {
+        "id": "maps-freshness",
+        "title": "Keeping a map that reality keeps changing",
+        "level": "advanced"
+      },
+      {
+        "id": "maps-geocoding",
+        "title": "Addresses are not coordinates",
+        "level": "intermediate"
+      }
+    ]
+  },
+  {
+    "id": "dropbox",
+    "title": "Dropbox: leaving the cloud on purpose",
+    "summary": "Content-addressed blocks, the arithmetic that justified building storage rather than renting it, and proving an exabyte is still there.",
+    "track": "case-study",
+    "group": "caseStudies2",
+    "topics": [
+      {
+        "id": "dropbox-blocks",
+        "title": "Files are not the unit of storage",
+        "level": "advanced"
+      },
+      {
+        "id": "dropbox-magic-pocket",
+        "title": "When building storage beats renting it",
+        "level": "advanced"
+      },
+      {
+        "id": "dropbox-erasure",
+        "title": "Erasure coding: durability without three copies",
+        "level": "advanced"
+      },
+      {
+        "id": "dropbox-sync",
+        "title": "Sync is a consensus problem wearing a file manager",
+        "level": "advanced"
+      },
+      {
+        "id": "dropbox-verify",
+        "title": "Proving the data is still there",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "figma",
+    "title": "Figma: one document, many cursors",
+    "summary": "Making concurrent edits converge without a merge dialogue, ordering children that anyone can insert between, and resharding a database that cannot go offline.",
+    "track": "case-study",
+    "group": "caseStudies2",
+    "topics": [
+      {
+        "id": "figma-multiplayer",
+        "title": "Converging without a merge dialogue",
+        "level": "advanced"
+      },
+      {
+        "id": "figma-ordering",
+        "title": "Ordering children nobody has to renumber",
+        "level": "advanced"
+      },
+      {
+        "id": "figma-shard",
+        "title": "Sharding a database that cannot stop",
+        "level": "advanced"
+      },
+      {
+        "id": "figma-rust",
+        "title": "Rewriting for predictability, not speed",
+        "level": "advanced"
+      },
+      {
+        "id": "figma-undo",
+        "title": "Undo when the document is not yours alone",
+        "level": "advanced"
       }
     ]
   },
@@ -1297,7 +1670,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "framework",
         "title": "A structure for the 45 minutes",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "estimation",
@@ -1308,6 +1681,16 @@ export const manifest: CardMeta[] = [
         "id": "tradeoffs",
         "title": "Talking about tradeoffs",
         "level": "advanced"
+      },
+      {
+        "id": "requirements",
+        "title": "Narrowing the question before answering it",
+        "level": "intermediate"
+      },
+      {
+        "id": "interview-failure",
+        "title": "The questions that separate the levels",
+        "level": "intermediate"
       }
     ]
   },
@@ -1350,7 +1733,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "the-common-pool",
         "title": "The same thirty questions",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "by-company",
@@ -1379,7 +1762,7 @@ export const manifest: CardMeta[] = [
       {
         "id": "sql-injection",
         "title": "Injection and parameterised queries",
-        "level": "beginner"
+        "level": "advanced"
       },
       {
         "id": "xss",
@@ -1543,8 +1926,149 @@ export const manifest: CardMeta[] = [
         "level": "advanced"
       }
     ]
+  },
+  {
+    "id": "consensus",
+    "title": "Consensus and the replicated log",
+    "summary": "How a group of machines agrees on one order of events, what the algorithm actually forbids, and why a correct implementation is still slow in the places that matter.",
+    "track": "design",
+    "group": "systems",
+    "topics": [
+      {
+        "id": "raft-terms",
+        "title": "Terms, elections and the vote that gets refused",
+        "level": "advanced"
+      },
+      {
+        "id": "commit-rules",
+        "title": "Why a leader will not commit your entry yet",
+        "level": "advanced"
+      },
+      {
+        "id": "linearizable-reads",
+        "title": "Reads that are actually linearizable",
+        "level": "advanced"
+      },
+      {
+        "id": "membership-change",
+        "title": "Changing the membership without losing the group",
+        "level": "advanced"
+      },
+      {
+        "id": "consensus-cost",
+        "title": "What consensus costs, and when not to pay it",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "query-planning",
+    "title": "Query planning and execution",
+    "summary": "What the optimiser is actually deciding, why its estimates are wrong in a specific and predictable direction, and what separates an engine that reads a plan from one that compiles it.",
+    "track": "design",
+    "group": "systems",
+    "topics": [
+      {
+        "id": "cardinality-estimation",
+        "title": "Cardinality estimation, and the direction it fails in",
+        "level": "advanced"
+      },
+      {
+        "id": "join-ordering",
+        "title": "Join ordering and the size of the search space",
+        "level": "advanced"
+      },
+      {
+        "id": "access-paths",
+        "title": "Access paths, and why the index was not used",
+        "level": "advanced"
+      },
+      {
+        "id": "plan-stability",
+        "title": "Plan stability and parameter sniffing",
+        "level": "advanced"
+      },
+      {
+        "id": "execution-engines",
+        "title": "Volcano, vectorised and compiled execution",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "memory-model",
+    "title": "Memory models, atomics and lock-free code",
+    "summary": "What the compiler and the processor are permitted to reorder, what an atomic actually guarantees, and why most lock-free data structures are slower than the lock they replaced.",
+    "track": "foundations",
+    "group": "systems",
+    "topics": [
+      {
+        "id": "memory-ordering",
+        "title": "What the hardware is allowed to reorder",
+        "level": "advanced"
+      },
+      {
+        "id": "atomics-and-aba",
+        "title": "Compare-and-swap, and the ABA problem",
+        "level": "advanced"
+      },
+      {
+        "id": "false-sharing",
+        "title": "Cache lines, false sharing and contention",
+        "level": "advanced"
+      },
+      {
+        "id": "lock-free-cost",
+        "title": "What lock-free actually costs",
+        "level": "advanced"
+      },
+      {
+        "id": "reclamation",
+        "title": "Safe memory reclamation",
+        "level": "advanced"
+      }
+    ]
+  },
+  {
+    "id": "distributed-time",
+    "title": "Time, causality and conflict",
+    "summary": "What a timestamp is worth across machines, how to track what happened before what, and what to do when two replicas both think they are right.",
+    "track": "design",
+    "group": "systems",
+    "topics": [
+      {
+        "id": "clock-skew",
+        "title": "What a wall clock is worth",
+        "level": "advanced"
+      },
+      {
+        "id": "causality",
+        "title": "Happens-before, and what it costs to track",
+        "level": "advanced"
+      },
+      {
+        "id": "crdt",
+        "title": "Data that merges without asking",
+        "level": "advanced"
+      },
+      {
+        "id": "fencing",
+        "title": "Why a lock is not enough",
+        "level": "advanced"
+      },
+      {
+        "id": "anti-entropy",
+        "title": "Catching up what replication dropped",
+        "level": "advanced"
+      },
+      {
+        "id": "two-phase-commit",
+        "title": "Two-phase commit, and why it blocks",
+        "level": "advanced"
+      }
+    ]
   }
 ];
 
-export const topicCount = 221;
-export const cardCount = 48;
+export const topicCount = 306;
+export const cardCount = 59;

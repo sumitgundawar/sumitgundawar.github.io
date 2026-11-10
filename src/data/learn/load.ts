@@ -15,6 +15,7 @@ const LOADERS: Record<GroupName, () => Promise<{ default?: Card[] } & Record<str
   companies: () => import("./companies"),
   security: () => import("./security"),
   dissections: () => import("./dissections"),
+  systems: () => import("./systems"),
 };
 
 const loaded = new Map<string, Card[]>();

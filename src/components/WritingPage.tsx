@@ -10,6 +10,16 @@ for (const mode of failureModes) {
   }
 }
 
+const MODE_TONE = [
+  "var(--accent)",
+  "var(--n-client)",
+  "var(--n-data)",
+  "var(--n-service)",
+  "var(--n-queue)",
+  "var(--n-edge)",
+  "var(--accent-2)",
+];
+
 export function WritingPage() {
   usePageDwell("/writing");
   usePageMeta(
@@ -46,16 +56,17 @@ export function WritingPage() {
         </PageHeader>
 
         <div className="grid gap-64 md:gap-96 pb-96">
-          {groups.map(({ mode, items }) => (
+          {groups.map(({ mode, items }, gi) => (
             <section key={mode.id}>
               <div className="md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:gap-64 md:items-baseline">
                 <h2>{mode.failure}</h2>
                 <p className="text-t3 text-text-lo mt-12 md:mt-0">{mode.because}</p>
               </div>
-              <div className="mt-32">
+              <div className="mt-32 grid gap-12 xl:grid-cols-2 items-start">
                 {items.map((a) => (
                   <IndexItem
                     key={a.id}
+                    tone={MODE_TONE[gi % MODE_TONE.length]}
                     kicker={`${a.publication} / ${a.date}`}
                     title={a.title}
                     href={a.url}

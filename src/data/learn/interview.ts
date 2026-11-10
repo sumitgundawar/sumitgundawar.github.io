@@ -17,7 +17,7 @@ export const interview: Card[] = [
           },
         ],
         title: "A structure for the 45 minutes",
-        level: "beginner",
+        level: "advanced",
         body: [
           "Spend the first five minutes on requirements, and be specific rather than polite about it. What must it do, for how many people, what is the read to write ratio, what latency is acceptable, what may be stale and what may not, what is explicitly out of scope. Write the numbers on the board, because they are what every later decision will be justified against.",
           "Then estimate out loud for about five minutes: requests per second, storage per year, bandwidth. Orders of magnitude are the goal. A design for twelve requests a second and one for twelve thousand are different systems, and getting that wrong invalidates everything after it, whereas being twenty per cent out costs nothing.",
@@ -25,7 +25,9 @@ export const interview: Card[] = [
           "Then depth, which is where most of the assessment happens. Pick the two or three parts that are genuinely hard for this problem, the fan-out, the hot key, the ordering, the consistency boundary, and go deep on those rather than touring everything evenly. If the interviewer steers you somewhere else, go there: they are telling you what they want to assess.",
           "Leave five minutes for bottlenecks and for ten times the load. Say what breaks first and why, what you would measure to see it coming, and what the next change would be. That closing minute or two is where a good candidate becomes an obviously experienced one, because it demonstrates having watched a system get bigger rather than having designed one on paper.",
           "Throughout: think aloud, write down assumptions as you make them, and revisit requirements openly if the design has drifted from them. The interviewer cannot score reasoning they cannot hear, and silence during the hard part is indistinguishable from being stuck.",
-        ],
+      "What is actually being assessed is decision quality under ambiguity rather than recall of an architecture, and the observable difference is whether a candidate names the alternative they rejected. Two people can draw the same six boxes and score differently because one says a queue is needed and the other says a queue is needed here because the work is retryable and the caller does not need the result, and that a synchronous call would have been simpler if it were not. The second answer demonstrates the judgement the role requires; the first demonstrates familiarity with a diagram.",
+      "The most common failure at senior level is not a missing component but a missing number. Depth that never touches quantity stays abstract, and the estimate is what converts a design discussion into an engineering one: a hundred writes a second does not need sharding, a hundred thousand does, and the design should visibly change at the point the arithmetic says it must. The corresponding recovery, when an interviewer pushes on something unfamiliar, is to reason from a property you do hold rather than to guess, because being watched reason from first principles is worth more than being right from memory.",
+    ],
         why: "Candidates who start drawing boxes immediately fail on scope, not knowledge. Establishing constraints first is what makes every later decision defensible instead of arbitrary.",
         diagram: {
           caption: "How to spend the time",
@@ -241,6 +243,55 @@ export const interview: Card[] = [
               "Updating cleanly in front of someone is the behaviour they are hoping to see in a design review. Defending past the evidence is a stronger negative signal than the original choice ever was.",
           },
         ],
+      },
+      {
+        id: "requirements",
+        title: "Narrowing the question before answering it",
+        level: "intermediate",
+        body: [
+          "The prompt is deliberately underspecified. Design a chat app is not a problem statement, it is an invitation to produce one, and candidates who start drawing boxes have skipped the part being assessed.",
+          "Narrowing is not stalling. It is five minutes establishing which of several very different systems is wanted: group chat or one to one, does history persist forever or expire, is this ten thousand users or ten million, does a message have to survive the server that accepted it crashing. Each answer removes an architecture from consideration, and stating that out loud is the signal.",
+          "Scale numbers deserve particular attention because they change the design rather than decorating it. At one scale a single database is the correct answer and saying so is a strength. At another the same answer is disqualifying. Asking for the number, or proposing one and checking it, is what separates a design from a recital.",
+          "The failure in the other direction is trying to cover everything. A design that handles every case you can imagine is a design with no decisions in it, and it reads as breadth rather than judgement. Picking a scope, saying plainly what is out of it, and defending that choice is the behaviour being looked for.",
+        ],
+        why: "Senior work is mostly deciding which problem to solve. The interview is compressing that into forty-five minutes, which is why skipping it costs so much.",
+        check: {
+          prompt: "What should the first few minutes establish?",
+          options: [
+            "Scope is narrowed before anything is drawn on the board",
+            "Scope is widened to show the breadth of what you know",
+            "Scope is decided by the interviewer and stated up front",
+            "Scope is left open so the design can cover every case",
+          ],
+          correctIndex: 0,
+          explain:
+            "The prompt is underspecified on purpose. Establishing the scale, the durability needs and what is out of scope removes whole architectures from consideration, and making that reasoning audible is the thing being assessed.",
+        },
+      },
+      {
+        id: "interview-failure",
+        title: "The questions that separate the levels",
+        level: "intermediate",
+        body: [
+          "A working design gets you to the middle of the band. What moves it further is nearly always the same family of follow-ups, and they are predictable enough to prepare for directly.",
+          "The first is failure. What happens when this component is unavailable, right now, with traffic flowing. A strong answer names what degrades, what keeps working, what the user sees, and what the system does when the component returns, including whether anything queued up has to be drained. A weak answer adds a replica and moves on, which relocates the question rather than answering it.",
+          "The second is growth. What breaks first at ten times the traffic. Every design has a next bottleneck and knowing which one it is demonstrates you understand your own design rather than having recalled a diagram. Saying the database write path goes first, here is the symptom, here is what I would do then, is worth more than a design with no limits stated.",
+          "The third is the one candidates skip: how would you know. A design with no observability is not finished, and naming the two or three signals that would tell you this system is unhealthy, before anyone complains, lands as operational experience in a way that no amount of architecture does.",
+        ],
+        inPractice:
+          "Prepare these three as rehearsed habits rather than hoping to improvise them. They arrive in almost every interview at this level.",
+        check: {
+          prompt: "Which follow-up most reliably separates seniority?",
+          options: [
+            "What happens when this component is unavailable right now",
+            "What happens when the traffic doubles in the next quarter",
+            "What database would you choose and what version is it on",
+            "What is the name of the algorithm used for that cache tier",
+          ],
+          correctIndex: 0,
+          explain:
+            "Failure reasoning is the clearest signal: what degrades, what survives, what the user sees, and what happens on recovery. Growth and observability are the other two, and all three can be prepared rather than improvised.",
+        },
       },
     ],
   },

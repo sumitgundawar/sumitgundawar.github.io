@@ -76,7 +76,7 @@ function IssueView({ slug }: { slug: string }) {
       <p className="mono text-m2 uppercase tracking-[0.08em]" style={{ color: "var(--accent)" }}>
         {formatDate(issue.sent_at)}
       </p>
-      <h1 className="text-d2 mt-12 measure">
+      <h1 className="pagetitle mt-12 measure">
         {issue.subject}
       </h1>
 
@@ -120,7 +120,7 @@ function IssueList() {
   return (
     <>
       <div className="mt-24 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:gap-64 md:items-end">
-        <h1 className="text-d2">Newsletter archive</h1>
+        <h1 className="pagetitle display" data-display>Newsletter archive</h1>
         <p className="mt-12 md:mt-0 md:pb-4 text-t2" style={{ color: "var(--text-mid)" }}>
           Every issue, in full, without subscribing. If you want to know what arrives before you
           hand over an address, this is the honest version of that answer.
@@ -141,7 +141,7 @@ function IssueList() {
       )}
 
       {issues && issues.length > 0 && (
-        <div className="mt-32">
+        <div className="mt-32 grid gap-12 xl:grid-cols-2 items-start">
           {issues.map((issue) => (
             <IndexItem
               key={issue.slug}
@@ -168,7 +168,7 @@ export function ArchivePage() {
     <>
       <Masthead />
       <main id="content" className="min-h-[100dvh]">
-      <div className="shell py-32 lg:py-48">
+      <div className="shell pb-32 lg:pb-48">
         {slug && (
           <Link
             to="/archive"

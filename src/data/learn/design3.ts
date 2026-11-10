@@ -658,6 +658,70 @@ export const design3: Card[] = [
           },
         ],
       },
+      {
+        id: "mtls-identity",
+        sources: [
+          {
+            label: "SPIFFE, overview",
+            url: "https://spiffe.io/docs/latest/spiffe-about/overview/",
+            supports:
+              "That each workload is issued a verifiable cryptographic identity independent of its network location, so authorisation can be based on what a service is rather than on where it sits.",
+          },
+        ],
+        title: "Service identity, not network position",
+        level: "advanced",
+        body: [
+          "The old model trusted the network: inside the perimeter was trusted, outside was not, and authorisation was a question about source addresses. It fails on the first lateral movement, because an attacker who reaches anything inside inherits the trust of everything inside.",
+          "The replacement is to give each workload an identity it can prove, with a short-lived certificate issued automatically on start. Calls are mutually authenticated, so both ends know who the other is, and a policy can say the orders service may call the payments service rather than this address range may reach that one.",
+          "Short lifetimes are doing the work that revocation is bad at. A certificate valid for an hour limits the damage of a leaked key without anyone needing to notice the leak, and it forces rotation to be automatic, which in turn means it actually happens. Long-lived credentials rotate when someone remembers, which is to say after the incident.",
+          "This is usually what people are buying when they adopt a mesh, and it is worth separating from the rest of the feature list. The identity and transport encryption are nearly always worth it; the traffic shaping and policy language may not be. Deciding which part you need keeps the complexity proportionate to the problem.",
+        ],
+        check: {
+          prompt: "What does workload identity replace?",
+          options: [
+            "Each workload proves who it is with a short-lived certificate",
+            "Each workload is trusted because of the network it sits inside",
+            "Each workload shares one credential issued for the whole mesh",
+            "Each workload authenticates only the user making the request",
+          ],
+          correctIndex: 0,
+          explain:
+            "Authorisation moves from where a caller sits to what it can prove it is. Short lifetimes make rotation automatic and limit the value of a stolen key, which is what network-based trust cannot offer.",
+        },
+      },
+      {
+        id: "retry-budgets",
+        sources: [
+          {
+            label: "Google, Site Reliability Engineering: handling overload",
+            url: "https://sre.google/sre-book/handling-overload/",
+            supports:
+              "That retries multiply load on an already degraded service, and that client-side retry budgets limiting retries to a fraction of normal traffic are needed to prevent a cascading failure.",
+          },
+        ],
+        title: "Retry amplification, and the budget that stops it",
+        level: "advanced",
+        body: [
+          "A service slows down. Callers time out and retry, which doubles the load on something already struggling, so more calls time out and retry. The service was overloaded; now it is overloaded by its own clients trying to recover, and it cannot get out because recovery requires a gap in traffic that the retries prevent.",
+          "It compounds through layers. If each of three tiers retries three times, the bottom sees up to twenty seven attempts for one user action, and the amplification is invisible in any single service's configuration because each one looks reasonable on its own.",
+          "A retry budget caps retries as a fraction of successful traffic, typically a small percentage. Under normal conditions there is plenty of budget and retries work as intended. When failures are widespread the budget is exhausted immediately and retries simply stop, which is the correct behaviour: if most calls are failing, the problem is not transient and retrying cannot help.",
+          "The rest of the kit matters as much. Jittered exponential backoff stops synchronised clients from arriving as a wave. A circuit breaker gives up quickly when a dependency is known to be down rather than waiting for each timeout. And retries only belong on operations that are safe to repeat, which loops back to idempotency: without it, a retry storm is also a duplicate-writes incident.",
+        ],
+        inPractice:
+          "Worth auditing: count the retry layers between a user action and your database. Multiply them. That product is what the bottom sees on a bad day.",
+        check: {
+          prompt: "Why do retries make an overloaded service worse?",
+          options: [
+            "Retries multiply load exactly when a service is already failing",
+            "Retries are safe because a failed call consumed no resources",
+            "Retries should be unlimited as long as they are spaced out",
+            "Retries only affect the caller, never the service downstream",
+          ],
+          correctIndex: 0,
+          explain:
+            "Each layer multiplies attempts, so a struggling service is hit hardest at its weakest moment and never gets the quiet period it needs. A budget capping retries to a fraction of successful traffic turns them off precisely when they cannot help.",
+        },
+      },
     ],
   },
 
@@ -935,6 +999,69 @@ export const design3: Card[] = [
           },
         ],
       },
+      {
+        id: "ml-rollout",
+        sources: [
+          {
+            label: "Sculley and others, Hidden technical debt in machine learning systems",
+            url: "https://papers.nips.cc/paper_files/paper/2015/hash/86df7dcfd896fcaf2674f757a2463eba-Abstract.html",
+            supports:
+              "That the model is a small part of a production machine learning system, and that the surrounding infrastructure, including evaluation and rollout, is where most of the long-lived cost sits.",
+          },
+        ],
+        title: "Shipping a model without shipping a regression",
+        level: "advanced",
+        body: [
+          "An offline evaluation says the new model is better. That is evidence about a held-out dataset, and the question that matters is whether it is better for users, which is a different claim that offline numbers routinely get wrong.",
+          "They disagree for structural reasons. The offline set is historical, so it reflects what the old model surfaced and what users did with it, which means a new model that would have shown something else is being scored against choices nobody ever got to make. Then there are the effects no dataset contains: latency changes behaviour, and a model that is better and slower can lose.",
+          "So the rollout is the experiment. Shadow traffic first, where the new model scores live requests and its output is logged rather than served, which catches latency, errors and nonsense before any user sees it. Then a small share of real traffic, with the decision made on the product metric rather than the model metric.",
+          "The thing worth building once and keeping is the harness, not the model. Being able to run a candidate in shadow, split traffic, and compare on a metric you trust is what makes every subsequent model cheap to evaluate. Teams that skip it ship on offline numbers and discover the regression from a support ticket weeks later.",
+        ],
+        why: "This is the same discipline as any risky deploy. The model is just a change whose effect cannot be read from the diff.",
+        check: {
+          prompt: "Why can a model improve offline and still be worse live?",
+          options: [
+            "Offline metrics improve while the live metric gets worse",
+            "Offline metrics are computed on the same traffic as live ones",
+            "Offline metrics cannot be computed before a model is shipped",
+            "Offline metrics replace the need for a controlled experiment",
+          ],
+          correctIndex: 0,
+          explain:
+            "The held-out set reflects what the old model surfaced, so alternatives were never observed, and it contains nothing about latency or how behaviour shifts. Only a live split measures the thing you actually care about.",
+        },
+      },
+      {
+        id: "ml-cost",
+        sources: [
+          {
+            label: "NVIDIA, Triton Inference Server model configuration",
+            url: "https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html",
+            supports:
+              "That dynamic batching combines individual inference requests into a batch to raise throughput, with a configurable maximum delay that bounds the latency this adds.",
+          },
+        ],
+        title: "Inference economics: batching, precision and the bill",
+        level: "advanced",
+        body: [
+          "Inference cost per request is a design parameter, not a fact about the model. The two levers that move it most are how many requests are processed together and how precisely the numbers are represented, and both trade against something.",
+          "Batching is the big one because the hardware is built for it. Processing thirty-two requests together costs far less than thirty-two times one request, since the weights are loaded once and the matrix work is what the accelerator is for. The cost is latency: a request waits for the batch to fill, so servers use a dynamic batch with a maximum delay, which is the knob that sets where you sit between throughput and response time.",
+          "Quantisation attacks the other side. Running at eight bits instead of thirty-two shrinks the model in memory, cuts the bandwidth needed to feed the accelerator, and on supporting hardware runs faster. It costs some accuracy, and how much is a question only measurement answers, because the loss is uneven across inputs rather than uniform.",
+          "The right order is to measure before optimising either. Plenty of production inference is bound by moving data in and out rather than by arithmetic, in which case a bigger batch or a smaller numeric type changes nothing and the actual fix is somewhere in the serving path entirely.",
+        ],
+        check: {
+          prompt: "What does batching inference requests trade?",
+          options: [
+            "Batching raises throughput and adds latency to each request",
+            "Batching lowers both the latency and the cost of a request",
+            "Batching is only possible when requests are identical in size",
+            "Batching removes the need to size the hardware for the peak",
+          ],
+          correctIndex: 0,
+          explain:
+            "Weights are loaded once for the whole batch, so cost per request falls sharply. Each request waits for the batch to form, which is why dynamic batching caps that wait with a maximum delay.",
+        },
+      },
     ],
   },
 
@@ -1202,6 +1329,70 @@ export const design3: Card[] = [
               "It needs only the request and some shared intelligence, and rejecting it there costs nothing. The other three need context the edge does not have and belong where that context lives.",
           },
         ],
+      },
+      {
+        id: "edge-state",
+        sources: [
+          {
+            label: "Cloudflare, Durable Objects",
+            url: "https://developers.cloudflare.com/durable-objects/",
+            supports:
+              "That coordination at the edge is provided by objects which exist in exactly one location at a time, so requests for a given object are routed to that instance and serialised there.",
+          },
+        ],
+        title: "Where state goes when compute is everywhere",
+        level: "advanced",
+        body: [
+          "Stateless code at the edge is easy. Run the same function in two hundred cities, let routing pick one, and nothing is lost because nothing was kept. The moment two requests must agree about something, the model breaks, because two hundred copies of a counter is two hundred different answers.",
+          "This is not an edge problem, it is the distributed systems problem arriving somewhere people hoped it would not. Agreement needs either coordination, which costs a round trip to wherever the truth lives, or a data type that converges without coordination, which only works for a narrow set of shapes.",
+          "The pragmatic answer platforms have landed on is to pin state to a place. A given object, a chat room, a document, a user's cart, exists in exactly one location at a time, and requests for it are routed there and handled in order. Locality is given up for that object; what is bought is a single-threaded programming model with no concurrency to reason about.",
+          "So the architecture splits in two. Anything that is read far more than written goes to the edge and is cached everywhere. Anything that needs agreement lives in one place, and the design question becomes which place, which is the same question as which region owns this user, asked with better tooling.",
+        ],
+        check: {
+          prompt: "How is coordination usually handled at the edge?",
+          options: [
+            "State is pinned to one place so writes have somewhere to agree",
+            "State is replicated to every location so any of them can write",
+            "State is held only in the client and never stored at the edge",
+            "State is written locally and merged by a nightly batch process",
+          ],
+          correctIndex: 0,
+          explain:
+            "One instance per object, with requests routed to it and serialised, trades locality for a single-threaded model. The alternatives are a round trip to a central authority or a data type that converges without coordination.",
+        },
+      },
+      {
+        id: "edge-purge",
+        sources: [
+          {
+            label: "Cloudflare, purge cache",
+            url: "https://developers.cloudflare.com/cache/how-to/purge-cache/",
+            supports:
+              "That invalidation has to propagate to every location holding a copy, and that purge by tag or prefix exists because enumerating individual URLs does not scale for a site of any size.",
+          },
+        ],
+        title: "Invalidation across hundreds of locations",
+        level: "advanced",
+        body: [
+          "A copy in two hundred locations is two hundred things to invalidate. Caching at the edge is easy to adopt and the cost arrives later, at the moment something changes and every one of those copies is now wrong.",
+          "Purging by exact address is the obvious interface and the one that does not scale. A product page changes and the affected addresses include the page, several listings, a search result, a feed and whatever else embedded it. Nobody can enumerate that list reliably, and the entries missed are precisely the ones that go stale without anyone noticing.",
+          "Tags are the way out. Responses are labelled on the way through with the identities they depend on, and invalidation names a tag rather than an address. That moves the problem to where the knowledge is: the service rendering a page knows what it read, so it can declare the dependency, where no caller could have guessed it.",
+          "The alternative is to stop invalidating. Short lifetimes mean staleness is bounded by waiting, and versioned addresses mean a change produces a new address so the old copy is simply never requested again. The latter is the most reliable option available and it is why built assets carry a hash in the name, which is invalidation solved by making it unnecessary.",
+        ],
+        inPractice:
+          "The practical ranking is: version the address if you can, tag if you cannot, purge by address only as a last resort and expect to miss some.",
+        check: {
+          prompt: "Why is invalidation hard at the edge?",
+          options: [
+            "A purge has to reach every location before it is complete",
+            "A purge is instant because the edge holds no copy of its own",
+            "A purge is unnecessary when the content has a short lifetime",
+            "A purge happens at the origin and the edge follows in order",
+          ],
+          correctIndex: 0,
+          explain:
+            "Every location holds its own copy, and enumerating the affected addresses is unreliable for anything composed of several sources. Tagging moves the decision to the service that knows its dependencies; versioned addresses avoid the problem entirely.",
+        },
       },
     ],
   },

@@ -3,10 +3,15 @@ import { join } from "node:path";
 
 const css = readFileSync("src/index.css", "utf8");
 const tailwind = readFileSync("tailwind.config.js", "utf8");
-const ink = css.match(/--ink:\s*(#[0-9a-fA-F]{3,8})/)?.[1];
-if (!ink) {
-  console.error("FAIL  --ink not found in src/index.css");
-  process.exit(1);
+const read = (name) => css.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`))?.[1];
+const page = read("base");
+const ground = read("base");
+const mark = read("signal-fill");
+for (const [name, value] of [["base", page], ["signal-fill", mark]]) {
+  if (!value) {
+    console.error(`FAIL  --${name} not found in src/index.css`);
+    process.exit(1);
+  }
 }
 
 const problems = [];
@@ -17,19 +22,18 @@ const check = (what, got, want) => {
 check(
   "index.html theme-color",
   readFileSync("index.html", "utf8").match(/name="theme-color"\s+content="([^"]*)"/)?.[1],
-  ink,
+  page,
 );
 
 const manifest = JSON.parse(readFileSync("public/site.webmanifest", "utf8"));
-check("manifest theme_color", manifest.theme_color, ink);
-check("manifest background_color", manifest.background_color, ink);
+check("manifest theme_color", manifest.theme_color, page);
+check("manifest background_color", manifest.background_color, page);
 
 const svg = readFileSync("public/favicon.svg", "utf8");
-check("favicon.svg ground", svg.match(/<rect[^>]*fill="([^"]*)"/)?.[1], ink);
+check("favicon.svg ground", svg.match(/<rect[^>]*fill="([^"]*)"/)?.[1], ground);
 
-const signal = css.match(/--accent:\s*(#[0-9a-fA-F]{3,8})/)?.[1];
-if (signal && !svg.toLowerCase().includes(signal.toLowerCase())) {
-  problems.push(`favicon.svg does not use the accent colour ${signal}`);
+if (!svg.toLowerCase().includes(mark.toLowerCase())) {
+  problems.push(`favicon.svg does not use the mark colour ${mark}`);
 }
 
 for (const [file, min] of [
@@ -60,9 +64,6 @@ else {
   }
 }
 
-/* Tailwind keeps its own rem scale alongside the px token scale this project
- * defines, so `pt-20` silently means 80px and `mt-10` silently duplicates
- * `mt-40`. Both shipped. Every spacing utility now has to name a token. */
 const tokens = new Set(
   [...tailwind.matchAll(/^\s{8}(-?[0-9]+(?:\.[0-9]+)?)\s*:\s*"/gm)].map((m) => m[1]),
 );
@@ -106,5 +107,5 @@ if (problems.length) {
 }
 
 console.log(
-  `brand: clean, one ink (${ink}) across index.html, the manifest and the mark; icons present; every spacing utility on the ${tokens.size - 1}-step token scale`,
+  `brand: clean, page ${page} across index.html and the manifest, mark ${mark} on ${ground}; icons present; every spacing utility on the ${tokens.size - 1}-step token scale`,
 );

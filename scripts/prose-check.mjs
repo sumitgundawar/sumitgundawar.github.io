@@ -46,9 +46,20 @@ const ALLOWED_NON_ASCII = new Set([
   "ö",
 ]);
 
+const ESCAPED = /\\u\{?([0-9a-fA-F]{1,6})\}?/g;
+
+function decodeEscapes(line) {
+  return line.replace(ESCAPED, (whole, hex) => {
+    const cp = Number.parseInt(hex, 16);
+    if (!Number.isFinite(cp) || cp > 0x10ffff) return whole;
+    return cp < 128 ? whole : String.fromCodePoint(cp);
+  });
+}
+
 const hits = [];
 for (const rel of files) {
-  const lines = fs.readFileSync(path.join(root, rel), "utf8").split("\n");
+  const raw = fs.readFileSync(path.join(root, rel), "utf8").split("\n");
+  const lines = rel.startsWith("src/data") ? raw.map(decodeEscapes) : raw;
   lines.forEach((line, i) => {
     for (const [ch, name] of BANNED) {
       if (line.includes(ch)) hits.push({ rel, line: i + 1, name, text: line.trim().slice(0, 90) });

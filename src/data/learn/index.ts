@@ -11,6 +11,7 @@ import { interview } from "./interview";
 import { companies } from "./companies";
 import { security } from "./security";
 import { dissections } from "./dissections";
+import { systems } from "./systems";
 import type { Card, Level, Topic } from "./types";
 
 export * from "./types";
@@ -29,6 +30,7 @@ export const cards: Card[] = [
   ...companies,
   ...security,
   ...dissections,
+  ...systems,
 ];
 
 export const allTopics: Topic[] = cards.flatMap((c) => c.topics);

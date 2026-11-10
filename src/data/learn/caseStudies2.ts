@@ -17,14 +17,16 @@ export const caseStudies2: Card[] = [
           },
         ],
         title: "Authorisation, capture and settlement",
-        level: "beginner",
+        level: "advanced",
         body: [
           "A card payment is not one event. Authorisation asks the issuing bank to check the card and hold the amount, and it succeeds or declines within a second or two. Capture tells the network to actually take the held money, and it can happen immediately or days later. Settlement is the movement of funds between banks, which happens in batches and takes days. Three steps, three different latencies, and three different things that can fail.",
           "Splitting authorisation from capture is what makes normal commerce work. A shop authorises when you order and captures when the item ships, because charging for something not yet sent is both a refund waiting to happen and, in many jurisdictions, not allowed. An authorisation expires if it is not captured, typically within about a week depending on the card scheme and the merchant category, and an expired authorisation means the money was never taken and the customer saw a pending charge that vanished.",
           "The failure that defines the domain is that the network can time out at any point and the timeout tells you nothing. A request that times out during authorisation may have been authorised, or not. There is no way to tell from the timeout itself, so the system must be able to ask afterwards, which is why every payment has an identifier the merchant chose before sending it and why looking up by that identifier is a first-class operation rather than an afterthought.",
           "Regional rules add a second asynchronous step. In Europe, strong customer authentication under PSD2 means many payments require the cardholder to confirm through their bank, so the flow pauses, hands the customer to the issuer, and resumes on the way back. Any design that treats authorisation as a single synchronous call will meet this and have nowhere to put it.",
           "The shape that survives all of this is a state machine with an identifier: created, requires action, authorised, captured, failed, refunded. Each transition is recorded, each is idempotent, and the current state is the answer to the question a support ticket is really asking, which is what happened to this payment and when.",
-        ],
+      "The state machine has to be driven by the provider's record rather than by your own optimism, and that inverts the usual control flow. Because the network can time out after the charge succeeded, the only safe reconciliation is to ask the provider what it believes using the idempotency key you sent, rather than to infer from your own timeout that nothing happened. This is why the durable design records the intent before calling out, treats the absence of a response as unknown rather than as failure, and has a sweep that resolves unknowns against the provider's list endpoint on a schedule.",
+      "Money movement also does not line up with the transaction lifecycle, which is what makes reconciliation a separate discipline rather than a report. Funds settle in batches on the provider's schedule, fees are deducted at a different point, refunds and chargebacks arrive days or months later, and currency conversion happens at a rate fixed at a moment you did not choose. A ledger that models only authorisation and capture will therefore disagree with the bank statement permanently, and the disagreement is not an error but the consequence of recording one side of a process whose other side moves on its own clock.",
+    ],
         why: "The three steps have different latencies and different failure modes, so a design that models a payment as one call has already lost. The identifier chosen before the request leaves is what makes a timeout recoverable, because it is the only way to ask afterwards what happened.",
         inPractice:
           "Stripe models this explicitly as a payment intent with a lifecycle, including a state for requires action, which exists because European strong customer authentication makes the flow genuinely multi-step rather than a single call that sometimes takes longer.",
@@ -1093,6 +1095,798 @@ export const caseStudies2: Card[] = [
               "They answer different questions and a change can move one without the other. Relying on either alone is how a ranking gets better on a metric and worse for the people using it.",
           },
         ],
+      },
+      {
+        id: "search-pagerank",
+        sources: [
+          {
+            label: "Brin and Page, The anatomy of a large-scale hypertextual web search engine",
+            url: "http://infolab.stanford.edu/~backrub/google.html",
+            supports:
+              "The random surfer formulation of PageRank, the damping factor, and the argument that the link graph carries quality signal that page text alone does not.",
+          },
+        ],
+        title: "PageRank: the link as a judgement",
+        level: "advanced",
+        body: [
+          "Early search ranked on the page itself: how often the words appeared, whether they were in the title. That is trivially gamed, because the author of a page controls every one of those signals. Stuffing a thousand invisible keywords into the footer cost nothing and worked.",
+          "The insight Brin and Page built on is that a link is a signal the page's own author does not control. Someone else chose to point at it. Model a reader who clicks links at random forever, with a small probability of jumping to a random page instead, and the share of time spent on each page is its PageRank. Formally it is the stationary distribution of that walk, computed by multiplying a vector against the link matrix repeatedly until it stops moving.",
+          "The random jump is not decoration. Without it the walk gets trapped in pages that link only to each other, and the maths has no unique answer. With it the chain is guaranteed to converge, which is the difference between an idea and an algorithm.",
+          "What eroded it is predictable in hindsight: once the signal was known to be valuable, links became a market. Paid links, link farms and comment spam all exist to manufacture the one thing the author was not supposed to control. Modern ranking uses hundreds of signals partly because any single signal that matters enough will be attacked.",
+        ],
+        why: "The durable lesson is not PageRank, it is that the signals worth trusting are the ones the subject cannot set for themselves. That reasoning survives into fraud scoring and abuse detection.",
+        check: {
+          prompt: "What made the link graph a better quality signal than page text?",
+          options: [
+            "A link is a vote that is costly for a page author to fake",
+            "A link tells the crawler which pages to fetch next in order",
+            "A link records the topic a page is about more precisely",
+            "A link is the only way to discover a page on the open web",
+          ],
+          correctIndex: 0,
+          explain:
+            "Page text is entirely under the author's control, so it is cheap to game. A link has to be placed by someone else, which is what gave it value, and what later made link spam a profitable industry.",
+        },
+      },
+      {
+        id: "search-infra",
+        sources: [
+          {
+            label: "Dean and Ghemawat, MapReduce: simplified data processing on large clusters",
+            url: "https://research.google/pubs/mapreduce-simplified-data-processing-on-large-clusters/",
+            supports:
+              "That the inverted index is a canonical MapReduce job, with the shuffle grouping every emitted term so one reducer sees all postings for that term, and that the framework handles machine failure by re-running tasks.",
+          },
+        ],
+        title: "Building the index as a batch job",
+        level: "advanced",
+        body: [
+          "An inverted index maps a term to the documents containing it. Building one from a crawl of the web is conceptually a sort, and that is exactly the shape MapReduce was written for. The map step reads a document and emits a pair for every term it contains. The shuffle groups those pairs by term. The reduce step receives every mention of a single term and writes its posting list.",
+          "The shuffle is the part that matters and the part people skip. It is the only stage where data crosses the network in bulk, so it is where the job's cost lives, and the guarantee it provides, that one reducer sees all values for a key, is the entire reason the reduce function can be written as if the data were local.",
+          "The other half of the contract is failure. At a few thousand machines, something dies during every job of any size. The framework assumes it: tasks are deterministic and side-effect free, so a lost task is simply re-run elsewhere, and a straggler can be speculatively duplicated with whichever copy finishes first being kept. The programming model is restrictive precisely so that recovery can be automatic.",
+          "Batch indexing has a hard floor though, which is that the whole corpus is reprocessed to reflect one changed page. That is why the architecture eventually moved toward incremental update, and it is the same pressure that pushes any nightly pipeline toward streaming once the business starts asking for fresher numbers.",
+        ],
+        check: {
+          prompt: "What does the shuffle stage guarantee?",
+          options: [
+            "The shuffle groups every mention of a term onto one reducer",
+            "The shuffle removes duplicate documents before indexing them",
+            "The shuffle sorts documents by their final ranking score",
+            "The shuffle decides how many machines the job will need",
+          ],
+          correctIndex: 0,
+          explain:
+            "Grouping by key is the whole contract. Because one reducer receives every value for a term, the reduce function can build that posting list as though the data were local, and it is also why the shuffle is where the network cost sits.",
+        },
+      },
+      {
+        id: "search-neural",
+        sources: [
+          {
+            label: "Google, Understanding searches better than ever before",
+            url: "https://blog.google/products/search/search-language-understanding-bert/",
+            supports:
+              "That a transformer based language model was applied to ranking in order to interpret the relationship between words in a query rather than treating it as a bag of terms.",
+          },
+        ],
+        title: "Learned ranking, and how you know it helped",
+        level: "advanced",
+        body: [
+          "Keyword matching treats a query as a bag of words, which throws away the part that carries the meaning. The classic example is a preposition: the words either side of it are identical whichever way round the relationship runs, and the intent is opposite. A model that reads the query as a sequence can keep that distinction.",
+          "Google applied transformer based language models to exactly this, so that ranking depends on how words relate rather than only which words appeared. The gain is real and it arrives with a problem: the resulting ranker cannot be read. There is no rule to inspect, no weight to point at, and when one query gets worse nobody can say which change did it.",
+          "So the discipline moves into evaluation. Human raters score results against published guidelines; changes are tested live against a holdout; and the decision is made on aggregates. The thing to understand is that this measures the average and that a shipped improvement will have made some individual queries worse. The average went up, which is not the same as nothing regressed.",
+          "That is the general shape of shipping a learned component into a product that already works. You trade an explainable system for a better average, and you buy back the loss of explanation with measurement, which means the evaluation harness becomes the part of the system you cannot afford to get wrong.",
+        ],
+        inPractice:
+          "This is the same argument as the guardrail work elsewhere on this site. Once a model decides, the question stops being is it right and becomes how would we know.",
+        check: {
+          prompt: "What is the cost of moving ranking to a learned model?",
+          options: [
+            "A learned ranker improves averages and can regress one query",
+            "A learned ranker removes the need for human quality ratings",
+            "A learned ranker makes every ranking decision explainable",
+            "A learned ranker is retrained on each individual query logged",
+          ],
+          correctIndex: 0,
+          explain:
+            "Decisions stop being inspectable, so quality is established statistically. A change that raises the aggregate can still make particular queries worse, which is why rater guidelines and live holdouts carry the weight the old rules used to.",
+        },
+      },
+      {
+        id: "search-query",
+        sources: [
+          {
+            label: "Google, how search works: ranking results",
+            url: "https://www.google.com/search/howsearchworks/how-search-works/ranking-results/",
+            supports:
+              "That a query is interpreted before retrieval, including spelling correction and synonym expansion, because the words a person types are frequently not the words on the page they want.",
+          },
+        ],
+        title: "Understanding the query before answering it",
+        level: "advanced",
+        body: [
+          "Matching the typed string against the index is the obvious design and it answers the wrong question. People misspell, abbreviate, use a word the document never uses, and ask for an outcome rather than a term. The query is evidence about an intent, not a specification.",
+          "So there is a stage before retrieval. Spelling is corrected, which is harder than a dictionary lookup because the correction depends on context: the same misspelling resolves differently next to different words. Synonyms are expanded, so a page saying automobile can answer a query saying car, and that expansion has to be careful because synonymy is not symmetric and context dependent.",
+          "The intent matters as much as the words. A query that names a product can want to buy, to compare, to fix or to return it, and the right result set differs completely. Classifying that intent shapes retrieval before ranking ever runs, which is why two queries with almost identical words can return entirely different kinds of page.",
+          "Everything here is a precision and recall trade made before the ranker sees anything. Expand too aggressively and the candidate set fills with near misses the ranker now has to sort out. Expand too little and the right document is never a candidate, and no amount of ranking quality can recover a document that was not retrieved.",
+        ],
+        why: "The lesson transfers to any retrieval system including the ones behind language models: what you retrieve bounds what you can answer, so query handling deserves as much attention as ranking.",
+        check: {
+          prompt: "What happens to a query before retrieval?",
+          options: [
+            "The query is expanded and corrected before anything is retrieved",
+            "The query is matched literally against the terms in the index",
+            "The query is sent to the ranker before the index is consulted",
+            "The query is rewritten only when it returns no results at all",
+          ],
+          correctIndex: 0,
+          explain:
+            "Correction, synonym expansion and intent classification all run first, because the typed words are usually not the words on the right page. That stage sets the candidate pool, and ranking cannot recover a document that was never retrieved.",
+        },
+      },
+      {
+        id: "search-snippets",
+        sources: [
+          {
+            label: "Google, control your snippets in search results",
+            url: "https://developers.google.com/search/docs/appearance/snippet",
+            supports:
+              "That the snippet is generated primarily from page content in a way that reflects the query rather than being a fixed description chosen by the site owner.",
+          },
+          {
+            label: "Google, featured snippets and your website",
+            url: "https://developers.google.com/search/docs/appearance/featured-snippets",
+            supports:
+              "That a passage can be promoted as a direct answer when the system judges it responds to the query, which is a selection within a document rather than a ranking of documents.",
+          },
+        ],
+        title: "The snippet is a second retrieval problem",
+        level: "advanced",
+        body: [
+          "Ranking chooses documents. The snippet chooses what to show from inside one, and that is a different problem solved by a different mechanism that people rarely notice is there.",
+          "It has to be per query. The same page answers several questions, and the sentence that answers this one is somewhere in the middle of it. So the snippet is assembled by finding the passage that best responds to what was asked, which means passage level retrieval within a document, after document level retrieval across the web.",
+          "The cost profile is unusual and worth understanding. This work can only begin once the top results are known, it has to happen while the person is waiting, and it only applies to around ten documents. That makes it an expensive per document operation on a tiny candidate set, the exact inverse of indexing, which is cheap per document across an enormous one.",
+          "It also changes what the result page is. A snippet that fully answers the question means the click never happens, which is good for the person asking and a direct cost to the site that wrote it. That tension is why snippet controls exist at all, and it is the clearest example of a ranking system's incentives diverging from those of the corpus it ranks.",
+        ],
+        check: {
+          prompt: "Why is a snippet generated per query?",
+          options: [
+            "A snippet is generated per query from the passage that matched",
+            "A snippet is the description the page author wrote for it",
+            "A snippet is the first paragraph of the document every time",
+            "A snippet is produced once and cached for all later queries",
+          ],
+          correctIndex: 0,
+          explain:
+            "One page answers many questions, so the responsive passage differs by query. It is passage level retrieval inside a document, run on roughly ten candidates while the user waits.",
+        },
+      },
+      {
+        id: "search-spam",
+        sources: [
+          {
+            label: "Google, spam policies for Google web search",
+            url: "https://developers.google.com/search/docs/essentials/spam-policies",
+            supports:
+              "That ranking signals are actively manipulated, including by link schemes and scaled content abuse, and that policies and automated systems exist specifically to counter it.",
+          },
+        ],
+        title: "Ranking is adversarial by construction",
+        level: "advanced",
+        body: [
+          "A search engine is not sorting a neutral corpus. A large share of the web exists to rank, and the moment a signal is known to carry weight there is an industry optimising for it. That changes the engineering problem in a way most ranking literature quietly ignores.",
+          "The history is a sequence of signals being discovered and then destroyed. Keyword frequency worked until stuffing. Links worked until link farms and paid links. Engagement signals attract clickbait. Each one was genuinely informative, and each stopped being informative in proportion to how valuable it was known to be, which is close to a law rather than an accident.",
+          "That shapes the defences. Use many signals so no single one is worth attacking, keep the weights opaque so attackers are optimising blind, and prefer signals that are expensive to fake, which is exactly why signals outside the publisher's control have always been the valuable ones. The same reasoning drives fraud scoring and abuse detection.",
+          "Scaled generation sharpens all of this. When plausible content can be produced at essentially zero cost, any signal based on the content itself weakens further, and the burden shifts onto signals of provenance and corroboration. The defensive question stops being does this page look good and becomes what, independent of this page, suggests it is worth trusting.",
+        ],
+        inPractice:
+          "It is also why evaluation is adversarial: a ranking change has to be assessed against people trying to defeat it, not only against a held out set.",
+        check: {
+          prompt: "Why does every good ranking signal eventually weaken?",
+          options: [
+            "Any signal worth ranking on becomes worth manufacturing",
+            "Any signal worth ranking on is impossible for a site to see",
+            "Any signal worth ranking on gets weaker as the web grows",
+            "Any signal worth ranking on must be published to be trusted",
+          ],
+          correctIndex: 0,
+          explain:
+            "Value attracts manipulation, so a signal decays in proportion to how much weight it is known to carry. The defences are many signals, opaque weights, and preferring signals the publisher cannot set for themselves.",
+        },
+      },
+    ],
+  },
+  {
+    id: "google-maps",
+    title: "Google Maps: the world as an index",
+    summary:
+      "Tiling a sphere so that nearby places sort together, routing across a continent without walking the graph, and predicting a journey that has not happened yet.",
+    track: "case-study",
+    topics: [
+      {
+        id: "maps-s2",
+        sources: [
+          {
+            label: "S2 Geometry: the S2 cell hierarchy",
+            url: "https://s2geometry.io/devguide/s2cell_hierarchy",
+            supports:
+              "That S2 projects the sphere onto the six faces of a cube, orders cells along a Hilbert curve, and encodes a cell as a 64 bit identifier across thirty one levels.",
+          },
+        ],
+        title: "S2 cells: ordering a globe on one curve",
+        level: "advanced",
+        body: [
+          "A map is a database question before it is a drawing question. The query that matters is not what does this place look like, it is what is near this point, and that phrasing is hostile to ordinary indexes. Latitude and longitude are two numbers, and a B-tree can only sort on one thing at a time. Index latitude and you get a band stretching right around the planet. Index both and you get a rectangle that is nothing like a circle, badly so near the poles.",
+          "S2 answers it by giving every point on the sphere a single number. The sphere is projected onto the six faces of a cube, each face is subdivided into a quadtree, and the cells are then threaded onto a Hilbert curve. The curve is the whole trick. It visits every cell exactly once, and it has the property that cells close together on the curve are close together in space.",
+          "Once space has been flattened onto a curve, a region stops being a geometric problem and becomes a set of integer ranges. Everything within a few kilometres of a point is a handful of contiguous spans of cell identifier, and a plain B-tree can answer that with range scans. No spatial index, no special database, no bounding box arithmetic at query time.",
+          "A cell identifier is sixty four bits and the hierarchy runs to thirty one levels, so the same identifier carries its own precision: truncate the low bits and you have the parent cell. That is what lets one scheme serve a country-sized aggregate and a doorway at the same time.",
+          "Uber's H3 solves a neighbouring problem and picks hexagons, because radial search outward from a cell is unambiguous when every neighbour is the same distance away. S2 is optimised for the other half of the job, which is turning a region into index ranges cheaply. Neither is the correct answer in general. They are answers to different questions about the same planet.",
+        ],
+        why: "Both schemes exist because space has two coordinates and an index has one. The job is to find an ordering that keeps neighbours adjacent, and every such ordering trades something away.",
+        check: {
+          prompt: "Why does S2 thread its cells onto a Hilbert curve?",
+          options: [
+            "It orders nearby cells close together, so a region is a few ranges",
+            "It compresses coordinates into fewer bytes than latitude and longitude",
+            "It makes every cell cover exactly the same area across the globe",
+            "It removes the need to store a cell identifier against each record",
+          ],
+          correctIndex: 0,
+          explain:
+            "The curve preserves locality. Because cells that are near each other in space land near each other on the curve, a circular region becomes a small number of contiguous integer ranges, which an ordinary B-tree can scan. Cell areas are not equal, and the identifier still has to be stored.",
+        },
+      },
+      {
+        id: "maps-routing",
+        sources: [
+          {
+            label: "Bast, Funke, Sanders and Schultes, Fast routing in road networks with transit nodes, Science 2007",
+            url: "https://www.science.org/doi/10.1126/science.1137521",
+            supports:
+              "The transit node result: that long distance shortest paths pass through a small set of access nodes, so most queries reduce to table lookups rather than a graph search.",
+          },
+          {
+            label: "Geisberger, Sanders, Schultes and Delling, Contraction hierarchies",
+            url: "https://link.springer.com/chapter/10.1007/978-3-540-68552-4_24",
+            supports:
+              "That preprocessing can order nodes by importance and add shortcut edges, so queries search only upward through the hierarchy.",
+          },
+        ],
+        title: "Why nobody runs Dijkstra on a continent",
+        level: "advanced",
+        body: [
+          "Dijkstra's algorithm is correct and it is the wrong tool here. Asked for a route across a country it will settle a large fraction of every road in between, because it has no way to know that a road is heading away from the destination. A* with a straight line heuristic helps and does not rescue it: the detail that makes a road network useful, every residential cul-de-sac, is exactly the detail a long route does not care about.",
+          "The observation the field turned on is almost embarrassing once stated. Any long journey leaves its origin through one of a very small number of roads. Not thousands of possibilities: a handful, usually motorway slip roads. The same is true at the destination. So for each node you can precompute its access nodes, the small set of important junctions through which all of its long distance routes pass, and separately precompute a full table of distances between those important junctions.",
+          "A long query then costs almost nothing. Look up the access nodes for the origin and for the destination, add the short local distance at each end to the precomputed distance between every pair, and take the minimum. That is a few dozen table lookups rather than a search over millions of edges. Bast and colleagues reported this in Science in 2007, with the number of transit nodes for Western Europe in the ten thousands.",
+          "Contraction hierarchies attack it from the other side. Order every node by importance, then remove them one at a time from least important upward, adding shortcut edges wherever removing a node would otherwise lengthen a path. A query afterwards only ever searches upward in importance from both ends until the two searches meet. The graph is the same graph; the preprocessing has simply made the unimportant parts skippable.",
+          "What both share is the shape of the trade. They move work from query time to preprocessing time, and they buy the right to do that by assuming the graph is mostly stable. Which is exactly the assumption live traffic breaks, and the reason a routing stack keeps a fast changing cost layer separate from the slow changing topology.",
+        ],
+        inPractice:
+          "This is the clearest example on the site of preprocessing beating cleverness at query time. The algorithm did not get smarter, the problem got reshaped.",
+        diagram: {
+          caption: "A long route resolves to table lookups, not a graph search",
+          columns: [
+            [{ id: "req", label: "Route request", sub: "origin, destination", kind: "client" }],
+            [
+              { id: "local", label: "Local search", sub: "streets near each end", kind: "service" },
+              { id: "access", label: "Access nodes", sub: "precomputed per node", kind: "data" },
+            ],
+            [{ id: "table", label: "Transit table", sub: "junction to junction", kind: "data" }],
+            [{ id: "pick", label: "Best combination", sub: "minimum over pairs", kind: "service" }],
+          ],
+          edges: [
+            { from: "req", to: "local" },
+            { from: "local", to: "access" },
+            { from: "access", to: "table" },
+            { from: "table", to: "pick" },
+          ],
+        },
+        check: {
+          prompt: "What makes transit node routing work?",
+          options: [
+            "Long routes nearly all leave via a small set of access points",
+            "Road graphs are small enough to fit entirely in memory today",
+            "Drivers prefer motorways, so other roads can be safely ignored",
+            "Travel times change too often for any precomputation to help",
+          ],
+          correctIndex: 0,
+          explain:
+            "Every node has only a handful of junctions through which its long distance routes pass. Precompute those access nodes, and a full distance table between the important junctions, and a continental query becomes a few dozen lookups plus a short search at each end.",
+        },
+      },
+      {
+        id: "maps-eta",
+        sources: [
+          {
+            label: "DeepMind, Traffic prediction with advanced graph neural networks",
+            url: "https://deepmind.google/discover/blog/traffic-prediction-with-advanced-graph-neural-networks/",
+            supports:
+              "That road segments are grouped into supersegments and modelled with a graph neural network, and the reported improvements in arrival time accuracy across a set of named cities.",
+          },
+        ],
+        title: "Predicting a journey that has not happened",
+        level: "advanced",
+        body: [
+          "An arrival time is a forecast, not a measurement. The honest version of the question is what will the road be like when the driver reaches it, which for the last leg of a long trip is a prediction about conditions an hour out. Current speed on that road is useful and it is not the answer.",
+          "The naive model treats each stretch of road independently: take its recent speeds, take the historical profile for this hour on this weekday, blend them. It fails in the way congestion actually behaves. Queues propagate. A blockage on one road fills the road feeding it, and the strongest signal about a segment is frequently the state of its neighbours rather than its own history.",
+          "Google and DeepMind published an approach that takes the adjacency seriously. Segments are grouped into supersegments, runs of adjacent road that traffic tends to traverse together, and a graph neural network is trained over them, so a prediction for one stretch is informed by the stretches it connects to. DeepMind reported improvements in arrival time accuracy across cities including Berlin, Jakarta, Sao Paulo, Sydney, Tokyo and Washington DC.",
+          "The structural point generalises past maps. A graph neural network is the right shape when your entities are not independent and the dependency is a graph you already have. Road networks come with that graph for free. So do service call graphs, which is why the same family of models keeps appearing in incident prediction work.",
+        ],
+        check: {
+          prompt: "Why model road segments as a graph rather than independently?",
+          options: [
+            "Adjacent stretches of road influence each other's travel time",
+            "A single road segment has too few historical samples to model",
+            "Neural networks cannot accept more than one input at a time",
+            "Segment boundaries move whenever roadworks are introduced",
+          ],
+          correctIndex: 0,
+          explain:
+            "Congestion propagates along the network, so the best predictor of a segment is often the state of the segments feeding it. A model that treats each stretch independently throws that signal away, which is what grouping into supersegments and learning over the graph recovers.",
+        },
+      },
+      {
+        id: "maps-tiles",
+        sources: [
+          {
+            label: "Google Maps JavaScript API: coordinates and zoom levels",
+            url: "https://developers.google.com/maps/documentation/javascript/coordinates",
+            supports:
+              "That the map is divided into square tiles per zoom level, with each zoom level doubling the tile count in each direction, so the client fetches only the tiles covering its viewport.",
+          },
+        ],
+        title: "Serving the picture: tiles and zoom pyramids",
+        level: "intermediate",
+        body: [
+          "Rendering the world per request is not a thing anyone does. The map is cut into square tiles, and there is a separate set of tiles for every zoom level, each level doubling the number of tiles along each axis. Zoom level zero is the whole planet in one tile; each step down quadruples the count.",
+          "Because the scheme is a quadtree, a tile's address is also its path from the root, and a client that knows its viewport and zoom can compute exactly which tile addresses it needs without asking anything first. Those are then plain cacheable objects, which means a content delivery network does most of the work and the map server is spared the overwhelming majority of requests.",
+          "Raster tiles are images, which makes them trivially cacheable and completely inflexible: rotation, restyling and label languages all require a new render. Vector tiles ship the geometry and let the client draw it, which moves work to the device and buys back styling, smooth zoom and rotation. The trade is the familiar one between a server that has already decided and a client that still can.",
+        ],
+        check: {
+          prompt: "What does cutting the map into tiles buy you?",
+          options: [
+            "The client fetches only the few tiles covering its viewport",
+            "Tiles let the server render the whole world on every request",
+            "Tiles remove the need to store the map at more than one scale",
+            "Tiles are required for any map that supports being rotated",
+          ],
+          correctIndex: 0,
+          explain:
+            "Tiles turn a continuous surface into addressable, cacheable units. The viewport determines a handful of tile addresses, the client requests only those, and a cache serves nearly all of them. The pyramid exists precisely because the map is stored at many scales.",
+        },
+      },
+      {
+        id: "maps-traffic",
+        sources: [
+          {
+            label: "Google, How Google Maps uses traffic data",
+            url: "https://blog.google/products/maps/google-maps-101-how-ai-helps-predict-traffic-and-determine-routes/",
+            supports:
+              "That live conditions are derived from aggregated and anonymised location data contributed by devices using the product, combined with historical patterns and reports from users.",
+          },
+        ],
+        title: "Where live traffic comes from",
+        level: "intermediate",
+        body: [
+          "The sensor is the fleet. Devices running the product contribute location data, and aggregating many of them across a stretch of road gives the current speed on that road without any roadside hardware at all. It is a measurement network that someone else paid for and that grows with usage, which is a large part of why map quality compounds for whoever already has the users.",
+          "Aggregation is doing load bearing work here and not only for privacy. A single device is noise: it may be parked, it may be on a bus, its satellite fix may be wrong by a street. Only in aggregate does a speed become a property of the road rather than a property of one journey, which is the same reason a single slow request tells you nothing about a service and a percentile over many does.",
+          "The obvious failure is thin data. A road nobody is driving has no current speed, so the system falls back on the historical profile for that road at that hour, which is also what it must use for any part of a route far enough ahead that nobody there yet is relevant. Live and historical are not alternatives, they are layers, and the further out the prediction the more weight shifts to the latter.",
+        ],
+        check: {
+          prompt: "Why does live traffic depend on aggregating many devices?",
+          options: [
+            "Speeds are aggregated across many devices before being used",
+            "Each device reports only when it is stationary at a junction",
+            "Traffic is inferred from camera feeds installed on motorways",
+            "Only drivers who share a live journey publicly are counted",
+          ],
+          correctIndex: 0,
+          explain:
+            "One device is noise: parked, on a bus, or badly located. Aggregating across many turns an individual journey into a property of the road, and it is also what keeps the contribution anonymous. Where there is too little data, the historical profile takes over.",
+        },
+      },
+      {
+        id: "maps-freshness",
+        sources: [
+          {
+            label: "Google, How we map the world",
+            url: "https://blog.google/products/maps/google-maps-101-how-we-map-world/",
+            supports:
+              "That the base map is assembled from authoritative data, imagery and contributions from users, and that these sources are reconciled rather than any one of them being treated as truth.",
+          },
+        ],
+        title: "Keeping a map that reality keeps changing",
+        level: "advanced",
+        body: [
+          "A map is wrong the moment it is finished. Roads open, shops close, one-way restrictions flip, a building is demolished. The hard engineering problem is not drawing the world once, it is maintaining agreement with a world that will not hold still.",
+          "Three kinds of source, none sufficient alone. Authoritative data from mapping agencies and municipalities is accurate and slow, sometimes by years. Imagery is current and ambiguous, since a satellite can show that tarmac exists but not that it is one-way or private. User reports are immediate and unreliable, both honestly mistaken and occasionally deliberate.",
+          "So the system is a reconciliation rather than a pipeline. Each source has a confidence attached, agreement between independent sources raises it, and conflict triggers review rather than a silent overwrite by whichever arrived last. That is the same design as any system merging feeds of differing trustworthiness, and the failure mode is identical: treat the newest write as correct and the most recent error becomes the current state.",
+          "Evidence from behaviour is the quiet fourth source and the most interesting one. If the map says a road is open and no vehicle has traversed it for a week, that is a signal. It is noisy and it is unbiased in a way reports are not, since it reflects what people did rather than what someone chose to tell you, which is why observed behaviour tends to outrank stated information wherever both exist.",
+        ],
+        check: {
+          prompt: "How does the map stay current?",
+          options: [
+            "Authoritative data, imagery and user reports are reconciled",
+            "The map is rebuilt from satellite imagery alone each quarter",
+            "Changes are accepted only from national mapping agencies",
+            "Road geometry is frozen once a region has been surveyed",
+          ],
+          correctIndex: 0,
+          explain:
+            "Each source is accurate about different things and wrong in different ways, so confidence is attached and conflicts go to review. Observed behaviour acts as a fourth, unbiased signal where it disagrees with the stated data.",
+        },
+      },
+      {
+        id: "maps-geocoding",
+        sources: [
+          {
+            label: "Google, Geocoding API overview",
+            url: "https://developers.google.com/maps/documentation/geocoding/overview",
+            supports:
+              "That geocoding returns a result with a stated location type, distinguishing a rooftop level match from one interpolated along a road segment or approximated to a wider area.",
+          },
+        ],
+        title: "Addresses are not coordinates",
+        level: "intermediate",
+        body: [
+          "An address is a human convention and a coordinate is a measurement, and converting between them is far less reliable than the interface suggests. Addresses are ambiguous, duplicated between towns, abbreviated inconsistently, misspelled, and in many parts of the world not structured the way the form expects.",
+          "Where a building has been surveyed individually the answer is exact. Where it has not, the usual method is interpolation: the road segment is known to run from number one to number ninety-nine, so number fifty is placed halfway along it. That is often close and it is sometimes badly wrong, because numbering is not uniform and a long driveway can put the real entrance a hundred metres from the interpolated point.",
+          "Which is why a good geocoding result reports how it was derived, not only where. A rooftop match and an interpolated match are different claims, and an application that treats them identically will eventually dispatch a vehicle to the middle of a field. The precision type is the part developers most often discard and most need.",
+          "The reverse direction has its own trap. Turning a coordinate into an address has no single right answer: a point in a car park might reasonably be the shop, the retail estate or the road. Any choice is an interpretation, so the sensible interface returns several candidates with their types rather than one string pretending to be a fact.",
+        ],
+        inPractice:
+          "If you store a geocoded point, store the precision alongside it. Without that, nobody later can tell a surveyed address from a guess.",
+        check: {
+          prompt: "How is an address without a surveyed point located?",
+          options: [
+            "An address is matched to a point by interpolating along a road",
+            "An address is matched to a point stored for every building",
+            "An address is matched to a point by the postal service only",
+            "An address is matched to a point chosen by the nearest user",
+          ],
+          correctIndex: 0,
+          explain:
+            "Interpolation places a number proportionally along a segment whose endpoints are known. It is usually close and sometimes badly wrong, which is why the result reports its precision type and why that field should be stored.",
+        },
+      },
+    ],
+  },
+  {
+    id: "dropbox",
+    title: "Dropbox: leaving the cloud on purpose",
+    summary:
+      "Content-addressed blocks, the arithmetic that justified building storage rather than renting it, and proving an exabyte is still there.",
+    track: "case-study",
+    topics: [
+      {
+        id: "dropbox-blocks",
+        sources: [
+          {
+            label: "Dropbox, Inside the Magic Pocket",
+            url: "https://dropbox.tech/infrastructure/inside-the-magic-pocket",
+            supports:
+              "That files are split into blocks which are addressed by the hash of their contents, so identical blocks are stored once regardless of how many files or accounts contain them.",
+          },
+        ],
+        title: "Files are not the unit of storage",
+        level: "advanced",
+        body: [
+          "The product is files, and the storage layer does not deal in files at all. A file is split into fixed size blocks, each block is hashed, and the hash is its address. A file becomes a list of hashes, which is small enough to be cheap to move around and compare.",
+          "Two consequences fall straight out. The first is deduplication: identical blocks are stored once, so a document shared across a company costs one copy, and a hundred people syncing the same installer cost one upload. The second is cheap sync. A client that has changed one paragraph recomputes the hashes, discovers that all but one block already exist on the server, and uploads only the difference.",
+          "Content addressing also makes the data immutable. A block's name is derived from its contents, so a block can never change, only be superseded. Immutability is what makes caching safe at every layer, removes a whole class of concurrent write problem, and lets verification be a simple matter of rehashing what you have.",
+          "The costs are real. Deletion stops being deletion and becomes reference counting, with all the ways that goes wrong. Encryption has to be done so that identical plaintext still produces identical ciphertext if dedup is to survive it, which weakens the threat model in ways that have to be chosen deliberately rather than stumbled into.",
+        ],
+        why: "Content addressing recurs everywhere once you notice it: Git objects, container image layers, Nix. The same three properties come along each time, and so do the same two costs.",
+        check: {
+          prompt: "What does addressing a block by the hash of its contents buy you?",
+          options: [
+            "Identical blocks are stored once and referenced by their hash",
+            "Identical blocks are compressed before the hash is computed",
+            "Identical blocks are re-uploaded so each file stays complete",
+            "Identical blocks are encrypted with one key for each account",
+          ],
+          correctIndex: 0,
+          explain:
+            "The name is derived from the contents, so duplicates collapse automatically and a sync only needs to transfer the hashes the server has not seen. It also makes blocks immutable, which is what makes caching and verification straightforward.",
+        },
+      },
+      {
+        id: "dropbox-magic-pocket",
+        sources: [
+          {
+            label: "Dropbox, Scaling to exabytes and beyond",
+            url: "https://dropbox.tech/infrastructure/scaling-to-exabytes-and-beyond",
+            supports:
+              "That Dropbox moved the large majority of its data off third party object storage onto its own system, and the reasoning that this is worthwhile only at sustained very large scale.",
+          },
+        ],
+        title: "When building storage beats renting it",
+        level: "advanced",
+        body: [
+          "Dropbox ran on someone else's object storage, then spent years moving off it. That is the opposite of the usual direction, and the interesting question is what made it correct here when it is wrong almost everywhere else.",
+          "Rented storage is priced to cover a provider's margin, their spare capacity and your right to leave tomorrow. That is a good deal when your usage is uncertain, spiky, or small enough that the absolute numbers do not matter. Dropbox had none of those properties: storage was the product, demand was predictable, growth was steady, and the bill was a very large fraction of cost of revenue.",
+          "At that point the comparison is against the real cost of building, which is not the price of drives. It is a team that must get durability right, a verification system, data centre contracts, hardware refresh cycles, and the migration itself, which took years and ran both systems at once. Those costs are mostly fixed, which is exactly why the decision flips only once the rented bill is big enough to dwarf them.",
+          "The transferable test is that: compare a mostly fixed cost against a mostly variable one, and be honest that the fixed side includes people and years, not just equipment. Nearly every team asking this question is far below the crossing point, and the instinct to copy a large company's infrastructure decision without their numbers is how teams end up operating a database they did not need.",
+        ],
+        inPractice:
+          "Worth noticing that they did not leave entirely. Keeping some workloads rented preserves an exit and covers regions where building makes no sense.",
+        check: {
+          prompt: "When does owning storage beat renting it?",
+          options: [
+            "Owning the hardware pays off only at a very large, steady scale",
+            "Owning the hardware removes the need to plan capacity ahead",
+            "Owning the hardware is cheaper than renting it at any size",
+            "Owning the hardware lets a team avoid writing durability code",
+          ],
+          correctIndex: 0,
+          explain:
+            "Building is mostly fixed cost, including a team and several years; renting is variable. The fixed side only wins once usage is both enormous and predictable, which is why this decision is right for a handful of companies and wrong for nearly everyone copying it.",
+        },
+      },
+      {
+        id: "dropbox-erasure",
+        sources: [
+          {
+            label: "Dropbox, Inside the Magic Pocket",
+            url: "https://dropbox.tech/infrastructure/inside-the-magic-pocket",
+            supports:
+              "That durability is provided by erasure coding across failure domains rather than by storing whole additional copies, trading storage overhead against reconstruction cost.",
+          },
+        ],
+        title: "Erasure coding: durability without three copies",
+        level: "advanced",
+        body: [
+          "The simple way to survive a dead disk is to keep more copies. Three copies tolerates two failures and costs three times the space, and at exabyte scale that multiplier is the budget.",
+          "Erasure coding splits data into fragments and computes parity fragments from them, such that any sufficient subset reconstructs the original. The overhead is a fraction rather than a multiple, so the same durability costs far less space than replication, which at this scale is the whole argument.",
+          "What you pay instead is reconstruction. Losing a replica means copying one object from a peer. Losing a fragment means reading many fragments from many machines and computing the missing one, so a failure costs network and processor time rather than a straight copy. That is fine for data at rest and bad for data under constant random read, which is why hot and cold paths frequently use different schemes.",
+          "The placement is as important as the maths. Fragments have to be spread so that no single failure domain holds enough of them to matter, which means reasoning about racks, power and networking rather than about disks. Erasure coding with all fragments behind one switch provides arithmetic comfort and no actual durability.",
+        ],
+        check: {
+          prompt: "What is the trade erasure coding makes against replication?",
+          options: [
+            "Erasure coding stores less overhead than copying whole blocks",
+            "Erasure coding rebuilds a lost block without reading any peer",
+            "Erasure coding removes the need to spread data across zones",
+            "Erasure coding makes reads faster than plain replication does",
+          ],
+          correctIndex: 0,
+          explain:
+            "Parity fragments give the same durability for a fraction of the extra space rather than a multiple of it. The cost arrives on failure, when reconstruction reads many fragments and computes the missing one instead of copying a single replica.",
+        },
+      },
+      {
+        id: "dropbox-sync",
+        sources: [
+          {
+            label: "Dropbox, Rewriting the heart of our sync engine",
+            url: "https://dropbox.tech/infrastructure/rewriting-the-heart-of-our-sync-engine",
+            supports:
+              "That the difficulty of sync is managing concurrent state across clients and server rather than transferring data, and that the rewrite was motivated by the original design being too hard to reason about and test.",
+          },
+        ],
+        title: "Sync is a consensus problem wearing a file manager",
+        level: "advanced",
+        body: [
+          "Moving bytes between a laptop and a server is solved. What makes sync hard is that three parties hold opinions about the same tree at once, the local filesystem, the server, and whatever the user is doing right now, and all three change without coordination.",
+          "The state space is enormous and mostly invisible. A file is renamed on one machine while being edited on another, a directory is deleted while a file inside it is being uploaded, the network drops midway, the laptop sleeps for a week. Each is ordinary, and the number of combinations is what defeats the obvious implementation, which accretes a special case per bug until nobody can say what it does.",
+          "The rewrite's insight was to make the state explicit rather than implicit. Instead of code that reacts to filesystem events, a model with three observable trees, remote, local and synced, and a planner that computes the operations needed to bring them into agreement. Once the thing is a planner over explicit state, it can be tested by generating states and checking the plan, which is not possible for an event handler full of special cases.",
+          "That testability was the real deliverable. A sync engine fails on combinations nobody imagined, so the only durable defence is being able to enumerate states mechanically. Rewriting for a property like that, rather than for performance, is unusual and is the part worth taking away.",
+        ],
+        why: "This is the same reasoning that favours a state machine over scattered booleans. The win is not elegance, it is that one shape can be exhaustively tested and the other cannot.",
+        check: {
+          prompt: "What makes file sync difficult?",
+          options: [
+            "The hard part is agreeing on state, not moving the bytes",
+            "The hard part is compressing files before they are uploaded",
+            "The hard part is choosing which server will store the data",
+            "The hard part is encrypting content while it is in transit",
+          ],
+          correctIndex: 0,
+          explain:
+            "Three parties change the same tree concurrently, so the difficulty is reconciling state across an enormous combination space. Making that state explicit is what allows a planner to be tested mechanically.",
+        },
+      },
+      {
+        id: "dropbox-verify",
+        sources: [
+          {
+            label: "Dropbox, Inside the Magic Pocket",
+            url: "https://dropbox.tech/infrastructure/inside-the-magic-pocket",
+            supports:
+              "That background processes continuously verify stored data against its hashes and repair or re-replicate anything found to be damaged or under-replicated.",
+          },
+        ],
+        title: "Proving the data is still there",
+        level: "advanced",
+        body: [
+          "Durability claims are about probability, and probability says that across enough drives something is being corrupted right now. Silent corruption is the dangerous kind: a drive returns data without error and the data is wrong, so nothing in the read path notices.",
+          "The only defence is to look. Background processes walk the stored data continuously, rehash each block and compare against the name it is stored under, which works precisely because the name is derived from the contents. A mismatch means this copy is damaged, and because other copies or parity fragments exist, it can be rebuilt rather than mourned.",
+          "The second job is counting. Replication and erasure coding promise a number of copies, and drives fail, machines are decommissioned, racks are retired. A separate process verifies that the promised redundancy actually exists for every object and schedules repair where it has quietly decayed, because a system that is one failure from loss looks identical to a healthy one until the day it is not.",
+          "Both are expensive and both are cheap relative to the alternative. Verification is a constant background load that produces nothing visible, which is exactly why it is the first thing cut when capacity is tight, and why it has to be scheduled as infrastructure rather than left as a job someone runs.",
+        ],
+        inPractice:
+          "Backups have the same property. An unverified backup is a belief, and the moment it is tested is the worst possible moment to discover it was wrong.",
+        check: {
+          prompt: "How is silent corruption detected?",
+          options: [
+            "Every block is rehashed on a schedule and compared",
+            "Every block is restored from backup once each quarter",
+            "Every block is checked only when a user requests it",
+            "Every block is verified by the drive firmware instead",
+          ],
+          correctIndex: 0,
+          explain:
+            "A drive can return wrong data without reporting an error, so nothing in the read path catches it. Rehashing against the content-derived name finds the mismatch, and the redundancy that already exists is what makes repair possible.",
+        },
+      },
+    ],
+  },
+  {
+    id: "figma",
+    title: "Figma: one document, many cursors",
+    summary:
+      "Making concurrent edits converge without a merge dialogue, ordering children that anyone can insert between, and resharding a database that cannot go offline.",
+    track: "case-study",
+    topics: [
+      {
+        id: "figma-multiplayer",
+        sources: [
+          {
+            label: "Figma, How Figma's multiplayer technology works",
+            url: "https://www.figma.com/blog/how-figmas-multiplayer-technology-works/",
+            supports:
+              "That the document is a tree of objects with properties, that the server is authoritative and assigns an order to changes, and that per property last write wins is used rather than full operational transformation.",
+          },
+        ],
+        title: "Converging without a merge dialogue",
+        level: "advanced",
+        body: [
+          "Two designers drag the same rectangle at the same time. Neither should see a conflict prompt, both should end up looking at the same canvas, and whatever happens has to survive one of them being on hotel wifi.",
+          "Operational transformation is the classic answer and it is famously hard to get right: every pair of operation types needs a transformation function, and the number of pairs grows with the square of the operation vocabulary. A design tool has a large vocabulary, so that cost is paid forever by whoever adds a feature.",
+          "Figma's model avoids it by making the document a tree of objects, each with independent properties, and by making the server authoritative about ordering. A client sends a change, the server assigns it a place in the sequence and broadcasts it, and for a given property the last write in that order wins. Concurrent edits to different properties of the same object both survive, because they never contend.",
+          "The honest part is what this discards. Two people typing in the same text field do not get a character-level merge, they get one of the two versions. That is a deliberate choice: the conflicts that actually happen in a design tool are overwhelmingly on different objects or different properties, and buying character-level merging for the rare case would cost complexity on every feature forever.",
+        ],
+        why: "The pattern is choosing a data model whose conflicts are structurally rare, rather than building a mechanism to resolve conflicts a worse model would create.",
+        check: {
+          prompt: "How do concurrent edits converge in this model?",
+          options: [
+            "The server assigns an order, so clients converge without merge",
+            "The server replays every edit a client made since it connected",
+            "The server resolves conflicts by asking the user which to keep",
+            "The server blocks a second editor until the first disconnects",
+          ],
+          correctIndex: 0,
+          explain:
+            "An authoritative sequence plus last write wins per property is enough, because edits to different properties never contend. The cost is that two people editing the same property do not get a character level merge.",
+        },
+      },
+      {
+        id: "figma-ordering",
+        sources: [
+          {
+            label: "Figma, How Figma's multiplayer technology works",
+            url: "https://www.figma.com/blog/how-figmas-multiplayer-technology-works/",
+            supports:
+              "That ordered children are positioned using fractional index values, so an insert between two siblings is a local change that does not require renumbering other children.",
+          },
+        ],
+        title: "Ordering children nobody has to renumber",
+        level: "advanced",
+        body: [
+          "Layers are ordered and anyone can insert between any two of them. With integer positions, inserting between one and two means renumbering everything after it, which is a large write, and two people doing it at once produces exactly the conflict the rest of the design was built to avoid.",
+          "The fix is to stop using integers. Give each child a fractional position, and inserting between two siblings means choosing any value strictly between their two values. Nothing else changes, the write touches one object, and two concurrent inserts in the same gap pick different values and both survive, ordered relative to each other consistently on every client.",
+          "The catch is that repeatedly inserting in the same gap makes the values longer, because each one needs more precision than the last. Implementations use a string based ordering rather than a float for exactly this reason, since a float runs out of mantissa quickly and silently, and a string can grow. Long-lived documents still need an occasional rebalance.",
+          "This is a nice example of choosing a representation so that the common operation is local. The ordering problem did not go away, it was moved into the key, where a concurrent edit cannot turn it into a conflict.",
+        ],
+        check: {
+          prompt: "What does a fractional index give you?",
+          options: [
+            "A fractional index inserts between two items without renumbering",
+            "A fractional index keeps children sorted by their creation time",
+            "A fractional index guarantees indexes never need to be rebalanced",
+            "A fractional index stores the position as a plain integer offset",
+          ],
+          correctIndex: 0,
+          explain:
+            "Choosing a value between two neighbours touches one object, so concurrent inserts into the same gap do not contend. The cost is that keys lengthen with repeated inserts, which is why they are strings and why rebalancing is still occasionally needed.",
+        },
+      },
+      {
+        id: "figma-shard",
+        sources: [
+          {
+            label: "Figma, How we scaled the Figma database",
+            url: "https://www.figma.com/blog/how-we-scaled-the-figma-database/",
+            supports:
+              "That horizontal sharding was introduced behind a proxy layer which owned query routing, so the application could be migrated incrementally without downtime.",
+          },
+        ],
+        title: "Sharding a database that cannot stop",
+        level: "advanced",
+        body: [
+          "Vertical partitioning buys time: move tables onto their own databases and each gets a whole machine again. It runs out when one table is the problem, because a table cannot be split by moving it somewhere else.",
+          "Horizontal sharding is the answer and the migration is the hard part, because the application is full of queries that assume one database. The move Figma made was to put a proxy in the path first, so that routing became something the infrastructure owned rather than something every call site knew. With the proxy in place the application can keep issuing the queries it always did while the shape of the storage changes underneath it.",
+          "That ordering is the lesson. Introduce the indirection while the system is still simple enough to reason about, verify it is correct against the unsharded database, and only then start moving data. Teams that shard first and add routing afterwards end up changing the storage layout and the application at the same time, with no stage where they can tell which one is wrong.",
+          "What a proxy cannot fix is a query that genuinely spans shards. Those have to be found, and each is a decision: denormalise so one shard answers it, scatter and gather and accept the latency, or change the product so the question is not asked. Sharding forces that conversation, which is part of why it is rarely as simple as choosing a key.",
+        ],
+        inPractice:
+          "The same sequencing applies far below this scale. Put the seam in before you need it, prove it is transparent, then move what is behind it.",
+        check: {
+          prompt: "What made the sharding migration possible without downtime?",
+          options: [
+            "Routing moved into a proxy before any data was moved at all",
+            "Routing changes were applied to every client library first",
+            "Routing was handled by the database itself once sharded",
+            "Routing required a full stop while tables were partitioned",
+          ],
+          correctIndex: 0,
+          explain:
+            "Adding the indirection first means the storage layout can change underneath an application that still issues the same queries. Verify the proxy is transparent against the old database, then move data; the reverse order leaves nothing you can trust.",
+        },
+      },
+      {
+        id: "figma-rust",
+        sources: [
+          {
+            label: "Figma, Rust in production at Figma",
+            url: "https://www.figma.com/blog/rust-in-production-at-figma/",
+            supports:
+              "That the multiplayer server was rewritten to remove unpredictable pauses and memory overhead, with the stated motivation being consistent latency for a service holding many live documents in memory.",
+          },
+        ],
+        title: "Rewriting for predictability, not speed",
+        level: "advanced",
+        body: [
+          "The multiplayer server holds every open document in memory and applies a stream of small edits to it. The workload is unusual: not much computation, a great deal of live state, and a hard requirement that an edit is reflected for everyone else immediately.",
+          "On a garbage collected runtime that shape is awkward. Lots of live objects means collections have more to traverse, and a collection pause is time during which nobody's cursor moves. The average was fine; what was not fine was that the worst case was unpredictable and got worse as more documents were held.",
+          "So the rewrite was motivated by the distribution rather than the mean. The same work, without a collector deciding when to pause, plus lower memory per document, which means more documents per machine, which is a cost argument arriving as a side effect of a latency one.",
+          "The general lesson is that runtime choice is a question about tails and about memory shape, not about benchmark throughput. Most services are entirely well served by a managed runtime; the exceptions tend to look like this one, a lot of live state and a low tolerance for pauses, and recognising that shape is more useful than any general ranking of languages.",
+        ],
+        check: {
+          prompt: "What motivated the rewrite?",
+          options: [
+            "Predictable latency mattered more than raw throughput here",
+            "The rewrite was needed to support a new multiplayer model",
+            "The rewrite removed the need for an authoritative server",
+            "The rewrite was mainly about reducing the hosting bill",
+          ],
+          correctIndex: 0,
+          explain:
+            "Holding many documents live makes collection pauses both likelier and longer, and a pause is time nobody's cursor moves. Lower memory per document followed as a consequence, not as the goal.",
+        },
+      },
+      {
+        id: "figma-undo",
+        sources: [
+          {
+            label: "Figma, How Figma's multiplayer technology works",
+            url: "https://www.figma.com/blog/how-figmas-multiplayer-technology-works/",
+            supports:
+              "That undo must reverse the user's own changes rather than the most recent change in the document, which requires tracking per-user history and reconciling it against edits made by others since.",
+          },
+        ],
+        title: "Undo when the document is not yours alone",
+        level: "advanced",
+        body: [
+          "Undo in a single user editor is a stack. Push each change, pop to reverse. Add a second person and that model becomes actively wrong, because the most recent change in the document may be theirs, and undoing someone else's work is never what the shortcut meant.",
+          "So undo has to be per user. Each person has their own history, and pressing undo reverses their most recent edit wherever it now sits in the document's sequence. That is more than bookkeeping, because the thing being undone may have been modified since by someone else.",
+          "Which forces a decision with no clean answer. If I move a rectangle, you recolour it, and I undo, the sensible outcome is that the rectangle returns to its original position and keeps your colour, because our edits touched different properties. The property-level model makes that natural. Where we both changed the same property it is genuinely ambiguous, and the system has to pick a rule and apply it consistently rather than be correct.",
+          "Redo compounds it, because redo after someone else has edited the same object is replaying an intention into a world that moved. The honest position is that multiplayer undo is a heuristic tuned until it stops surprising people, not a correct inverse, and designs that promise more than that tend to produce worse surprises.",
+        ],
+        inPractice:
+          "A good test: undo should always do something to your own work, and never visibly change someone else's.",
+        check: {
+          prompt: "What must undo do in a multiplayer document?",
+          options: [
+            "Undo must reverse your own edit, not whatever came last",
+            "Undo must reverse the most recent edit by any collaborator",
+            "Undo must be disabled whenever two people are editing",
+            "Undo must restore the document to its last saved version",
+          ],
+          correctIndex: 0,
+          explain:
+            "Per-user history is required, because the latest document change may belong to someone else. The edit being reversed may have been touched since, which makes undo a tuned heuristic rather than a true inverse.",
+        },
       },
     ],
   },

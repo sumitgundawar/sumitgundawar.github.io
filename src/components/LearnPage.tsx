@@ -38,7 +38,7 @@ function Sources({ sources }: { sources: Source[] }) {
   return (
     <details className="mt-32 max-w-[36em] group">
       <summary
-        className="mono text-m2 uppercase tracking-[0.09em] cursor-pointer inline-flex items-center gap-8 min-h-[44px]"
+        className="text-t3 cursor-pointer inline-flex items-center gap-8 min-h-[44px]"
         style={{ color: "var(--text-mid)" }}
       >
         <span className="tnum">
@@ -91,7 +91,7 @@ function Subject({ subject }: { subject: NonNullable<Card["subject"]> }) {
       className="mt-24 border border-rule-2 p-24 measure"
       style={{ borderColor: "var(--rule-3)", background: "var(--ink-3)" }}
     >
-      <div className="mono text-m2 uppercase tracking-[0.09em] mb-8" style={{ color: "var(--accent)" }}>
+      <div className="text-t3 mb-8" style={{ color: "var(--accent)" }}>
         Dissecting
       </div>
       <a
@@ -113,10 +113,21 @@ function Subject({ subject }: { subject: NonNullable<Card["subject"]> }) {
   );
 }
 
+const TRACK_TONE: Record<string, string> = {
+  foundations: "var(--n-edge)",
+  languages: "var(--n-client)",
+  design: "var(--accent)",
+  delivery: "var(--n-service)",
+  practice: "var(--n-data)",
+  "case-study": "var(--n-queue)",
+  dissection: "var(--accent-2)",
+  interview: "var(--n-external)",
+};
+
 const LEVEL_COLOR: Record<Level, string> = {
-  beginner: "var(--ok)",
-  intermediate: "var(--warn)",
-  advanced: "var(--crit)",
+  beginner: "var(--n-service)",
+  intermediate: "var(--n-edge)",
+  advanced: "var(--accent)",
 };
 
 function LevelDot({ level }: { level: Level }) {
@@ -332,7 +343,7 @@ function CardDetail({
       </button>
 
       <div className="md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:gap-64 md:items-end">
-        <h1 className="text-d2">{card.title}</h1>
+        <h1 className="pagetitle">{card.title}</h1>
         <p className="mt-12 md:mt-0 md:pb-4 text-t2" style={{ color: "var(--text-mid)" }}>
           {card.summary}
         </p>
@@ -344,10 +355,9 @@ function CardDetail({
 
         <nav
           aria-label="Contents"
-          className="lg:sticky lg:top-32 min-w-0 mb-32 lg:mb-0 pb-24 lg:pb-0 border-b lg:border-b-0"
-          style={{ borderColor: "var(--rule-2)" }}
+          className="lg:sticky lg:top-32 min-w-0 mb-32 lg:mb-0 card p-24"
         >
-          <div className="mono text-m3 uppercase tracking-[0.12em] mb-12" style={{ color: "var(--text-mid)" }}>
+          <div className="text-t3 mb-12" style={{ color: "var(--text-lo)" }}>
             Contents
           </div>
           <ol className="flex flex-col gap-2">
@@ -401,8 +411,8 @@ function CardDetail({
                 <h2 className="min-w-0">
                   {t.title}
                 </h2>
-                <span className="mono text-m2 uppercase tracking-wide ml-auto shrink-0" style={{ color: LEVEL_COLOR[t.level] }}>
-                  {t.level}
+                <span className="text-t3 ml-auto shrink-0" style={{ color: LEVEL_COLOR[t.level] }}>
+                  {t.level[0].toUpperCase() + t.level.slice(1)}
                 </span>
               </div>
               <TopicView
@@ -488,7 +498,7 @@ export function LearnPage() {
     <>
       <Masthead />
       <main id="content" className="min-h-[100dvh]">
-      <div className="shell py-32 lg:py-48">
+      <div className="shell pb-32 lg:pb-48">
 
         {currentMeta && !current ? (
           <div className="mt-40" data-loading="card">
@@ -561,7 +571,7 @@ export function LearnPage() {
               }}
               options={[
                 { id: "all", label: `Everything ${topicCount}` },
-                ...LEVELS.map((l) => ({
+                ...LEVELS.filter((l) => countByLevel(l) > 0).map((l) => ({
                   id: l,
                   label: `${l[0].toUpperCase()}${l.slice(1)} ${countByLevel(l)}`,
                 })),
@@ -574,24 +584,45 @@ export function LearnPage() {
               </p>
             )}
 
-            <div className="grid gap-64 md:gap-96 mt-48 pb-96">
+            <nav className="trackjump" aria-label="Jump to a track">
+              {TRACK_ORDER.map((trackId) => {
+                const tr = TRACKS.find((x) => x.id === trackId);
+                const inTrack = visible.filter((c) => c.track === trackId);
+                if (!tr || !inTrack.length) return null;
+                const topics = inTrack.reduce((n, c) => n + c.topics.length, 0);
+                return (
+                  <a key={tr.id} href={`#track-${tr.id}`} className="trackjump-item">
+                    <span className="trackjump-label">{tr.label}</span>
+                    <span className="trackjump-count tnum">
+                      {inTrack.length} cards, {topics} topics
+                    </span>
+                  </a>
+                );
+              })}
+            </nav>
+
+            <div className="grid gap-48 md:gap-64 mt-48 pb-96">
               {TRACK_ORDER.map((trackId) => {
                 const tr = TRACKS.find((x) => x.id === trackId);
                 const inTrack = visible.filter((c) => c.track === trackId);
                 if (!tr || !inTrack.length) return null;
                 return (
-                  <section key={tr.id}>
+                  <section key={tr.id} id={`track-${tr.id}`} style={{ scrollMarginTop: 96 }}>
                     <div className="md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:gap-64 md:items-baseline">
-                      <h2>{tr.label}</h2>
-                      <p className="text-t3 text-text-lo mt-12 md:mt-0">{tr.blurb}</p>
+                      <h2 className="pagetitle">{tr.label}</h2>
+                      <p className="text-t3 text-text-lo mt-12 md:mt-0">
+                        {tr.blurb} {inTrack.length} cards,{" "}
+                        {inTrack.reduce((n, c) => n + c.topics.length, 0)} topics.
+                      </p>
                     </div>
-                    <div className="mt-32">
+                    <div className="mt-32 grid gap-12 xl:grid-cols-2 items-start">
                       {inTrack.map((c) => {
                         const done = summarise(progress, c.topics.map((t) => t.id));
                         const levelsHere = LEVELS.filter((l) => c.topics.some((t) => t.level === l));
                         return (
                           <IndexItem
                             key={c.id}
+                            tone={TRACK_TONE[c.track]}
                             title={c.title}
                             to={`/learn/${c.id}${window.location.search}`}
                             summary={c.summary}

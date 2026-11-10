@@ -10,14 +10,16 @@ export const practice: Card[] = [
       {
         id: "test-pyramid",
         title: "The testing pyramid",
-        level: "beginner",
+        level: "advanced",
         body: [
           "Unit tests are fast and numerous and isolate one piece of logic. Integration tests check that components work together, usually with a real database and a real HTTP layer. End-to-end tests drive the whole system through its interface, the way a user would. The pyramid says have many of the first and few of the last, because cost, runtime and flakiness all rise with scope. The reason is feedback rather than purity. A failing unit test names the broken function; a failing end-to-end test tells you something in the system is wrong and leaves you to find it. Inverted, mostly end-to-end, produces a suite that takes twenty minutes, fails for unrelated reasons twice a week, and is eventually ignored by everybody including the person who wrote it.",
           "The layer that pays best in practice is the middle one, and it is the one most often skipped. A test that runs the real handler against a real database in a container catches the things unit tests cannot, wrong SQL, a missing migration, a serialisation mismatch, without the fragility of a browser. Containers made that layer cheap enough that the old argument for mocking the database has largely expired.",
           "Mocking deserves a rule: mock what you do not own, and be sparing even then. Mocks encode your belief about how a dependency behaves, so a test suite built on them passes whenever your beliefs are self-consistent, which is not the same as being right. The classic outcome is a fully green suite against an API that changed its response shape last month.",
           "What to test is a better question than how much. The logic with branches, the boundaries where data enters or leaves, the failure paths that only run during an incident, and every bug you have already had, which is the highest-value test anyone writes. Trivial getters and framework behaviour are not tests, they are ceremony with a runtime cost.",
           "One test type deserves a mention because it finds what examples cannot: property-based testing, where the framework generates inputs and checks an invariant. It is unreasonably effective on parsers, serialisers, date handling and anything with a round trip, because it explores the space you did not think of, which is precisely where the bugs are.",
-        ],
+      "The pyramid is better read as a statement about feedback cost than about counts, and that reframing changes what you build. What you are buying with a test is the speed and precision with which a failure localises, so the question for each layer is how long it takes to tell you and how precisely it points. A unit test that fails names a function; an end-to-end test that fails names a system. Teams that measure this often find their middle layer missing entirely, and the symptom is that every real bug is caught either by a test too narrow to have prevented it or by a user.",
+      "Test doubles carry a correctness risk that the usual advice underplays. A mock encodes your belief about a collaborator's behaviour, so the suite stays green while the real collaborator changes underneath it, and the failure surfaces in production with a passing build. Contract testing exists to close exactly that gap by verifying both sides against one shared specification, and for anything you do not own, a recorded interaction replayed against a periodically refreshed capture is the honest middle ground. The rule that follows is that a mock should stand in for a dependency you own the contract with, and a fake or a real instance in a container should stand in for one you do not.",
+    ],
         why: "The shape follows from feedback speed. A failing unit test names the broken function; a failing end-to-end test tells you something in the system is wrong, and you still have to find it.",
         inPractice:
           "Testcontainers made the integration layer cheap by starting a real database per test run in a container, which removed most of the historical argument for mocking the database in the first place.",
@@ -253,6 +255,68 @@ export const practice: Card[] = [
           },
         ],
       },
+      {
+        id: "contract-tests",
+        sources: [
+          {
+            label: "Pact, consumer-driven contract testing",
+            url: "https://docs.pact.io/",
+            supports:
+              "That the consumer records the requests it makes and the responses it relies on, and the provider is verified against that recorded expectation independently, without the two having to run together.",
+          },
+        ],
+        title: "Contract tests: integration without the integration",
+        level: "advanced",
+        body: [
+          "Two services, and the question is whether they still agree. The options are both bad in familiar ways. Mock the provider in the consumer's tests and they pass forever, including after the provider changes and production breaks. Or stand both up together, which is slow, flaky, and gets worse with every service added.",
+          "A contract test splits the difference. The consumer declares what it sends and what it needs back, and that expectation is recorded. The provider is then verified against the recording on its own, in its own pipeline, with no need for the consumer to be running. Each side tests alone and the agreement is still checked.",
+          "The important word is consumer-driven. The contract describes what is actually used, not everything the provider offers, which means a provider can add fields, change things nobody depends on, and know from its own test run whether it has broken anyone. That is the feedback a shared integration environment gives you days later and much less precisely.",
+          "What it does not do is verify behaviour. A contract confirms the shape of the exchange, not that the number returned is correct, and treating a green contract suite as proof the integration works is the common mistake. It pairs with a small number of genuine end to end tests on the paths that would be most expensive to get wrong.",
+        ],
+        check: {
+          prompt: "What does a consumer-driven contract test verify?",
+          options: [
+            "A contract test runs against the expectations a consumer has",
+            "A contract test runs the consumer and provider in one process",
+            "A contract test replaces the need for any integration testing",
+            "A contract test checks the provider against its own documents",
+          ],
+          correctIndex: 0,
+          explain:
+            "The consumer records what it sends and relies on; the provider verifies against that recording independently. It checks the shape of the agreement, not that the behaviour behind it is correct.",
+        },
+      },
+      {
+        id: "test-data",
+        sources: [
+          {
+            label: "Testcontainers, overview",
+            url: "https://testcontainers.com/getting-started/",
+            supports:
+              "That tests can start a real dependency in a disposable container per run, which gives each suite a fresh and isolated instance rather than a long-lived shared environment.",
+          },
+        ],
+        title: "Test data, and the shared database problem",
+        level: "intermediate",
+        body: [
+          "A shared test database is the most common cause of a suite nobody trusts. Tests mutate rows other tests read, so passing depends on execution order, on whoever ran last, and on nobody having touched it manually. Then they fail in parallel, so the suite is pinned to serial and is slow as well as unreliable.",
+          "The property worth protecting is that every test starts from a state it fully determines. Three ways to get there, roughly in order of preference. Run each test in a transaction that is rolled back afterwards, which is fast and works wherever the code under test does not manage its own transactions. Start a disposable instance per run, which is slower and isolates completely. Or truncate and reseed between tests, which is the slowest and the easiest to get subtly wrong.",
+          "Fixtures deserve their own warning. A shared fixture file that every test loads becomes a dependency everything has on everything: nobody can change a row without breaking tests they have never read, so it only grows, and after a year it is a small synthetic company nobody understands. Building the data each test needs inside the test is more code and it is code that can be deleted with the test.",
+          "The deeper benefit is readability. A test that constructs its own world states its preconditions in the body, so a reader can see why the assertion should hold. A test that depends on fixture seven cannot be understood without opening another file and guessing which part of it mattered.",
+        ],
+        check: {
+          prompt: "What goes wrong with a shared mutable test database?",
+          options: [
+            "Shared mutable fixtures make tests depend on their order",
+            "Shared mutable fixtures make each test slower to execute",
+            "Shared mutable fixtures make coverage reports less accurate",
+            "Shared mutable fixtures make a database schema harder to change",
+          ],
+          correctIndex: 0,
+          explain:
+            "Tests mutate state others read, so results depend on execution order and on what ran before, which also rules out running them in parallel. Isolation per test, by transaction or disposable instance, is what removes the coupling.",
+        },
+      },
     ],
   },
 
@@ -272,14 +336,16 @@ export const practice: Card[] = [
           },
         ],
         title: "Waterfall",
-        level: "beginner",
+        level: "advanced",
         body: [
           "Waterfall runs in sequence: gather requirements, design, build, test, release. Each stage completes before the next begins, sign-off moves the work along, and the customer sees the result at the end. Described that way it sounds naive, and it is worth knowing that the paper usually blamed for it, Royce in 1970, presented the pure sequence as the thing that does not work and recommended iterating.",
           "It works where the cost of change late is genuinely enormous and the requirements genuinely cannot move: regulated work with a certification step, anything with manufacturing behind it, fixed-scope contracts where the scope is the contract. In those settings front-loading the decisions is not caution, it is the correct response to the shape of the cost curve.",
           "It fails for software because requirements are discovered by using the thing. People cannot specify what they want from a product that does not exist yet, so the specification is a hypothesis, and waterfall defers testing that hypothesis until the moment change is most expensive. The defects found in the final phase are the ones introduced in the first.",
           "The other failure is the handover. Each phase produces a document for the next, so context is repeatedly compressed and reconstructed by people who were not in the room. Most of what an implementer needs is the reasoning behind a requirement, and reasoning is exactly what survives a specification document least well.",
           "The reason to know it properly is that the argument is about the cost-of-change curve rather than about culture. Where change is cheap and information arrives during construction, iterate. Where change is expensive and information arrives before construction, plan. Most software is the first and some genuinely is the second, and knowing which you are in is more useful than a preference.",
-        ],
+      "The historical detail is worth knowing because it is routinely misattributed. The 1970 paper that gave the model its diagram, by Winston Royce, presented the strictly sequential version as the thing that does not work and spent the rest of the paper arguing for iteration, prototyping and customer involvement. The industry adopted the diagram and discarded the argument. That is a useful caution in its own right: a model becomes doctrine through the part that is easiest to draw, which is the same mechanism that turns any methodology into ceremony.",
+      "The durable idea underneath is the shape of the cost-of-change curve, and it is an empirical claim rather than a philosophical one. Where change is cheap late, deferring decisions until you have evidence dominates, and where change is expensive late, deciding early is correct. Most software has been pushed towards the first case deliberately, by automated tests, continuous deployment, feature flags and reversible migrations, all of which exist to flatten that curve. Read that way, the argument is not waterfall against agile: it is that engineering practices which make change cheap are what license an iterative process, and a team without them is choosing iteration while still paying waterfall's costs.",
+    ],
         why: "The cost-of-change curve is the whole argument. If change is cheap and information arrives during building, front-loading every decision is the wrong bet.",
         inPractice:
           "Royce's 1970 paper, routinely cited as the origin of waterfall, presents the pure sequence as the version that fails and recommends building it twice. The model spread anyway, which is a useful lesson about how ideas travel.",
@@ -343,14 +409,16 @@ export const practice: Card[] = [
           },
         ],
         title: "Agile, scrum and kanban",
-        level: "beginner",
+        level: "advanced",
         body: [
           "Agile is a set of preferences rather than a process: working software over comprehensive documentation, responding to change over following a plan, collaboration over contract negotiation, individuals and interactions over tools. Each is a preference between two goods, which is the part most often dropped when it is quoted.",
           "Scrum implements those preferences with structure: fixed sprints, a product owner, a scrum master, a backlog, and ceremonies for planning, review and retrospective. Kanban drops the sprint entirely and limits work in progress instead, pulling the next item when capacity frees. Kanban suits interrupt-driven work such as support or platform; scrum suits planned feature work with a stable team and a plannable period.",
           "Work in progress limits are the most underrated idea in either. Starting five things at once does not make them arrive sooner; it makes all five arrive later and increases the chance that some are abandoned half-finished. Limiting concurrent work reduces cycle time for the same throughput, which is Little's Law applied to a team rather than to a service.",
           "The common failure is adopting the ceremonies without the feedback. Standups with no working software to demonstrate, sprints whose plan cannot change, retrospectives with no action taken: that is waterfall with more meetings, and everyone in the room knows it, which is where the reputational damage to the word comes from.",
           "The retrospective is the meeting that determines whether any of it works, because it is the only one whose output is a change to how the team operates. A retrospective that produces observations and no owned action is a therapy session; one that changes something small every fortnight compounds. Estimation deserves less energy than it gets. Story points are a relative measure whose only legitimate use is forecasting from historical throughput, and the moment they become a productivity metric they are inflated and stop forecasting anything. Counting finished items and measuring cycle time is simpler and harder to game.",
-        ],
+      "Work in progress limits are the mechanism with the strongest theoretical backing, and it is the same law that governs queues. Little's law says average cycle time equals work in progress divided by throughput, so with throughput fixed by team capacity, the only lever on how long an item takes is how many are in flight at once. Starting more work cannot make it finish sooner and reliably makes everything slower, because context switching reduces throughput while the numerator grows. This is why a board with a column limit outperforms one without, and why the instinct to start something while blocked is usually the wrong move.",
+      "The evidence base is also more specific than the discourse suggests. The research behind the DORA programme consistently identifies four measures, deployment frequency, lead time for change, change failure rate and time to restore, as the ones that correlate with organisational performance, and none of them mentions a ceremony. That is the useful test for any process change: it should move one of those numbers. A team running every ritual with a two-week lead time and a manual release has adopted the vocabulary and none of the mechanism, which is the failure the retrospective is supposed to catch and usually does not, because the retrospective examines the process rather than the delivery data.",
+    ],
         why: "Both fail the same way: adopting the ceremonies without the feedback. Standups and sprints with no working software to show and no willingness to change the plan is waterfall with extra meetings.",
         inPractice:
           "The DORA research programme measures four outcomes, deployment frequency, lead time, change failure rate and time to restore, and finds they correlate with performance far better than any process choice does. It is the closest thing to evidence in this area.",
@@ -825,6 +893,70 @@ export const practice: Card[] = [
               "Unrecorded debt turns into a general feeling that the codebase is bad, which persuades nobody and prioritises nothing. A specific note with a date is something a planning conversation can act on.",
           },
         ],
+      },
+      {
+        id: "blast-radius",
+        sources: [
+          {
+            label: "Google, engineering practices: small changes",
+            url: "https://google.github.io/eng-practices/review/developer/small-cls.html",
+            supports:
+              "That smaller changes are reviewed more thoroughly and faster, are easier to revert, and reduce the chance of introducing a defect, which is the argument for bounding the reach of a change.",
+          },
+        ],
+        title: "Blast radius: how far a change reaches",
+        level: "intermediate",
+        body: [
+          "Ask of any change how much of the system it could break if it is wrong, and most design advice becomes concrete. A change inside one function is bounded by its callers. A change to a shared type reaches everything that touches it. A change to a build script reaches everything.",
+          "The number that matters is not lines changed, it is how many things depend on what moved. That is why extracting a shared helper has a cost people do not price: it is a convenience that converts several independent pieces of code into one piece everything now depends on, so the next change there is a change to all of them.",
+          "The reason to keep changes small is the same reason. A small change is reviewable, because a reviewer can actually hold it in their head; it is revertible, because reverting it does not undo four unrelated things shipped alongside; and when something breaks an hour later it is a candidate you can rule in or out quickly. A thousand line change has none of those properties regardless of how good the code in it is.",
+          "The same reasoning extends outward to deploys. Shipping one change at a time means the thing that broke is obvious. Shipping twelve means an hour of bisecting under pressure, which is why batching deploys to reduce risk usually increases it.",
+        ],
+        check: {
+          prompt: "Why prefer small changes?",
+          options: [
+            "A small change is easier to review and to revert when wrong",
+            "A small change is always safer than any larger change made",
+            "A small change removes the need to test before it is merged",
+            "A small change can be merged without any review at all",
+          ],
+          correctIndex: 0,
+          explain:
+            "Reviewability and revertibility are the real benefits, plus being a candidate you can rule in or out quickly during an incident. Size is a proxy; what actually matters is how many things depend on what moved.",
+        },
+      },
+      {
+        id: "review-standard",
+        sources: [
+          {
+            label: "Google, the standard of code review",
+            url: "https://google.github.io/eng-practices/review/reviewer/standard.html",
+            supports:
+              "That the standard is whether the change definitely improves the overall health of the codebase, rather than whether it is perfect, and that reviewers should approve once it is a clear improvement.",
+          },
+        ],
+        title: "What code review is actually for",
+        level: "intermediate",
+        body: [
+          "Review is widely treated as defect detection, and it is mediocre at that. Tests and types find bugs more reliably and far more cheaply, and a reviewer reading a diff has nothing like the context needed to find a race condition.",
+          "The standard worth adopting is whether the change improves the overall health of the codebase, not whether it is the best possible version of itself. That single reframing resolves most review disputes, because it replaces an unbounded question, could this be better, with a bounded one, is this better than what is there now.",
+          "What review is genuinely good at is spreading knowledge, catching decisions rather than defects, and keeping a codebase coherent. A reviewer notices that this duplicates something that already exists, that this introduces a dependency the team agreed to avoid, that the error here will be invisible in production. None of those are bugs; all of them are expensive later.",
+          "Which is why the failure modes are style arguments and unbounded perfectionism. Style belongs to a formatter, so nobody has to discuss it. Perfectionism blocks improvements because a better improvement is imaginable, and the cost of a change sitting in review for three days is real and is paid by someone.",
+        ],
+        inPractice:
+          "If a review comment is not about correctness, a decision, or something the author could not know, consider whether it is worth the round trip it costs.",
+        check: {
+          prompt: "What is the right standard for approving a change?",
+          options: [
+            "Review improves the codebase overall, not just this change",
+            "Review exists to find every defect before the code ships",
+            "Review is where the author learns the style the team uses",
+            "Review should block until the change is as good as possible",
+          ],
+          correctIndex: 0,
+          explain:
+            "Approve once the change clearly improves overall health. Holding out for the best imaginable version blocks real improvements, and style belongs to a formatter rather than to a conversation.",
+        },
       },
     ],
   },

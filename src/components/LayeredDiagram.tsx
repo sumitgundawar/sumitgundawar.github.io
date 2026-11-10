@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { usePrefersReducedMotion } from "@/lib/hooks";
-import type { Diagram, NodeKind } from "@/data/learn";
+import { advance, onEnter, prefersStill, subscribe, SPRING } from "@/lib/motion";
+import type { Diagram, DiagramNode, NodeKind } from "@/data/learn";
 
-const KIND_COLOR: Record<NodeKind, string> = {
+const KIND_FILL: Record<NodeKind, string> = {
+  client: "var(--n-client-fill)",
+  edge: "var(--n-edge-fill)",
+  service: "var(--n-service-fill)",
+  data: "var(--n-data-fill)",
+  queue: "var(--n-queue-fill)",
+  external: "var(--n-external-fill)",
+};
+
+const KIND_LINE: Record<NodeKind, string> = {
   client: "var(--n-client)",
   edge: "var(--n-edge)",
   service: "var(--n-service)",
@@ -11,241 +20,247 @@ const KIND_COLOR: Record<NodeKind, string> = {
   external: "var(--n-external)",
 };
 
-const KIND_EDGE: Record<NodeKind, string> = {
-  client: "var(--n-client-edge)",
-  edge: "var(--n-edge-edge)",
-  service: "var(--n-service-edge)",
-  data: "var(--n-data-edge)",
-  queue: "var(--n-queue-edge)",
-  external: "var(--n-external-edge)",
+const KIND_TEXT: Record<NodeKind, string> = {
+  client: "var(--n-client-text)",
+  edge: "var(--n-edge-text)",
+  service: "var(--n-service-text)",
+  data: "var(--n-data-text)",
+  queue: "var(--n-queue-text)",
+  external: "var(--n-external-text)",
 };
 
 const KIND_LABEL: Record<NodeKind, string> = {
   client: "Client",
-  edge: "Edge / CDN",
+  edge: "Edge",
   service: "Service",
   data: "Data store",
-  queue: "Queue / stream",
+  queue: "Queue",
   external: "External",
 };
 
-const LAYER_GAP = 150;
+const NODE_W = 176;
+const NODE_H = 56;
+const THICK = 9;
+const X_GAP = 206;
+const Z_GAP = 104;
+const Y_GAP = 142;
+const PLANE_PAD = 56;
+const TILT = 0.46;
+
+type Placed = DiagramNode & { tier: number; x: number; z: number; sx: number; sy: number };
 
 export function LayeredDiagram({ diagram, id }: { diagram: Diagram; id: string }) {
-  const reduced = usePrefersReducedMotion();
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  const [tilt, setTilt] = useState({ x: 54, y: -8 });
-  const [dragging, setDragging] = useState(false);
-  const [active, setActive] = useState(0);
-
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [yaw, setYaw] = useState(-0.34);
+  const [lift, setLift] = useState(prefersStill() ? 1 : 0);
   const [picked, setPicked] = useState<string | null>(null);
+  const dragging = useRef<{ on: boolean; x: number }>({ on: false, x: 0 });
 
   useEffect(() => {
-    if (reduced || dragging) return;
-    const t = setInterval(() => setActive((i) => (i + 1) % diagram.columns.length), 1400);
-    return () => clearInterval(t);
-  }, [reduced, dragging, diagram.columns.length]);
-
-  const [travel, setTravel] = useState(0);
-  useEffect(() => {
-    if (reduced || dragging) return;
-    let raf = 0;
-    const started = performance.now();
-    const step = (now: number) => {
-      setTravel(Math.min(1, ((now - started) % 1400) / 900));
-      raf = requestAnimationFrame(step);
+    const host = hostRef.current;
+    if (!host || prefersStill()) return;
+    let stop: (() => void) | null = null;
+    const off = onEnter(host, () => {
+      const state = { value: 0, velocity: 0 };
+      let last = performance.now();
+      stop = subscribe((time) => {
+        const delta = Math.max(0, time - last);
+        last = time;
+        const done = advance(state, 1, SPRING.REVEAL, delta, 0.002);
+        setLift(state.value);
+        if (done) {
+          stop?.();
+          stop = null;
+        }
+      });
+    });
+    return () => {
+      off();
+      stop?.();
     };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [reduced, dragging, active]);
+  }, [diagram]);
+
+  const scene = useMemo(() => {
+    const cosY = Math.cos(yaw);
+    const sinY = Math.sin(yaw);
+    const placed: Placed[] = [];
+
+    diagram.columns.forEach((col, tier) => {
+      const perRow = Math.min(3, col.length);
+      const rows = Math.ceil(col.length / perRow);
+      col.forEach((node, i) => {
+        const cIdx = i % perRow;
+        const rIdx = Math.floor(i / perRow);
+        const inRow = Math.min(perRow, col.length - rIdx * perRow);
+        const x = (cIdx - (inRow - 1) / 2) * X_GAP;
+        const z = (rIdx - (rows - 1) / 2) * Z_GAP;
+        const rx = x * cosY - z * sinY;
+        const rz = x * sinY + z * cosY;
+        placed.push({ ...node, tier, x, z, sx: rx, sy: rz * TILT + tier * Y_GAP });
+      });
+    });
+
+    const planes = diagram.columns.map((col, tier) => {
+      const xs = placed.filter((p) => p.tier === tier);
+      const halfX = Math.max(...xs.map((p) => Math.abs(p.x))) + NODE_W / 2 + PLANE_PAD;
+      const halfZ = Math.max(...xs.map((p) => Math.abs(p.z))) + NODE_H / 2 + PLANE_PAD;
+      const corner = (cx: number, cz: number) => {
+        const rx = cx * cosY - cz * sinY;
+        const rz = cx * sinY + cz * cosY;
+        return [rx, rz * TILT + tier * Y_GAP];
+      };
+      const pts = [
+        corner(-halfX, -halfZ),
+        corner(halfX, -halfZ),
+        corner(halfX, halfZ),
+        corner(-halfX, halfZ),
+      ];
+      const kinds = [...new Set(col.map((n) => n.kind ?? "service"))];
+      return {
+        tier,
+        points: pts.map((p) => p.join(",")).join(" "),
+        label: kinds.length === 1 ? KIND_LABEL[kinds[0]] : "Mixed",
+        lx: pts[0][0],
+        ly: pts[0][1] - 14,
+      };
+    });
+
+    const byId = new Map(placed.map((p) => [p.id, p]));
+    const links = diagram.edges
+      .map((e) => ({ edge: e, a: byId.get(e.from), b: byId.get(e.to) }))
+      .filter((l): l is { edge: typeof l.edge; a: Placed; b: Placed } => Boolean(l.a && l.b));
+
+    const all = [
+      ...placed.map((p) => ({ x: p.sx, y: p.sy })),
+      ...planes.flatMap((pl) =>
+        pl.points.split(" ").map((s) => {
+          const [x, y] = s.split(",").map(Number);
+          return { x, y };
+        }),
+      ),
+    ];
+    const minX = Math.min(...all.map((p) => p.x)) - NODE_W / 2 - 20;
+    const maxX = Math.max(...all.map((p) => p.x)) + NODE_W / 2 + 20;
+    const minY = Math.min(...all.map((p) => p.y)) - NODE_H - 34;
+    const maxY = Math.max(...all.map((p) => p.y)) + NODE_H + 24;
+
+    return {
+      placed,
+      planes,
+      links,
+      view: `${minX} ${minY} ${maxX - minX} ${maxY - minY}`,
+    };
+  }, [diagram, yaw]);
 
   const onDown = (e: React.PointerEvent) => {
-    if ((e.target as Element).closest("button")) return;
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    setDragging(true);
+    if ((e.target as Element).closest("[data-node]")) return;
+    dragging.current = { on: true, x: e.clientX };
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
   };
   const onMove = (e: React.PointerEvent) => {
-    if (!dragging) return;
-    setTilt((t) => ({
-      x: Math.max(28, Math.min(70, t.x - e.movementY * 0.35)),
-      y: Math.max(-26, Math.min(26, t.y + e.movementX * 0.35)),
-    }));
+    if (!dragging.current.on) return;
+    const dx = e.clientX - dragging.current.x;
+    dragging.current.x = e.clientX;
+    setYaw((y) => Math.max(-0.85, Math.min(0.85, y + dx * 0.004)));
   };
-  const onUp = () => setDragging(false);
+  const onUp = () => {
+    dragging.current.on = false;
+  };
 
-  const layerLabel = useMemo(
-    () =>
-      diagram.columns.map((col) => {
-        const kinds = [...new Set(col.map((n) => n.kind ?? "service"))];
-        return kinds.length === 1 ? kinds[0] : "mixed";
-      }),
-    [diagram.columns],
-  );
+  const chosen = scene.placed.find((p) => p.id === picked);
 
   return (
-    <figure className="my-32" aria-labelledby={`${id}-layered-cap`}>
-      <div
-        ref={wrapRef}
-        className="relative w-full overflow-hidden select-none"
-        style={{
-          height: `${Math.max(340, 150 + diagram.columns.length * 118)}px`,
-          perspective: "1100px",
-          background: "var(--plate)",
-          border: "1px solid var(--rule-2)",
-          cursor: dragging ? "grabbing" : "grab",
-          touchAction: "none",
-        }}
+    <div ref={hostRef} className="layers">
+      <svg
+        viewBox={scene.view}
+        className="layers-svg"
+        role="img"
+        aria-label={`${diagram.caption}, layered view`}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
-        onPointerCancel={onUp}
+        onPointerLeave={onUp}
       >
-        <div
-          className="absolute inset-0 grid place-items-center"
-          style={{
-            transformStyle: "preserve-3d",
-            transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-            transition: dragging ? "none" : "transform .5s cubic-bezier(0.2,0.7,0.2,1)",
-          }}
-        >
-          {diagram.columns.map((col, ci) => {
-            const z = -(ci - (diagram.columns.length - 1) / 2) * LAYER_GAP;
-            const lit = !reduced && ci === active;
-            return (
-              <div
-                key={ci}
-                className="absolute"
-                style={{
-                  transform: `translateZ(${z}px)`,
-                  transformStyle: "preserve-3d",
-                  transition: "opacity .35s",
-                  opacity: reduced ? 1 : lit ? 1 : 0.72,
-                }}
-              >
+        {scene.planes.map((plane) => (
+          <g key={`p${plane.tier}`} opacity={lift}>
+            <polygon
+              points={plane.points}
+              fill="var(--sunken)"
+              stroke="var(--rule-2)"
+              strokeWidth={1}
+            />
+            <text x={plane.lx} y={plane.ly} className="layers-tier">
+              {plane.label}
+            </text>
+          </g>
+        ))}
 
-                <div
-                  aria-hidden
-                  className="absolute left-1/2 top-1/2"
-                  style={{
-                    width: 300,
-                    height: 108,
-                    marginLeft: -150,
-                    marginTop: -54,
-                    border: `1px solid ${lit ? "var(--accent)" : "var(--rule-2)"}`,
-                    background: lit ? "rgba(61,214,140,0.05)" : "transparent",
-                    transition: "border-color .35s, background .35s",
-                  }}
-                />
-                <div className="relative flex flex-col items-center gap-8">
-                  <div
-                    className="mono uppercase"
-                    style={{
-                      fontSize: 9,
-                      letterSpacing: "0.12em",
-                      color: lit ? "var(--accent)" : "var(--text-mid)",
-                      transition: "color .35s",
-                    }}
-                  >
-                    {layerLabel[ci]}
-                  </div>
-                  {col.map((n) => (
-                    <button
-                      key={n.id}
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPicked((cur) => (cur === n.id ? null : n.id));
-                      }}
-                      aria-pressed={picked === n.id}
-                      className="mono text-center px-8 py-8 cursor-pointer"
-                      style={{
-                        minWidth: 132,
-                        fontSize: 11,
-                        background: KIND_COLOR[n.kind ?? "service"],
-                        border: `1px solid ${KIND_EDGE[n.kind ?? "service"]}`,
-                        color: "var(--text-hi)",
-                        boxShadow: lit ? "0 6px 20px rgba(0,0,0,0.45)" : "0 2px 8px rgba(0,0,0,0.3)",
-                        transition: "box-shadow .35s",
-                      }}
-                    >
-                      {n.label}
-                      {n.sub && (
-                        <div style={{ fontSize: 9, opacity: 0.72, marginTop: 2 }}>{n.sub}</div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {!reduced && diagram.columns.length > 1 && (
-          <div
-            aria-hidden
-            className="absolute left-1/2 pointer-events-none"
-            style={{
-              top: `${18 + (Math.min(active + travel, diagram.columns.length - 1) / Math.max(1, diagram.columns.length - 1)) * 64}%`,
-              width: 9,
-              height: 9,
-              marginLeft: -4.5,
-              borderRadius: "50%",
-              background: "var(--accent)",
-              boxShadow: "0 0 12px var(--accent)",
-              transition: "none",
-            }}
+        {scene.links.map((l, i) => (
+          <line
+            key={`l${i}`}
+            x1={l.a.sx}
+            y1={l.a.sy + NODE_H / 2}
+            x2={l.b.sx}
+            y2={l.b.sy - NODE_H / 2}
+            stroke="var(--edge)"
+            strokeWidth={1.5}
+            strokeDasharray={l.edge.async ? "6 5" : undefined}
+            opacity={lift * 0.8}
           />
-        )}
+        ))}
 
-        <div
-          className="absolute left-12 bottom-8 mono pointer-events-none"
-          style={{ fontSize: 10, color: "var(--text-mid)" }}
-        >
-          {picked ? "tap again to dismiss" : "drag to rotate, tap a component"}
-        </div>
-      </div>
-      {picked && (() => {
-        const node = diagram.columns.flat().find((n) => n.id === picked);
-        if (!node) return null;
-        const edgesOut = diagram.edges.filter((e) => e.from === picked);
-        const edgesIn = diagram.edges.filter((e) => e.to === picked);
-        return (
-          <div
-            role="status"
-            className="mt-8 p-12"
-            style={{ background: "var(--ink-2)", border: "1px solid var(--rule-3)" }}
-          >
-            <div className="mono text-m2" style={{ color: "var(--text-hi)" }}>
-              {node.label}
-              {node.sub ? ` · ${node.sub}` : ""}
-              <span style={{ color: "var(--text-mid)" }}> · {KIND_LABEL[node.kind ?? "service"]}</span>
-            </div>
-            {(edgesIn.length > 0 || edgesOut.length > 0) && (
-              <div className="mono text-m3 mt-8" style={{ color: "var(--text-mid)" }}>
-                {edgesIn.map((e, i) => (
-                  <div key={`i${i}`}>
-                    ← from {diagram.columns.flat().find((n) => n.id === e.from)?.label}
-                    {e.label ? `: ${e.label}` : ""}
-                    {e.async ? " (asynchronous)" : ""}
-                  </div>
-                ))}
-                {edgesOut.map((e, i) => (
-                  <div key={`o${i}`}>
-                    → to {diagram.columns.flat().find((n) => n.id === e.to)?.label}
-                    {e.label ? `: ${e.label}` : ""}
-                    {e.async ? " (asynchronous)" : ""}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })()}
+        {scene.placed.map((node) => {
+          const kind = node.kind ?? "service";
+          const drop = (1 - lift) * 34;
+          return (
+            <g
+              key={node.id}
+              data-node
+              transform={`translate(${node.sx} ${node.sy - drop})`}
+              opacity={lift}
+              onClick={() => setPicked(picked === node.id ? null : node.id)}
+              className="layers-node"
+            >
+              <rect
+                x={-NODE_W / 2 + 4}
+                y={-NODE_H / 2 + THICK}
+                width={NODE_W}
+                height={NODE_H}
+                rx={8}
+                fill={KIND_LINE[kind]}
+                opacity={0.34}
+              />
+              <rect
+                x={-NODE_W / 2}
+                y={-NODE_H / 2}
+                width={NODE_W}
+                height={NODE_H}
+                rx={8}
+                fill={KIND_FILL[kind]}
+                stroke={picked === node.id ? "var(--signal)" : KIND_LINE[kind]}
+                strokeWidth={picked === node.id ? 2 : 1.25}
+              />
+              <text y={node.sub ? -4 : 5} className="layers-label" fill={KIND_TEXT[kind]}>
+                {node.label}
+              </text>
+              {node.sub && (
+                <text y={14} className="layers-sub" fill={KIND_TEXT[kind]}>
+                  {node.sub}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
 
-      <figcaption id={`${id}-layered-cap`} className="mono text-m2 mt-8" style={{ color: "var(--text-mid)" }}>
-        {diagram.caption} · front to back is the path a request takes
-      </figcaption>
-    </figure>
+      <p className="layers-hint" data-allow-lowercase>
+        {chosen
+          ? chosen.why || chosen.setup || `${chosen.label}. ${chosen.sub ?? ""}`
+          : "Drag to turn the stack. Tap a component for why it is there."}
+      </p>
+      <span className="sr-only" id={`${id}-layers`}>
+        {diagram.caption}
+      </span>
+    </div>
   );
 }

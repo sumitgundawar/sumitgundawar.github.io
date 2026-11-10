@@ -1,160 +1,95 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  Kicker,
-  Ledger,
-  Masthead,
-  Plate,
-  PrimaryAction,
-  Record,
-  SiteFooter,
-  Spine,
-  StatusDot,
-  Tag,
-} from "./primitives";
-import { LoopVideo } from "./LoopVideo";
+import { Masthead, SiteFooter, Tag } from "./primitives";
+import { Boot } from "./Boot";
 import { Newsletter } from "./Newsletter";
-import { usePageMeta, useReveal } from "@/lib/hooks";
+import { InferenceField } from "./InferenceField";
+import { HeroName } from "./HeroName";
+import { Marquee } from "./Marquee";
+import { Numbers } from "./Numbers";
+import { Evidence } from "./Evidence";
+import { Reveal } from "./Reveal";
+import { BracketPanel } from "./Frames";
+import { usePageMeta } from "@/lib/hooks";
+import { SPRING } from "@/lib/motion";
 import {
   articles,
-  authorPage,
-  education,
   frameworks,
   identity,
   incidents,
-  kpis,
   podcasts,
   recognition,
   services,
   speaking,
-  timeline,
-  verification,
 } from "@/data/content";
 import { failureModes } from "@/data/failures";
-import { manifest } from "@/data/learn/manifest";
 
-const CORPUS = {
-  cards: manifest.length,
-  topics: manifest.reduce((n, c) => n + c.topics.length, 0),
-  advanced: manifest.reduce(
-    (n, c) => n + c.topics.filter((t) => t.level === "advanced").length,
-    0,
-  ),
-};
-
+const outlets = new Set(articles.map((a) => a.publication)).size;
 const articleById = new Map(articles.map((a) => [a.id, a]));
 const incidentById = new Map(incidents.map((i) => [i.id, i]));
-const serviceById = new Map(services.map((s) => [s.id, s]));
 
-function Statement() {
+function Heading({ text, eyebrow, note }: { text: string; eyebrow: string; note?: string }) {
   return (
-    <div className="pt-48 md:pt-96 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-32 md:gap-64 sm:items-end">
+    <div className="blockhead">
       <div className="min-w-0">
-        <h1>
-          <span className="eyebrow block mb-24">{identity.name}</span>
-          I design systems around how they fail.
-        </h1>
-        <p className="text-t2 text-text-mid mt-32 measure">
-          {identity.title}. Node, TypeScript and React, and the data and AI systems behind them.{" "}
-          {identity.location}.
-        </p>
-        <p className="text-t3 text-text-lo mt-16 measure">{identity.bio}</p>
-        <div className="mt-32 flex flex-wrap items-center gap-24">
-          <PrimaryAction href={`mailto:${identity.email}`}>Get in touch</PrimaryAction>
-          <StatusDot label={identity.availability} />
-        </div>
+        <span className="brow">
+          <span className="brow-dot" aria-hidden />
+          {eyebrow}
+        </span>
+        <h2 className="blockhead-title display" data-display>
+          <Reveal text={text} by="word" stagger={90} config={SPRING.REVEAL} gap={0.18} />
+        </h2>
       </div>
-      <div className="mt-48 sm:mt-0 max-w-[280px] sm:max-w-none sm:w-[236px] md:w-[288px] xl:w-[320px] shrink-0">
-        <Plate n={0} bleed={false}>
-          <img
-            src="/sumit-gundawar.webp"
-            alt=""
-            width={720}
-            height={900}
-            fetchPriority="high"
-            decoding="async"
-            className="block w-full aspect-[4/5] object-cover"
-          />
-        </Plate>
-      </div>
+      {note && <span className="blockhead-note">{note}</span>}
     </div>
   );
 }
 
-type ProofRow = {
-  kind: string;
-  source: string;
-  title: string;
-  url?: string;
-  note?: string;
-};
-
-function Proof() {
-  const rows: ProofRow[] = [
-    ...podcasts.map((p) => ({
-      kind: "Podcast",
-      source: p.episode ? `${p.show}, ${p.episode}` : p.show,
-      title: p.title,
-      url: p.url,
-    })),
-    ...speaking.map((t) => ({
-      kind: "Talk",
-      source: t.venue,
-      title: t.title,
-      url: t.url,
-      note: t.when,
-    })),
-    ...recognition.map((r) => ({
-      kind: "Recognition",
-      source: r.org,
-      title: r.role,
-      url: r.url,
-      note: r.note ?? r.when,
-    })),
-    {
-      kind: "Byline",
-      source: "Software Testing News, AITechTrend and Dataconomy",
-      title: `${articles.length} published articles`,
-      url: authorPage,
-    },
-  ];
-
-  const grid =
-    "sm:grid sm:grid-cols-[120px_minmax(0,1fr)] xl:grid-cols-[132px_minmax(0,1fr)_300px] sm:gap-24 md:gap-32 sm:items-baseline";
-
+function Principles() {
   return (
-    <ul className="border-t border-rule-2">
-      {rows.map((row) => {
-        const inner = (
+    <ol className="principles">
+      {frameworks.map((framework, i) => (
+        <li key={framework.abbr} className="principle">
+          <span className="principle-index tnum">{String(i + 1).padStart(2, "0")}</span>
+          <div className="min-w-0">
+            <h3 className="principle-title">
+              {framework.abbr}, {framework.expansion}
+            </h3>
+            <p className="principle-body">
+              {framework.domain}. {framework.layers.join(". ")}.
+            </p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function SystemCards() {
+  return (
+    <ul className="systems">
+      {services.slice(0, 4).map((service, i) => {
+        const body = (
           <>
-            <span className="mono text-m2 caps text-accent block">{row.kind}</span>
-            <span className="block min-w-0 mt-8 sm:mt-0">
-              <span className="block text-t1 text-text-hi link-underline">{row.title}</span>
-              <span className="block eyebrow mt-8">{row.source}</span>
-              {row.note && (
-                <span className="block text-t3 text-text-lo mt-8 measure-wide xl:hidden">
-                  {row.note}
-                </span>
-              )}
+            <span className="system-name">{service.name}</span>
+            <span className="system-blurb">{service.slo}</span>
+            <span className="system-foot">
+              <span className="flex flex-wrap gap-8">
+                {service.stack.slice(0, 3).map((item) => (
+                  <Tag key={item}>{item}</Tag>
+                ))}
+              </span>
+              {service.url && <span className="system-link">{service.urlLabel}</span>}
             </span>
-            {row.note && (
-              <span className="hidden xl:block text-t3 text-text-lo">{row.note}</span>
-            )}
           </>
         );
         return (
-          <li key={row.source + row.title} className="border-b border-rule-2">
-            {row.url ? (
-              <a
-                href={row.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`group block py-24 transition-colors duration-[120ms] hover:bg-ink-1 ${grid}`}
-              >
-                {inner}
+          <li key={service.id} className="system" data-offset={i % 2 === 1 ? "true" : "false"}>
+            {service.url ? (
+              <a href={service.url} target="_blank" rel="noopener noreferrer" className="system-card">
+                {body}
               </a>
             ) : (
-              <div className={`py-24 ${grid}`}>{inner}</div>
+              <div className="system-card">{body}</div>
             )}
           </li>
         );
@@ -163,370 +98,180 @@ function Proof() {
   );
 }
 
-function Mode({ mode, index }: { mode: (typeof failureModes)[number]; index: number }) {
-  const [open, setOpen] = useState(index === 0);
+function FailureRow({ mode }: { mode: (typeof failureModes)[number] }) {
   const incident = mode.incidentId ? incidentById.get(mode.incidentId) : undefined;
   const modeArticles = mode.articleIds.map((id) => articleById.get(id)).filter(Boolean);
-  const framework = frameworks.find((f) => f.abbr === mode.frameworkAbbr);
-
-  const inventory = [
-    `${mode.built.length} ${mode.built.length === 1 ? "thing" : "things"} built`,
+  const counts = [
+    `${mode.built.length} built`,
     incident ? "1 public incident" : null,
-    modeArticles.length
-      ? `${modeArticles.length} ${modeArticles.length === 1 ? "article" : "articles"}`
-      : null,
-    `${mode.topicIds.length} topics`,
+    modeArticles.length ? `${modeArticles.length} published` : null,
   ].filter(Boolean) as string[];
 
   return (
-    <div id={mode.id} style={{ scrollMarginTop: 72 }} className="border-t border-rule-2 py-24">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="w-full text-left min-h-[44px] flex items-start gap-16 group"
-      >
-        <span
-          aria-hidden
-          className="mono text-t1 leading-[28px] text-accent shrink-0 w-24 text-center order-2 ml-auto sm:order-none sm:ml-0"
-        >
-          {open ? "-" : "+"}
-        </span>
-        <h3 className="min-w-0 flex-1">{mode.failure}</h3>
-      </button>
-      <div className="sm:pl-40 md:grid md:grid-cols-2 md:gap-32 xl:gap-48 md:items-baseline">
-        <p className="text-t2 text-text-mid mt-12 measure-wide">{mode.because}</p>
-        <p className="mono text-m2 text-text-lo mt-12">{inventory.join(" \u00b7 ")}</p>
-      </div>
-
-      {open && (
-        <div className="mt-32 sm:pl-40 grid gap-32 md:grid-cols-2 xl:gap-48">
-          <div className="md:row-span-2">
-            <Kicker>What I built against it</Kicker>
-            <ul className="mt-12 grid gap-16">
-              {mode.built.map((b) => (
-                <li key={b.title}>
-                  <div className="text-t3 text-text-hi">{b.title}</div>
-                  <p className="text-t3 text-text-mid mt-4">{b.detail}</p>
-                  {b.url && (
-                    <a
-                      href={b.url}
-                      target={b.url.startsWith("http") ? "_blank" : undefined}
-                      rel={b.url.startsWith("http") ? "noopener noreferrer" : undefined}
-                      className="mono text-m2 text-accent link-underline mt-8 min-h-[44px] inline-flex items-center"
-                    >
-                      {b.urlLabel} &#8599;
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-
+    <details id={mode.id} className="failrow" style={{ scrollMarginTop: 88 }}>
+      <summary className="failrow-summary">
+        <h3 className="failrow-title">{mode.failure}</h3>
+        <span className="failrow-counts">{counts.join(", ")}</span>
+      </summary>
+      <div className="failrow-body">
+        <div className="min-w-0">
+          <p className="text-t2 text-text-mid">{mode.because}</p>
           {incident && (
-            <div className="md:col-start-2 md:row-start-1">
-              <Kicker>It has happened in public</Kicker>
-              <p className="text-t3 text-text-mid mt-12">
-                <span className="mono text-m2 tnum text-text-lo">{incident.year}</span>{" "}
-                <span className="text-text-hi">{incident.title}.</span> {incident.cause}{" "}
-                {incident.blastRadius}
-              </p>
-            </div>
+            <p className="text-t3 text-text-lo mt-12">
+              <span className="tnum">{incident.year}</span>{" "}
+              <span className="text-text-hi">{incident.title}.</span> {incident.cause}
+            </p>
           )}
-
-          {modeArticles.length > 0 && (
-            <div className="md:col-start-2">
-              <Kicker>What I published on it</Kicker>
-              <ul className="mt-12 grid gap-12">
-                {modeArticles.map((a) => (
-                  <li key={a!.id}>
-                    <a
-                      href={a!.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-t3 text-text-hi link-underline"
-                    >
-                      {a!.title}
-                    </a>
-                    <span className="mono text-m2 text-text-lo ml-8 whitespace-nowrap">
-                      {a!.publication}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              {framework && (
-                <p className="text-t3 text-text-lo mt-12">
-                  <span className="mono text-m2 text-text-hi">{framework.abbr}</span>{" "}
-                  {framework.expansion}
-                </p>
-              )}
-            </div>
-          )}
-
-          <div className="md:col-span-2 md:col-start-1">
-            <Kicker>And what teaches it</Kicker>
-            <div className="flex flex-wrap gap-8 mt-12">
-              {mode.topicIds.map((id) => {
-                const card = manifest.find((c) => c.topics.some((t) => t.id === id));
-                const topic = card?.topics.find((t) => t.id === id);
-                if (!card || !topic) return null;
-                return (
-                  <Link
-                    key={id}
-                    to={`/learn/${card.id}#topic-${id}`}
-                    className="text-t3 text-text-mid border border-rule-3 px-12 py-4 min-h-[44px] inline-flex items-center hover:text-text-hi hover:border-accent transition-colors duration-[120ms]"
-                  >
-                    {topic.title}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
         </div>
-      )}
-    </div>
-  );
-}
-
-function LiveSystems() {
-  const linked = services.filter((s) => s.url);
-  const unlinked = services.filter((s) => !s.url);
-  return (
-    <>
-      <div className="border-t border-rule-2">
-        {linked.map((s) => (
-          <a
-            key={s.id}
-            href={s.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group block py-24 border-b border-rule-2 transition-colors duration-[120ms] hover:bg-ink-1 sm:grid sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-24 md:gap-32"
-          >
-            <span className="mono text-m2 text-accent">Open &#8599;</span>
-            <span className="block min-w-0 mt-8 sm:mt-0">
-              <span className="block text-t1 text-text-hi link-underline">{s.name}</span>
-              <span className="block text-t3 text-text-mid mt-8 measure-wide">{s.slo}</span>
-              <span className="flex flex-wrap gap-8 mt-16">
-                {s.stack.slice(0, 6).map((x) => (
-                  <Tag key={x}>{x}</Tag>
-                ))}
-              </span>
-            </span>
-          </a>
-        ))}
-      </div>
-      <div className="mt-24">
-        <Kicker>Built, and not publicly reachable</Kicker>
-        <ul className="mt-12 grid gap-12">
-          {unlinked.map((s) => (
-            <li key={s.id} className="measure-wide">
-              <span className="text-t3 text-text-hi">{s.name}.</span>{" "}
-              <span className="text-t3 text-text-mid">{s.slo}</span>
+        <ul className="grid gap-8 min-w-0">
+          {mode.built.map((item) => (
+            <li key={item.title} className="text-t3">
+              <span className="text-text-hi">{item.title}.</span>{" "}
+              <span className="text-text-lo">{item.detail}</span>
             </li>
           ))}
         </ul>
       </div>
-    </>
-  );
-}
-
-function Method() {
-  return (
-    <div className="grid gap-32 md:grid-cols-2">
-      <div className="flex flex-col">
-        <h3>I check my own claims, and publish what was wrong</h3>
-        <p className="text-t3 text-text-mid mt-12 measure-wide">
-          The {CORPUS.topics} topics behind {CORPUS.cards} cards carry 141 cited sources. Every one
-          was requested: 132 resolve, and the nine that do not are explained rather than dropped.
-          Three of my own factual claims turned out to be wrong and are corrected in public, and one
-          defect is left unfixed with the reasoning stated instead of quietly shipped.
-        </p>
-        <Link
-          to="/learn"
-          className="mono text-m2 text-accent link-underline mt-16 md:mt-auto md:pt-16 min-h-[44px] inline-flex items-center self-start"
-        >
-          Read the material
-        </Link>
-      </div>
-      <div className="flex flex-col">
-        <h3>The site refuses to ship its own mistakes</h3>
-        <p className="text-t3 text-text-mid mt-12 measure-wide">
-          {verification.suites} check suites guard this site. {verification.inBuild} of them, plus
-          the type checker, run on every build: the Worker, brand tokens, prose, content structure,
-          colour contrast at the sizes actually used, indexing signals, layout across twelve widths,
-          typography and diagram geometry. The rest run against what is deployed:{" "}
-          {verification.liveAssertions} assertions on the live site,{" "}
-          {verification.securityAssertions} on security and {verification.emailAssertions} on email
-          compatibility.
-        </p>
-        <a
-          href="https://github.com/sumitgundawar/sumitgundawar.github.io"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mono text-m2 text-accent link-underline mt-16 md:mt-auto md:pt-16 min-h-[44px] inline-flex items-center self-start"
-        >
-          The source &#8599;
-        </a>
-      </div>
-    </div>
+    </details>
   );
 }
 
 export function StatusPage() {
-  const reveal = useReveal<HTMLDivElement>();
-  usePageMeta(
-    `${identity.name}, ${identity.title} in ${identity.location}`,
-    identity.bio,
-  );
-
-  const robot = education.find((e) => e.media);
+  usePageMeta(`${identity.name}, ${identity.title} in ${identity.location}`, identity.bio);
 
   return (
     <>
+      <Boot />
       <Masthead />
-      <main id="content" className="shell">
-        <Statement />
+      <main id="content">
+        <HeroName />
+        <Marquee />
 
-        <div ref={reveal} className="mt-64 md:mt-128 grid gap-64 md:gap-128">
-          <Spine n={1} id="evidence" title="The numbers, and how they were measured">
-            <Ledger items={kpis} />
-          </Spine>
-
-          <Spine n={2} id="proof" title="Where other people have put my name">
-            <Proof />
-          </Spine>
-
-          <Spine n={3} id="work" title="Now, and before">
-            <div>
-              {timeline.map((row) => (
-                <Record
-                  key={row.key}
-                  meta={row.dates}
-                  title={row.title}
-                  org={row.org}
-                  tags={row.tags}
-                >
-                  {row.line}
-                </Record>
-              ))}
+        <section id="thesis" className="shell sect">
+          <div className="grid-12">
+            <div className="md:col-span-6 md:self-center">
+              <Heading eyebrow="The argument" text="Systems do not fail politely." />
+              <p className="lead mt-24">
+                Every framework here was built against a failure I had already carried. They are
+                named so the argument can be checked, and each one is defended in writing elsewhere
+                on this site.
+              </p>
             </div>
-          </Spine>
-
-          <Spine
-            n={4}
-            id="failures"
-            title="Seven ways a system fails, and what I did about each"
-          >
-            <p className="text-t3 text-text-lo measure-wide -mt-12 mb-24">
-              Each one gathers what I built against it, the time it happened to somebody in public,
-              what I published about it, and the material that teaches it.
-            </p>
-            <div>
-              {failureModes.map((mode, i) => (
-                <Mode key={mode.id} mode={mode} index={i} />
-              ))}
+            <div className="md:col-start-8 md:col-span-5">
+              <Principles />
             </div>
-          </Spine>
+          </div>
+        </section>
 
-          <Spine n={5} id="systems" title="Systems you can open right now">
-            <LiveSystems />
-          </Spine>
+        <section id="shipped" className="shell sect" style={{ scrollMarginTop: 88 }}>
+          <Heading
+            eyebrow="Selected systems"
+            text="The work that stayed up."
+            note={`4 of ${services.length} shipped`}
+          />
+          <SystemCards />
+          <div className="mt-32">
+            <Link to="/build" className="sans text-t2 text-signal link-underline min-h-[44px] inline-flex items-center">
+              All {services.length} systems
+            </Link>
+          </div>
+        </section>
 
-          <Spine
-            n={6}
-            id="try"
-            title="Two things to try, and one of them argues with you"
-            action={
-              <Link
-                to="/build"
-                className="mono text-m2 text-accent link-underline min-h-[44px] inline-flex items-center"
-              >
-                Size your system
-              </Link>
-            }
-          >
-            <div className="grid gap-32 md:grid-cols-2">
-              <div className="flex flex-col">
-                <h3>An architecture recommender that talks you down</h3>
-                <p className="text-t3 text-text-mid mt-12">
-                  Ten questions, then a recommendation where every component carries its reasoning
-                  and its real alternatives. At small scale it tells you so, because most systems are
-                  over-engineered and a recommendation with no visible alternatives reads as a
-                  verdict rather than a choice.
-                </p>
-                <Link
-                  to="/build"
-                  className="mono text-m2 text-accent link-underline mt-16 md:mt-auto md:pt-16 min-h-[44px] inline-flex items-center self-start"
-                >
-                  Answer ten questions
-                </Link>
-              </div>
-              <div className="flex flex-col">
-                <h3>A clinical retrieval demo you can make refuse you</h3>
-                <p className="text-t3 text-text-mid mt-12">
-                  {serviceById.get("groundcheck")?.slo}
-                </p>
+        <section id="numbers" className="shell sect">
+          <Heading eyebrow="By the numbers" text="Measured, and checkable." />
+          <Numbers />
+        </section>
+
+        <section id="failures" className="shell sect" style={{ scrollMarginTop: 88 }}>
+          <Heading
+            eyebrow="Carried, not catalogued"
+            text="How systems fail, and what I did about it."
+          />
+          <div className="failrows">
+            {failureModes.map((mode) => (
+              <FailureRow key={mode.id} mode={mode} />
+            ))}
+          </div>
+        </section>
+
+        <section id="gateway" className="shell sect">
+          <Heading
+            eyebrow="Live, once"
+            text="A transformer I trained, behind a guardrail."
+          />
+          <BracketPanel className="mt-32">
+            <InferenceField />
+          </BracketPanel>
+        </section>
+
+        <section id="writing" className="shell sect">
+          <Heading
+            eyebrow={`${articles.length} articles, ${outlets} outlets`}
+            text="Where my name appears."
+          />
+          <Evidence />
+
+          <div className="mt-24">
+            <Link to="/writing" className="sans text-t2 text-signal link-underline min-h-[44px] inline-flex items-center">
+              All {articles.length} articles
+            </Link>
+          </div>
+
+          <h3 className="text-t1 mt-40">Spoken, and where others put my name</h3>
+          <ul className="grid gap-x-40 gap-y-16 sm:grid-cols-2 xl:grid-cols-3 mt-16">
+            {podcasts.map((podcast) => (
+              <li key={podcast.url}>
                 <a
-                  href={serviceById.get("groundcheck")?.url}
+                  href={podcast.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mono text-m2 text-accent link-underline mt-16 md:mt-auto md:pt-16 min-h-[44px] inline-flex items-center self-start"
+                  className="text-t3 text-text-hi link-underline"
                 >
-                  Make it refuse &#8599;
+                  {podcast.title}
                 </a>
-              </div>
-            </div>
-          </Spine>
+                <span className="block text-t3 text-text-lo mt-4">{podcast.show}</span>
+              </li>
+            ))}
+            {speaking.map((talk) => (
+              <li key={talk.title}>
+                <span className="text-t3 text-text-hi">{talk.title}</span>
+                <span className="block text-t3 text-text-lo mt-4">
+                  {talk.venue}, {talk.when}
+                </span>
+              </li>
+            ))}
+            {recognition.map((item) => (
+              <li key={item.role + item.org}>
+                <span className="text-t3 text-text-hi">{item.role}</span>
+                <span className="block text-t3 text-text-lo mt-4">{item.org}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-          <Spine n={7} id="method" title="How I check my own work">
-            <Method />
-          </Spine>
-
-          <Spine n={8} id="education" title="Where the habits came from">
-            <div>
-              {education.map((e) => (
-                <Record key={e.school} meta={e.dates} title={e.degree} org={e.school} tags={e.tags}>
-                  {e.detail}
-                </Record>
-              ))}
-            </div>
-            {robot?.media?.video && (
-              <div className="mt-48">
-                <Plate n={1} caption={robot.media.caption} bleed={false} asideCaption fit>
-                  <LoopVideo
-                    className="w-[224px] sm:w-[248px] xl:w-[264px]"
-                    src={robot.media.video.src}
-                    poster={robot.media.video.poster}
-                    label={robot.media.video.label}
-                    event={robot.media.video.event}
-                  />
-                </Plate>
-              </div>
-            )}
-          </Spine>
-
-          <Spine n={9} id="contact" title="Getting hold of me">
-            <div className="grid gap-32 md:grid-cols-2">
-              <div>
-                <p className="text-t2 text-text-mid measure">{identity.availability}</p>
-                <div className="mt-24 flex flex-wrap items-center gap-24">
-                  <PrimaryAction href={`mailto:${identity.email}`}>
-                    {identity.email}
-                  </PrimaryAction>
-                  <a
-                    href={identity.linkedin}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mono text-m2 text-accent link-underline min-h-[44px] inline-flex items-center"
-                  >
-                    LinkedIn &#8599;
-                  </a>
-                </div>
-              </div>
-              <Newsletter />
-            </div>
-          </Spine>
-        </div>
+        <section id="contact" className="shell sect" style={{ scrollMarginTop: 88 }}>
+          <Heading eyebrow="Get in touch" text="Have something that has to stay up?" />
+          <p className="lead mt-24 measure">{identity.availability}</p>
+          <a href={`mailto:${identity.email}`} className="bigmail mt-32">
+            {identity.email}
+            <span className="bigmail-arrow" aria-hidden>
+              &#8599;
+            </span>
+          </a>
+          <div className="mt-24">
+            <a
+              href={identity.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sans text-t2 text-text-mid link-underline min-h-[44px] inline-flex items-center"
+            >
+              LinkedIn
+            </a>
+          </div>
+          <div className="mt-48 max-w-[56ch]">
+            <Newsletter />
+          </div>
+        </section>
       </main>
       <SiteFooter />
     </>

@@ -1,4 +1,5 @@
 import { usePageMeta } from "@/lib/hooks";
+import { cn } from "@/lib/utils";
 import { Masthead, PageHeader, SiteFooter } from "./primitives";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -332,15 +333,16 @@ export function BuildPage() {
                   style={{ width: `${(answeredCount / questions.length) * 100}%`, background: "var(--accent)" }}
                 />
               </div>
-              <span className="mono text-m2 tnum shrink-0 text-text-lo">
-                {answeredCount + 1} / {questions.length}
+              <span className="buildstep tnum shrink-0">
+                {answeredCount + 1}
+                <span className="buildstep-of">/{questions.length}</span>
               </span>
             </div>
             </div>
 
             <div className="mt-32 md:grid md:grid-cols-[minmax(0,1fr)_300px] md:gap-64 md:items-start">
             <div className="min-w-0">
-              <h2>{q.prompt}</h2>
+              <h2 className="pagetitle">{q.prompt}</h2>
               {q.help && (
                 <p className="mt-12 text-t2 leading-relaxed measure" style={{ color: "var(--text-mid)" }}>
                   {q.help}
@@ -352,9 +354,12 @@ export function BuildPage() {
                   <button
                     key={o.id}
                     onClick={() => choose(q.id, o.id)}
-                    className="press text-left border border-rule-3 px-16 py-16 min-h-[56px] grid grid-cols-[24px_minmax(0,1fr)] gap-12 transition-colors duration-[120ms] hover:bg-ink-1"
+                    className={cn(
+                      "press text-left card card-link px-16 py-16 min-h-[56px] grid grid-cols-[24px_minmax(0,1fr)] gap-12",
+                      q.options.length % 2 === 1 && i === q.options.length - 1 && "md:col-span-2",
+                    )}
                   >
-                    <span className="mono text-m3 text-text-lo pt-4">
+                    <span className="mono text-m3 text-accent pt-4">
                       {String.fromCharCode(65 + i)}
                     </span>
                     <span className="min-w-0">
@@ -462,7 +467,10 @@ export function BuildPage() {
               </button>
             </div>
 
-            <p className="mt-24 text-t2 leading-relaxed measure" style={{ color: "var(--text-hi)" }}>
+            <h2 className="pagetitle display mt-32" data-display>
+              Your architecture
+            </h2>
+            <p className="mt-16 text-t2 leading-relaxed measure" style={{ color: "var(--text-hi)" }}>
               {headline(answers)}
             </p>
             <p className="mt-12 mono text-m1" style={{ color: "var(--accent)" }}>

@@ -22,7 +22,7 @@ export const design2: Card[] = [
           },
         ],
         title: "REST and resource modelling",
-        level: "beginner",
+        level: "advanced",
         body: [
           "REST models a system as resources addressed by URL, with HTTP methods describing the action and status codes describing the outcome. The name comes from Roy Fielding's 2000 dissertation, which describes an architectural style with six constraints. Almost nothing called RESTful today satisfies all six, and that is fine: the constraint that pays for itself in practice is the uniform interface, the agreement that GET means read, that 404 means the thing is not there, and that these mean the same on your API as on everyone else's.",
           "The reason to care is that a large amount of infrastructure acts on those meanings without ever reading your code. RFC 9110, the current HTTP semantics specification, divides methods into safe ones that do not change state (GET, HEAD, OPTIONS, TRACE) and idempotent ones that can be repeated without additional effect (those four plus PUT and DELETE). POST is neither. A CDN will cache a GET response at the edge. A proxy, a load balancer or a client library will retry an idempotent request after a dropped connection. Neither will do anything of the sort for a POST, because you have told the network that repeating it might charge a card twice.",
@@ -30,7 +30,9 @@ export const design2: Card[] = [
           "Resource modelling is where people get stuck, usually on actions that are not obviously nouns. Publishing an article, refunding a payment, resending an invite. The trick that works most of the time is to notice that the action produces a thing, and to make that thing the resource: POST /payments/123/refunds creates a refund, which has its own id, its own status and its own history, all of which you wanted anyway the first time someone asked why a refund failed. Where that genuinely does not fit, a verb endpoint is better than a contorted noun. Consistency is worth more than purity.",
           "Getting the method wrong has a measurable price. A search implemented as POST /search cannot be cached by a CDN or the browser, cannot be bookmarked or shared, will not be retried by anything in the path, and in a browser it triggers a CORS preflight because a JSON content type is not on the short list of simple requests, which adds a full round trip before the real request leaves. The honest reason to use POST for search is a query too large for a URL, where roughly 2,000 characters is the safe practical ceiling across proxies and servers. That is a real constraint, and it deserves a comment in the code saying so.",
           "Pagination deserves the same care, because it is the endpoint most likely to be hit by a script. Offset pagination, page=47, gets slower the deeper it goes, since the database still has to walk the rows it is about to discard, and it produces duplicates and gaps when rows are inserted mid-scan. Cursor pagination hands back an opaque marker for the last row seen and asks for what follows it, which is stable under writes and stays flat as the offset grows. Almost every large API has migrated in that direction, and the ones that have not are the ones with a slow page 500.",
-        ],
+      "Idempotency is the property that decides whether a client may retry, and it is a contract rather than an implementation detail. GET, PUT and DELETE are defined to be idempotent, so intermediaries and client libraries will retry them automatically after a timeout, which means a handler that is not actually idempotent will be called twice by infrastructure you do not control. POST is not, which is precisely why creating a resource needs an explicit idempotency key supplied by the client when the operation must survive a retry. Getting this wrong does not produce an error, it produces a duplicate.",
+      "Concurrency control is the other half of the contract and the part most APIs omit. Without it, two clients that read a resource and write it back silently lose one update, exactly as in a database without isolation. HTTP already has the mechanism: return an ETag, require If-Match on write, and reject with 412 when the tag no longer matches, which turns a lost update into an error the client can resolve. This is also what makes a PUT safe to retry, since a repeat of the same conditional write either applies once or fails cleanly rather than overwriting somebody else's work.",
+    ],
         why: "Standard verbs and codes are not pedantry, they are leverage: they are how you get caching, retries, health checking and client library behaviour without writing or operating any of it. Every deviation is a piece of infrastructure you now have to replace with your own code, and the bill arrives later than the decision.",
         inPractice:
           "Stripe's API is the usual reference for the boring conventions done properly: correct methods, correct status codes, and an idempotency key accepted on every mutating call so a retry after a timeout cannot charge twice. GitHub's REST API leans on conditional requests, and a request that returns 304 Not Modified does not count against your rate limit, which turns polite polling into something the platform actively rewards.",
@@ -507,14 +509,16 @@ export const design2: Card[] = [
           },
         ],
         title: "Polling, long polling, SSE, WebSockets",
-        level: "beginner",
+        level: "advanced",
         body: [
           "Polling asks repeatedly on a timer. It is simple, it works through every proxy ever built, and it is wasteful in a way worth quantifying: a thousand clients polling every five seconds is 17 million requests a day, and if something happens once an hour per client then 99.9 per cent of that traffic exists to learn that nothing happened. Latency is bounded by the interval, so halving the latency doubles the load. Long polling holds the request open until there is news or a timeout, which removes the waste and keeps the simplicity, at the cost of a held connection per waiting client and a proxy somewhere that will close it after 30 or 60 seconds regardless of what you intended. It is the pragmatic choice more often than its reputation suggests.",
           "Server-sent events are a one-way stream from server to client over ordinary HTTP. The browser reconnects automatically, and it will send the last event id it saw so the server can resume rather than restart, which is a feature people reimplement badly on top of WebSockets. Everything in the path treats it as a normal HTTP response, so compression, authentication and proxies all behave.",
           "WebSockets give a persistent two-way channel after an HTTP upgrade handshake. That is what you want when the client also sends frequently: chat, collaborative editing, games, live cursors. What you have taken on is a protocol of your own design, since the frames carry bytes and nothing above that: message types, acknowledgements, resumption and heartbeats are now yours to define.",
           "Read the four as a cost ladder rather than as a ranking. Each step buys lower latency and charges you in held connections, server-side state and operational complexity. The right answer for a dashboard that updates every few seconds is often the one at the bottom of the ladder, and choosing WebSockets for it means writing reconnection logic to solve a problem polling never had.",
           "Two practical notes that decide real implementations. Intermediaries close idle connections, so anything long-lived needs a heartbeat every 30 seconds or so, and both SSE and WebSockets need to tolerate a reconnect at any moment, which in turn means the server must be able to answer what did I miss. And HTTP/2 changed the arithmetic for SSE: the old six-connection-per-host limit that made it awkward applies per connection rather than per stream, so many streams now share one.",
-        ],
+      "The hard part of any persistent connection is not establishing it but surviving the network between you and the client. Mobile networks and corporate proxies commonly drop an idle TCP connection after a minute or two without telling either end, so both sides believe they are connected and neither is, which is why a heartbeat on a shorter interval than the shortest intermediary timeout is not optional. The server also needs its own read deadline, because a connection whose peer vanished consumes a file descriptor and whatever memory it was holding until something notices.",
+      "Reconnection is where correctness lives. A client that reconnects must be able to say where it left off or the gap becomes silent data loss, which is what server-sent events solve with an event id and a Last-Event-ID header on reconnect, and what WebSocket implementations have to build themselves. Reconnects also arrive in a herd after any deployment or network blip, so backoff with jitter is the difference between a rolling restart and a self-inflicted denial of service. The general shape is that a push transport is easy to demonstrate and is almost entirely made of its failure handling.",
+    ],
         why: "SSE is underrated: if data only flows server to client, notifications, live prices, progress, it is far simpler than WebSockets and works through ordinary HTTP infrastructure.",
         inPractice:
           "Server-sent events carry most of the streaming responses on this site, including the assistant's answers, for the reason given above: the browser reconnects and resumes on its own, and nothing in the path needed to learn a new protocol.",
@@ -746,6 +750,68 @@ export const design2: Card[] = [
               "Presence and typing are enhancements; delivery is the product. Deciding the order before the incident is what stops an enhancement consuming the capacity the messages needed.",
           },
         ],
+      },
+      {
+        id: "reconnect",
+        sources: [
+          {
+            label: "HTML standard, server-sent events",
+            url: "https://html.spec.whatwg.org/multipage/server-sent-events.html",
+            supports:
+              "That the protocol carries an event identifier and the client sends the last one it received on reconnection, so the server can resume from that point rather than from the beginning.",
+          },
+        ],
+        title: "Reconnection is the normal case",
+        level: "intermediate",
+        body: [
+          "Persistent connections do not persist. Laptops sleep, phones change from wifi to mobile, load balancers recycle idle sockets, and deploys cycle every gateway in the fleet. A real-time client reconnects constantly, so reconnection is not an error path, it is the main path with a different name.",
+          "The question each reconnect asks is what happened while I was gone. Three answers, in increasing order of effort. Drop everything and resynchronise from scratch, which is correct and makes every network blip cost a full reload. Keep a cursor, resume from the last event seen, which is what server-sent events builds into the protocol with an event identifier the client echoes back. Or keep a durable per-client queue, which is the most capable and the most expensive because it is state per connection.",
+          "Resumption needs the server to retain history, and that retention window is the real design decision. Too short and a client offline for ten minutes falls off the end and has to resynchronise anyway; too long and you are running a durable log per subscriber. Most systems choose a window of minutes and implement the full resynchronise path as the fallback, which means that path has to work and therefore has to be tested.",
+          "The other half is the thundering herd. A gateway restart reconnects every client it was holding, all at once, and the resynchronise path is the expensive one. Jittered backoff on the client is not politeness here, it is what stops recovery from becoming the next outage.",
+        ],
+        check: {
+          prompt: "What does a client do when a persistent connection drops?",
+          options: [
+            "The client replays from the last event it successfully saw",
+            "The client clears its state and downloads everything again",
+            "The server keeps the old socket open until the client returns",
+            "The server refuses any reconnection from the same identity",
+          ],
+          correctIndex: 0,
+          explain:
+            "Echoing back the last event identifier lets the server resume from that point, so a blip costs a few events rather than a full resynchronise. That requires the server to retain history for a window, with full resynchronise as the fallback.",
+        },
+      },
+      {
+        id: "realtime-ordering",
+        sources: [
+          {
+            label: "Redis, streams",
+            url: "https://redis.io/docs/latest/develop/data-types/streams/",
+            supports:
+              "That entries carry monotonically increasing identifiers within a stream, which consumers use to read from a known position and to recognise what they have already processed.",
+          },
+        ],
+        title: "Ordering, duplicates and what a socket guarantees",
+        level: "advanced",
+        body: [
+          "A socket gives ordered delivery of bytes between two endpoints, and people quietly promote that into ordered delivery of application events, which it is not. The moment there is more than one server, a reconnect, or a retry, both order and uniqueness are properties the application has to provide for itself.",
+          "The usual tool is a monotonic identifier per stream. The client knows the last one it processed, so an event with a lower or equal identifier is a duplicate and can be dropped, and a gap means something was missed and triggers a backfill. That single number does most of the work, and it is cheap because it rides along with data that was being sent anyway.",
+          "Ordering across streams is a different and much harder question, and the honest answer is usually that you should not need it. Two channels are independent; messages within one are ordered. Needing a global order across everything a user sees is a sign the streams were cut along the wrong boundary, and the fix is the partitioning rather than a stronger delivery guarantee.",
+          "Which leaves exactly once, which does not exist at the transport layer and is not worth chasing there. At-least-once delivery plus an identifier the receiver can deduplicate on is the same outcome for the user and is achievable. The duplicates still arrive; they just stop mattering.",
+        ],
+        check: {
+          prompt: "What does a per-stream identifier let a client do?",
+          options: [
+            "A per-stream identifier lets a client detect what it missed",
+            "A per-stream identifier guarantees delivery exactly one time",
+            "A per-stream identifier removes the need for acknowledgements",
+            "A per-stream identifier orders events across different streams",
+          ],
+          correctIndex: 0,
+          explain:
+            "Monotonic identifiers make duplicates recognisable and gaps visible, which is what turns at-least-once delivery into something the application can treat as reliable. They say nothing about order between separate streams.",
+        },
       },
     ],
   },
@@ -1177,14 +1243,16 @@ export const design2: Card[] = [
           },
         ],
         title: "Object storage versus databases and disks",
-        level: "beginner",
+        level: "advanced",
         body: [
           "Object storage holds immutable blobs addressed by key, with effectively unlimited capacity, eleven nines of durability in the major services, and a cost per gigabyte an order of magnitude below block storage. It is not a filesystem: there are no directories, only keys that contain slashes, and there is no partial update, only replacing an object wholesale. Putting files in a database instead inflates every backup, slows every replica, and spends expensive storage on bytes that no query will ever filter on. The standard shape is the file in object storage and its metadata in the database: key, size, owner, content type, checksum. That split keeps the database small enough to restore quickly, which is the property you care about on the day it matters.",
           "Storage classes are where the money is. Hot storage for what is served, infrequent access for what is occasionally read, archival tiers for what is kept because someone must. The archival tiers are dramatically cheaper per gigabyte and charge for retrieval and for a minimum storage duration, so moving the wrong data there costs more than leaving it. Lifecycle rules automate the transition by age, and setting one up is usually the largest single saving on a storage bill.",
           "The costs that surprise people are not storage at all. Egress is charged per gigabyte leaving the provider and is frequently the largest line, which is why a CDN in front of a bucket pays for itself twice over: it cuts latency and it cuts the number of times the same object leaves the origin. Request charges matter too when the objects are small: a million tiny objects costs more in requests than in bytes.",
           "Consistency is no longer the trap it was. S3 has offered strong read-after-write consistency since December 2020, so an object is readable immediately after it is written, and the elaborate workarounds built for the old model can be deleted. Versioning is worth enabling deliberately, because it turns an accidental overwrite from a data loss incident into a lookup, and because it is what makes deletion recoverable.",
           "The rule that survives all of it: store what you query in the database and what you serve in object storage. Blobs in Postgres make every operational task on that database slower forever, and the pain is paid at restore time, when it is least welcome.",
-        ],
+      "Request rate rather than volume is the constraint people meet first, because the service partitions the namespace by key prefix and scales each partition independently. Keys that share a long common prefix land in one partition and throttle together, which is the reason the old advice was to lead with a hash, and why timestamp-prefixed keys still concentrate every write for a given hour on one partition. Modern services repartition automatically, but only after sustained load, so a burst against a narrow prefix is throttled while the same burst spread across prefixes is not.",
+      "The economics also invert at small object sizes, which is where object storage stops being cheap. A request costs a fixed amount regardless of payload, and classes with long minimum storage durations bill you for that duration whether or not the object survives it, so a million hundred-byte objects written and deleted within a day can cost far more in requests and minimum durations than the bytes ever would. That is why the standard pattern for small records is to batch them into larger objects, and why moving a high-churn workload into an archival class to save money frequently increases the bill.",
+    ],
         why: "The rule is to store what you query in the database and what you serve in object storage. Blobs in Postgres make every operational task on that database slower forever.",
         check: {
           prompt: "Where should user-uploaded images live?",
@@ -1412,6 +1480,68 @@ export const design2: Card[] = [
           },
         ],
       },
+      {
+        id: "storage-classes",
+        sources: [
+          {
+            label: "AWS, using Amazon S3 storage classes",
+            url: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html",
+            supports:
+              "That cheaper classes carry retrieval charges and, for archival tiers, retrieval times measured in minutes or hours, and that lifecycle rules move objects between classes by age.",
+          },
+        ],
+        title: "Storage tiers and the bill you only see later",
+        level: "intermediate",
+        body: [
+          "Object storage is sold in tiers and the headline price is the per gigabyte figure, which is the one that misleads. Cheaper tiers charge to read, charge a minimum storage duration, and in the archival tiers take minutes or hours to produce the object at all.",
+          "So the tier is a statement about access pattern rather than about importance. Data read daily belongs in the standard tier whatever it costs, because retrieval charges will dwarf the saving. Data nobody has touched in a year belongs in an archive tier, and the retrieval cost is irrelevant precisely because it is rarely paid.",
+          "Lifecycle rules automate the transition by age, which is the right default and hides a trap. Age is a proxy for access, and it is a bad proxy for anything with a long tail: a support case reopened after eighteen months, a compliance export, a backfill. Those are exactly the moments when somebody needs the cold data in a hurry, which is when they discover the retrieval window.",
+          "The minimum duration charge catches teams out in the other direction. Move an object to a tier with a ninety day minimum and delete it after a week, and you are billed for the remaining eighty three days. For short-lived data a lifecycle rule can cost strictly more than doing nothing, which is a counterintuitive enough result that it is worth checking before enabling one.",
+        ],
+        check: {
+          prompt: "What do you give up by moving data to a cheaper storage tier?",
+          options: [
+            "Cheaper storage costs more to read and takes longer to get",
+            "Cheaper storage is identical but billed on a yearly contract",
+            "Cheaper storage keeps fewer copies and so loses data sooner",
+            "Cheaper storage is only available in a single named region",
+          ],
+          correctIndex: 0,
+          explain:
+            "The saving is on storage and is paid back on retrieval, in money and in latency. Tiering is a bet about how often the data will be read, and minimum duration charges can make it a losing bet for short-lived objects.",
+        },
+      },
+      {
+        id: "image-derivatives",
+        sources: [
+          {
+            label: "web.dev, serve responsive images",
+            url: "https://web.dev/articles/serve-responsive-images",
+            supports:
+              "That clients need differently sized images for different viewports and pixel densities, which is why a single uploaded original is not what should be served.",
+          },
+        ],
+        title: "Derivatives: never serve the original",
+        level: "intermediate",
+        body: [
+          "A user uploads a four thousand pixel photograph and it gets rendered into a two hundred pixel avatar. Serving the original means sending twenty times the bytes needed, on a connection that may be a phone on mobile data, so the first rule is that the thing uploaded is not the thing served.",
+          "The question is when derivatives get made. Generating every size at upload time is simple and predictable, and it guarantees you produce sizes nobody asks for while being unable to produce the one added next quarter without reprocessing everything. Generating on first request and caching inverts both properties: only requested sizes exist, a new size needs no migration, and the first request for each pays the conversion.",
+          "On demand is the usual answer, with the resize behind a cache keyed on the parameters so the cost is paid once per variant. It needs two guards. The parameters must be constrained to an allowlist or signed, or the endpoint is an invitation to request ten thousand distinct sizes and exhaust the processors. And there must be a bound on the source, because a decompression bomb is a small file that becomes an enormous bitmap in memory.",
+          "Format selection belongs in the same layer. Modern formats are substantially smaller and not universally supported, so the service should choose based on what the client says it accepts, which is only possible when something is generating per request rather than serving a fixed file.",
+        ],
+        check: {
+          prompt: "When should image derivatives be generated?",
+          options: [
+            "Derivatives are generated on first request and then cached",
+            "Derivatives are generated for every size at upload time only",
+            "Derivatives are generated by the browser from the original",
+            "Derivatives are generated once a day by a scheduled process",
+          ],
+          correctIndex: 0,
+          explain:
+            "On demand plus a cache produces only the variants actually requested and lets a new size appear without reprocessing the library. It needs the parameters constrained, or the endpoint becomes a way to burn processor time on request.",
+        },
+      },
     ],
   },
 
@@ -1438,7 +1568,7 @@ export const design2: Card[] = [
           },
         ],
         title: "Authentication and authorisation",
-        level: "beginner",
+        level: "advanced",
         body: [
           "Authentication establishes who you are. Authorisation decides what you may do. They fail differently, they are fixed differently, and they are confused constantly in both code and conversation.",
           "Most serious access-control bugs are authorisation bugs. The user is correctly identified, the session is valid, and the system simply never checks whether this particular user may touch this particular record. Changing an identifier in a URL and seeing someone else's data has sat near the top of the OWASP list for years, and it is not a clever attack; it is a missing line.",
@@ -1446,7 +1576,9 @@ export const design2: Card[] = [
           "The durable fix is to make the check impossible to skip by moving it to where the data is fetched. A repository whose queries always carry the tenant or owner constraint cannot return another tenant's row, whatever the handler above it forgot. Row-level security in the database is the strongest version of the same idea, since it holds even for a query someone writes by hand during an incident.",
           "Then there is the model itself. Role-based access control assigns permissions to roles and roles to users, which is simple and gets awkward when the answer depends on the object rather than the person: the same editor may edit their own drafts and not someone else's. Attribute-based rules describe the condition instead, and relationship-based systems, like Google's Zanzibar, store who is related to what and answer questions about the graph. Most products start with roles and grow a relationship model whether or not they name it.",
           "Two rules survive every model. Deny by default, so a missing rule refuses rather than permits, and check on every request rather than only when rendering a link, because the button being hidden is not a control when the endpoint is still open.",
-        ],
+      "Multi-tenant systems make the structural problem concrete, because every query is a place the tenant boundary can be forgotten. The scalable answer is to stop relying on each query remembering, and to push the constraint down to where it cannot be bypassed: row-level security in the database, or a repository layer that physically cannot construct a query without a tenant predicate. This is the same argument as parameterised queries against injection. A rule enforced by discipline fails at the first unfamiliar code path, and a rule enforced by construction does not.",
+      "Token design is where authorisation decisions become operationally awkward. A self-contained token is attractive because it needs no lookup, and the price is that it remains valid until it expires, so revoking access, changing a role or removing somebody from a tenant does not take effect until then. The usual resolution is a short-lived access token paired with a refresh token that is checked against state, which bounds the staleness window to something a security team will accept. The question worth asking of any design is how long it takes for a revoked permission to actually stop working, because that number is the real security property rather than the algorithm on the signature.",
+    ],
         why: "Insecure direct object reference, changing an id in a URL and seeing someone else's data, is consistently among the most common real vulnerabilities, and it is purely a missing authorisation check.",
         check: {
           prompt: "A logged-in user changes an id in the URL and sees another customer's invoice. What failed?",
@@ -2179,7 +2311,7 @@ export const design2: Card[] = [
           ],
         },
         title: "OLTP and OLAP",
-        level: "beginner",
+        level: "advanced",
         body: [
           "Transactional databases are tuned for many small reads and writes of individual rows, and they store data row by row, so fetching one complete record is one contiguous read. Analytical stores are tuned for scanning a few columns across billions of rows, and store data column by column, so the columns a query does not name cost nothing at all to skip.",
           "That layout difference is the whole performance story, and it compounds. Column pruning means a query touching three of sixty columns reads a twentieth of the data. Compression then works far better, because a column holds values of one kind with low variety, so run-length and dictionary encoding do real work where mixed row data resists them. Vectorised execution processes a batch of values per instruction rather than a row at a time.",
@@ -2187,7 +2319,9 @@ export const design2: Card[] = [
           "The order of remedies is worth knowing, because most teams jump to the last one. A read replica for reporting removes the contention for a small cost and no new technology. Materialised views precompute the expensive aggregates. Only when scans genuinely need to cross billions of rows does a warehouse earn its complexity, and by then the argument makes itself.",
           "Modelling differs too. Transactional schemas are normalised so a fact lives in one place; analytical schemas are deliberately denormalised into facts and dimensions, the star schema, because a join across billions of rows is expensive and storage is cheap. Bringing normalised thinking to a warehouse produces queries that are correct and slow.",
           "The two ends have been converging, and it is worth knowing where. Postgres has columnar extensions, DuckDB puts an analytical engine on a laptop, and lakehouse formats such as Iceberg and Delta bring transactions to files in object storage. The distinction that stays true is the physical layout, and that is what to reason about rather than the product names.",
-        ],
+      "Columnar storage is not merely a different layout, it is what makes the compression and the execution model possible. Values in a column are the same type and often similar, so run-length, dictionary and delta encodings reach ratios that row storage cannot, and the win compounds because less data read means less I/O and better cache residency. Better still, an engine can filter and aggregate directly on dictionary-encoded values without materialising the originals, and can skip whole blocks using per-block minimum and maximum statistics. That is why the gap between the two layouts on a scan-heavy query is an order of magnitude rather than a percentage.",
+      "The convergence has a specific shape worth being precise about. Transactional engines gained columnar secondary structures and analytical engines gained incremental ingestion, but the underlying conflict has not gone away: one workload wants small, latency-sensitive, highly concurrent point access, and the other wants large scans that will happily evict every cached page the first workload depends on. Running both on one system is a resource isolation problem before it is a storage problem, which is why the practical answer usually remains a replica for reporting long before it becomes a separate warehouse.",
+    ],
         why: "Columnar storage is the reason a warehouse scans a billion rows in seconds. It is a different physical layout, not just a bigger machine.",
         check: {
           prompt: "Why is columnar storage faster for analytics?",
@@ -2413,6 +2547,69 @@ export const design2: Card[] = [
               "Dual writes fail because two commits have no atomicity. With CDC there is nothing to keep in step: the event stream is a function of the committed data, so it cannot disagree with it.",
           },
         ],
+      },
+      {
+        id: "late-data",
+        sources: [
+          {
+            label: "Apache Flink, notions of time and watermarks",
+            url: "https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/time/",
+            supports:
+              "The distinction between event time and processing time, and that a watermark is the pipeline's assertion about how far event time has advanced, which is what allows a window to be closed.",
+          },
+        ],
+        title: "Late data, windows and watermarks",
+        level: "advanced",
+        body: [
+          "Two clocks are in play and conflating them causes most streaming bugs. Event time is when the thing happened; processing time is when your pipeline saw it. A phone that was in a tunnel uploads an event from twenty minutes ago, and the gap between those two clocks is not a rare anomaly, it is the normal condition.",
+          "Window on processing time and the result is easy to compute and wrong: that tunnel event lands in the wrong minute, so the chart is smooth and does not describe reality. Window on event time and the result is right, but the pipeline can never know whether another straggler for that window is still coming.",
+          "A watermark is the explicit answer to that. It is the pipeline asserting that event time has advanced past a point, so any window ending before it can be closed and emitted. It is a choice between latency and completeness, made as a number: a longer delay catches more stragglers and makes every result later, and there is no setting that gets both.",
+          "Because it is a guess, something must still handle events that arrive after their window closed. The options are to drop them and count the drops, to emit a correction that updates a previously published result, or to route them to a side output for a human. All three are legitimate; what is not legitimate is not deciding, because the default is usually to drop silently and the numbers simply end up slightly wrong forever.",
+        ],
+        why: "Every batch pipeline has this problem too, hidden by the fact that running nightly makes the window generous. Moving to streaming does not create lateness, it just stops concealing it.",
+        check: {
+          prompt: "What does a watermark declare?",
+          options: [
+            "A watermark declares how long the pipeline waits for stragglers",
+            "A watermark records the time the pipeline last processed a row",
+            "A watermark marks events that arrived out of order as invalid",
+            "A watermark forces every window to close at a fixed clock time",
+          ],
+          correctIndex: 0,
+          explain:
+            "It is an assertion that event time has advanced far enough to close a window, which trades completeness against latency. Events arriving after it still need a policy: drop and count, emit a correction, or divert for review.",
+        },
+      },
+      {
+        id: "pipeline-idempotency",
+        sources: [
+          {
+            label: "Apache Kafka, delivery semantics",
+            url: "https://kafka.apache.org/documentation/#semantics",
+            supports:
+              "That at-least-once delivery is the practical default and that end to end correctness under replay depends on the consumer's writes being idempotent or transactional rather than on the transport alone.",
+          },
+        ],
+        title: "Pipelines get replayed, so make them repeatable",
+        level: "advanced",
+        body: [
+          "A pipeline will be re-run. A bug is found and yesterday needs reprocessing, a consumer crashes between doing work and committing its offset, a deploy goes out twice. Replay is routine, which means the only safe design is one where running the same input twice produces the same output rather than double the output.",
+          "The dangerous operations are the accumulating ones. Appending a row, incrementing a counter and sending an email all compound on replay. The repeatable equivalents are to write keyed on something derived from the input so a second run overwrites rather than appends, to recompute an aggregate from source rather than adding to a running total, and to put external effects behind a deduplication key checked at the point of sending.",
+          "That is why partitioned overwrite is the standard shape for batch output. Processing a day's data writes that day's partition entirely, so re-running the day replaces it. Append-only output seems simpler right up to the first replay, at which point there is no way to distinguish the second copy from the first without having planned for it.",
+          "Streaming has the same property with different vocabulary. Exactly-once in these systems means the consumer's offset commit and its output land atomically, not that a message is delivered once. The message may well arrive repeatedly; the design goal is that repetition is invisible downstream.",
+        ],
+        check: {
+          prompt: "What must be true for a pipeline to be safely replayable?",
+          options: [
+            "A replay must not change the result the pipeline already wrote",
+            "A replay must be prevented by storing every message identifier",
+            "A replay must run on a separate cluster from the live pipeline",
+            "A replay must be approved before the pipeline may be restarted",
+          ],
+          correctIndex: 0,
+          explain:
+            "Re-running the same input has to converge on the same output, which means overwriting keyed partitions rather than appending, recomputing aggregates rather than incrementing, and deduplicating external effects at the point of sending.",
+        },
       },
     ],
   },

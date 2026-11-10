@@ -30,7 +30,7 @@ export const security: Card[] = [
           ],
         },
         title: "Injection and parameterised queries",
-        level: "beginner",
+        level: "advanced",
         body: [
           "Injection happens when input is concatenated into something that will be parsed as a command: SQL, a shell line, an LDAP filter, an XPath expression, a template. The input ends the data and starts being instruction, and the parser cannot tell the difference because by the time it sees the string, there is no difference to see.",
           "Escaping is the intuitive fix and the wrong one, because it requires getting every context right forever, and the contexts nest. A value escaped for SQL and then interpolated into a LIKE pattern, or into a JSON document, or into a shell argument, needs different escaping at each layer, and one missed call site is enough. The defence has to remove the possibility rather than handle each case.",
@@ -38,7 +38,9 @@ export const security: Card[] = [
           "Identifiers are the exception that catches experienced people. Table names, column names and sort directions cannot be bound as parameters, because they are part of the statement rather than values in it. A dynamic ORDER BY built from user input therefore needs an allowlist mapping permitted inputs to known identifiers, and nothing else will do.",
           "An ORM is not automatic protection. Most expose a raw query escape hatch, and that is where injection reappears, usually in the reporting endpoint written under time pressure. The same applies beyond SQL: a shell command assembled by concatenation, a template rendered from user-supplied source, a NoSQL query built from a request body that arrives as an object rather than a string.",
           "Defence in depth belongs here even though parameterisation is complete. Least-privilege database accounts so an injection cannot read tables the feature never needed, no dynamic SQL where a static query would do, and monitoring for queries whose shape does not match anything the application should emit.",
-        ],
+      "Parameterisation works because it changes when the statement is parsed, and knowing that explains exactly where it stops working. The database compiles the statement with placeholders into a plan first, then binds values into that fixed plan, so a value can never become syntax no matter what it contains. Anything that determines structure is therefore outside the protection: a table or column name, a sort direction, a LIMIT in some drivers. Those must be validated against an allow-list of known-good values rather than escaped, because there is no channel to send them on separately.",
+      "The subtler failure is that a parameterised query can still be assembled from concatenated fragments, and modern stacks make this easy to do accidentally. A query builder that accepts a raw expression, an ORM method that takes a string predicate, a search feature that pastes user input into a full-text or JSON path expression, or a stored procedure that builds dynamic SQL internally all reintroduce the original problem behind an interface that looks safe. This is why the useful review question is not whether the codebase uses an ORM but where a string reaches the parser, and why second-order injection, where the payload is stored cleanly and concatenated later by a different code path, survives reviews that only inspect the input boundary.",
+    ],
         why: "Parameterisation removes the class of bug rather than the instance. Escaping means every new call site is another chance to get it wrong, and one miss is enough.",
         check: {
           prompt: "Your ORM is used everywhere and one report endpoint builds SQL by string concatenation for a dynamic ORDER BY. What is the exposure?",

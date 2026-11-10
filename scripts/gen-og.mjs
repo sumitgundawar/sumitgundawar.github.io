@@ -10,10 +10,16 @@ function palette() {
     if (!m) throw new Error(`gen-og: --${name} not found in src/index.css`);
     return m[1];
   };
-  return { INK: read("ink"), PAPER: read("text-hi"), GREEN: read("accent"), DIM: read("text-lo") };
+  return {
+    INK: read("base"),
+    PAPER: read("text-hi"),
+    GREEN: read("signal-fill"),
+    DIM: read("text-lo"),
+    PAGE: read("base"),
+  };
 }
 
-const { INK, PAPER, GREEN, DIM } = palette();
+const { INK, PAPER, GREEN, DIM, PAGE } = palette();
 
 const card = `
 <!doctype html>
@@ -62,7 +68,10 @@ const card = `
 </div>
 `;
 
-const icon = ICON.replace(/(<rect[^>]*fill=")#[0-9a-fA-F]{3,8}(")/, `$1${INK}$2`);
+const icon = ICON.replace(/(<rect[^>]*fill=")#[0-9a-fA-F]{3,8}(")/, `$1${INK}$2`).replace(
+  /(<path[^>]*stroke=")#[0-9a-fA-F]{3,8}(")/,
+  `$1${GREEN}$2`,
+);
 if (icon !== ICON) writeFileSync("public/favicon.svg", icon);
 
 const iconPage = (size) => `
@@ -99,8 +108,8 @@ writeFileSync(
       short_name: "Sumit",
       start_url: "/",
       display: "standalone",
-      background_color: INK,
-      theme_color: INK,
+      background_color: PAGE,
+      theme_color: PAGE,
       icons: [
         { src: "/favicon.svg", sizes: "any", type: "image/svg+xml" },
         { src: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run gen:feed && npm run gen:jsonld && npm run gen:articles && npm run gen:learn && tsc -b && npm run check:worker && npm run check:brand && npm run check:prose && npm run check:content && npm run check:contrast && vite build && npm run prerender && npm run check:seo && npm run check:layout && npm run check:type && npm run check:diagrams",
+    "build": "npm run gen:feed && npm run gen:jsonld && npm run gen:articles && npm run gen:learn && tsc -b && npm run check:worker && npm run check:brand && npm run check:prose && npm run check:content && npm run check:contrast && vite build && npm run prerender && npm run check:seo && npm run check:layout && npm run check:type && npm run check:diagrams && npm run check:motion",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "shots": "node scripts/shots.mjs",
@@ -31,12 +31,16 @@
     "check:brand": "node scripts/brand-check.mjs",
     "check:layout": "node scripts/layout-check.mjs",
     "check:type": "node scripts/typography-check.mjs",
-    "check:diagrams": "npx tsx scripts/diagram-check.mjs"
+    "check:diagrams": "npx tsx scripts/diagram-check.mjs",
+    "check:motion": "node scripts/motion-check.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/ibm-plex-sans": "^5.3.0",
     "@fontsource-variable/mona-sans": "^5.2.8",
     "@fontsource-variable/newsreader": "^5.2.10",
+    "@fontsource/anton": "^5.3.0",
     "@fontsource/commit-mono": "^5.2.5",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
     "clsx": "^2.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

@@ -37,14 +37,16 @@ export const delivery: Card[] = [
           },
         ],
         title: "What Docker actually solves",
-        level: "beginner",
+        level: "advanced",
         body: [
           "A container is a process on the host kernel with a restricted view of the world. Two Linux features do the work: namespaces, which decide what a process can see, its own process table, network stack, mount table and hostname, and cgroups, which decide what it can use, its share of CPU, memory and IO. There is no virtual machine and no second kernel, which is why it starts in milliseconds.",
           "The problem it solves is environment drift. Before containers, works on my machine was a real and expensive category of bug, because the machine included a particular library version, a particular locale, a particular environment variable set by someone in 2019. An image is the environment, so the same artefact runs identically on a laptop, in CI and in production, and the failure mode moves from mysterious to reproducible.",
           "A virtual machine gives stronger isolation by running its own kernel, at the cost of size and startup time. That distinction matters for security: a container escape is a kernel exploit away, which is why untrusted multi-tenant workloads use VMs, or lightweight VMs such as Firecracker that keep the isolation while approaching container startup times.",
           "The other half of the value is immutability. A container is replaced rather than updated, so there is no configuration drift accumulating on long-lived servers and no question of what has been done to a machine since it was provisioned. That property is what makes rollbacks trivial: the previous image still exists and still runs exactly as it did.",
           "What containers do not solve is worth stating plainly. They are not a security boundary strong enough to run untrusted code, they do not make a stateful service stateless, and they do not remove the need to think about how data outlives the process. A database in a container is a database with a storage question, not a solved problem. So the argument is reproducibility first and density second. If the deployment already produces one identical artefact, a static binary, a zip for a serverless runtime, the reproducibility case is weaker and containers buy less, which is worth acknowledging before adopting the ecosystem that comes with them.",
-        ],
+      "The isolation is made of specific kernel features, and knowing which ones explains the boundaries. Namespaces give the process its private view of process ids, mounts, network interfaces, users and hostnames, while control groups cap what it may consume. Neither virtualises the kernel, so a container shares the host's kernel version, its page cache and its scheduler. That is why a container cannot run a different kernel than the host, why a kernel vulnerability is a container escape rather than a container problem, and why untrusted multi-tenant workloads reach for a virtual machine or a sandboxed runtime rather than for namespaces alone.",
+      "Control groups are also where the most common production surprise lives. A JVM or a Go runtime that inspects the machine rather than its quota will size its heap and its thread pool for every core and all the memory on the host, then get killed by the out-of-memory killer when it exceeds a limit it never knew about. Modern runtimes read the cgroup limits, but only when told to, and CPU quota is enforced by throttling within a period rather than by slowing the clock, so a service given half a CPU runs at full speed and then stalls entirely for the rest of each window, which shows up as latency spikes rather than as uniform slowness.",
+    ],
         why: "Containers are about reproducibility first and density second. If your deployment already produces an identical artefact, a single Go binary, a Lambda zip, the reproducibility argument is weaker and containers buy you less.",
         inPractice:
           "AWS Lambda and Fly.io both run workloads in Firecracker microVMs rather than in shared-kernel containers, which is the isolation argument made in production: multi-tenant untrusted code gets a kernel of its own.",
@@ -267,6 +269,68 @@ export const delivery: Card[] = [
           },
         ],
       },
+      {
+        id: "container-isolation",
+        sources: [
+          {
+            label: "Linux manual, namespaces overview",
+            url: "https://man7.org/linux/man-pages/man7/namespaces.7.html",
+            supports:
+              "That a namespace changes what a set of processes can see of a global resource, and that the kernel itself remains shared between all of them.",
+          },
+        ],
+        title: "What actually isolates a container",
+        level: "advanced",
+        body: [
+          "A container is not a thing the kernel has. It is a normal process with two sets of restrictions applied, and knowing which is which explains most of the surprising behaviour.",
+          "Namespaces control what a process can see. Its own process tree, its own mounts, its own network interfaces and hostname, so the process believes it is alone on a machine. Control groups, separately, control what it can use: a ceiling on memory, a share of processor time, a cap on input and output. Visibility and consumption are different mechanisms, which is why a container can see a plausible machine while being throttled to a fraction of it.",
+          "The kernel is shared by all of them. That is the whole performance argument, because there is no second operating system to boot, and it is also the security caveat, because a kernel vulnerability is reachable from inside. Where that matters, the usual answer is a lightweight virtual machine per tenant, which pays startup cost to get a real boundary back.",
+          "This also explains the classic confusion about memory limits. A process inside a container frequently reads the host's total memory from the usual places and sizes its heap against that, then gets killed when it exceeds a cgroup limit it never knew about. Modern runtimes detect the limit; older ones and plenty of libraries do not, which is why an explicit heap setting is still the safe habit.",
+        ],
+        check: {
+          prompt: "What is the difference between namespaces and control groups?",
+          options: [
+            "Namespaces change what a process can see, cgroups what it uses",
+            "Namespaces encrypt the filesystem a container is given access to",
+            "Namespaces emulate a second kernel for each running container",
+            "Namespaces prevent a container from making any system calls",
+          ],
+          correctIndex: 0,
+          explain:
+            "Namespaces are about visibility, cgroups about consumption. Both sit on one shared kernel, which is why containers start fast and why a kernel bug crosses the boundary.",
+        },
+      },
+      {
+        id: "k8s-resources",
+        sources: [
+          {
+            label: "Kubernetes, managing resources for containers",
+            url: "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+            supports:
+              "That a request is used for scheduling decisions while a limit is enforced at runtime, and that exceeding a memory limit results in the container being terminated.",
+          },
+        ],
+        title: "Requests and limits, and why pods die",
+        level: "intermediate",
+        body: [
+          "Two numbers per container and they do completely different jobs. The request is what the scheduler uses to decide which node has room; the limit is what the kernel enforces once the thing is running. Treating them as a range to be filled in casually is how clusters end up either half empty or constantly evicting.",
+          "Set the request too high and capacity is reserved that nothing uses, so the cluster refuses to schedule work onto nodes that are in fact idle. Set it too low and pods are packed onto a node that cannot really feed them, and everything on it degrades together under load.",
+          "The limits behave differently from each other, which catches people out. Exceeding a processor limit throttles the container: it gets slower, which shows up as mysterious latency with no error anywhere. Exceeding a memory limit kills it, because memory cannot be throttled, and the process is terminated with a status that says very little about what it was doing.",
+          "The practical consequence is that a pod restarting with an out of memory status is usually not a memory leak. It is far more often a limit set from a guess, or a workload whose peak is quite different from its average, and the first move is to look at actual usage over time rather than to raise the number until it stops.",
+        ],
+        check: {
+          prompt: "How do a request and a limit differ?",
+          options: [
+            "A limit is enforced, a request only influences where it lands",
+            "A limit is advisory while a request is strictly enforced",
+            "A limit and a request must always be set to the same value",
+            "A limit applies to memory only and never to processor time",
+          ],
+          correctIndex: 0,
+          explain:
+            "Requests drive scheduling, limits are enforced at runtime. Processor limits throttle and show up as latency; memory limits terminate the container, because memory cannot be throttled.",
+        },
+      },
     ],
   },
 
@@ -306,7 +370,7 @@ export const delivery: Card[] = [
           },
         ],
         title: "What a pipeline should do",
-        level: "beginner",
+        level: "advanced",
         body: [
           "Continuous integration runs the checks on every change, build, tests, lint, type check, so breakage surfaces in minutes rather than at release. Continuous delivery keeps every passing commit deployable. Continuous deployment goes further and ships it without a human deciding. The three are often used interchangeably and describe different amounts of courage.",
           "The value is proportional to speed, and the threshold is roughly ten minutes. Past that people stop waiting, start batching changes, and the benefit of small deploys evaporates: each release is larger, the failure is harder to attribute, and the rollback takes more with it. Pipeline duration is a product decision rather than an infrastructure detail.",
@@ -314,7 +378,9 @@ export const delivery: Card[] = [
           "What belongs in the pipeline is anything the project claims to be true. Formatting, types, tests, licence checks, a build that actually produces the artefact you will deploy. Every rule enforced by review and not by a check is a rule that holds until the day someone is in a hurry, and the checks that pay for themselves are usually the ones written after that day.",
           "Flaky tests deserve a policy rather than a habit. A test that fails randomly trains everyone to press retry, which is the same as having no test, and the cost is not the flake but the credibility of every other failure. Quarantine it, fix it or delete it, and treat a rising flake rate as a defect in the pipeline rather than as weather.",
           "The build must be reproducible and the artefact must be the one that ships. Building once and promoting the same artefact through environments is what makes staging meaningful; rebuilding per environment means staging tested something adjacent to what production runs, which is a subtle way to make the whole pipeline decorative.",
-        ],
+      "Reproducibility has a precise meaning that most pipelines do not meet: the same input should produce a bit-for-bit identical artefact, whoever builds it and whenever. The usual leaks are timestamps, file ordering from the filesystem, absolute paths and embedded build numbers, and the usual fix is to pin them, sort them and make them deterministic. It matters beyond tidiness because it is what allows a build to be cached safely and what makes a supply chain attestation meaningful: if the artefact cannot be independently rebuilt to the same hash, a signature only proves who built it rather than what it was built from.",
+      "The other property worth designing for is the ability to go backwards quickly, because mean time to recovery matters more than build time. That means the artefact is immutable and addressed by digest rather than by a moving tag, the deployment records which digest is live, and the rollback path is exercised rather than assumed. A pipeline that can deploy in four minutes and cannot roll back without a rebuild has optimised the wrong half. The same argument applies to database changes, which is why an expand and contract migration, deployable and reversible independently of the code that uses it, is the only shape that lets the application roll back at all.",
+    ],
         why: "Pipeline duration is a product decision, not an infrastructure detail. Past roughly ten minutes people stop waiting, start batching changes, and the benefit of small deploys disappears.",
         check: {
           prompt: "What is the main cost of a slow CI pipeline?",
@@ -637,7 +703,7 @@ export const delivery: Card[] = [
         inPractice:
           "Where lock-in actually costs is not compute or storage, which move with effort, but the proprietary glue: the event bus, the identity system, the managed workflow engine, anything whose product is the integration. Multi-cloud as a default answer builds for the intersection of three platforms and pays for all three, which is why the common deliberate exceptions are narrow: DNS and CDN, where an outage is total and a second vendor is cheap.",
         title: "The core services, by concept",
-        level: "beginner",
+        level: "advanced",
         body: [
           "The three major clouds offer the same primitives under different names: compute, object storage, a managed relational database, a queue, a CDN, a key-value store, a secrets manager. Learn the concepts rather than the catalogue. An interviewer asking about object storage does not care whether you say S3, GCS or Blob Storage, and neither does the design.",
           "The differences that survive contact with reality are commercial and organisational. AWS has the broadest catalogue and the most third-party support, so whatever you need probably exists and probably has a Terraform provider. GCP is strong on data and on Kubernetes, which it originated. Azure wins where an organisation already runs Microsoft identity and licensing, and that argument is usually decisive on its own.",
@@ -645,7 +711,9 @@ export const delivery: Card[] = [
           "Lock-in deserves a clearer head than it usually gets. Compute and storage are close to commodities and move with effort. Managed databases move with real pain. Proprietary integration services, event buses, identity, and anything where the product is the glue, are where the cost concentrates, because they are the parts with no equivalent anywhere else. The honest question is not whether to be locked in but which lock-in is worth the leverage.",
           "Multi-cloud as a default is usually a mistake. It means building for the intersection of three platforms, so you get the least capable version of each, plus the operational burden of all of them, in exchange for a portability nobody exercises. Deliberate exceptions exist, DNS and CDN are commonly multi-vendor because outages there are total, and that is a targeted decision rather than a strategy.",
           "The pragmatic default: use managed services aggressively while the team is small, keep the genuinely portable pieces portable, and spend your architectural allowance on the decisions the cloud does not make for you.",
-        ],
+      "The cost model is where cloud architecture decisions are actually made, and the line item that surprises teams is data movement rather than compute. Traffic leaving the provider is charged, traffic between availability zones is usually charged in both directions, and traffic within a zone generally is not, so a chatty service mesh spread across zones for availability can spend more on cross-zone transfer than on the instances themselves. The same arithmetic makes an architecture that keeps a request path within one zone, with replication rather than chatter across zones, both faster and cheaper, which is one of the rare cases where those align.",
+      "Lock-in is best reasoned about as switching cost per component rather than as a single posture. Compute and object storage are close to commodity and move cheaply. A managed relational database moves with effort but the query language survives. A proprietary queue, a serverless orchestration language or a managed identity system are where the real cost sits, because the semantics have no equivalent elsewhere and the migration is a rewrite rather than a redeployment. The useful discipline is to put the pieces you would genuinely refuse to rewrite behind an interface of your own and to use everything else directly, rather than abstracting uniformly and paying that cost everywhere.",
+    ],
         why: "Choosing a cloud is usually decided by existing commitments, team familiarity and pricing agreements, and seldom on technical superiority. The technical differences matter far less than the migration cost of being wrong.",
         check: {
           prompt: "You need durable object storage, a managed relational database and a queue. Which cloud can do it?",

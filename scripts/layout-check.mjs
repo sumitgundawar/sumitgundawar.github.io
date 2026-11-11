@@ -78,13 +78,17 @@ const audit = ({ MIN_TARGET, MIN_FONT, MIN_PROSE_FONT }) => {
 
 const server = await serveDist();
 const base = `http://localhost:${server.address().port}`;
-const routes = [
+const allRoutes = [
   ...new Set(
-    [...readFileSync("public/sitemap.xml", "utf8").matchAll(/<loc>[^<]*?(\/[a-z0-9/-]*)<\/loc>/g)]
-      .map((m) => m[1] || "/")
-      .filter((r) => !r.startsWith("/learn/") || r === "/learn"),
+    [...readFileSync("public/sitemap.xml", "utf8").matchAll(/<loc>[^<]*?(\/[a-z0-9/-]*)<\/loc>/g)].map(
+      (m) => m[1] || "/",
+    ),
   ),
-  "/learn/caching",
+];
+const learnRoutes = allRoutes.filter((r) => r.startsWith("/learn/"));
+const routes = [
+  ...allRoutes.filter((r) => !r.startsWith("/learn/")),
+  ...new Set(["/learn/caching", ...learnRoutes.filter((_, i) => i % 7 === 0)]),
 ];
 
 const browser = await chromium.launch();
@@ -96,6 +100,13 @@ for (const band of BANDS) {
     viewport: { width: band.width, height: band.height },
     deviceScaleFactor: 1,
     reducedMotion: "reduce",
+  });
+  await page.route("**/*", (route) => {
+    const url = route.request().url();
+    if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost") || url.startsWith("data:")) {
+      return route.continue();
+    }
+    return route.abort();
   });
   for (const route of routes) {
     await page.goto(base + route, { waitUntil: "networkidle" });

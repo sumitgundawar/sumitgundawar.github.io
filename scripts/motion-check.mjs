@@ -41,6 +41,13 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await ctx.addInitScript(instrument);
   const page = await ctx.newPage();
+  await page.route("**/*", (route) => {
+    const url = route.request().url();
+    if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost") || url.startsWith("data:")) {
+      return route.continue();
+    }
+    return route.abort();
+  });
   await page.goto(server.base, { waitUntil: "networkidle" });
   await page.waitForTimeout(14000);
 
@@ -65,6 +72,13 @@ try {
   });
   await stillCtx.addInitScript(instrument);
   const stillPage = await stillCtx.newPage();
+  await stillPage.route("**/*", (route) => {
+    const url = route.request().url();
+    if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost") || url.startsWith("data:")) {
+      return route.continue();
+    }
+    return route.abort();
+  });
   await stillPage.goto(server.base, { waitUntil: "networkidle" });
   await stillPage.waitForTimeout(14000);
   const still = await sample(stillPage);

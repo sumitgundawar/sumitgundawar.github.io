@@ -55,6 +55,13 @@ const browser = await chromium.launch();
 
 for (const width of WIDTHS) {
   const page = await browser.newPage({ viewport: { width, height: 1000 } });
+  await page.route("**/*", (route) => {
+    const url = route.request().url();
+    if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost") || url.startsWith("data:")) {
+      return route.continue();
+    }
+    return route.abort();
+  });
   for (const id of cards) {
     await page.goto(`${BASE}/learn/${id}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(60);

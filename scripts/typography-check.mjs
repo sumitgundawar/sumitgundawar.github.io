@@ -1,6 +1,18 @@
+import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
 import { startDist } from "./lib/serve.mjs";
-const ROUTES = ["/", "/learn", "/learn/caching", "/writing", "/build", "/archive"];
+const SITEMAP = [
+  ...new Set(
+    [...readFileSync("public/sitemap.xml", "utf8").matchAll(/<loc>[^<]*?(\/[a-z0-9/-]*)<\/loc>/g)].map(
+      (m) => m[1] || "/",
+    ),
+  ),
+];
+const LEARN = SITEMAP.filter((r) => r.startsWith("/learn/"));
+const ROUTES = [
+  ...SITEMAP.filter((r) => !r.startsWith("/learn/")),
+  ...new Set(["/learn/caching", ...LEARN.filter((_, i) => i % 11 === 0)]),
+];
 const WIDTHS = [390, 820, 1440];
 
 const LOWERCASE_OK = new Set([
@@ -89,6 +101,13 @@ let checked = 0;
 
 for (const width of WIDTHS) {
   const page = await browser.newPage({ viewport: { width, height: 900 } });
+  await page.route("**/*", (route) => {
+    const url = route.request().url();
+    if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost") || url.startsWith("data:")) {
+      return route.continue();
+    }
+    return route.abort();
+  });
   for (const route of ROUTES) {
     await page.goto(`${BASE}${route}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(120);

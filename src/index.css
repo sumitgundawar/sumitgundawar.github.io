@@ -527,9 +527,14 @@
 
   .system-blurb {
     flex: 1;
-    max-width: 46ch;
     font-size: var(--t2);
     color: var(--text-lo);
+  }
+
+  @media (min-width: 1000px) {
+    .system-blurb {
+      max-width: 46ch;
+    }
   }
 
   .system-foot {

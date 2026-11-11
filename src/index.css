@@ -215,12 +215,35 @@
     display: block;
     width: 100%;
     height: auto;
-    touch-action: pan-y;
-    cursor: grab;
+    max-height: 66svh;
   }
 
-  .layers-svg:active {
-    cursor: grabbing;
+  .layers-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-16);
+  }
+
+  .layers-replay {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: var(--label);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-mid);
+    border: 1px solid var(--rule-2);
+    background: transparent;
+    padding: 0 14px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+  }
+
+  .layers-replay:hover {
+    color: var(--text-hi);
+    border-color: var(--edge);
   }
 
   .layers-tier {

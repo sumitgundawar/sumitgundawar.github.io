@@ -29,7 +29,7 @@ export function DiagramViews({ diagram, id }: { diagram: Diagram; id: string }) 
               color: on ? "var(--text-hi)" : "var(--text-mid)",
             }}
           >
-            {v === "flow" ? "flow" : "3D layers"}
+            {v === "flow" ? "flow" : "tiers"}
           </button>
         );
       })}

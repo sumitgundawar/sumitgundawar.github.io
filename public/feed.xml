@@ -6,7 +6,7 @@
     <atom:link href="https://sumitgundawar.com/feed.xml" rel="self" type="application/rss+xml" />
     <description>Writing on building systems that survive production.</description>
     <language>en-GB</language>
-    <lastBuildDate>Wed, 11 Nov 2026 17:08:41 GMT</lastBuildDate>
+    <lastBuildDate>Wed, 11 Nov 2026 17:45:04 GMT</lastBuildDate>
     <item>
       <title>Why Integrations Fall Apart at Scale, and the Four Habits That Keep Them Standing</title>
       <link>https://devm.io/api/integrations-scale-rail</link>

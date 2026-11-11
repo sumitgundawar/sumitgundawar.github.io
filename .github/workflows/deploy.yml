@@ -51,7 +51,16 @@ jobs:
       # all the way to its last step and then failed on a missing executable.
       # --with-deps brings the system libraries Chromium needs on the runner.
       - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+        run: |
+          for attempt in 1 2 3; do
+            if npx playwright install --with-deps chromium; then
+              exit 0
+            fi
+            echo "playwright install attempt $attempt failed, retrying in 20s"
+            sleep 20
+          done
+          echo "apt mirrors unreachable after 3 attempts; installing the browser without system deps"
+          npx playwright install chromium
 
       - name: Build
         run: npm run build

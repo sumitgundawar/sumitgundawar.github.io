@@ -667,7 +667,7 @@ export const caseStudies2: Card[] = [
         ],
         why: "Deduplication is not a storage optimisation, it is a results-quality feature: ten copies of one page is a failed search regardless of how relevant each copy is. The techniques matter because near-duplication is the common case and exact matching cannot see it.",
         inPractice:
-          "SimHash was published by Google researchers and described for exactly this problem, finding near-duplicate web pages at crawl scale, which is why the technique appears in nearly every large crawler built since.",
+          "SimHash is Charikar's technique, published in 2002. Google researchers showed five years later that it works at crawl scale for finding near-duplicate web pages, which is why it appears in nearly every large crawler built since.",
         diagram: {
           caption: "Fingerprints turn a quadratic comparison into a lookup",
           columns: [
@@ -1101,7 +1101,7 @@ export const caseStudies2: Card[] = [
         sources: [
           {
             label: "Brin and Page, The anatomy of a large-scale hypertextual web search engine",
-            url: "http://infolab.stanford.edu/~backrub/google.html",
+            url: "http://snap.stanford.edu/class/cs224w-readings/Brin98Anatomy.pdf",
             supports:
               "The random surfer formulation of PageRank, the damping factor, and the argument that the link graph carries quality signal that page text alone does not.",
           },
@@ -1462,7 +1462,7 @@ export const caseStudies2: Card[] = [
             label: "Google, How Google Maps uses traffic data",
             url: "https://blog.google/products/maps/google-maps-101-how-ai-helps-predict-traffic-and-determine-routes/",
             supports:
-              "That live conditions are derived from aggregated and anonymised location data contributed by devices using the product, combined with historical patterns and reports from users.",
+              "That live conditions are derived from aggregate location data contributed by devices using the product, combined with historical patterns and reports from users.",
           },
         ],
         title: "Where live traffic comes from",
@@ -1500,8 +1500,8 @@ export const caseStudies2: Card[] = [
         body: [
           "A map is wrong the moment it is finished. Roads open, shops close, one-way restrictions flip, a building is demolished. The hard engineering problem is not drawing the world once, it is maintaining agreement with a world that will not hold still.",
           "Three kinds of source, none sufficient alone. Authoritative data from mapping agencies and municipalities is accurate and slow, sometimes by years. Imagery is current and ambiguous, since a satellite can show that tarmac exists but not that it is one-way or private. User reports are immediate and unreliable, both honestly mistaken and occasionally deliberate.",
-          "So the system is a reconciliation rather than a pipeline. Each source has a confidence attached, agreement between independent sources raises it, and conflict triggers review rather than a silent overwrite by whichever arrived last. That is the same design as any system merging feeds of differing trustworthiness, and the failure mode is identical: treat the newest write as correct and the most recent error becomes the current state.",
-          "Evidence from behaviour is the quiet fourth source and the most interesting one. If the map says a road is open and no vehicle has traversed it for a week, that is a signal. It is noisy and it is unbiased in a way reports are not, since it reflects what people did rather than what someone chose to tell you, which is why observed behaviour tends to outrank stated information wherever both exist.",
+          "So the system is a reconciliation rather than a pipeline. Google describe vetting authoritative sources and holding user contributions back until they are confident enough to publish, which is review rather than last-write-wins. They do not publish the machinery, so the rest is inference from the shape of the problem: any system merging feeds of differing trustworthiness needs some notion of how much each is trusted, and its failure mode is always the same one. Treat the newest write as correct and the most recent error becomes the current state.",
+          "Evidence from behaviour is the interesting one to reason about, though Google describe three inputs rather than four and do not claim this as a source. If a map says a road is open and no vehicle has traversed it for a week, that is a signal available in principle. It is noisy and it is unbiased in a way reports are not, since it reflects what people did rather than what someone chose to tell you, which is why observed behaviour tends to outrank stated information wherever both exist.",
         ],
         check: {
           prompt: "How does the map stay current?",
@@ -1521,7 +1521,7 @@ export const caseStudies2: Card[] = [
         sources: [
           {
             label: "Google, Geocoding API overview",
-            url: "https://developers.google.com/maps/documentation/geocoding/overview",
+            url: "https://developers.google.com/maps/documentation/geocoding/requests-geocoding",
             supports:
               "That geocoding returns a result with a stated location type, distinguishing a rooftop level match from one interpolated along a road segment or approximated to a wider area.",
           },
@@ -1565,13 +1565,13 @@ export const caseStudies2: Card[] = [
             label: "Dropbox, Inside the Magic Pocket",
             url: "https://dropbox.tech/infrastructure/inside-the-magic-pocket",
             supports:
-              "That files are split into blocks which are addressed by the hash of their contents, so identical blocks are stored once regardless of how many files or accounts contain them.",
+              "That files are split into blocks which are addressed by the hash of their contents, so a block already present under its hash is not stored again.",
           },
         ],
         title: "Files are not the unit of storage",
         level: "advanced",
         body: [
-          "The product is files, and the storage layer does not deal in files at all. A file is split into fixed size blocks, each block is hashed, and the hash is its address. A file becomes a list of hashes, which is small enough to be cheap to move around and compare.",
+          "The product is files, and the storage layer does not deal in files at all. A file is split into blocks of at most four megabytes, each block is hashed, and the hash is its address. A file becomes a list of hashes, which is small enough to be cheap to move around and compare.",
           "Two consequences fall straight out. The first is deduplication: identical blocks are stored once, so a document shared across a company costs one copy, and a hundred people syncing the same installer cost one upload. The second is cheap sync. A client that has changed one paragraph recomputes the hashes, discovers that all but one block already exist on the server, and uploads only the difference.",
           "Content addressing also makes the data immutable. A block's name is derived from its contents, so a block can never change, only be superseded. Immutability is what makes caching safe at every layer, removes a whole class of concurrent write problem, and lets verification be a simple matter of rehashing what you have.",
           "The costs are real. Deletion stops being deletion and becomes reference counting, with all the ways that goes wrong. Encryption has to be done so that identical plaintext still produces identical ciphertext if dedup is to survive it, which weakens the threat model in ways that have to be chosen deliberately rather than stumbled into.",
@@ -1595,7 +1595,7 @@ export const caseStudies2: Card[] = [
         sources: [
           {
             label: "Dropbox, Scaling to exabytes and beyond",
-            url: "https://dropbox.tech/infrastructure/scaling-to-exabytes-and-beyond",
+            url: "https://dropbox.tech/infrastructure/magic-pocket-infrastructure",
             supports:
               "That Dropbox moved the large majority of its data off third party object storage onto its own system, and the reasoning that this is worthwhile only at sustained very large scale.",
           },
@@ -1630,7 +1630,7 @@ export const caseStudies2: Card[] = [
             label: "Dropbox, Inside the Magic Pocket",
             url: "https://dropbox.tech/infrastructure/inside-the-magic-pocket",
             supports:
-              "That durability is provided by erasure coding across failure domains rather than by storing whole additional copies, trading storage overhead against reconstruction cost.",
+              "That recent writes are replicated and data is erasure coded once volumes close, so coding replaces extra whole copies for cold data rather than replacing replication outright.",
           },
         ],
         title: "Erasure coding: durability without three copies",
@@ -1663,13 +1663,19 @@ export const caseStudies2: Card[] = [
             supports:
               "That the difficulty of sync is managing concurrent state across clients and server rather than transferring data, and that the rewrite was motivated by the original design being too hard to reason about and test.",
           },
+          {
+            label: "Dropbox, Testing our new sync engine",
+            url: "https://dropbox.tech/infrastructure/-testing-our-new-sync-engine",
+            supports:
+              "The three-tree model of remote, local and synced state with a planner between them, and the randomised state generation that makes such a design testable.",
+          },
         ],
         title: "Sync is a consensus problem wearing a file manager",
         level: "advanced",
         body: [
           "Moving bytes between a laptop and a server is solved. What makes sync hard is that three parties hold opinions about the same tree at once, the local filesystem, the server, and whatever the user is doing right now, and all three change without coordination.",
           "The state space is enormous and mostly invisible. A file is renamed on one machine while being edited on another, a directory is deleted while a file inside it is being uploaded, the network drops midway, the laptop sleeps for a week. Each is ordinary, and the number of combinations is what defeats the obvious implementation, which accretes a special case per bug until nobody can say what it does.",
-          "The rewrite's insight was to make the state explicit rather than implicit. Instead of code that reacts to filesystem events, a model with three observable trees, remote, local and synced, and a planner that computes the operations needed to bring them into agreement. Once the thing is a planner over explicit state, it can be tested by generating states and checking the plan, which is not possible for an event handler full of special cases.",
+          "The rewrite's insight was to make the state explicit rather than implicit. Instead of code that reacts to filesystem events, their companion post on testing describes a model with three observable trees, remote, local and synced, and a planner that computes the operations needed to bring them into agreement. Once the thing is a planner over explicit state, it can be tested by generating states and checking the plan, which is not possible for an event handler full of special cases.",
           "That testability was the real deliverable. A sync engine fails on combinations nobody imagined, so the only durable defence is being able to enumerate states mechanically. Rewriting for a property like that, rather than for performance, is unusual and is the part worth taking away.",
         ],
         why: "This is the same reasoning that favours a state machine over scattered booleans. The win is not elegance, it is that one shape can be exhaustively tested and the other cannot.",
@@ -1690,17 +1696,17 @@ export const caseStudies2: Card[] = [
         id: "dropbox-verify",
         sources: [
           {
-            label: "Dropbox, Inside the Magic Pocket",
-            url: "https://dropbox.tech/infrastructure/inside-the-magic-pocket",
+            label: "Dropbox, Pocket watch: verifying exabytes of data",
+            url: "https://dropbox.tech/infrastructure/pocket-watch",
             supports:
-              "That background processes continuously verify stored data against its hashes and repair or re-replicate anything found to be damaged or under-replicated.",
+              "That a disk scrubber continuously reads back stored data and validates it against checksums, scheduling re-replication of anything found damaged, with separate checkers for index agreement and for sampled live writes.",
           },
         ],
         title: "Proving the data is still there",
         level: "advanced",
         body: [
           "Durability claims are about probability, and probability says that across enough drives something is being corrupted right now. Silent corruption is the dangerous kind: a drive returns data without error and the data is wrong, so nothing in the read path notices.",
-          "The only defence is to look. Background processes walk the stored data continuously, rehash each block and compare against the name it is stored under, which works precisely because the name is derived from the contents. A mismatch means this copy is damaged, and because other copies or parity fragments exist, it can be rebuilt rather than mourned.",
+          "The only defence is to look. A disk scrubber reads back every bit on disk continuously and validates it against stored checksums, sweeping each disk every week or two, with separate checkers confirming blocks are present where the index says and sampling live writes to re-fetch them later. A mismatch means this copy is damaged, and because other copies or parity fragments exist, it can be rebuilt rather than mourned.",
           "The second job is counting. Replication and erasure coding promise a number of copies, and drives fail, machines are decommissioned, racks are retired. A separate process verifies that the promised redundancy actually exists for every object and schedules repair where it has quietly decayed, because a system that is one failure from loss looks identical to a healthy one until the day it is not.",
           "Both are expensive and both are cheap relative to the alternative. Verification is a constant background load that produces nothing visible, which is exactly why it is the first thing cut when capacity is tight, and why it has to be scheduled as infrastructure rather than left as a job someone runs.",
         ],
@@ -1774,8 +1780,8 @@ export const caseStudies2: Card[] = [
         level: "advanced",
         body: [
           "Layers are ordered and anyone can insert between any two of them. With integer positions, inserting between one and two means renumbering everything after it, which is a large write, and two people doing it at once produces exactly the conflict the rest of the design was built to avoid.",
-          "The fix is to stop using integers. Give each child a fractional position, and inserting between two siblings means choosing any value strictly between their two values. Nothing else changes, the write touches one object, and two concurrent inserts in the same gap pick different values and both survive, ordered relative to each other consistently on every client.",
-          "The catch is that repeatedly inserting in the same gap makes the values longer, because each one needs more precision than the last. Implementations use a string based ordering rather than a float for exactly this reason, since a float runs out of mantissa quickly and silently, and a string can grow. Long-lived documents still need an occasional rebalance.",
+          "The fix is to stop using integers. Give each child a fractional position, and inserting between two siblings means choosing any value strictly between their two values. Nothing else changes and the write touches one object. Two concurrent inserts into the same gap are the interesting case: both clients average the same pair of neighbours, so both compute the same position, and the server resolves the collision by assigning the second a fresh unique value.",
+          "The catch is that repeatedly inserting in the same gap makes the values longer, because each one needs more precision than the last. Implementations use a string based ordering rather than a float for exactly this reason, since a float runs out of mantissa quickly and silently, and a string can grow. Because the keys are arbitrary precision rather than fixed width, precision never runs out, and Figma argue real editing patterns never make the keys long enough to need rebalancing.",
           "This is a nice example of choosing a representation so that the common operation is local. The ordering problem did not go away, it was moved into the key, where a concurrent edit cannot turn it into a conflict.",
         ],
         check: {
@@ -1795,10 +1801,10 @@ export const caseStudies2: Card[] = [
         id: "figma-shard",
         sources: [
           {
-            label: "Figma, How we scaled the Figma database",
-            url: "https://www.figma.com/blog/how-we-scaled-the-figma-database/",
+            label: "Figma, How Figma's databases team lived to tell the scale",
+            url: "https://www.figma.com/blog/how-figmas-databases-team-lived-to-tell-the-scale/",
             supports:
-              "That horizontal sharding was introduced behind a proxy layer which owned query routing, so the application could be migrated incrementally without downtime.",
+              "That horizontal sharding was introduced behind a proxy layer which owned query routing, so the application could be migrated incrementally with near-zero downtime.",
           },
         ],
         title: "Sharding a database that cannot stop",
@@ -1812,7 +1818,7 @@ export const caseStudies2: Card[] = [
         inPractice:
           "The same sequencing applies far below this scale. Put the seam in before you need it, prove it is transparent, then move what is behind it.",
         check: {
-          prompt: "What made the sharding migration possible without downtime?",
+          prompt: "What made the sharding migration possible with near-zero downtime?",
           options: [
             "Routing moved into a proxy before any data was moved at all",
             "Routing changes were applied to every client library first",
@@ -1839,7 +1845,7 @@ export const caseStudies2: Card[] = [
         body: [
           "The multiplayer server holds every open document in memory and applies a stream of small edits to it. The workload is unusual: not much computation, a great deal of live state, and a hard requirement that an edit is reflected for everyone else immediately.",
           "On a garbage collected runtime that shape is awkward. Lots of live objects means collections have more to traverse, and a collection pause is time during which nobody's cursor moves. The average was fine; what was not fine was that the worst case was unpredictable and got worse as more documents were held.",
-          "So the rewrite was motivated by the distribution rather than the mean. The same work, without a collector deciding when to pause, plus lower memory per document, which means more documents per machine, which is a cost argument arriving as a side effect of a latency one.",
+          "So the rewrite was motivated by the distribution rather than the mean. They explicitly dropped the plan to rewrite the whole server and moved only the performance-sensitive syncing core, running it as a child process with network handling left where it was. The spikes had two causes, not one: a single slow operation could lock up an entire worker, and the collector paused on its own schedule. Lower memory per document came with it, which means more documents per machine, a cost argument arriving as a side effect of a latency one.",
           "The general lesson is that runtime choice is a question about tails and about memory shape, not about benchmark throughput. Most services are entirely well served by a managed runtime; the exceptions tend to look like this one, a lot of live state and a low tolerance for pauses, and recognising that shape is more useful than any general ranking of languages.",
         ],
         check: {

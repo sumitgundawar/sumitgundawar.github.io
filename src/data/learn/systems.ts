@@ -522,7 +522,7 @@ export const systems: Card[] = [
         body: [
           "Two servers, two timestamps, and no safe way to say which event happened first. Clocks drift, they are corrected by a daemon that can step them backwards, and virtualisation makes it worse. A system that compares timestamps from different machines to order writes is making a guess and presenting it as a fact.",
           "The usual damage is last write wins. Two clients update the same key, the one whose machine is running a few hundred milliseconds fast is declared the winner, and the other write is discarded without anyone being told. The data is not corrupted in a way any check will catch. It is simply wrong, quietly, and only in the cases where it mattered.",
-          "Spanner's answer is unusual and worth understanding even where you cannot copy it. Instead of reporting a time, its clock reports an interval, earliest and latest, with the uncertainty made explicit. A transaction that wants a timestamp takes one and then deliberately waits until that interval has certainly passed before committing. The system buys ordering with latency, and it can only afford that because the uncertainty is kept small with satellite and atomic clocks in every data centre.",
+          "Spanner's answer is unusual and worth understanding even where you cannot copy it. Instead of reporting a time, its clock reports an interval, earliest and latest, with the uncertainty made explicit. A transaction that wants a timestamp takes one and then deliberately waits until that interval has certainly passed before committing. The system buys ordering with latency, and it can only afford that because time masters sit in every data centre, most carrying satellite receivers and a minority atomic clocks, chosen so their failure modes are uncorrelated.",
           "Without that hardware the pragmatic middle is a hybrid logical clock: a counter that mostly tracks physical time, so timestamps stay human readable and roughly correct, but which is also advanced on message receipt so that it can never go backwards relative to causally earlier events. You lose the guarantee that timestamp order is real order for unrelated events. You keep it for related ones, which is usually what the application actually needed.",
         ],
         why: "Ordering is the thing distributed systems are short of. Every scheme here is buying some amount of it, and paying in either hardware, latency or weaker guarantees.",
@@ -547,6 +547,12 @@ export const systems: Card[] = [
             url: "https://lamport.azurewebsites.net/pubs/time-clocks.pdf",
             supports:
               "The happens-before relation and the result that it is a partial order, so concurrent events are genuinely unordered rather than merely unknown.",
+          },
+          {
+            label: "Mattern, Virtual time and global states of distributed systems",
+            url: "https://courses.csail.mit.edu/6.852/01/papers/VirtTime_GlobState.pdf",
+            supports:
+              "The vector clock construction, which Lamport's paper does not contain: one counter per replica, so two stamps can be compared to tell causal order from genuine concurrency.",
           },
         ],
         title: "Happens-before, and what it costs to track",
@@ -584,8 +590,8 @@ export const systems: Card[] = [
         level: "advanced",
         body: [
           "Detecting a conflict is progress; it still leaves someone to resolve it. A conflict-free replicated data type removes the question by choosing structures where concurrent updates have exactly one sensible merge, defined in advance.",
-          "The requirement is algebraic and strict. Merge must be commutative, so order does not matter; associative, so grouping does not matter; and idempotent, so a message delivered twice changes nothing. Satisfy those and replicas that have seen the same set of updates in any order, with any duplication, end up identical. No coordination, no leader, no round trip.",
-          "A grow-only counter is the easy case: keep a per-replica count and merge by taking the maximum of each entry. Sets are harder, because removal is not naturally idempotent, and the standard answers add tombstones or unique tags so that a delete can be distinguished from a concurrent add. That is where the storage cost shows up, and why garbage collecting a CRDT is its own topic.",
+          "The requirement is algebraic and strict. Merge must be commutative, so order does not matter; associative, so grouping does not matter; and idempotent, so a message delivered twice changes nothing. Satisfy those and a state-based replica set converges whatever the order and however many duplicates arrive. The operation-based variant asks less of the algebra, needing only that concurrent operations commute, and pays for it with a delivery guarantee instead: each update exactly once, in causal order. No coordination, no leader, no round trip.",
+          "A grow-only counter is the easy case: keep a per-replica count and merge by taking the maximum of each entry. Sets are harder, and not because removal repeats badly, since removing twice leaves the same state. The problem is that a concurrent add and remove of the same element do not commute, and a removal that simply deletes state would break the requirement that state only grows. So a removal is recorded as an addition to a second, tombstone set, or each add is tagged uniquely so a delete can be matched to the add it cancels. That is where the storage cost shows up, and why garbage collecting a CRDT is its own topic.",
           "What they cannot do is enforce an invariant that spans replicas. A set that must never exceed a hundred members is not expressible, because two replicas can each admit a member while both believe they are under the limit. The moment you need that, you are back to coordination, and the cost you avoided arrives anyway.",
         ],
         inPractice:
@@ -669,7 +675,7 @@ export const systems: Card[] = [
         sources: [
           {
             label: "Bernstein, Hadzilacos and Goodman, Concurrency control and recovery in database systems",
-            url: "https://www.microsoft.com/en-us/research/publication/concurrency-control-and-recovery-in-database-systems/",
+            url: "https://www.microsoft.com/en-us/research/people/philbe/book/",
             supports:
               "The two phase commit protocol and its blocking property: a participant that has voted to commit cannot unilaterally decide, so a coordinator failure can leave it holding locks indefinitely.",
           },

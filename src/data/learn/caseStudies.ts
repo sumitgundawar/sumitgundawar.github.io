@@ -1387,7 +1387,7 @@ export const caseStudies: Card[] = [
         id: "uber-ringpop",
         sources: [
           {
-            label: "Uber, Ringpop: scalable, fault-tolerant application-layer sharding",
+            label: "Uber, How Ringpop from Uber Engineering helps distribute your application",
             url: "https://www.uber.com/blog/ringpop-open-source-nodejs-library/",
             supports:
               "That nodes form a consistent hash ring and maintain membership by a gossip protocol, so requests for a key are forwarded to its owner without a central coordinator.",
@@ -2625,7 +2625,7 @@ export const caseStudies: Card[] = [
             label: "Discord, How Discord stores billions of messages",
             url: "https://discord.com/blog/how-discord-stores-billions-of-messages",
             supports:
-              "That messages are partitioned by channel and a time bucket rather than by channel alone, because an unbounded partition per channel grows without limit and becomes a hot spot.",
+              "That messages are partitioned by channel and a time bucket rather than by channel alone, because a partition per channel grows without limit and becomes expensive to compact and impossible to move.",
           },
         ],
         title: "Choosing a partition key that keeps working",
@@ -2647,7 +2647,7 @@ export const caseStudies: Card[] = [
           ],
           correctIndex: 0,
           explain:
-            "A partition per channel grows without bound and cannot be split, so a busy channel becomes a hot spot no amount of hardware fixes. Adding a time bucket bounds each partition and spreads the load, at the cost of paging across buckets for older history.",
+            "A partition per channel grows without bound and cannot be split, so a busy channel becomes a hot spot no amount of hardware fixes. Adding a time bucket bounds each partition's size, at the cost of paging across buckets for older history. It does not spread a hot channel's load: five years later that was still one of their three main complaints.",
         },
       },
       {
@@ -2665,7 +2665,7 @@ export const caseStudies: Card[] = [
         body: [
           "The thing that pushed Discord off their original store was not average latency, which was acceptable. It was the tail, and specifically garbage collection: a pause stops a node, requests routed to it wait, and the slowest few per cent of requests become unpredictable in a way that no amount of capacity smooths out.",
           "Averages hide this completely. A page that makes twenty backend calls and needs them all will feel the worst of the twenty, so the user experience tracks something close to the ninety-ninth percentile, not the fiftieth. This is why latency is reported in percentiles by anyone who has been burned, and why a dashboard showing only a mean is close to useless.",
-          "They moved to an implementation of the same data model written without a garbage collected runtime, which removes that particular pause entirely. The data model did not change. The query patterns did not change. The thing being bought was predictability, and the fact that the fix was a runtime swap rather than a redesign is the interesting part.",
+          "They moved to an implementation of the same data model written without a garbage collected runtime, which removes that particular pause entirely. The data model did not change. What was bought was predictability, and alongside it they inserted a data services tier in front of the store, routing by consistent hash and coalescing concurrent identical reads into one query. Their own summary of why is worth keeping: slapping a new database underneath was not going to make everything magically better.",
           "Worth being honest about the shape of this decision: it is only available because the storage engine had a compatible reimplementation. Most teams facing a tail latency problem do not get to swap the engine underneath, and their options are reducing the work per request, shedding load, or hedging requests against a second replica.",
         ],
         check: {
@@ -2726,9 +2726,9 @@ export const caseStudies: Card[] = [
         level: "advanced",
         body: [
           "Chat is push, so every client holds a socket open permanently. The naive model gives each connection a thread, and a thread costs a stack measured in megabytes plus a slot in the scheduler. At a million connections that arithmetic stops working long before the network does.",
-          "The runtime Discord built the gateway on takes the other approach: very cheap processes managed by the language runtime rather than the kernel, with their own tiny stacks, scheduled cooperatively across the available cores. A connection per process becomes reasonable, and the mental model stays simple because each process really is sequential code.",
-          "The second property matters as much as the first. Those processes share nothing and communicate by message, so one crashing cannot corrupt another, and a supervisor restarts it into a known state. A bad message from one client kills one connection rather than taking down everyone sharing a thread pool with it. The isolation is the feature; cheapness is what makes the isolation affordable.",
-          "Where it gets hard is anything shared, and presence is shared by nature: who is online, in which server, visible to whom. That is a fan-out problem that grows with the product of members and servers, and no process model makes it free. It is solved by making the updates coarse, batching them, and accepting that presence is eventually consistent, which is the right call because nobody can tell.",
+          "The runtime Discord built the gateway on takes the other approach: very cheap processes managed by the language runtime rather than the kernel, with their own tiny stacks, pre-emptively scheduled across the available cores: the runtime counts the work a process has done and de-schedules it once it has spent its budget, so one process cannot hold a core by refusing to yield. A connection per process becomes reasonable, and the mental model stays simple because each process really is sequential code.",
+          "The second property matters as much as the first. Those processes share nothing and communicate by message, so one crashing cannot corrupt another. A bad message from one client kills one connection rather than taking down everyone sharing a thread pool with it. The isolation is the feature, and cheapness is what makes it affordable. It is also not free: memory is still shared, and Discord's own account describes processes blocked on timed-out calls growing their message queues until the whole virtual machine ran out of memory. They had to build explicit back-pressure to get the isolation the process model only appeared to give them.",
+          "Where it gets hard is anything shared, and presence is shared by nature: who is online, in which server, visible to whom. That is a fan-out problem that grows with the product of members and servers, and no process model makes it free. Discord's answer was to distribute the send itself, grouping recipients by the node they live on and spreading the work across cores. Notably they would not trade ordering away to get it: their clients depend on events arriving in a consistent order, which rules out the easy fix of firing each publish off into its own process.",
         ],
         inPractice:
           "The transferable part is not the language. It is that a connection-per-process model only pays off if processes are cheap enough that isolation stops being a luxury.",
@@ -2761,7 +2761,7 @@ export const caseStudies: Card[] = [
             label: "Cloudflare, A brief anycast primer",
             url: "https://blog.cloudflare.com/a-brief-anycast-primer/",
             supports:
-              "That the same address is announced from many locations over BGP, so the network itself routes each client to a nearby site, and that this also distributes denial of service traffic.",
+              "That many machines can share one address and routers deliver each packet to the closest, so a whole data centre can be taken offline and traffic flows to the next, and that this also distributes denial of service traffic.",
           },
         ],
         title: "Anycast: letting the network do the routing",
@@ -2769,7 +2769,7 @@ export const caseStudies: Card[] = [
         body: [
           "The usual way to put a service near users is DNS: resolve the name differently depending on where the question came from. It works and it is indirect, because the resolver's location is a guess at the user's, and because answers are cached for as long as the record's lifetime says, which is precisely when you most want to change them.",
           "Anycast moves the decision into routing. The same address is announced from every site, and BGP, which already computes paths continuously, delivers each packet to whichever announcement is nearest in network terms. The client does nothing special; it connects to one address and the internet decides where that is.",
-          "Failure handling comes free and is the better half of the deal. Withdraw the announcement at a site and traffic moves to the next nearest within seconds, with no cache to expire and no client to update. Draining a location for maintenance is the same operation as surviving its loss, which means the failure path is exercised routinely rather than on the worst day.",
+          "Failure handling comes free and is the better half of the deal. Withdraw the announcement at a site and traffic moves to the next nearest within minutes, with no cache to expire and no client to update. Cloudflare's own figures are one to two minutes inside its network and two to fifteen on the wider internet, because routes take time to converge. The advantage over DNS is not that it is faster in absolute terms, it is that no client is holding an answer you have to wait out. Draining a location for maintenance is the same operation as surviving its loss, which means the failure path is exercised routinely rather than on the worst day.",
           "It also changes the shape of a denial of service attack. Traffic aimed at one address is dispersed across every site that announces it, so an attack is absorbed by the whole network rather than concentrated on one data centre. The constraint is that anycast suits stateless and short-lived connections best, because nothing guarantees a long flow keeps landing at the same site if routing shifts underneath it.",
         ],
         why: "The pattern is pushing a decision down to a layer that is already making it. BGP computes reachability anyway, so expressing failover as a route withdrawal costs nothing extra.",
@@ -2783,7 +2783,7 @@ export const caseStudies: Card[] = [
           ],
           correctIndex: 0,
           explain:
-            "One address is announced from many places and routing delivers each packet to the nearest. Failover becomes withdrawing an announcement, which takes effect in seconds with no cached answer to wait out.",
+            "One address is announced from many places and routing delivers each packet to the nearest. Failover becomes withdrawing an announcement, which converges in minutes with no cached answer to wait out.",
         },
       },
       {
@@ -2800,7 +2800,7 @@ export const caseStudies: Card[] = [
         level: "advanced",
         body: [
           "Serverless usually means a container per tenant. The container is the security boundary, and it has to be started, which is where cold starts come from: a request arrives, nothing is running, and the platform spends hundreds of milliseconds building an environment before any code executes.",
-          "A JavaScript engine already solves a version of this problem internally. A browser runs code from many origins in one process, keeping them apart with isolates: separate heaps, separate globals, no shared references. Cloudflare's bet was to use that as the tenancy boundary, so one process hosts many customers' code and starting a new one means creating an isolate rather than booting a sandbox.",
+          "A JavaScript engine already solves a version of this problem internally. A JavaScript engine can host many independent isolates in one process, each with its own heap, its own globals and no shared references. That capability was built for the browser, although browsers no longer lean on it for security across origins: Chrome has given each site its own process since 2018, precisely because in-process separation does not hold against a compromised renderer. Cloudflare's bet was to use that as the tenancy boundary, so one process hosts many customers' code and starting a new one means creating an isolate rather than booting a sandbox.",
           "The economics change completely. Isolate startup is on the order of milliseconds, memory per tenant is small enough that many can sit resident, and the platform can afford to keep code warm in far more locations than a container model would allow. That is what makes running the same function in hundreds of cities plausible rather than absurd.",
           "What is given up is generality and depth of isolation. The code has to target the engine, so the language choice is JavaScript or whatever compiles to WebAssembly, not any binary you like. And the boundary is now a language runtime rather than a kernel or hypervisor, so a bug in the engine is a tenancy bug. That is a real trade, accepted deliberately, and defended with a much narrower attack surface than a general purpose sandbox.",
         ],
@@ -2830,8 +2830,8 @@ export const caseStudies: Card[] = [
         title: "The one-line change that stopped everything",
         level: "advanced",
         body: [
-          "A rule was added to the firewall containing a regular expression. The expression was correct in the sense that it matched what it was meant to match. It also happened to backtrack catastrophically on certain inputs, so matching it could consume an unbounded amount of processor time rather than time proportional to the input.",
-          "It was deployed globally, at once, and every machine that evaluated it against live traffic saturated its processors. The failure was not confined to the firewall feature: the processors were the shared resource, so everything running on those machines suffered, which is how one rule became a network-wide outage.",
+          "A rule was added to the firewall containing a regular expression. It was aimed at cross-site scripting, and the fragment that killed it was the classic shape for this failure: match anything, followed by anything. On certain inputs it backtracked catastrophically, consuming processor time unbounded by the length of the input rather than proportional to it.",
+          "It was deployed globally, at once, bypassing the staged rollout that a non-emergency change should have had. On every machine the cores that serve HTTP and HTTPS traffic went to nearly a hundred per cent. The failure was not confined to the firewall feature: those cores were the shared resource for the whole serving path, so core proxying, the CDN, Access, the dashboard and the API went with it. That is how one rule became a network-wide outage.",
           "Two separable lessons. The first is about the specific technology: backtracking regular expression engines have no cost bound, and any engine evaluating untrusted input against a pattern needs either a non-backtracking implementation or a hard execution budget. This is a known class of bug and it keeps being discovered because the dangerous patterns look ordinary.",
           "The second is the one that generalises. The usual protection against a bad change is to roll it out gradually and watch, and this change took a path that skipped that. The lesson is not that someone was careless; it is that if there is a path which bypasses gradual rollout, it will eventually carry the change that needed it most. The defence is removing the path, not asking people to be careful when they use it.",
         ],
@@ -2865,7 +2865,7 @@ export const caseStudies: Card[] = [
         body: [
           "A flat edge network has an unfortunate property. Two hundred locations each hold their own cache, so a newly published object misses in all of them, and the origin receives two hundred requests for a thing that only needed fetching once.",
           "It gets worse with reach. Adding locations improves latency and multiplies the miss fan-out, so a network that is better for users is harder on the origin, which is a genuinely counterintuitive trade and one that surprises teams the first time they expand.",
-          "Tiered caching inserts a hierarchy. Edge locations do not go to the origin directly; they ask an upper tier, which is a smaller set of larger caches. If that tier has the object, the origin never sees the request at all; if not, one request goes upstream and the result is shared by every location behind it.",
+          "Tiered caching inserts a hierarchy. Edge locations do not go to the origin directly; they ask an upper tier, a smaller set of locations which are the only ones allowed to contact the origin. If that tier has the object, the origin never sees the request at all; if not, one request goes upstream and the result is shared by every location behind it.",
           "This is the same shape as request coalescing, applied across geography rather than within an instant, and it composes with it. The upper tier absorbs the fan-out across locations, coalescing absorbs the fan-out within one, and an origin shielded by both sees something close to the true number of distinct objects rather than the number of people asking for them.",
         ],
         check: {
@@ -2938,7 +2938,7 @@ export const caseStudies: Card[] = [
         body: [
           "Rows are placed by hashing the partition key, which means the key decides everything that matters: where data lives, which requests collide, and whether the table can grow. Picking it is not a schema detail to settle later, it is the architecture.",
           "A key with few distinct values concentrates traffic. Partitioning orders by status puts every pending order on one partition, so throughput is bounded by one machine no matter what the table is provisioned for. A key with many values but skewed popularity does the same thing more subtly: one celebrity account, one viral item, one tenant who is ten times everyone else.",
-          "The service mitigates rather than solves. It can split a partition that has grown, and it can lend capacity to one running hot, which buys room. What it cannot do is split a single key, because a key is the unit of placement by definition. A design whose load concentrates on one value is beyond the reach of any amount of managed cleverness.",
+          "The service mitigates rather than solves. It can split a partition that has grown, and it can lend capacity to one running hot, which buys room. It will even divide the items under one key across partitions as they grow. What it cannot divide is load landing on a single item, or a key range walked strictly in order, and a table carrying a local secondary index cannot have a key's items split at all. Those are the designs beyond the reach of any amount of managed cleverness.",
           "The fixes are all the same shape: add entropy to the key. Suffix it with a bucket number and fan reads across buckets, or include a time component so yesterday's hot key stops being today's. Both make reads more complicated, which is the real cost and the reason this wants deciding up front rather than during an incident.",
         ],
         why: "Every distributed store has this property under a different name. Kafka has partitions, Cassandra has partition keys, a sharded relational database has a shard key, and the failure mode is identical in all of them.",
@@ -2952,7 +2952,7 @@ export const caseStudies: Card[] = [
           ],
           correctIndex: 0,
           explain:
-            "The key is the unit of placement, so load concentrated on few values lands on few partitions. The service can split and lend capacity, but it cannot split a single key, which is why skew has to be designed out rather than managed away.",
+            "The key is the unit of placement, so load concentrated on few values lands on few partitions. The service can split a key's items across partitions and lend capacity, but it cannot divide load landing on one item, or on a key range walked in order, which is why that kind of skew has to be designed out rather than managed away.",
         },
       },
       {
@@ -3024,7 +3024,7 @@ export const caseStudies: Card[] = [
             label: "AWS, change data capture with DynamoDB Streams",
             url: "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html",
             supports:
-              "That an ordered stream of item-level changes is produced per partition key and can be consumed to trigger downstream work, which is what makes a write and its side effects consistent.",
+              "That an ordered stream of item-level changes is produced per item, meaning per primary key, and can be consumed to trigger downstream work, which is what makes a write and its side effects consistent.",
           },
         ],
         title: "Streams: the outbox you do not have to build",
@@ -3032,7 +3032,7 @@ export const caseStudies: Card[] = [
         body: [
           "A familiar bug: write a row, then publish an event about it. Two systems, no transaction between them, so a crash in the middle leaves the row without the event or the event without the row. The usual fix is the outbox pattern, writing the event into the same table in the same transaction and having a separate process ship it.",
           "A change stream removes the need to build that. Every modification produces an ordered record, and a consumer reads that stream to drive whatever has to happen next. Since the stream is generated by the storage itself, there is no window where the write succeeded and the notification was lost; the notification is the write, observed.",
-          "The ordering guarantee is worth reading carefully, because it is per partition key rather than global. Changes to one item arrive in order; changes to different items have no defined order relative to each other. That is almost always enough, and the designs that break are the ones assuming a total order across the table.",
+          "The ordering guarantee is worth reading carefully, because it is per item, meaning per primary key, rather than global. AWS is explicit that it does not hold across a whole partition. Changes to one item arrive in order; changes to different items have no defined order relative to each other. That is almost always enough, and the designs that break are the ones assuming a total order across the table.",
           "What you still own is the consumer's idempotency. Delivery is at least once, so a record can be processed twice after a restart, and the receiving side must make that harmless. The transactional hole is closed; duplicate handling is not, and conflating the two is how teams end up sending the same email twice while believing the stream guaranteed otherwise.",
         ],
         why: "This is change data capture with the plumbing already built, and it is one of the clearest cases where a managed feature removes a genuinely hard distributed systems problem.",
@@ -3103,7 +3103,7 @@ export const caseStudies: Card[] = [
         level: "intermediate",
         body: [
           "The original design was reasonable and it is the one most real-time clients start with. On connection the server sends the whole model, every user, every channel, every membership, and from then on the client applies incremental events. Rendering is instant because everything is local, and the code is simple because there is no case where a reference is missing.",
-          "It scales with the size of the workspace, which is the problem. A team of twenty sends a payload nobody notices. An organisation of tens of thousands sends tens of megabytes to every client on every connect, and connects happen constantly: laptops wake, phones change network, deploys cycle the gateway.",
+          "It scales with the size of the workspace, which is the problem. A team of twenty sends a payload nobody notices. An organisation of tens of thousands sends a payload that grew with the workspace: Slack measured the cache as cutting it roughly sevenfold on a team of 1,500 and forty-fourfold on a team of 32,000. Connects happen constantly: laptops wake, phones change network, deploys cycle the gateway.",
           "What makes it particularly unpleasant is that the cost lands on the slowest clients and the worst networks, and it lands at the moment the user is waiting. It is also quadratic in aggregate, since each of N users downloads data proportional to N, which is the shape that turns a large customer into an incident.",
           "The structural error is assuming the client needs the whole model because it might reference any of it. Almost all of it is never looked at in a session: a user reads a handful of channels and sees a few dozen colleagues. The fix has to be to send what is referenced rather than what is reachable, which means something in the path has to answer for the rest on demand.",
         ],
@@ -3230,7 +3230,7 @@ export const caseStudies: Card[] = [
         title: "When the tenant is the shard key",
         level: "intermediate",
         body: [
-          "Some products hand you the partition key. A workspace is self-contained: its channels, members, messages and files belong to it, and essentially no query crosses from one into another. That makes the tenant the obvious unit for sharding, caching and placement all at once.",
+          "Some products hand you the partition key. A workspace is self-contained: its channels, members, messages and files belong to it, and very little queries across one into another. That makes the tenant an obvious unit for sharding, caching and placement all at once. It is also where Slack eventually ran out of road: once single customers outgrew a shard they re-sharded messages by channel instead, so the workspace was no longer what routed a query.",
           "The benefits compound. A query touches one shard, so there is no scatter and gather. A cache entry is scoped to a workspace, so invalidation is bounded. A noisy customer is contained to their own shard rather than degrading strangers. And a workspace can be moved, for residency or to relieve a hot shard, as a single coherent unit.",
           "The costs show up at the extremes of the distribution. Tenants vary enormously, so a shard holding one very large customer looks nothing like one holding a thousand small ones, and uniform capacity planning is wrong for both. The large tenant eventually exceeds a shard and needs splitting internally, which is the problem you thought you had avoided, arriving late and for one customer.",
           "Then there is the small amount that genuinely spans tenants: shared channels, a user in several workspaces, anything global. That is where the complexity concentrates, and the useful instinct is to keep that set deliberately small, because every feature that crosses the boundary erodes the property the whole design rests on.",
